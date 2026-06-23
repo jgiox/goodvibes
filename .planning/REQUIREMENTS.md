@@ -37,15 +37,15 @@
 
 ### caveman Skill
 
-- [ ] **CAV-01**: `init` writes the caveman Claude skill to `.claude/skills/caveman/` in the target project
-- [ ] **CAV-02**: caveman skill is forked from `juliusbrussee/caveman` with full attribution and Apache 2.0 NOTICE file
-- [ ] **CAV-03**: caveman skill works out of the box with no configuration required
+- [x] **CAV-01**: `init` writes the caveman Claude skill to `.claude/skills/caveman/` in the target project
+- [x] **CAV-02**: caveman skill is forked from `juliusbrussee/caveman` with full attribution and Apache 2.0 NOTICE file
+- [x] **CAV-03**: caveman skill works out of the box with no configuration required
 
 ### goodvibes-hygiene Skill
 
-- [ ] **HYG-01**: `init` writes a `goodvibes-hygiene` Claude skill to `.claude/skills/goodvibes-hygiene/`
-- [ ] **HYG-02**: Skill wraps the key ponytail commands (`/ponytail-review`, `/ponytail-audit`) with goodvibes-specific context
-- [ ] **HYG-03**: Skill instructs the user to install ponytail via `/plugin marketplace add DietrichGebert/ponytail` and surfaces this in the post-install "what to do next" block
+- [x] **HYG-01**: `init` writes a `goodvibes-hygiene` Claude skill to `.claude/skills/goodvibes-hygiene/`
+- [x] **HYG-02**: Skill wraps the key ponytail commands (`/ponytail-review`, `/ponytail-audit`) with goodvibes-specific context
+- [x] **HYG-03**: Skill instructs the user to install ponytail via `/plugin marketplace add DietrichGebert/ponytail` and surfaces this in the post-install "what to do next" block
 
 ### headroom Integration
 
@@ -124,12 +124,12 @@
 | CLAUDEMD-03 | Phase 1 | Complete |
 | CLAUDEMD-04 | Phase 1 | Complete |
 | CLAUDEMD-05 | Phase 1 | Complete |
-| CAV-01 | Phase 1 | Pending |
-| CAV-02 | Phase 1 | Pending |
-| CAV-03 | Phase 1 | Pending |
-| HYG-01 | Phase 1 | Pending |
-| HYG-02 | Phase 1 | Pending |
-| HYG-03 | Phase 1 | Pending |
+| CAV-01 | Phase 1 | Complete |
+| CAV-02 | Phase 1 | Complete |
+| CAV-03 | Phase 1 | Complete |
+| HYG-01 | Phase 1 | Complete |
+| HYG-02 | Phase 1 | Complete |
+| HYG-03 | Phase 1 | Complete |
 | DOCS-01 | Phase 1 | Pending |
 | DOCS-02 | Phase 1 | Pending |
 | DOCS-03 | Phase 1 | Pending |
