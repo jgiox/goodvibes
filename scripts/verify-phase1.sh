@@ -6,7 +6,7 @@ cd "$(dirname "$0")/.."
 pass=0; fail=0
 
 check() {
-  if eval "$2" > /dev/null 2>&1; then
+  if bash -c "$2" > /dev/null 2>&1; then
     echo "PASS [$1]"
     pass=$((pass + 1))
   else
