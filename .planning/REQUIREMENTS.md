@@ -117,17 +117,68 @@
 
 ## Traceability
 
-To be populated during roadmap creation.
-
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| (populated by roadmapper) | | |
+| CLAUDEMD-01 | Phase 1 | Pending |
+| CLAUDEMD-02 | Phase 1 | Pending |
+| CLAUDEMD-03 | Phase 1 | Pending |
+| CLAUDEMD-04 | Phase 1 | Pending |
+| CLAUDEMD-05 | Phase 1 | Pending |
+| CAV-01 | Phase 1 | Pending |
+| CAV-02 | Phase 1 | Pending |
+| CAV-03 | Phase 1 | Pending |
+| HYG-01 | Phase 1 | Pending |
+| HYG-02 | Phase 1 | Pending |
+| HYG-03 | Phase 1 | Pending |
+| DOCS-01 | Phase 1 | Pending |
+| DOCS-02 | Phase 1 | Pending |
+| DOCS-03 | Phase 1 | Pending |
+| DOCS-04 | Phase 1 | Pending |
+| DOCS-05 | Phase 1 | Pending |
+| DOCS-06 | Phase 1 | Pending |
+| DOCS-07 | Phase 1 | Pending |
+| REPO-01 | Phase 1 | Pending |
+| REPO-02 | Phase 1 | Pending |
+| REPO-03 | Phase 1 | Pending |
+| REPO-04 | Phase 1 | Pending |
+| NPM-01 | Phase 2 | Pending |
+| NPM-02 | Phase 2 | Pending |
+| NPM-03 | Phase 2 | Pending |
+| NPM-04 | Phase 2 | Pending |
+| NPM-05 | Phase 2 | Pending |
+| NPM-06 | Phase 2 | Pending |
+| NPM-07 | Phase 2 | Pending |
+| NPM-08 | Phase 2 | Pending |
+| NPM-09 | Phase 2 | Pending |
+| NPM-10 | Phase 2 | Pending |
+| NPM-11 | Phase 2 | Pending |
+| HDR-01 | Phase 2 | Pending |
+| HDR-02 | Phase 2 | Pending |
+| HDR-03 | Phase 2 | Pending |
+| HDR-04 | Phase 2 | Pending |
+| HDR-05 | Phase 2 | Pending |
+| HDR-06 | Phase 2 | Pending |
+| PIP-01 | Phase 3 | Pending |
+| PIP-02 | Phase 3 | Pending |
+| PIP-03 | Phase 3 | Pending |
+| PIP-04 | Phase 3 | Pending |
+| PIP-05 | Phase 3 | Pending |
+| CI-01 | Phase 4 | Pending |
+| CI-02 | Phase 4 | Pending |
+| CI-03 | Phase 4 | Pending |
+| CI-04 | Phase 4 | Pending |
+| CI-05 | Phase 4 | Pending |
+| CI-06 | Phase 4 | Pending |
+| UPG-01 | Phase 5 | Pending |
+| UPG-02 | Phase 5 | Pending |
+| UPG-03 | Phase 5 | Pending |
+| UPG-04 | Phase 5 | Pending |
 
 **Coverage:**
-- v1 requirements: 46 total
-- Mapped to phases: 0
-- Unmapped: 46 ⚠️
+- v1 requirements: 54 total
+- Mapped to phases: 54
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-06-23*
-*Last updated: 2026-06-23 after initial definition*
+*Last updated: 2026-06-23 — traceability populated during roadmap creation*
