@@ -1,5 +1,5 @@
 {
-  "name": "goodvibes",
+  "name": "@jgiox/goodvibes",
   "version": "1.0.0",
   "description": "One-command bootstrap for vibe coding projects",
   "type": "module",
