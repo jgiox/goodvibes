@@ -38,11 +38,12 @@ key-decisions:
 
 requirements-completed:
   - NPM-10
+  - NPM-11
 
 metrics:
   duration: "5 min"
   completed: "2026-06-23"
-  tasks_completed: 1
+  tasks_completed: 2
   files_created: 1
   files_modified: 2
 ---
@@ -91,19 +92,23 @@ None - plan executed exactly as written.
 
 None.
 
-## Checkpoint Status: PENDING
+## Checkpoint Status: COMPLETE
 
 **Task 2: Human gate — full phase smoke test and npm publish**
 
-Task 2 is a `checkpoint:human-verify` — it requires the user to:
-1. Run the full test suite, smoke harness, and end-to-end init flows
-2. Optionally publish to npm registry
+All 8 verification steps passed:
+- 45/45 tests pass
+- 32/32 smoke harness checks pass
+- E2E dry-run: named steps, file list, next-steps block, exit 0
+- E2E real init: 19 files written, headroom installed, MCP registered, exit 0
+- Idempotency: custom CLAUDE.md edit preserved across second run
+- npm pack --dry-run: dist/ and templates/ present, src/ absent
+- README: Windows/WSL2 note added (NPM-09)
+- Published as `@jgiox/goodvibes@1.0.0`; `npx @jgiox/goodvibes@latest init --dry-run` resolves from registry (NPM-11)
 
-See the checkpoint details below for exact steps.
-
-## User Setup Required
-
-npm registry login required for publish step. See checkpoint details below.
+Two bugs fixed during E2E verification:
+- `install-headroom.ts`: non-ENOENT build failures now soft-fail (C++ compiler missing for hnswlib)
+- `configure-mcp.ts`: `which headroom` and `headroom mcp install` ENOENT now handled gracefully
 
 ## Next Phase Readiness
 

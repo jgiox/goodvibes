@@ -14,7 +14,7 @@ goodvibes delivers a single-command bootstrap CLI for AI-assisted (vibe) coding 
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Template Content & Repo Foundation** - Author the canonical template files (CLAUDE.md, skills, docs, license) that both CLIs will copy (completed 2026-06-23)
-- [ ] **Phase 2: npm CLI** - Build `npx goodvibes init` with full headroom integration, sentinel merge, and project-type detection
+- [x] **Phase 2: npm CLI** - Build `npx goodvibes init` with full headroom integration, sentinel merge, and project-type detection (completed 2026-06-23)
 - [ ] **Phase 3: pip CLI** - Port the npm CLI to Python and publish to PyPI as `goodvibes`
 - [ ] **Phase 4: CI/CD Scaffolding** - Validate and harden generated GitHub Actions workflows for both project types
 - [ ] **Phase 5: Upgrade Command & Template Repo** - Implement `goodvibes upgrade` and publish the GitHub template repo as the click-to-fork entry point
@@ -61,16 +61,16 @@ Plans:
 **Wave 1**
 
 - [x] 02-01-PLAN.md — Wave 0: verify-phase2.sh harness + packages/npm/ scaffold (package.json, tsup, tsconfig, entry stub, vitest, test stubs)
-- [ ] 02-02-PLAN.md — Wave 1: sentinel-merge.ts (4-case CLAUDE.md merge) + copy-templates.ts (bulk copy orchestrator)
-- [ ] 02-03-PLAN.md — Wave 1: detect-python.ts + install-headroom.ts + configure-mcp.ts (headroom integration)
+- [x] 02-02-PLAN.md — Wave 1: sentinel-merge.ts (4-case CLAUDE.md merge) + copy-templates.ts (bulk copy orchestrator)
+- [x] 02-03-PLAN.md — Wave 1: detect-python.ts + install-headroom.ts + configure-mcp.ts (headroom integration)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 02-04-PLAN.md — Wave 1: commands/init.ts complete action handler + index.ts wiring
+- [x] 02-04-PLAN.md — Wave 2: commands/init.ts complete action handler + index.ts wiring
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 02-05-PLAN.md — Wave 2: .npmignore + package.json publish finalization + npm publish human checkpoint
+- [x] 02-05-PLAN.md — Wave 3: .npmignore + package.json publish finalization + npm publish human checkpoint
 
 **UI hint**: no
 
@@ -128,7 +128,7 @@ Note: Phase 3 (pip CLI) and Phase 4 (CI scaffolding) have no dependency on each 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Template Content & Repo Foundation | 4/4 | Complete   | 2026-06-23 |
-| 2. npm CLI | 1/5 | In Progress|  |
+| 2. npm CLI | 5/5 | Complete | 2026-06-23 |
 | 3. pip CLI | 0/TBD | Not started | - |
 | 4. CI/CD Scaffolding | 0/TBD | Not started | - |
 | 5. Upgrade Command & Template Repo | 0/TBD | Not started | - |
