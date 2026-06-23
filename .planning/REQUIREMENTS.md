@@ -67,13 +67,13 @@
 
 ### Docs Scaffolding
 
-- [ ] **DOCS-01**: `init` writes `CONTRIBUTING.md` with the git fork/branch/PR workflow explained for beginners
-- [ ] **DOCS-02**: `init` writes `SECURITY.md` with private vulnerability reporting guidance
-- [ ] **DOCS-03**: `init` writes `JOURNAL.md` with template and example entry
-- [ ] **DOCS-04**: `init` writes `CHANGELOG.md` with Unreleased section ready
-- [ ] **DOCS-05**: `init` writes `.github/ISSUE_TEMPLATE/bug_report.yml` and `feature_request.yml`
-- [ ] **DOCS-06**: `init` writes `.github/PULL_REQUEST_TEMPLATE.md` with the standard checklist
-- [ ] **DOCS-07**: `init` writes `docs/onboarding.md` — beginner guide covering git clone, branch, PR workflow in plain language
+- [x] **DOCS-01**: `init` writes `CONTRIBUTING.md` with the git fork/branch/PR workflow explained for beginners
+- [x] **DOCS-02**: `init` writes `SECURITY.md` with private vulnerability reporting guidance
+- [x] **DOCS-03**: `init` writes `JOURNAL.md` with template and example entry
+- [x] **DOCS-04**: `init` writes `CHANGELOG.md` with Unreleased section ready
+- [x] **DOCS-05**: `init` writes `.github/ISSUE_TEMPLATE/bug_report.yml` and `feature_request.yml`
+- [x] **DOCS-06**: `init` writes `.github/PULL_REQUEST_TEMPLATE.md` with the standard checklist
+- [x] **DOCS-07**: `init` writes `docs/onboarding.md` — beginner guide covering git clone, branch, PR workflow in plain language
 
 ### Upgrade
 
@@ -130,13 +130,13 @@
 | HYG-01 | Phase 1 | Complete |
 | HYG-02 | Phase 1 | Complete |
 | HYG-03 | Phase 1 | Complete |
-| DOCS-01 | Phase 1 | Pending |
-| DOCS-02 | Phase 1 | Pending |
-| DOCS-03 | Phase 1 | Pending |
-| DOCS-04 | Phase 1 | Pending |
-| DOCS-05 | Phase 1 | Pending |
-| DOCS-06 | Phase 1 | Pending |
-| DOCS-07 | Phase 1 | Pending |
+| DOCS-01 | Phase 1 | Complete |
+| DOCS-02 | Phase 1 | Complete |
+| DOCS-03 | Phase 1 | Complete |
+| DOCS-04 | Phase 1 | Complete |
+| DOCS-05 | Phase 1 | Complete |
+| DOCS-06 | Phase 1 | Complete |
+| DOCS-07 | Phase 1 | Complete |
 | REPO-01 | Phase 1 | Complete |
 | REPO-02 | Phase 1 | Complete |
 | REPO-03 | Phase 1 | Complete |

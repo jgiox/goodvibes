@@ -12,7 +12,7 @@ goodvibes delivers a single-command bootstrap CLI for AI-assisted (vibe) coding 
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Template Content & Repo Foundation** - Author the canonical template files (CLAUDE.md, skills, docs, license) that both CLIs will copy
+- [x] **Phase 1: Template Content & Repo Foundation** - Author the canonical template files (CLAUDE.md, skills, docs, license) that both CLIs will copy (completed 2026-06-23)
 - [ ] **Phase 2: npm CLI** - Build `npx goodvibes init` with full headroom integration, sentinel merge, and project-type detection
 - [ ] **Phase 3: pip CLI** - Port the npm CLI to Python and publish to PyPI as `goodvibes`
 - [ ] **Phase 4: CI/CD Scaffolding** - Validate and harden generated GitHub Actions workflows for both project types
@@ -90,7 +90,7 @@ Note: Phase 3 (pip CLI) and Phase 4 (CI scaffolding) have no dependency on each 
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Template Content & Repo Foundation | 3/4 | In Progress|  |
+| 1. Template Content & Repo Foundation | 4/4 | Complete   | 2026-06-23 |
 | 2. npm CLI | 0/TBD | Not started | - |
 | 3. pip CLI | 0/TBD | Not started | - |
 | 4. CI/CD Scaffolding | 0/TBD | Not started | - |
