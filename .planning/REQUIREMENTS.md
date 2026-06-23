@@ -29,11 +29,11 @@
 
 ### CLAUDE.md
 
-- [ ] **CLAUDEMD-01**: `init` writes a `CLAUDE.md` to the target project root (or merges into existing using sentinel blocks)
-- [ ] **CLAUDEMD-02**: CLAUDE.md is 80–100 lines — curated from karpathy rules and Code Directions.md to only what a vibe coder needs every session
-- [ ] **CLAUDEMD-03**: CLAUDE.md includes a version stamp (e.g. `# goodvibes: v1.0.0`) for future upgrade compatibility
-- [ ] **CLAUDEMD-04**: CLAUDE.md auto-activates ponytail minimalism rules (no manual `/ponytail` invocation required)
-- [ ] **CLAUDEMD-05**: CLAUDE.md covers: think before coding, simplicity first, surgical changes, fail loud, security basics, journal requirement — and nothing else
+- [x] **CLAUDEMD-01**: `init` writes a `CLAUDE.md` to the target project root (or merges into existing using sentinel blocks)
+- [x] **CLAUDEMD-02**: CLAUDE.md is 80–100 lines — curated from karpathy rules and Code Directions.md to only what a vibe coder needs every session
+- [x] **CLAUDEMD-03**: CLAUDE.md includes a version stamp (e.g. `# goodvibes: v1.0.0`) for future upgrade compatibility
+- [x] **CLAUDEMD-04**: CLAUDE.md auto-activates ponytail minimalism rules (no manual `/ponytail` invocation required)
+- [x] **CLAUDEMD-05**: CLAUDE.md covers: think before coding, simplicity first, surgical changes, fail loud, security basics, journal requirement — and nothing else
 
 ### caveman Skill
 
@@ -119,11 +119,11 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| CLAUDEMD-01 | Phase 1 | Pending |
-| CLAUDEMD-02 | Phase 1 | Pending |
-| CLAUDEMD-03 | Phase 1 | Pending |
-| CLAUDEMD-04 | Phase 1 | Pending |
-| CLAUDEMD-05 | Phase 1 | Pending |
+| CLAUDEMD-01 | Phase 1 | Complete |
+| CLAUDEMD-02 | Phase 1 | Complete |
+| CLAUDEMD-03 | Phase 1 | Complete |
+| CLAUDEMD-04 | Phase 1 | Complete |
+| CLAUDEMD-05 | Phase 1 | Complete |
 | CAV-01 | Phase 1 | Pending |
 | CAV-02 | Phase 1 | Pending |
 | CAV-03 | Phase 1 | Pending |

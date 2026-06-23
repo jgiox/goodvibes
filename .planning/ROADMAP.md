@@ -90,7 +90,7 @@ Note: Phase 3 (pip CLI) and Phase 4 (CI scaffolding) have no dependency on each 
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Template Content & Repo Foundation | 0/TBD | Not started | - |
+| 1. Template Content & Repo Foundation | 1/4 | In Progress|  |
 | 2. npm CLI | 0/TBD | Not started | - |
 | 3. pip CLI | 0/TBD | Not started | - |
 | 4. CI/CD Scaffolding | 0/TBD | Not started | - |
