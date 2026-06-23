@@ -2,8 +2,8 @@
 phase: 2
 slug: npm-cli
 status: draft
-nyquist_compliant: false
-wave_0_complete: false
+nyquist_compliant: true
+wave_0_complete: true
 created: 2026-06-23
 ---
 
@@ -40,13 +40,13 @@ created: 2026-06-23
 |---------|------|------|-------------|------------|-----------------|-----------|-------------------|--------|
 | 02-01-T0 | 01 | 0 | NPM-01..11 | — | N/A | shell | `bash scripts/verify-phase2.sh` | ⬜ pending |
 | 02-01-T1 | 01 | 1 | NPM-01 | T-02-01 | package.json bin field points to compiled entry | shell | `node -e "const p=require('./packages/npm/package.json');process.exit(p.bin?.goodvibes?0:1)"` | ⬜ pending |
-| 02-01-T2 | 01 | 1 | NPM-02 | T-02-02 | Commander init subcommand registers --dry-run and --minimal | shell | `node packages/npm/dist/index.cjs --help 2>&1 \| grep -q 'init' && echo PASS` | ⬜ pending |
+| 02-01-T2 | 01 | 1 | NPM-02 | T-02-02 | Commander init subcommand registers --dry-run and --minimal | shell | `node packages/npm/dist/index.js --help 2>&1 \| grep -q 'init' && echo PASS` | ⬜ pending |
 | 02-02-T1 | 02 | 1 | NPM-03 | T-02-03 | files copied, sentinel block present in CLAUDE.md | shell | `test -f /tmp/gv-test/CLAUDE.md && grep -q 'goodvibes:start' /tmp/gv-test/CLAUDE.md && echo PASS` | ⬜ pending |
 | 02-02-T2 | 02 | 1 | NPM-04 | — | idempotent: second run does not clobber user edits | shell | manual — requires two-run sequence | ⬜ pending |
 | 02-03-T1 | 03 | 1 | HDR-01 | T-02-HDR1 | headroom install skipped gracefully when Python absent | shell | `(PATH=/nonexistent npx --yes goodvibes init 2>&1 \| grep -q 'Python' && echo PASS) \|\| echo SKIP` | ⬜ pending |
 | 02-03-T2 | 03 | 1 | HDR-03 | T-02-HDR3 | MCP registration uses absolute path | shell | manual — requires headroom installed | ⬜ pending |
-| 02-04-T1 | 04 | 1 | NPM-05 | — | --dry-run prints files without writing | shell | `mkdir -p /tmp/gv-drytest && node packages/npm/dist/index.cjs init --dry-run 2>&1 \| grep -q 'Would write' && test ! -f /tmp/gv-drytest/CLAUDE.md && echo PASS` | ⬜ pending |
-| 02-04-T2 | 04 | 1 | NPM-06 | — | --minimal skips headroom and CI | shell | `node packages/npm/dist/index.cjs init --minimal 2>&1 \| grep -qv 'headroom' && echo PASS` | ⬜ pending |
+| 02-04-T1 | 04 | 1 | NPM-05 | — | --dry-run prints files without writing | shell | `mkdir -p /tmp/gv-drytest && node packages/npm/dist/index.js init --dry-run 2>&1 \| grep -q 'Would write' && test ! -f /tmp/gv-drytest/CLAUDE.md && echo PASS` | ⬜ pending |
+| 02-04-T2 | 04 | 1 | NPM-06 | — | --minimal skips headroom and CI | shell | `node packages/npm/dist/index.js init --minimal 2>&1 \| grep -qv 'headroom' && echo PASS` | ⬜ pending |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
