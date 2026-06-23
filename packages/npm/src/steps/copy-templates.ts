@@ -1,12 +1,20 @@
-import { copy, readFile } from 'fs-extra'
+import { copy } from 'fs-extra'
+import { readFile } from 'node:fs/promises'
 import { readdir } from 'fs/promises'
+import { existsSync } from 'fs'
 import { join, relative } from 'path'
 import { fileURLToPath } from 'url'
 import { mergeClaude } from '../utils/sentinel-merge.js'
 
 export function resolveTemplatesDir(): string {
-  // From packages/npm/src/steps/copy-templates.ts:
-  // strip filename → src/steps/, ../ → src/, ../../ → npm/, ../../../ → packages/, ../../../../ → repo root
+  // tsup bundles everything into dist/index.js so import.meta.url at runtime points to
+  // packages/npm/dist/index.js → '../templates' resolves to packages/npm/templates/ (prebuild copy).
+  // When vitest runs source files directly, import.meta.url points to src/steps/copy-templates.ts
+  // → '../../../../templates' resolves to the repo-root templates/ directory.
+  // We probe both candidates and return the first that exists.
+  const distRelative = fileURLToPath(new URL('../templates', import.meta.url))
+  if (existsSync(distRelative)) return distRelative
+  // Fallback: source-relative path (dev / vitest)
   return fileURLToPath(new URL('../../../../templates', import.meta.url))
 }
 

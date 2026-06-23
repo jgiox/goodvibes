@@ -1,4 +1,5 @@
-import { outputFile, pathExists, readFile, writeFile } from 'fs-extra'
+import { outputFile, pathExists } from 'fs-extra'
+import { readFile, writeFile } from 'node:fs/promises'
 
 const SENTINEL_START = '<!-- goodvibes:start -->'
 const SENTINEL_END = '<!-- goodvibes:end -->'

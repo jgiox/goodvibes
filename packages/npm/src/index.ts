@@ -8,6 +8,7 @@ if (major < 20) {
 }
 
 import { Command } from 'commander'
+import { registerInitCommand } from './commands/init.js'
 
 const program = new Command()
 
@@ -16,14 +17,6 @@ program
   .version('1.0.0')
   .description('One-command bootstrap for vibe coding projects')
 
-program
-  .command('init')
-  .description('Bootstrap a project with goodvibes configuration')
-  .option('--dry-run', 'Preview files without writing to disk')
-  .option('--minimal', 'Skip headroom install and CI workflows')
-  .action(async (_options: { dryRun: boolean; minimal: boolean }) => {
-    process.stdout.write('init stub — Wave 1 will implement\n')
-    process.exit(0)
-  })
+registerInitCommand(program)
 
 await program.parseAsync(process.argv)
