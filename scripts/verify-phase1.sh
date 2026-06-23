@@ -37,4 +37,9 @@ check "REPO-03"     "grep -q 'npx goodvibes init' README.md"
 
 echo ""
 echo "Results: $pass passed, $fail failed"
-[ $fail -eq 0 ] && echo "Phase 1 gate: PASS" || { echo "Phase 1 gate: FAIL"; exit 1; }
+if [ "$fail" -eq 0 ]; then
+  echo "Phase 1 gate: PASS"
+else
+  echo "Phase 1 gate: FAIL" >&2
+  exit 1
+fi
