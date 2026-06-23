@@ -84,10 +84,10 @@
 
 ### Repo and License
 
-- [ ] **REPO-01**: Apache 2.0 `LICENSE` file at repo root
-- [ ] **REPO-02**: `NOTICE` file crediting caveman (juliusbrussee/caveman, MIT), ponytail (DietrichGebert/ponytail, MIT), and headroom (headroomlabs-ai/headroom, Apache 2.0)
-- [ ] **REPO-03**: Repo README has `npx goodvibes init` as the hero action — the first thing a visitor sees
-- [ ] **REPO-04**: Template files symlinked between npm and pip packages (single source of truth)
+- [x] **REPO-01**: Apache 2.0 `LICENSE` file at repo root
+- [x] **REPO-02**: `NOTICE` file crediting caveman (juliusbrussee/caveman, MIT), ponytail (DietrichGebert/ponytail, MIT), and headroom (headroomlabs-ai/headroom, Apache 2.0)
+- [x] **REPO-03**: Repo README has `npx goodvibes init` as the hero action — the first thing a visitor sees
+- [x] **REPO-04**: Template files symlinked between npm and pip packages (single source of truth)
 
 ## v2 Requirements
 
@@ -137,10 +137,10 @@
 | DOCS-05 | Phase 1 | Pending |
 | DOCS-06 | Phase 1 | Pending |
 | DOCS-07 | Phase 1 | Pending |
-| REPO-01 | Phase 1 | Pending |
-| REPO-02 | Phase 1 | Pending |
-| REPO-03 | Phase 1 | Pending |
-| REPO-04 | Phase 1 | Pending |
+| REPO-01 | Phase 1 | Complete |
+| REPO-02 | Phase 1 | Complete |
+| REPO-03 | Phase 1 | Complete |
+| REPO-04 | Phase 1 | Complete |
 | NPM-01 | Phase 2 | Pending |
 | NPM-02 | Phase 2 | Pending |
 | NPM-03 | Phase 2 | Pending |
