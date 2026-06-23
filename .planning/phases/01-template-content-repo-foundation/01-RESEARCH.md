@@ -607,17 +607,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Ponytail embedding: condensed vs. full SKILL.md**
    - What we know: Full SKILL.md body is ~80 lines (without frontmatter). Condensed version is ~40 lines. The 80-100 line target for CLAUDE.md is firm (CLAUDEMD-02).
    - What's unclear: Decision D-06 says "use the actual rules, not a summary" — but embedding the full content blows the line budget.
    - Recommendation: Planner should clarify: does D-06 mean "no paraphrasing" (use exact text, condensed section) or "embed entire file" (accept >100 lines as an exception). If unclear, embed the ladder + rules + when-not-to-be-lazy sections only (~50 lines) and omit the intensity table and examples.
+   - **RESOLVED:** Embed the condensed version from PATTERNS.md lines 119-165 (~50 lines). This preserves all rule categories (ladder, rules, output, intensity, when-not-to-be-lazy) within the 80-100 line budget. D-06's intent is "no paraphrasing" (use exact rule text, not invented summaries) — it does not require embedding the full file at the cost of violating CLAUDEMD-02. The condensed form in PATTERNS.md satisfies both constraints: exact rule text, within budget.
 
 2. **Caveman sub-skills: all 7 or just root skill?**
    - What we know: juliusbrussee/caveman has 7 skill subdirs. The CAV-03 requirement says "works out of the box with no config."
    - What's unclear: The root `caveman/SKILL.md` is self-contained. Sub-skills (caveman-commit, etc.) provide additional commands. D-15 says "fork caveman as-is" — which implies all files.
    - Recommendation: Copy all 7 skill directories. "As-is" in D-15 means no behavior changes, not "partial copy."
+   - **RESOLVED:** Copy all 7 skill directories (caveman, caveman-commit, caveman-compress, caveman-help, caveman-review, caveman-stats, cavecrew) per D-15 "fork as-is." The phrase means no behavior modifications; it does not permit a partial copy.
 
 3. **Template CLAUDE.md vs. repo root CLAUDE.md**
    - What we know: The repo already has a `CLAUDE.md` for contributors. `templates/CLAUDE.md` is for user projects.
