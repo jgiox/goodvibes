@@ -72,11 +72,11 @@ check "NPM-08-ORDER" "
 # HDR-06: npm pkg get scripts.postinstall returns empty string (no postinstall hook)
 check "HDR-06-PKG" "cd packages/npm && result=\$(npm pkg get scripts.postinstall 2>/dev/null); [ \"\$result\" = '{}' ] || [ -z \"\$result\" ]"
 
-# NPM-06: --dry-run option mentioned in src/index.ts (stub wired)
-check "NPM-06-DRYRUN-SRC" "grep -q 'dry-run' packages/npm/src/index.ts"
+# NPM-06: --dry-run option defined in commands/init.ts (refactored from index.ts stub)
+check "NPM-06-DRYRUN-SRC" "grep -q 'dry-run' packages/npm/src/commands/init.ts"
 
-# NPM-07: --minimal option mentioned in src/index.ts (stub wired)
-check "NPM-07-MINIMAL-SRC" "grep -q 'minimal' packages/npm/src/index.ts"
+# NPM-07: --minimal option defined in commands/init.ts (refactored from index.ts stub)
+check "NPM-07-MINIMAL-SRC" "grep -q 'minimal' packages/npm/src/commands/init.ts"
 
 # NPM-10: execa dependency present in package.json (cross-spawn met via execa)
 check "NPM-10-EXECA" "node -e \"const p=JSON.parse(require('fs').readFileSync('packages/npm/package.json','utf8'));process.exit(p.dependencies&&p.dependencies.execa?0:1)\""
