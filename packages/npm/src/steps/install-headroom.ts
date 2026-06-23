@@ -39,8 +39,12 @@ export async function installHeadroom(log: (msg: string) => void): Promise<void>
         // Installer not found — try next
         continue
       }
-      // Unexpected error — surface it
-      throw e
+      // Install failed (e.g. missing C++ compiler for native deps like hnswlib).
+      // Treat as soft failure so init still exits 0 with all other files written.
+      const summary = (e as Error).message?.split('\n')[0] ?? 'unknown error'
+      log(`headroom install failed: ${summary}`)
+      log('You can install headroom manually later: uv tool install "headroom-ai[all]"')
+      return
     }
   }
 

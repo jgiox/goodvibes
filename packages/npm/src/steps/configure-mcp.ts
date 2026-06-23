@@ -40,10 +40,16 @@ export async function configureMcp(log: (msg: string) => void): Promise<void> {
       return
     }
 
-    // Resolve absolute path to headroom binary
+    // Resolve absolute path to headroom binary — fails gracefully if headroom not installed
     const whichCmd = process.platform === 'win32' ? 'where' : 'which'
-    const pathResult = await execa(whichCmd, ['headroom'])
-    const absolutePath = pathResult.stdout.trim()
+    let absolutePath: string
+    try {
+      const pathResult = await execa(whichCmd, ['headroom'])
+      absolutePath = pathResult.stdout.trim()
+    } catch {
+      log('headroom binary not found on PATH — MCP registration skipped. Run `uv tool install "headroom-ai[all]"` then re-run `goodvibes init`.')
+      return
+    }
 
     // Register with absolute path — MCP clients may not inherit full user PATH
     await execa('claude', ['mcp', 'add', '-s', 'user', 'headroom', absolutePath])
@@ -54,8 +60,16 @@ export async function configureMcp(log: (msg: string) => void): Promise<void> {
       // claude CLI not on PATH — fall back to headroom mcp install
       log('claude CLI not found — falling back to headroom mcp install')
       log('Warning: if you use CLAUDE_CONFIG_DIR, you may need to run `headroom mcp install` manually')
-      await execa('headroom', ['mcp', 'install'])
-      return
+      try {
+        await execa('headroom', ['mcp', 'install'])
+        return
+      } catch (fallbackErr: unknown) {
+        if ((fallbackErr as NodeJS.ErrnoException).code === 'ENOENT') {
+          log('headroom binary not found — MCP registration skipped. Install headroom and run `headroom mcp install` manually.')
+          return
+        }
+        throw fallbackErr
+      }
     }
     // Unexpected error — re-throw
     throw e
