@@ -60,7 +60,7 @@ Plans:
 **Plans**: 5 plansPlans:
 **Wave 1**
 
-- [ ] 02-01-PLAN.md — Wave 0: verify-phase2.sh harness + packages/npm/ scaffold (package.json, tsup, tsconfig, entry stub, vitest, test stubs)
+- [x] 02-01-PLAN.md — Wave 0: verify-phase2.sh harness + packages/npm/ scaffold (package.json, tsup, tsconfig, entry stub, vitest, test stubs)
 - [ ] 02-02-PLAN.md — Wave 1: sentinel-merge.ts (4-case CLAUDE.md merge) + copy-templates.ts (bulk copy orchestrator)
 - [ ] 02-03-PLAN.md — Wave 1: detect-python.ts + install-headroom.ts + configure-mcp.ts (headroom integration)
 
@@ -128,7 +128,7 @@ Note: Phase 3 (pip CLI) and Phase 4 (CI scaffolding) have no dependency on each 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Template Content & Repo Foundation | 4/4 | Complete   | 2026-06-23 |
-| 2. npm CLI | 0/5 | Not started | - |
+| 2. npm CLI | 1/5 | In Progress|  |
 | 3. pip CLI | 0/TBD | Not started | - |
 | 4. CI/CD Scaffolding | 0/TBD | Not started | - |
 | 5. Upgrade Command & Template Repo | 0/TBD | Not started | - |

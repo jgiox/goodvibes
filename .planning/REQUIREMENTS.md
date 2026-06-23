@@ -14,8 +14,8 @@
 - [ ] **NPM-05**: CLI prints a "what to do next" block (max 3 steps) after install
 - [ ] **NPM-06**: CLI supports `--minimal` flag (skip headroom install, skip CI workflows) for advanced users who want only the Claude skills + CLAUDE.md
 - [ ] **NPM-07**: CLI supports `--dry-run` flag to preview what would be written without touching the filesystem
-- [ ] **NPM-08**: CLI requires Node 20 LTS or higher and errors clearly if not met
-- [ ] **NPM-09**: CLI works on Linux and macOS; Windows documented as best-effort (WSL recommended)
+- [x] **NPM-08**: CLI requires Node 20 LTS or higher and errors clearly if not met
+- [x] **NPM-09**: CLI works on Linux and macOS; Windows documented as best-effort (WSL recommended)
 - [ ] **NPM-10**: CLI uses `cross-spawn` for all subprocess calls to avoid Windows PATH issues
 - [ ] **NPM-11**: npm package published as `goodvibes` (or `@jgiox/goodvibes`)
 
@@ -148,8 +148,8 @@
 | NPM-05 | Phase 2 | Pending |
 | NPM-06 | Phase 2 | Pending |
 | NPM-07 | Phase 2 | Pending |
-| NPM-08 | Phase 2 | Pending |
-| NPM-09 | Phase 2 | Pending |
+| NPM-08 | Phase 2 | Complete |
+| NPM-09 | Phase 2 | Complete |
 | NPM-10 | Phase 2 | Pending |
 | NPM-11 | Phase 2 | Pending |
 | HDR-01 | Phase 2 | Pending |

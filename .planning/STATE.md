@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.0.0
 milestone_name: milestone
 status: executing
-last_updated: "2026-06-23T16:16:38.070Z"
-last_activity: 2026-06-23 -- Phase 2 planning complete
+last_updated: "2026-06-23T16:31:47.834Z"
+last_activity: 2026-06-23
 progress:
   total_phases: 5
   completed_phases: 1
   total_plans: 9
-  completed_plans: 4
+  completed_plans: 5
   percent: 20
 ---
 
@@ -20,16 +20,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-23)
 
 **Core value:** One command gives a vibe coder a fully configured project — token efficiency and engineering discipline happen automatically in the background.
-**Current focus:** Phase 01 — Template Content & Repo Foundation
+**Current focus:** Phase 02 — npm CLI
 
 ## Current Position
 
-Phase: 01 — COMPLETE
-Plan: 4 of 4
+Phase: 02 (npm CLI) — EXECUTING
+Plan: 2 of 5
 Status: Ready to execute
-Last activity: 2026-06-23 -- Phase 2 planning complete
+Last activity: 2026-06-23
 
-Progress: [██████████] 100%
+Progress: [██████░░░░] 56%
 
 ## Performance Metrics
 
@@ -54,6 +54,7 @@ Progress: [██████████] 100%
 | Phase 01-template-content-repo-foundation P01 | 5 | 2 tasks | 2 files |
 | Phase 01-template-content-repo-foundation P02 | 15 | 2 tasks | 10 files |
 | Phase 01-template-content-repo-foundation P04 | 12 | 3 tasks | 8 files |
+| Phase 02-npm-cli P01 | 7 | 2 tasks | 14 files |
 
 ## Accumulated Context
 
@@ -70,6 +71,9 @@ Recent decisions affecting current work:
 - [Phase ?]: D-11 compliance, beginner-first tone
 - [Phase ?]: D-13, T-04-02 security compliance
 - [Phase ?]: D-12 scope boundary enforced
+- [Phase ?]: TypeScript pinned to ^5.5 (not ^6.x) — CLAUDE.md lock; TypeScript 6 breaking changes not yet investigated
+- [Phase ?]: prebuild script uses Node.js cpSync (not shell cp) for cross-platform templates copy
+- [Phase ?]: packages/npm/.gitignore created to exclude node_modules/, dist/, templates/ generated artifacts
 
 ### Pending Todos
 
@@ -89,6 +93,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-06-23T11:44:43.897Z
-Stopped at: Phase 1 context gathered
+Last session: 2026-06-23T16:31:47.808Z
+Stopped at: Completed 02-npm-cli-01-PLAN.md
 Resume file: None
