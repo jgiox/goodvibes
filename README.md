@@ -15,6 +15,8 @@ goodvibes installs four layers into your project:
 - **ponytail** — keeps your code minimal (enforced via CLAUDE.md on every session)
 - **CLAUDE.md rules** — engineering discipline: think before coding, simplicity first, fail loud, security basics, keep a journal
 
+**Windows:** Use WSL2 for the best experience — native Windows support is best-effort.
+
 ## Docs
 
 - [onboarding.md](docs/onboarding.md) — git and PR basics for beginners
