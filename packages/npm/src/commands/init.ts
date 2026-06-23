@@ -24,7 +24,7 @@ export function registerInitCommand(program: Command): void {
         note(
           [
             '1. Open this project in Claude Code',
-            '2. Run /plugin marketplace add DietrichGebert/ponytail',
+            '2. In Claude Code CLI: /plugin marketplace add DietrichGebert/ponytail',
             '3. Start coding — CLAUDE.md rules are already active',
           ].join('\n'),
           'Next steps'
@@ -71,7 +71,7 @@ export function registerInitCommand(program: Command): void {
 
       const nextSteps = [
         '1. Open this project in Claude Code',
-        '2. Run /plugin marketplace add DietrichGebert/ponytail',
+        '2. In Claude Code CLI: /plugin marketplace add DietrichGebert/ponytail',
         '3. Start coding — CLAUDE.md rules are already active',
       ].join('\n')
       note(nextSteps, 'Next steps')
