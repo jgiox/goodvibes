@@ -6,10 +6,10 @@ pass=0; fail=0
 check() {
   if eval "$2" > /dev/null 2>&1; then
     echo "PASS [$1]"
-    ((pass++))
+    pass=$((pass + 1))
   else
     echo "FAIL [$1]: $2"
-    ((fail++))
+    fail=$((fail + 1))
   fi
 }
 
