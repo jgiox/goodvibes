@@ -103,3 +103,12 @@ using PyPI trusted publishing).
 **Next time:** Set up the GitHub Actions publish workflows before the first manual publish, not
 after. Manual publish requires 2FA automation tokens and extra steps that would be avoided by
 a tag-triggered workflow.
+
+---
+
+## 2026-06-24 — Phase 4 Plan 01: TDD scaffolding + smoke harness
+
+- Added detect-project-type.test.ts (5 failing RED tests for CI-05)
+- Added test_detect_project_type.py (5 failing RED tests for CI-05)
+- Added scripts/verify-phase4.sh (smoke harness for template file + content checks)
+- Tests are intentionally RED — implementation ships in Plan 03
