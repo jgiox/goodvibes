@@ -96,7 +96,7 @@ Plans:
 
 **Wave 1** *(parallel — no file conflicts)*
 
-- [ ] 03-02-PLAN.md — Wave 1a: sentinel_merge.py (4-case CLAUDE.md merge, stdlib only) + copy_templates.py (shutil.copytree orchestrator) with 22 passing tests
+- [x] 03-02-PLAN.md — Wave 1a: sentinel_merge.py (4-case CLAUDE.md merge, stdlib only) + copy_templates.py (shutil.copytree orchestrator) with 22 passing tests
 - [ ] 03-03-PLAN.md — Wave 1b: detect_python.py + install_headroom.py (uv→pipx→pip chain) + configure_mcp.py (Strategy B primary, Strategy A fallback) with 14 passing tests
 
 **Wave 2** *(blocked on Wave 1 completion)*
@@ -145,6 +145,6 @@ Note: Phase 3 (pip CLI) and Phase 4 (CI scaffolding) have no dependency on each 
 |-------|----------------|--------|-----------|
 | 1. Template Content & Repo Foundation | 4/4 | Complete   | 2026-06-23 |
 | 2. npm CLI | 5/5 | Complete | 2026-06-23 |
-| 3. pip CLI | 1/4 | In Progress|  |
+| 3. pip CLI | 2/4 | In Progress|  |
 | 4. CI/CD Scaffolding | 0/TBD | Not started | - |
 | 5. Upgrade Command & Template Repo | 0/TBD | Not started | - |
