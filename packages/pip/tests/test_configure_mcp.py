@@ -166,3 +166,55 @@ def test_headroom_enoent_in_fallback(mocker):
 
     # Must not raise; must log that headroom is not found
     assert any("not found" in m for m in log_calls)
+
+
+def test_headroom_mcp_install_called_process_error_soft_fails(mocker):
+    """configure_mcp does not raise when headroom mcp install exits non-zero (CR-02)."""
+
+    def side_effect(cmd_list, **kwargs):
+        if cmd_list == ["headroom", "mcp", "status"]:
+            raise subprocess.CalledProcessError(1, cmd_list)
+        if cmd_list[0] == "claude":
+            raise FileNotFoundError("claude not found")
+        if cmd_list == ["headroom", "mcp", "install"]:
+            raise subprocess.CalledProcessError(1, cmd_list, stderr="install failed")
+        return subprocess.CompletedProcess(args=cmd_list, returncode=0, stdout="", stderr="")
+
+    mocker.patch(
+        "goodvibes_cli.steps.configure_mcp.subprocess.run",
+        side_effect=side_effect,
+    )
+    from goodvibes_cli.steps.configure_mcp import configure_mcp
+
+    log_calls: list[str] = []
+    configure_mcp(log_calls.append)  # must not raise
+
+    assert any("failed" in m or "manually" in m for m in log_calls)
+
+
+def test_claude_mcp_add_called_process_error_soft_fails(mocker):
+    """configure_mcp does not raise when claude mcp add exits non-zero (WR-01)."""
+
+    def side_effect(cmd_list, **kwargs):
+        if cmd_list == ["headroom", "mcp", "status"]:
+            raise subprocess.CalledProcessError(1, cmd_list)
+        if cmd_list == ["claude", "mcp", "list"]:
+            return subprocess.CompletedProcess(args=cmd_list, returncode=0, stdout="", stderr="")
+        if cmd_list[:3] == ["claude", "mcp", "add"]:
+            raise subprocess.CalledProcessError(1, cmd_list, stderr="permission denied")
+        return subprocess.CompletedProcess(args=cmd_list, returncode=0, stdout="", stderr="")
+
+    mocker.patch(
+        "goodvibes_cli.steps.configure_mcp.subprocess.run",
+        side_effect=side_effect,
+    )
+    mocker.patch(
+        "goodvibes_cli.steps.configure_mcp.shutil.which",
+        return_value="/usr/bin/headroom",
+    )
+    from goodvibes_cli.steps.configure_mcp import configure_mcp
+
+    log_calls: list[str] = []
+    configure_mcp(log_calls.append)  # must not raise
+
+    assert len(log_calls) > 0

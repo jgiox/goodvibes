@@ -85,7 +85,7 @@ def test_pip_fallback_when_uv_and_pipx_enoent(mocker):
 
 
 def test_all_enoent_logs_warning(mocker):
-    """install_headroom logs 'No package installer found' when all three raise FileNotFoundError."""
+    """install_headroom logs 'could not be installed' when all three raise FileNotFoundError."""
     mocker.patch(
         "goodvibes_cli.steps.install_headroom.detect_python",
         return_value="python3",
@@ -99,16 +99,16 @@ def test_all_enoent_logs_warning(mocker):
     log_calls: list[str] = []
     install_headroom(log_calls.append)
 
-    assert any("No package installer found" in m for m in log_calls)
+    assert any("could not be installed" in m for m in log_calls)
 
 
 def test_called_process_error_soft_fail(mocker):
-    """install_headroom logs error and returns (soft-fail) when uv raises CalledProcessError."""
+    """install_headroom tries all three installers when every one raises CalledProcessError (CR-03)."""
     mocker.patch(
         "goodvibes_cli.steps.install_headroom.detect_python",
         return_value="python3",
     )
-    mocker.patch(
+    run = mocker.patch(
         "goodvibes_cli.steps.install_headroom.subprocess.run",
         side_effect=subprocess.CalledProcessError(
             returncode=1,
@@ -122,7 +122,33 @@ def test_called_process_error_soft_fail(mocker):
     # must not raise — soft-fail
     install_headroom(log_calls.append)
 
-    assert any("headroom install failed" in m for m in log_calls)
+    assert run.call_count == 3
+    assert any("install failed" in m for m in log_calls)
+
+
+def test_pipx_fallback_when_uv_called_process_error(mocker):
+    """install_headroom continues to pipx when uv raises CalledProcessError (CR-03 chain)."""
+    mocker.patch(
+        "goodvibes_cli.steps.install_headroom.detect_python",
+        return_value="python3",
+    )
+
+    def side_effect(cmd_list, **kwargs):
+        if cmd_list[0] == "uv":
+            raise subprocess.CalledProcessError(1, cmd_list, stderr="network timeout")
+        return subprocess.CompletedProcess(args=cmd_list, returncode=0, stdout="", stderr="")
+
+    run = mocker.patch(
+        "goodvibes_cli.steps.install_headroom.subprocess.run",
+        side_effect=side_effect,
+    )
+    from goodvibes_cli.steps.install_headroom import install_headroom
+
+    log_calls: list[str] = []
+    install_headroom(log_calls.append)
+
+    called_cmds = [c[0][0][0] for c in run.call_args_list]
+    assert "pipx" in called_cmds
 
 
 def test_python_absent_skips(mocker):

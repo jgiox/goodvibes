@@ -112,3 +112,17 @@ def test_merge_claude_case_d2_skips_write_when_version_newer(tmp_dir):
     dest.write_text(existing)
     merge_claude(dest, TEMPLATE_CONTENT)
     assert dest.read_text() == existing
+
+
+def test_merge_claude_malformed_start_without_end_does_not_corrupt(tmp_dir):
+    from goodvibes_cli.utils.sentinel_merge import merge_claude
+    dest = tmp_dir / "CLAUDE.md"
+    dest.write_text("# User content\n\n<!-- goodvibes:start -->\norphaned start")
+    merge_claude(dest, TEMPLATE_CONTENT)
+    content = dest.read_text()
+    assert "# User content" in content
+    assert SENTINEL_END in content
+    assert content.count(SENTINEL_START) == 1
+    # No garbage must appear after the sentinel end marker (corruption check)
+    after_end = content.split(SENTINEL_END, 1)[-1]
+    assert after_end.strip() == "", f"Content after sentinel end must be empty, got: {repr(after_end)}"
