@@ -657,22 +657,16 @@ jobs:
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **PyPI name: `goodvibes-cli` vs `jgiox-goodvibes`?**
-   - What we know: Both are available. `goodvibes-cli` is more conventional (`-cli` suffix). `jgiox-goodvibes` mirrors the npm scoped name `@jgiox/goodvibes`.
-   - What's unclear: User preference. Does the project want the PyPI name to match the npm name pattern?
-   - Recommendation: Default to `goodvibes-cli`. If scoping consistency matters, use `jgiox-goodvibes`.
+   - **RESOLVED → `jgiox-goodvibes`** (user decision 2026-06-24). Mirrors npm scoping `@jgiox/goodvibes` for cross-registry consistency. CLI entry point command remains `goodvibes`.
 
 2. **headroom as declared dep vs runtime install?**
-   - What we know: PIP-03 says `headroom-ai[all]` as declared dep. `[all]` breaks install. `[mcp]` is lighter but still fails on Windows (no wheel). Runtime install (Phase 2 pattern) works everywhere with graceful degradation.
-   - What's unclear: User's intent — "declared dependency" vs "identical behavior to npm CLI" (which does runtime install).
-   - Recommendation: Declare `headroom-ai[mcp]` as an optional extra (installable via `pip install goodvibes-cli[headroom]`); use runtime install in the `init` command as the primary path. This satisfies both "declared" and "graceful" — user confirmation needed.
+   - **RESOLVED → Runtime install (Phase 2 pattern)** (user decision 2026-06-24). headroom-ai[all] has no prebuilt hnswlib wheel — declaring it breaks `pip install` on machines without C++17 build tools. Runtime uv→pipx→pip chain with graceful degradation matches npm CLI behavior. headroom is NOT in `[project.dependencies]`. PIP-03 updated accordingly.
 
 3. **Template bundling: symlink vs prebuild copy?**
-   - What we know: npm CLI uses a `prebuild` script to copy `../../templates/` to `packages/npm/templates/`. Hatchling can use `force-include` to map an external path, or the Python equivalent of `prebuild` (a `hatch_build.py` hook).
-   - What's unclear: Does hatchling's `force-include` correctly preserve directory structure including dotfiles (`.claude/`, `.github/`)?
-   - Recommendation: Use a Makefile/script that copies templates before `uv build`, same pattern as npm's `prebuild`. Simpler than a hatchling hook.
+   - **RESOLVED → hatchling force-include** (user decision 2026-06-24). Declarative in pyproject.toml — `[tool.hatch.build.targets.wheel.force-include]` maps `../../templates` → `goodvibes_cli/templates`. Wave 0 build verification must include dotfile inspection (`unzip -l dist/*.whl | grep -E '\.claude|\.github'`) to confirm dotfiles are preserved.
 
 ---
 
