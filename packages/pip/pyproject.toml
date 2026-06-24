@@ -24,6 +24,14 @@ packages = ["src/goodvibes_cli"]
 [tool.hatch.build.targets.sdist]
 include = ["src/goodvibes_cli/**", "tests/**"]
 
+[project.optional-dependencies]
+dev = [
+    "pytest>=9",
+    "pytest-mock>=3",
+    "pytest-asyncio>=0.25",
+    "pytest-cov>=7",
+]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-x -q"
