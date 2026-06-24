@@ -1,16 +1,6 @@
-import sys
+import typer
 
-if sys.version_info < (3, 10):
-    print(
-        f"goodvibes requires Python 3.10 or higher. "
-        f"You have Python {sys.version_info.major}.{sys.version_info.minor}.",
-        file=sys.stderr,
-    )
-    sys.exit(1)
-
-import typer  # noqa: E402 — version guard must run before any import
-
-from goodvibes_cli.commands.init_cmd import init_cmd  # noqa: E402
+from goodvibes_cli.commands.init_cmd import init_cmd
 
 app = typer.Typer(help="goodvibes — one-command bootstrap for vibe coding projects")
 

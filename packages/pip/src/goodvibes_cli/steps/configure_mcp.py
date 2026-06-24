@@ -62,6 +62,11 @@ def configure_mcp(log: Callable[[str], None]) -> None:
             "Warning: if you use CLAUDE_CONFIG_DIR, you may need to run "
             "`headroom mcp install` manually"
         )
+    except subprocess.CalledProcessError as e:
+        lines = (e.stderr or "").splitlines()
+        log(f"claude mcp add failed: {lines[0] if lines else 'unknown error'}")
+        log("Run `headroom mcp install` manually.")
+        return
 
     # Step 3: fallback — headroom mcp install
     try:
@@ -76,5 +81,11 @@ def configure_mcp(log: Callable[[str], None]) -> None:
             "headroom binary not found — MCP registration skipped. "
             "Install headroom and run `headroom mcp install` manually."
         )
-    except subprocess.CalledProcessError:
-        raise  # unexpected failure in fallback — re-raise so caller can surface it
+    except subprocess.CalledProcessError as e:
+        lines = (e.stderr or "").splitlines()
+        first_line = lines[0] if lines else "unknown error"
+        log(
+            f"headroom MCP install failed: {first_line}. "
+            "Run `headroom mcp install` manually to complete MCP setup."
+        )
+        return

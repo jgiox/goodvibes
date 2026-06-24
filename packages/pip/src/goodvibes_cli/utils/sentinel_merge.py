@@ -62,6 +62,10 @@ def merge_claude(dest_path: pathlib.Path, template_content: str) -> None:
         return
 
     end_idx = existing.find(SENTINEL_END)
+    if end_idx == -1:
+        # Malformed: start marker present but end marker absent — treat as Case B.
+        dest_path.write_text(existing[:start_idx].rstrip() + "\n\n" + template_block + "\n", encoding="utf-8")
+        return
     existing_block = existing[start_idx : end_idx + len(SENTINEL_END)]
     existing_version = extract_version(existing_block)
     template_version = extract_version(template_block)

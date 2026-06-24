@@ -41,12 +41,10 @@ def install_headroom(log: Callable[[str], None]) -> None:
         except subprocess.CalledProcessError as e:
             lines = (e.stderr or "").splitlines()
             first_line = lines[0] if lines else "unknown error"
-            log(f"headroom install failed: {first_line}")
-            log('You can install headroom manually later: uv tool install "headroom-ai[all]"')
-            return
+            log(f"{cmd_list[0]} install failed: {first_line} — trying next installer")
+            continue  # advance to pipx / pip fallback
 
-    # All three installers were FileNotFoundError
+    # All three installers exhausted (ENOENT or CalledProcessError)
     log(
-        "No package installer found (uv, pipx, pip). "
-        "Install Python 3.10+ with uv or pipx and run `goodvibes init` again."
+        'headroom could not be installed. Run manually: uv tool install "headroom-ai[all]"'
     )
