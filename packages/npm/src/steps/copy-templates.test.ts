@@ -108,3 +108,36 @@ describe('copyTemplates', () => {
     expect(content).toBe(customContent)
   })
 })
+
+describe('copyTemplates — CI variant selection', () => {
+  let tmpDir: string
+
+  beforeEach(() => {
+    tmpDir = mkdtempSync(join(tmpdir(), 'gv-ci-variant-test-'))
+  })
+
+  afterEach(() => {
+    rmSync(tmpDir, { recursive: true, force: true })
+  })
+
+  it('writes ci.yml (not ci-node.yml) when projectType is node', async () => {
+    const templateDir = resolveTemplatesDir()
+    await copyTemplates(templateDir, tmpDir, false, false, 'node')
+    expect(existsSync(join(tmpDir, '.github', 'workflows', 'ci.yml'))).toBe(true)
+    expect(existsSync(join(tmpDir, '.github', 'workflows', 'ci-node.yml'))).toBe(false)
+  })
+
+  it('does not write ci-python.yml or ci-both.yml when projectType is node', async () => {
+    const templateDir = resolveTemplatesDir()
+    await copyTemplates(templateDir, tmpDir, false, false, 'node')
+    expect(existsSync(join(tmpDir, '.github', 'workflows', 'ci-python.yml'))).toBe(false)
+    expect(existsSync(join(tmpDir, '.github', 'workflows', 'ci-both.yml'))).toBe(false)
+  })
+
+  it('writes ci.yml when projectType is python', async () => {
+    const templateDir = resolveTemplatesDir()
+    await copyTemplates(templateDir, tmpDir, false, false, 'python')
+    expect(existsSync(join(tmpDir, '.github', 'workflows', 'ci.yml'))).toBe(true)
+    expect(existsSync(join(tmpDir, '.github', 'workflows', 'ci-python.yml'))).toBe(false)
+  })
+})

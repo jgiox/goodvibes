@@ -120,3 +120,14 @@ a tag-triggered workflow.
 - Authored ci-node.yml, ci-python.yml, ci-both.yml under templates/.github/workflows/
 - Authored security.yml (CodeQL security-extended), dependency-review.yml (PR gate), dependabot.yml (3 ecosystems)
 - All templates use verified action versions from RESEARCH.md
+
+---
+
+## 2026-06-24 — Phase 4 Plan 03 Task 1: detectProjectType (TS) + copyTemplates CI variant selection
+
+- Created packages/npm/src/utils/detect-project-type.ts (ProjectType + detectProjectType)
+- Modified packages/npm/src/steps/copy-templates.ts (projectType param, CI filter, rename, dest-walk return)
+- Added CI variant selection tests to copy-templates.test.ts (3 new tests in describe block)
+- Updated init.test.ts assertions to expect 5th projectType arg in copyTemplates calls (Rule 1 auto-fix)
+- Wired detectProjectType into packages/npm/src/commands/init.ts
+- npm test GREEN (all 53 tests pass including 5 detectProjectType tests from Plan 01 and 3 new CI variant tests)
