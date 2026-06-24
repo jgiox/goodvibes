@@ -9,6 +9,7 @@ from rich.panel import Panel
 from goodvibes_cli.steps.configure_mcp import configure_mcp
 from goodvibes_cli.steps.copy_templates import copy_templates, list_template_files, resolve_templates_dir
 from goodvibes_cli.steps.install_headroom import install_headroom
+from goodvibes_cli.utils.detect_project_type import detect_project_type
 
 console = Console()
 
@@ -26,6 +27,7 @@ def init_cmd(
     """Bootstrap a project with goodvibes configuration."""
     template_dir = resolve_templates_dir()
     cwd = pathlib.Path.cwd()
+    project_type = detect_project_type(cwd)
 
     console.rule("[bold]goodvibes init[/bold]")
 
@@ -43,7 +45,7 @@ def init_cmd(
         def log_copy(msg: str) -> None:
             status.update(msg)
 
-        files = copy_templates(template_dir, cwd, dry_run=False, minimal=minimal)
+        files = copy_templates(template_dir, cwd, dry_run=False, minimal=minimal, project_type=project_type)
         created_files.extend(files)
 
     if not minimal:

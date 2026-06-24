@@ -32,14 +32,22 @@ def copy_templates(
     dest_dir: pathlib.Path,
     dry_run: bool = False,
     minimal: bool = False,
+    project_type: str = "both",
 ) -> list[str]:
     """Copy template files to dest_dir, handling CLAUDE.md via sentinel merge.
 
-    Returns the list of template file paths (relative to template_dir).
-    When dry_run=True, returns the list without writing any files.
+    Returns the list of file paths relative to dest_dir (shows ci.yml, not ci-node.yml).
+    When dry_run=True, returns the filtered template list without writing any files.
     """
+    ci_variants = {"ci-node.yml", "ci-python.yml", "ci-both.yml"}
+    selected_variant = f"ci-{project_type}.yml"
+
     if dry_run:
-        return list_template_files(template_dir)
+        # Preserve --dry-run behaviour: return template files excluding non-selected CI variants
+        return [
+            p for p in list_template_files(template_dir)
+            if not any(p.endswith(v) and v != selected_variant for v in ci_variants)
+        ]
 
     def ignore_fn(directory: str, contents: list[str]) -> set[str]:
         ignored: set[str] = set()
@@ -57,6 +65,9 @@ def copy_templates(
                 ignored.add(name)  # path traversal guard (T-03-02-01)
             if minimal and ".github" in rel.parts and "workflows" in rel.parts:
                 ignored.add(name)
+            # Skip CI variants not matching the detected project type
+            if name in ci_variants and name != selected_variant:
+                ignored.add(name)
             # No-clobber: skip if destination already exists (T-03-02-03)
             dest_candidate = dest_dir / rel
             if dest_candidate.exists():
@@ -65,6 +76,13 @@ def copy_templates(
 
     shutil.copytree(str(template_dir), str(dest_dir), ignore=ignore_fn, dirs_exist_ok=True)
 
+    # Rename selected CI variant to ci.yml
+    if not minimal:
+        variant_path = dest_dir / ".github" / "workflows" / selected_variant
+        ci_path = dest_dir / ".github" / "workflows" / "ci.yml"
+        if variant_path.exists():
+            variant_path.rename(ci_path)
+
     # Handle CLAUDE.md via sentinel merge
     claude_src = template_dir / "CLAUDE.md"
     if claude_src.exists():
@@ -72,4 +90,5 @@ def copy_templates(
         template_content = claude_src.read_text(encoding="utf-8")
         merge_claude(claude_dest, template_content)
 
-    return list_template_files(template_dir)
+    # Walk destDir so return shows ci.yml (not ci-node.yml) — per RESEARCH.md Pitfall 6
+    return sorted(str(f.relative_to(dest_dir)) for f in dest_dir.rglob("*") if f.is_file())

@@ -33,7 +33,7 @@ def test_copy_templates_calls_sentinel_merge_for_claude_md(tmp_dir, template_dir
 def test_copy_templates_skips_github_workflows_when_minimal(tmp_dir, template_dir, mocker):
     from goodvibes_cli.steps.copy_templates import copy_templates
     mocker.patch("goodvibes_cli.steps.copy_templates.merge_claude")
-    # template_dir fixture already contains .github/workflows/ci.yml
+    # template_dir fixture contains ci-node/python/both.yml; minimal skips all workflow files
     copy_templates(template_dir, tmp_dir, minimal=True)
     assert not (tmp_dir / ".github" / "workflows" / "ci.yml").exists()
 
@@ -85,6 +85,32 @@ def test_copy_templates_handles_empty_template_dir(tmp_dir, tmp_path, mocker):
 def test_copy_templates_github_workflows_copied_when_not_minimal(tmp_dir, template_dir, mocker):
     from goodvibes_cli.steps.copy_templates import copy_templates
     mocker.patch("goodvibes_cli.steps.copy_templates.merge_claude")
-    # template_dir fixture already contains .github/workflows/ci.yml
+    # Non-minimal copy (project_type defaults to "both") renames ci-both.yml to ci.yml
     copy_templates(template_dir, tmp_dir, minimal=False)
     assert (tmp_dir / ".github" / "workflows" / "ci.yml").exists()
+
+
+# --- CI variant selection tests ---
+
+def test_copy_templates_writes_ci_yml_not_ci_node_yml_for_node_project(tmp_dir, template_dir, mocker):
+    from goodvibes_cli.steps.copy_templates import copy_templates
+    mocker.patch("goodvibes_cli.steps.copy_templates.merge_claude")
+    copy_templates(template_dir, tmp_dir, project_type="node")
+    assert (tmp_dir / ".github" / "workflows" / "ci.yml").exists()
+    assert not (tmp_dir / ".github" / "workflows" / "ci-node.yml").exists()
+
+
+def test_copy_templates_does_not_write_other_variants_for_node_project(tmp_dir, template_dir, mocker):
+    from goodvibes_cli.steps.copy_templates import copy_templates
+    mocker.patch("goodvibes_cli.steps.copy_templates.merge_claude")
+    copy_templates(template_dir, tmp_dir, project_type="node")
+    assert not (tmp_dir / ".github" / "workflows" / "ci-python.yml").exists()
+    assert not (tmp_dir / ".github" / "workflows" / "ci-both.yml").exists()
+
+
+def test_copy_templates_writes_ci_yml_for_python_project(tmp_dir, template_dir, mocker):
+    from goodvibes_cli.steps.copy_templates import copy_templates
+    mocker.patch("goodvibes_cli.steps.copy_templates.merge_claude")
+    copy_templates(template_dir, tmp_dir, project_type="python")
+    assert (tmp_dir / ".github" / "workflows" / "ci.yml").exists()
+    assert not (tmp_dir / ".github" / "workflows" / "ci-python.yml").exists()

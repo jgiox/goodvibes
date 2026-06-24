@@ -120,3 +120,25 @@ a tag-triggered workflow.
 - Authored ci-node.yml, ci-python.yml, ci-both.yml under templates/.github/workflows/
 - Authored security.yml (CodeQL security-extended), dependency-review.yml (PR gate), dependabot.yml (3 ecosystems)
 - All templates use verified action versions from RESEARCH.md
+
+---
+
+## 2026-06-24 — Phase 4 Plan 03 Task 1: detectProjectType (TS) + copyTemplates CI variant selection
+
+- Created packages/npm/src/utils/detect-project-type.ts (ProjectType + detectProjectType)
+- Modified packages/npm/src/steps/copy-templates.ts (projectType param, CI filter, rename, dest-walk return)
+- Added CI variant selection tests to copy-templates.test.ts (3 new tests in describe block)
+- Updated init.test.ts assertions to expect 5th projectType arg in copyTemplates calls (Rule 1 auto-fix)
+- Wired detectProjectType into packages/npm/src/commands/init.ts
+- npm test GREEN (all 53 tests pass including 5 detectProjectType tests from Plan 01 and 3 new CI variant tests)
+
+---
+
+## 2026-06-24 — Phase 4 Plan 03 Task 2: detect_project_type (Python) + copy_templates CI variant selection
+
+- Created packages/pip/src/goodvibes_cli/utils/detect_project_type.py (detect_project_type function)
+- Modified packages/pip/src/goodvibes_cli/steps/copy_templates.py (project_type param, CI filter, rename, dest-walk return)
+- Updated packages/pip/tests/conftest.py (replaced ci.yml fixture with ci-node/python/both.yml stubs)
+- Added 3 CI variant selection tests and updated comment in test_copy_templates.py
+- Wired detect_project_type into packages/pip/src/goodvibes_cli/commands/init_cmd.py
+- pytest GREEN (56/56 tests pass including 5 detect_project_type tests from Plan 01)

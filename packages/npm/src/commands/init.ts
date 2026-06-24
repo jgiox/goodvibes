@@ -3,6 +3,7 @@ import { intro, outro, note, tasks } from '@clack/prompts'
 import { copyTemplates, listTemplateFiles, resolveTemplatesDir } from '../steps/copy-templates.js'
 import { installHeadroom } from '../steps/install-headroom.js'
 import { configureMcp } from '../steps/configure-mcp.js'
+import { detectProjectType } from '../utils/detect-project-type.js'
 
 export function registerInitCommand(program: Command): void {
   program
@@ -14,6 +15,7 @@ export function registerInitCommand(program: Command): void {
       const dryRun = options.dryRun ?? false
       const minimal = options.minimal ?? false
       const cwd = process.cwd()
+      const projectType = detectProjectType(cwd)
       const templateDir = resolveTemplatesDir()
 
       intro('goodvibes init')
@@ -39,7 +41,7 @@ export function registerInitCommand(program: Command): void {
         {
           title: 'Copying template files',
           task: async (message) => {
-            const files = await copyTemplates(templateDir, cwd, false, minimal)
+            const files = await copyTemplates(templateDir, cwd, false, minimal, projectType)
             createdFiles.push(...files)
             return `Copied ${files.length} files`
           },

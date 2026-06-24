@@ -99,12 +99,13 @@ describe('init command', () => {
     expect(vi.mocked(installHeadroom)).not.toHaveBeenCalled()
     // configureMcp must NOT be called
     expect(vi.mocked(configureMcp)).not.toHaveBeenCalled()
-    // copyTemplates called with minimal=true
+    // copyTemplates called with minimal=true and detected projectType
     expect(vi.mocked(copyTemplates)).toHaveBeenCalledWith(
       expect.any(String),
       expect.any(String),
       false,
-      true
+      true,
+      expect.any(String)
     )
   })
 
@@ -139,7 +140,8 @@ describe('init command', () => {
       expect.any(String),
       expect.any(String),
       false,
-      false
+      false,
+      expect.any(String)
     )
     expect(vi.mocked(installHeadroom)).toHaveBeenCalled()
     expect(vi.mocked(configureMcp)).toHaveBeenCalled()
