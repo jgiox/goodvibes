@@ -11,7 +11,7 @@
 | wave_0_complete | true |
 | wave_1_complete | true |
 | wave_2_complete | true |
-| pypi_published | false — awaiting human checkpoint (trusted publishing setup + git tag) |
+| pypi_published | true — jgiox-goodvibes v1.0.0 live at pypi.org/project/jgiox-goodvibes/ |
 
 ## Quick Run
 
