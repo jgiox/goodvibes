@@ -23,7 +23,7 @@
 
 - [x] **PIP-01**: User can run `pip install goodvibes && goodvibes init` and get the same result as `npx goodvibes init`
 - [x] **PIP-02**: pip CLI is a Python port of the npm CLI with identical output behavior
-- [ ] **PIP-03**: pip CLI installs headroom-ai[all] at runtime via uv→pipx→pip chain (same as npm CLI); fails gracefully if C++ build tools absent; headroom is NOT a declared pyproject.toml dependency (D-02: declaring it breaks pip install on machines without hnswlib build tools)
+- [x] **PIP-03**: pip CLI installs headroom-ai[all] at runtime via uv→pipx→pip chain (same as npm CLI); fails gracefully if C++ build tools absent; headroom is NOT a declared pyproject.toml dependency (D-02: declaring it breaks pip install on machines without hnswlib build tools)
 - [x] **PIP-04**: pip package published to PyPI as `jgiox-goodvibes` (D-01: `goodvibes` taken by Paton Research Group chemistry package v4.3.0); CLI entry point command remains `goodvibes`
 - [x] **PIP-05**: pip CLI requires Python 3.10+ and errors clearly if not met
 
@@ -160,7 +160,7 @@
 | HDR-06 | Phase 2 | Pending |
 | PIP-01 | Phase 3 | Complete |
 | PIP-02 | Phase 3 | Complete |
-| PIP-03 | Phase 3 | Pending |
+| PIP-03 | Phase 3 | Complete |
 | PIP-04 | Phase 3 | Complete |
 | PIP-05 | Phase 3 | Complete |
 | CI-01 | Phase 4 | Pending |
