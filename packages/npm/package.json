@@ -38,7 +38,7 @@
   },
   "dependencies": {
     "commander": "^13",
-    "@clack/prompts": "^0.9",
+    "@clack/prompts": "^1.6",
     "fs-extra": "^11",
     "execa": "^9"
   },
