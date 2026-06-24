@@ -92,7 +92,7 @@ Plans:
 
 **Wave 0**
 
-- [ ] 03-01-PLAN.md — Wave 0: verify-phase3.sh smoke harness + packages/pip/ scaffold (pyproject.toml jgiox-goodvibes, __init__.py, __main__.py version guard, test stubs x4)
+- [x] 03-01-PLAN.md — Wave 0: verify-phase3.sh smoke harness + packages/pip/ scaffold (pyproject.toml jgiox-goodvibes, __init__.py, __main__.py version guard, test stubs x4)
 
 **Wave 1** *(parallel — no file conflicts)*
 
@@ -145,6 +145,6 @@ Note: Phase 3 (pip CLI) and Phase 4 (CI scaffolding) have no dependency on each 
 |-------|----------------|--------|-----------|
 | 1. Template Content & Repo Foundation | 4/4 | Complete   | 2026-06-23 |
 | 2. npm CLI | 5/5 | Complete | 2026-06-23 |
-| 3. pip CLI | 0/4 | Not started | - |
+| 3. pip CLI | 1/4 | In Progress|  |
 | 4. CI/CD Scaffolding | 0/TBD | Not started | - |
 | 5. Upgrade Command & Template Repo | 0/TBD | Not started | - |
