@@ -112,3 +112,11 @@ a tag-triggered workflow.
 - Added test_detect_project_type.py (5 failing RED tests for CI-05)
 - Added scripts/verify-phase4.sh (smoke harness for template file + content checks)
 - Tests are intentionally RED — implementation ships in Plan 03
+
+---
+
+## 2026-06-24 — Phase 4 Plan 02: GitHub Actions template authoring
+
+- Authored ci-node.yml, ci-python.yml, ci-both.yml under templates/.github/workflows/
+- Authored security.yml (CodeQL security-extended), dependency-review.yml (PR gate), dependabot.yml (3 ecosystems)
+- All templates use verified action versions from RESEARCH.md
