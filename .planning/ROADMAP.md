@@ -121,8 +121,8 @@ Plans:
 
 **Wave 0** *(parallel — no file conflicts)*
 
-- [ ] 04-01-PLAN.md — Wave 0: RED unit tests for detectProjectType (TS + Python) + verify-phase4.sh smoke harness
-- [ ] 04-02-PLAN.md — Wave 0: Author 6 static CI/CD template files (ci-node.yml, ci-python.yml, ci-both.yml, security.yml, dependency-review.yml, dependabot.yml)
+- [x] 04-01-PLAN.md — Wave 0: RED unit tests for detectProjectType (TS + Python) + verify-phase4.sh smoke harness
+- [x] 04-02-PLAN.md — Wave 0: Author 6 static CI/CD template files (ci-node.yml, ci-python.yml, ci-both.yml, security.yml, dependency-review.yml, dependabot.yml)
 
 **Wave 1** *(blocked on Wave 0 completion)*
 
@@ -160,5 +160,5 @@ Note: Phase 3 (pip CLI) and Phase 4 (CI scaffolding) have no dependency on each 
 | 1. Template Content & Repo Foundation | 4/4 | Complete   | 2026-06-23 |
 | 2. npm CLI | 5/5 | Complete | 2026-06-23 |
 | 3. pip CLI | 4/4 | Complete   | 2026-06-24 |
-| 4. CI/CD Scaffolding | 0/4 | Not started | - |
+| 4. CI/CD Scaffolding | 2/4 | In Progress|  |
 | 5. Upgrade Command & Template Repo | 0/TBD | Not started | - |
