@@ -1,91 +1,199 @@
-"""Test stubs for install_headroom — implement in Wave 1 (03-03-PLAN.md)."""
+"""Tests for install_headroom — Wave 1b (03-03-PLAN.md).
+
+All subprocess calls are mocked; no real uv/pipx/pip/python runs during the suite.
+detect_python is mocked at the install_headroom module boundary.
+"""
+import subprocess
+
 import pytest
 
 
-@pytest.mark.skip(reason="stub — implement in Wave 1")
-def test_install_headroom_uses_uv_when_found(mocker):
-    from goodvibes_cli.install_headroom import install_headroom
-    run = mocker.patch("goodvibes_cli.install_headroom.subprocess.run")
-    mocker.patch("goodvibes_cli.install_headroom.shutil.which", return_value="/usr/bin/uv")
-    install_headroom()
-    args = run.call_args[0][0]
-    assert args[0] == "uv"
-    # must never use shell=True
-    assert run.call_args[1].get("shell") is not True
-
-
-@pytest.mark.skip(reason="stub — implement in Wave 1")
-def test_install_headroom_falls_back_to_pipx_when_uv_absent(mocker):
-    from goodvibes_cli.install_headroom import install_headroom
-    run = mocker.patch("goodvibes_cli.install_headroom.subprocess.run")
+def test_uv_found_and_succeeds(mocker):
+    """install_headroom calls uv tool install when uv is available and logs ONNX warning."""
     mocker.patch(
-        "goodvibes_cli.install_headroom.shutil.which",
-        side_effect=lambda cmd: "/usr/bin/pipx" if cmd == "pipx" else None,
+        "goodvibes_cli.steps.install_headroom.detect_python",
+        return_value="python3",
     )
-    install_headroom()
-    args = run.call_args[0][0]
-    assert args[0] == "pipx"
+    run = mocker.patch(
+        "goodvibes_cli.steps.install_headroom.subprocess.run",
+        return_value=subprocess.CompletedProcess(
+            args=["uv", "tool", "install", "headroom-ai[all]"], returncode=0, stdout="", stderr=""
+        ),
+    )
+    from goodvibes_cli.steps.install_headroom import install_headroom
+
+    log_calls: list[str] = []
+    install_headroom(log_calls.append)
+
+    # ONNX / compression model warning must be logged
+    assert any("ONNX" in m or "compression model" in m for m in log_calls)
+    # uv must be the first installer tried
+    first_call_args = run.call_args_list[0][0][0]
+    assert first_call_args[0] == "uv"
+    assert first_call_args == ["uv", "tool", "install", "headroom-ai[all]"]
 
 
-@pytest.mark.skip(reason="stub — implement in Wave 1")
-def test_install_headroom_falls_back_to_pip_when_uv_pipx_absent(mocker):
-    from goodvibes_cli.install_headroom import install_headroom
-    run = mocker.patch("goodvibes_cli.install_headroom.subprocess.run")
+def test_pipx_fallback_when_uv_enoent(mocker):
+    """install_headroom falls back to pipx when uv raises FileNotFoundError."""
     mocker.patch(
-        "goodvibes_cli.install_headroom.shutil.which",
-        side_effect=lambda cmd: "/usr/bin/pip3" if cmd == "pip3" else None,
+        "goodvibes_cli.steps.install_headroom.detect_python",
+        return_value="python3",
     )
-    install_headroom()
-    args = run.call_args[0][0]
-    assert args[0] == "pip3"
+
+    def side_effect(cmd_list, **kwargs):
+        if cmd_list[0] == "uv":
+            raise FileNotFoundError("uv not found")
+        return subprocess.CompletedProcess(args=cmd_list, returncode=0, stdout="", stderr="")
+
+    run = mocker.patch(
+        "goodvibes_cli.steps.install_headroom.subprocess.run",
+        side_effect=side_effect,
+    )
+    from goodvibes_cli.steps.install_headroom import install_headroom
+
+    log_calls: list[str] = []
+    install_headroom(log_calls.append)
+
+    called_cmds = [c[0][0][0] for c in run.call_args_list]
+    assert "pipx" in called_cmds
 
 
-@pytest.mark.skip(reason="stub — implement in Wave 1")
-def test_install_headroom_raises_or_warns_when_all_absent(mocker):
-    from goodvibes_cli.install_headroom import install_headroom
-    mocker.patch("goodvibes_cli.install_headroom.shutil.which", return_value=None)
-    # must not raise unhandled exception; logs warning or raises InstallError
-    with pytest.raises(Exception):
-        install_headroom()
-
-
-@pytest.mark.skip(reason="stub — implement in Wave 1")
-def test_install_headroom_soft_fails_on_called_process_error(mocker):
-    import subprocess
-    from goodvibes_cli.install_headroom import install_headroom
-    mocker.patch("goodvibes_cli.install_headroom.shutil.which", return_value="/usr/bin/uv")
+def test_pip_fallback_when_uv_and_pipx_enoent(mocker):
+    """install_headroom falls back to pip --user when uv and pipx both raise FileNotFoundError."""
     mocker.patch(
-        "goodvibes_cli.install_headroom.subprocess.run",
-        side_effect=subprocess.CalledProcessError(1, "uv"),
+        "goodvibes_cli.steps.install_headroom.detect_python",
+        return_value="python3",
     )
-    # CalledProcessError on headroom install must not crash the entire init
-    install_headroom()  # must return (soft-fail), not raise
+
+    def side_effect(cmd_list, **kwargs):
+        if cmd_list[0] in ("uv", "pipx"):
+            raise FileNotFoundError(f"{cmd_list[0]} not found")
+        return subprocess.CompletedProcess(args=cmd_list, returncode=0, stdout="", stderr="")
+
+    run = mocker.patch(
+        "goodvibes_cli.steps.install_headroom.subprocess.run",
+        side_effect=side_effect,
+    )
+    from goodvibes_cli.steps.install_headroom import install_headroom
+
+    log_calls: list[str] = []
+    install_headroom(log_calls.append)
+
+    pip_calls = [c[0][0] for c in run.call_args_list if c[0][0][0] == "python3"]
+    assert pip_calls, "Expected python3 -m pip call"
+    assert pip_calls[0][1:3] == ["-m", "pip"]
 
 
-@pytest.mark.skip(reason="stub — implement in Wave 1")
-def test_install_headroom_skips_when_python_absent(mocker):
-    from goodvibes_cli.install_headroom import install_headroom
-    mocker.patch("goodvibes_cli.install_headroom.shutil.which", return_value=None)
-    # must not raise — just warn and return
-    install_headroom()
+def test_all_enoent_logs_warning(mocker):
+    """install_headroom logs 'No package installer found' when all three raise FileNotFoundError."""
+    mocker.patch(
+        "goodvibes_cli.steps.install_headroom.detect_python",
+        return_value="python3",
+    )
+    mocker.patch(
+        "goodvibes_cli.steps.install_headroom.subprocess.run",
+        side_effect=FileNotFoundError("not found"),
+    )
+    from goodvibes_cli.steps.install_headroom import install_headroom
+
+    log_calls: list[str] = []
+    install_headroom(log_calls.append)
+
+    assert any("No package installer found" in m for m in log_calls)
 
 
-@pytest.mark.skip(reason="stub — implement in Wave 1")
-def test_install_headroom_logs_onnx_warning(mocker, capfd):
-    from goodvibes_cli.install_headroom import install_headroom
-    mocker.patch("goodvibes_cli.install_headroom.shutil.which", return_value="/usr/bin/uv")
-    mocker.patch("goodvibes_cli.install_headroom.subprocess.run")
-    install_headroom()
-    # ONNX model download warning must appear in output
-    captured = capfd.readouterr()
-    assert "ONNX" in captured.out or "onnx" in captured.out.lower() or True  # stub
+def test_called_process_error_soft_fail(mocker):
+    """install_headroom logs error and returns (soft-fail) when uv raises CalledProcessError."""
+    mocker.patch(
+        "goodvibes_cli.steps.install_headroom.detect_python",
+        return_value="python3",
+    )
+    mocker.patch(
+        "goodvibes_cli.steps.install_headroom.subprocess.run",
+        side_effect=subprocess.CalledProcessError(
+            returncode=1,
+            cmd=["uv", "tool", "install", "headroom-ai[all]"],
+            stderr="build failed: no C++ compiler",
+        ),
+    )
+    from goodvibes_cli.steps.install_headroom import install_headroom
+
+    log_calls: list[str] = []
+    # must not raise — soft-fail
+    install_headroom(log_calls.append)
+
+    assert any("headroom install failed" in m for m in log_calls)
 
 
-@pytest.mark.skip(reason="stub — implement in Wave 1")
-def test_install_headroom_never_uses_shell_true(mocker):
-    from goodvibes_cli.install_headroom import install_headroom
-    run = mocker.patch("goodvibes_cli.install_headroom.subprocess.run")
-    mocker.patch("goodvibes_cli.install_headroom.shutil.which", return_value="/usr/bin/uv")
-    install_headroom()
+def test_python_absent_skips(mocker):
+    """install_headroom logs skip message and returns immediately when Python 3.10+ not found."""
+    mocker.patch(
+        "goodvibes_cli.steps.install_headroom.detect_python",
+        return_value=None,
+    )
+    run = mocker.patch("goodvibes_cli.steps.install_headroom.subprocess.run")
+    from goodvibes_cli.steps.install_headroom import install_headroom
+
+    log_calls: list[str] = []
+    install_headroom(log_calls.append)
+
+    assert any("Python 3.10+ not found" in m for m in log_calls)
+    # no installer subprocess should be called
+    run.assert_not_called()
+
+
+def test_onnx_warning_logged_before_subprocess(mocker):
+    """ONNX warning must be logged before the first subprocess.run call in install_headroom."""
+    mocker.patch(
+        "goodvibes_cli.steps.install_headroom.detect_python",
+        return_value="python3",
+    )
+    event_log: list[str] = []
+
+    def recording_run(cmd_list, **kwargs):
+        event_log.append(f"subprocess:{cmd_list[0]}")
+        return subprocess.CompletedProcess(args=cmd_list, returncode=0, stdout="", stderr="")
+
+    mocker.patch(
+        "goodvibes_cli.steps.install_headroom.subprocess.run",
+        side_effect=recording_run,
+    )
+
+    def recording_log(msg: str) -> None:
+        event_log.append(f"log:{msg}")
+
+    from goodvibes_cli.steps.install_headroom import install_headroom
+
+    install_headroom(recording_log)
+
+    onnx_idx = next(
+        (i for i, e in enumerate(event_log) if e.startswith("log:") and ("ONNX" in e or "compression model" in e)),
+        None,
+    )
+    subprocess_idx = next(
+        (i for i, e in enumerate(event_log) if e.startswith("subprocess:")),
+        None,
+    )
+    assert onnx_idx is not None, "ONNX warning must be logged"
+    assert subprocess_idx is not None, "subprocess.run must be called"
+    assert onnx_idx < subprocess_idx, "ONNX warning must appear before the first subprocess call"
+
+
+def test_no_shell_true(mocker):
+    """subprocess.run must never be called with shell=True in install_headroom."""
+    mocker.patch(
+        "goodvibes_cli.steps.install_headroom.detect_python",
+        return_value="python3",
+    )
+    run = mocker.patch(
+        "goodvibes_cli.steps.install_headroom.subprocess.run",
+        return_value=subprocess.CompletedProcess(
+            args=["uv", "tool", "install", "headroom-ai[all]"], returncode=0, stdout="", stderr=""
+        ),
+    )
+    from goodvibes_cli.steps.install_headroom import install_headroom
+
+    install_headroom(lambda _: None)
+
     for call in run.call_args_list:
-        assert call[1].get("shell") is not True
+        assert call.kwargs.get("shell") is not True
