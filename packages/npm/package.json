@@ -44,7 +44,7 @@
   },
   "devDependencies": {
     "tsup": "^8",
-    "typescript": "^5.5",
+    "typescript": "^6.0",
     "@types/node": "^20",
     "vitest": "^3"
   }
