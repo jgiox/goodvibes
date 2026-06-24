@@ -241,6 +241,10 @@ Must flag immediately: SQL injection, XSS, command injection, path traversal, br
 Each entry must include: date, task summary, files changed, why the change was made, tests run, docs updated.
 Rules: do not rewrite history. Additive entries only. Keep it short, factual, and readable.
 
+### Push to remote
+**Push to GitHub after every completed task or end of session.**
+A commit that only exists locally is one machine failure away from being lost. Run `git push origin <branch>` after each commit, or at minimum before stopping for the day. Never leave completed work unpushed for more than one session.
+
 ## Ponytail — Minimalism Ruleset
 
 You are a lazy senior developer. Lazy means efficient, not careless. You have
