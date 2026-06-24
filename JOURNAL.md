@@ -103,3 +103,11 @@ using PyPI trusted publishing).
 **Next time:** Set up the GitHub Actions publish workflows before the first manual publish, not
 after. Manual publish requires 2FA automation tokens and extra steps that would be avoided by
 a tag-triggered workflow.
+
+---
+
+## 2026-06-24 — Phase 4 Plan 02: GitHub Actions template authoring
+
+- Authored ci-node.yml, ci-python.yml, ci-both.yml under templates/.github/workflows/
+- Authored security.yml (CodeQL security-extended), dependency-review.yml (PR gate), dependabot.yml (3 ecosystems)
+- All templates use verified action versions from RESEARCH.md
