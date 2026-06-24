@@ -631,7 +631,7 @@ A post-copy rename step is needed: `await rename(join(destDir, '.github/workflow
 | A4 | CodeQL handles "no source to scan" gracefully when a language is in the matrix but no source files exist | Pattern 4 | If wrong, security.yml fails on single-language projects using the combined template |
 | A5 | `uv sync --all-extras` is the correct command for installing all optional dependency groups | Pattern 3 | If the target project uses `[dependency-groups]` (uv 0.5+ syntax) instead of `[optional-dependencies]`, `--all-extras` may not install them; use `--all-groups` instead |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Should `ci.yml` variants be named `ci-node.yml`, `ci-python.yml`, `ci-both.yml` in the
    templates directory, or stored in a `templates/.github/workflows/variants/` subdirectory?**
@@ -640,6 +640,7 @@ A post-copy rename step is needed: `await rename(join(destDir, '.github/workflow
      user's repo until the unused ones are filtered out — the filter must exclude them explicitly
    - Recommendation: Store under `templates/.github/workflows/` with distinct names; the
      copy-templates filter handles exclusion. A `variants/` subdirectory would require more filter logic.
+   - **RESOLVED:** Store at top level (`templates/.github/workflows/ci-node.yml` etc.); copy-templates filter excludes non-selected variants by filename match.
 
 2. **Should `listTemplateFiles` return source paths or destination paths?**
    - What we know: Currently returns source paths from the template dir verbatim
@@ -648,6 +649,7 @@ A post-copy rename step is needed: `await rename(join(destDir, '.github/workflow
    - Recommendation: `copyTemplates` should return the actual files as written to dest
      (i.e., the renamed `ci.yml`, not `ci-node.yml`). This is a small refactor of the return
      value, not a change to the copy logic.
+   - **RESOLVED:** Return destination paths (walk destDir after copy) so completion output shows `ci.yml`, not `ci-node.yml`.
 
 3. **Does `security.yml` need per-project-type language matrix variation?**
    - What we know: CodeQL runs autobuild; if no Python files exist, the Python analysis
@@ -656,7 +658,7 @@ A post-copy rename step is needed: `await rename(join(destDir, '.github/workflow
      requested language exist
    - Recommendation: Use combined template (both languages always). Test in a real GitHub
      Actions run to confirm. If CodeQL fails on "no Python source", add a conditional.
-     [ASSUMED: CodeQL handles missing language gracefully — mark as Wave 0 validation checkpoint]
+   - **RESOLVED:** Use combined template (both languages always); CodeQL handles "no source" for a language gracefully (job succeeds with 0 findings). No conditional needed.
 
 ## Environment Availability
 

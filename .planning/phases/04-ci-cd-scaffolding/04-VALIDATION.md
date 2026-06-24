@@ -41,10 +41,16 @@ created: 2026-06-24
 
 | Task ID | Plan | Wave | Requirement | Test Type | Automated Command | Status |
 |---------|------|------|-------------|-----------|-------------------|--------|
-| 04-01-01 | 01 | 0 | CI-01 | unit | `npm test` | ⬜ pending |
-| 04-01-02 | 01 | 0 | CI-02 | unit | `uv run --extra dev pytest tests/ -x -q` | ⬜ pending |
-| 04-01-03 | 01 | 0 | CI-03 | unit | `npm test` | ⬜ pending |
-| 04-02-01 | 02 | 1 | CI-04 | integration | manual — push to GitHub | ⬜ pending |
+| 04-01-01 | 01 | 0 | CI-05 | unit (RED) | `cd packages/npm && npm test 2>&1 \| grep -E "(FAIL\|Cannot find module\|detect-project-type)" \| head -5` | ⬜ pending |
+| 04-01-02 | 01 | 0 | CI-05 | unit (RED) | `cd packages/pip && uv run --extra dev pytest tests/test_detect_project_type.py -x -q 2>&1 \| head -10` | ⬜ pending |
+| 04-01-03 | 01 | 0 | CI-01 CI-02 CI-03 CI-04 | smoke | `bash scripts/verify-phase4.sh --quick 2>&1 \| tail -5` | ⬜ pending |
+| 04-02-01 | 02 | 0 | CI-01 CI-06 | file+content | `grep -l "--if-present" templates/.github/workflows/ci-node.yml && grep -l "--extra dev" templates/.github/workflows/ci-python.yml` | ⬜ pending |
+| 04-02-02 | 02 | 0 | CI-02 CI-03 CI-04 | file+content | `grep -q "queries: security-extended" templates/.github/workflows/security.yml && grep -q "dependency-review-action@v5" templates/.github/workflows/dependency-review.yml && ! grep -q "push:" templates/.github/workflows/dependency-review.yml && grep -q "github-actions" templates/.github/dependabot.yml && echo "all_present"` | ⬜ pending |
+| 04-03-01 | 03 | 1 | CI-01 CI-05 | unit (GREEN) | `cd packages/npm && npm test 2>&1 \| tail -5` | ⬜ pending |
+| 04-03-02 | 03 | 1 | CI-01 CI-05 | unit (GREEN) | `cd packages/pip && uv run --extra dev pytest tests/ -x -q 2>&1 \| tail -10` | ⬜ pending |
+| 04-04-01 | 04 | 2 | CI-06 | manual | Create /tmp/test-gv-node, run goodvibes init, push to GitHub, confirm CI green | ⬜ pending |
+| 04-04-02 | 04 | 2 | CI-06 | manual | Create /tmp/test-gv-python, run goodvibes init, push to GitHub, confirm CI green | ⬜ pending |
+| 04-04-03 | 04 | 2 | CI-06 | manual | Confirm security.yml CodeQL run and dependency-review.yml on PR in test repo | ⬜ pending |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
