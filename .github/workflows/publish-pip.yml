@@ -1,0 +1,30 @@
+name: Publish pip package
+
+on:
+  push:
+    tags:
+      - 'pip-v*'   # trigger: git tag pip-v1.0.0 && git push origin pip-v1.0.0
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    environment: release  # matches PyPI trusted publisher environment name
+    permissions:
+      contents: read
+      id-token: write  # required for OIDC trusted publishing — no API token in repo
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Build wheel
+        working-directory: packages/pip
+        run: uv build --no-sources
+
+      - name: Verify wheel name (D-01 — jgiox-goodvibes)
+        run: test -f packages/pip/dist/jgiox_goodvibes-*.whl
+
+      - name: Publish to PyPI
+        working-directory: packages/pip
+        run: uv publish --trusted-publishing always
