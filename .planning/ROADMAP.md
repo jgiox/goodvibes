@@ -117,7 +117,21 @@ Plans:
   3. `goodvibes init` in an empty directory (no package.json or pyproject.toml) writes workflows for both Node and Python; all pass on first push
   4. `security.yml`, `dependency-review.yml`, and `dependabot.yml` are written and functional; `dependabot.yml` covers GitHub Actions, npm, and pip update channels
 
-**Plans**: TBD
+**Plans**: 4 plans
+
+**Wave 0** *(parallel — no file conflicts)*
+
+- [ ] 04-01-PLAN.md — Wave 0: RED unit tests for detectProjectType (TS + Python) + verify-phase4.sh smoke harness
+- [ ] 04-02-PLAN.md — Wave 0: Author 6 static CI/CD template files (ci-node.yml, ci-python.yml, ci-both.yml, security.yml, dependency-review.yml, dependabot.yml)
+
+**Wave 1** *(blocked on Wave 0 completion)*
+
+- [ ] 04-03-PLAN.md — Wave 1: Implement detect-project-type utilities + extend copy-templates CI variant selection (TS + Python) — tests GREEN
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 04-04-PLAN.md — Wave 2: Human verification checkpoint — generated CI passes on first push
+
 **UI hint**: no
 
 ### Phase 5: Upgrade Command & Template Repo
@@ -146,5 +160,5 @@ Note: Phase 3 (pip CLI) and Phase 4 (CI scaffolding) have no dependency on each 
 | 1. Template Content & Repo Foundation | 4/4 | Complete   | 2026-06-23 |
 | 2. npm CLI | 5/5 | Complete | 2026-06-23 |
 | 3. pip CLI | 4/4 | Complete   | 2026-06-24 |
-| 4. CI/CD Scaffolding | 0/TBD | Not started | - |
+| 4. CI/CD Scaffolding | 0/4 | Not started | - |
 | 5. Upgrade Command & Template Repo | 0/TBD | Not started | - |
