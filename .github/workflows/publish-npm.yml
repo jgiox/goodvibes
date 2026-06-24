@@ -1,0 +1,39 @@
+name: Publish npm package
+
+on:
+  push:
+    tags:
+      - 'npm-v*'   # trigger: git tag npm-v1.0.1 && git push origin npm-v1.0.1
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Install dependencies
+        working-directory: packages/npm
+        run: npm ci
+
+      - name: Build
+        working-directory: packages/npm
+        run: npm run build
+
+      - name: Verify package contents
+        working-directory: packages/npm
+        run: |
+          npm pack --dry-run 2>&1 | grep -E "dist/|templates/"
+          npm pack --dry-run 2>&1 | grep "src/" | wc -l | grep "^0$"
+
+      - name: Publish
+        working-directory: packages/npm
+        run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

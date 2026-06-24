@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(rm -rf *)",
+      "Bash(node /home/ygiokas/GoodVibes/packages/npm/dist/index.js init)",
+      "Bash(echo \"EXIT:$?\")"
+    ]
+  }
+}

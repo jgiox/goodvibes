@@ -94,4 +94,18 @@ that prevents data loss, security measures, accessibility basics, anything
 explicitly requested. User insists on the full version → build it.
 
 Never lazy about understanding the problem. Trace the whole thing first.
+
+## Testing
+
+**Inline comments:** Only write a comment when WHY is non-obvious. Never describe what the
+code does. No docstrings for self-evident functions. One line max.
+
+**Unit tests:** Mock all external calls (subprocess, network, filesystem). Test one function
+in isolation. Every public function gets at least one test. Run fast, no real I/O.
+
+**Integration tests:** Use a real temporary directory, no mocks for file ops. Verify that
+modules work together. Live in `tests/integration/` or `src/**/*.integration.test.ts`.
+
+**Regression tests:** For every bug fix — write a failing test reproducing the bug first,
+commit it (RED), then fix it (GREEN). Test name must describe the symptom, not the fix.
 <!-- goodvibes:end -->

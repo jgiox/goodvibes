@@ -1,46 +1,56 @@
-<!-- GSD:project-start source:PROJECT.md -->
-## Project
+# Stack Research: goodvibes
 
-**goodvibes**
+**Researched:** 2026-06-23
+**Overall confidence:** HIGH (npm), HIGH (pip), MEDIUM (headroom bundling), MEDIUM (monorepo)
 
-goodvibes is a single-command bootstrap for people who want to vibe code with an LLM and not worry about the rest. Run `npx goodvibes init` (or fork the template), start coding, and everything else — code hygiene, token efficiency, git discipline, CI/CD — happens automatically in the background. It is an open-source Apache 2.0 starter kit targeting complete beginners who use Claude, Copilot, or any other LLM coding tool.
-
-**Core Value:** One command gives a new vibe coder a production-grade project environment — the LLM is quietly guided to write clean minimal code, tokens are optimized so context never bloats, and git/CI enforces quality gates automatically, all without the user needing to understand any of it.
-
-### Constraints
-
-- **License**: Apache 2.0 — all bundled/forked code must be Apache 2.0 or permissive-compatible (MIT, BSD)
-- **Zero-config**: The installer must work without any user configuration; sensible defaults for everything
-- **Beginner-first**: Every doc, error message, and README section must assume the reader has never opened a terminal before
-- **Language-agnostic core**: CLAUDE.md rules, skills, and CI templates must work for any language/stack
-- **Headroom bundling**: headroom is Python/Rust — the pip installer can pull it as a dependency; the npm installer shells out to pip or documents the pip step clearly
-<!-- GSD:project-end -->
-
-<!-- GSD:stack-start source:research/STACK.md -->
-## Technology Stack
+---
 
 ## Recommended Stack
+
 ### npm CLI Package
+
+**Framework: Commander.js v12+**
+
+Use Commander.js, not yargs or meow. Rationale:
 - Zero dependencies — keeps `npx goodvibes init` cold-start lean (~18 ms vs ~35 ms for yargs on Node 20)
 - Git-style subcommands (`init`, `update`, `check`) map naturally to its API
 - MIT license — fully compatible with Apache 2.0
 - 130M+ weekly downloads; the de facto standard for scaffolding CLIs (create-react-app, vue-cli, etc. all use it or Commander descendants)
 - Meow is excellent for type inference but lacks subcommand support needed for future `goodvibes update` command
+
+**Interactive prompts: @clack/prompts**
+
+Use `@clack/prompts`, not inquirer. Rationale:
 - ~4 KB gzipped vs. inquirer's much larger footprint — critical for npx cold-start experience
 - TypeScript-native, ESM-first — no CommonJS shim pain
 - Built-in `spinner`, `group()`, and cancellation handling cover 100% of a scaffolding wizard's needs
 - Opinionated beautiful output with zero configuration — right for a "zero-config" tool aimed at beginners
 - MIT license
+
+**Language / bundler: TypeScript + tsup**
+
+Write the CLI in TypeScript, bundle with tsup (powered by esbuild). Rationale:
 - tsup outputs both ESM and CJS from one config — handles the ongoing Node.js dual-module mess without manual effort
 - Single bundled file means no runtime resolution cost for npx users
 - tsup is MIT licensed
+
+**File system operations: fs-extra (MIT)**
+
+Use `fs-extra` for all file copy / mkdir / template injection operations. It:
 - Adds `copy()`, `mkdirs()`, `outputFile()` with Promises on top of Node's native `fs`
 - Uses `graceful-fs` internally, preventing `EMFILE` errors on Windows (too many open file handles)
 - Avoids any platform-specific shell commands (`cp`, `xcopy`) — pure Node.js, cross-platform by construction
+
+**Subprocess calls: execa v9+ (MIT)**
+
+Use `execa` for any subprocess invocations (e.g., calling `uv tool install headroom-ai` during init). Rationale:
 - Promise-based, no callback nesting
 - Correct Windows shebang and PATHEXT handling out of the box
 - No shell injection risk — args are passed as arrays, not strings
 - Sindre Sorhus's most downloaded utility; battle-tested on all three platforms
+
+**Core dependencies summary:**
+
 | Package | Version | Purpose | License |
 |---|---|---|---|
 | `commander` | ^13 | Argument parsing, subcommands | MIT |
@@ -49,28 +59,170 @@ goodvibes is a single-command bootstrap for people who want to vibe code with an
 | `execa` | ^9 | Subprocess calls (pip, uv, git) | MIT |
 | `tsup` | ^8 | Build / bundle | MIT |
 | `typescript` | ^5.5 | Language | Apache 2.0 |
+
+All MIT — no compatibility issue with the project's Apache 2.0 license.
+
+---
+
 ### pip CLI Package
+
+**Framework: Typer**
+
+Use Typer, not Click directly or argparse. Rationale:
 - Built on Click (BSD-3-Clause, compatible with Apache 2.0) — inherits Click's battle-tested reliability
 - Type-hint-driven API eliminates ~40% of the decorator boilerplate Click requires
 - Since Typer 0.26.0, Click is vendored inside Typer — single install, no transitive version conflicts
 - Auto-generated `--help` is beautiful without configuration
 - MIT license
+
+**Templating: No copier or cookiecutter**
+
+goodvibes does not need a templating engine. The Python CLI's job is to copy static files (CLAUDE.md, workflow YAMLs, skill files) into the user's project — these are not parameterized templates that vary per user. Use Python's built-in `shutil.copy2()` and `pathlib.Path` for file injection. This is simpler, has zero additional dependencies, and avoids the `copier`/`cookiecutter` learning curve for contributors.
+
+If variable substitution is ever needed (e.g., inserting the user's GitHub repo name), use Python's `str.replace()` or `string.Template` from the standard library — not a full templating framework.
+
+**Package manager: uv (for development and installation)**
+
+Recommend `uv` for the goodvibes pip package development workflow. Rationale:
 - Pure Python project — no conda-forge or system libraries needed, which is exactly uv's target use case
 - Dramatically faster than pip/poetry for CI and local dev
 - `uv tool install headroom-ai` is the recommended way to install headroom — use this in the goodvibes init flow
 - MIT license; the Astral ecosystem is dominant for new Python tooling in 2025-2026
 - Pixi is overkill here (designed for mixed conda/PyPI environments, data science, system libraries)
+
+**Python version target: 3.10+**
+
+headroom-ai requires Python 3.10+, so goodvibes pip package must also declare `python_requires = ">=3.10"`. This is a hard lower bound driven by the dependency, not a choice.
+
+**Core dependencies summary:**
+
 | Package | Version | Purpose | License |
 |---|---|---|---|
 | `typer` | ^0.15 | CLI framework | MIT |
 | `rich` | ^14 | Terminal output (pulled in by typer[all]) | MIT |
 | Python stdlib only | — | File copy (`shutil`, `pathlib`) | PSF |
+
+---
+
 ### Cross-Platform File Injection
+
+**Use pure Node.js / pure Python — no shell commands.**
+
+The single most important rule for cross-platform safety is: never use shell commands in scaffolding scripts. `cp`, `xcopy`, `mkdir -p`, and `rm -rf` all have platform-specific behavior or require `shell: true` in subprocess calls (which opens injection vectors).
+
+**npm side:**
+
+```js
+import { copy, outputFile, ensureDir } from 'fs-extra'
+
+// Copy a template directory into the user's project
+await copy(templateSrcDir, targetDir, { overwrite: false, errorOnExist: false })
+
+// Write a single generated file
+await outputFile(path.join(targetDir, 'CLAUDE.md'), claudeMdContent)
+```
+
+`fs-extra.copy()` is recursive, handles nested directories, and works identically on Windows, macOS, and Linux.
+
+**Path handling:** Always use `path.join()` or `path.resolve()` — never string concatenate paths with `/` or `\\`. On Windows, `path.join` uses backslashes automatically; `fs-extra` normalizes them for file operations.
+
+**Python side:**
+
+```python
+import shutil
+from pathlib import Path
+
 # Recursive copy
+shutil.copytree(src, dest, dirs_exist_ok=True)
+
 # Single file
+shutil.copy2(src_file, dest_file)
+```
+
+`pathlib.Path` handles separator normalization. `shutil.copytree(dirs_exist_ok=True)` (Python 3.8+) merges into existing directories without error.
+
+**Line endings:** Ship all template files with LF (`\n`). Git's `.gitattributes` should enforce `text=auto eol=lf` on the goodvibes repo to prevent Windows CRLF commits corrupting YAML/shell scripts.
+
+**Executable bits on shell scripts:** When copying GitHub Actions workflow files or shell scripts, preserve permissions with `shutil.copy2()` (copies metadata) on Python side, and set mode explicitly with `fs.chmod()` on the npm side if needed.
+
+---
+
 ### Headroom Bundling Strategy
+
+**Verdict: Runtime subprocess install via `uv tool install`, with graceful fallback.**
+
+headroom-ai is available on both PyPI (`pip install headroom-ai`) and npm (`npm install headroom-ai`). The npm package is a TypeScript SDK that requires a running Python proxy server — it is NOT a standalone installer. This rules out making headroom-ai an npm dependency.
+
+**Recommended flow in `goodvibes init`:**
+
+1. Detect Python 3.10+ on the user's PATH (try `python3 --version`, then `python --version` on Windows)
+2. Detect `uv` on PATH — if present, install via `uv tool install "headroom-ai[all]"` (installs into isolated tool env, globally available, idiomatic 2025 approach)
+3. Fallback: if no `uv`, run `pip install --user "headroom-ai[all]"` via `execa` (npm) or `subprocess` (Python)
+4. If Python is not found at all: print a clear warning, skip headroom installation, and note in the generated CLAUDE.md that headroom must be installed manually
+5. Verify installation by running `headroom --version` as a subprocess
+
+**Do NOT use npm `postinstall` hooks** to install Python packages. npm v12 is actively blocking and warning on postinstall scripts as a supply-chain security measure. A postinstall hook that calls `pip` would also fail silently on systems without Python, giving beginners a confusing partial installation.
+
+**Do NOT declare headroom-ai as an npm `optionalDependencies`**. The npm headroom-ai package is a proxy client, not the compression tool itself. Installing it as an npm dep would pull in an SDK that won't work without the Python server running.
+
+**Detection utility (Node.js):**
+
+```ts
+import { execa } from 'execa'
+
+async function detectPython(): Promise<string | null> {
+  for (const cmd of ['python3', 'python']) {
+    try {
+      const { stdout } = await execa(cmd, ['--version'])
+      const match = stdout.match(/Python (\d+\.\d+)/)
+      if (match && parseFloat(match[1]) >= 3.10) return cmd
+    } catch {}
+  }
+  return null
+}
+```
+
+**headroom's license: Apache 2.0** — fully compatible with goodvibes Apache 2.0. No conflict.
+
+---
+
 ### Monorepo vs Separate Packages
+
+**Verdict: Single Git repo, two separate top-level package directories, no monorepo tooling.**
+
+goodvibes ships as two packages: `goodvibes` on npm and `goodvibes` on PyPI. The functional overlap is small (both copy the same set of template files), but the implementation languages are completely different. A monorepo tool like Turborepo or Nx only makes sense when tasks meaningfully cross package boundaries (shared type definitions, cross-package test runs, unified build pipelines). That doesn't apply here.
+
+**Recommended structure:**
+
+```
+goodvibes/                     (git root, Apache 2.0)
+  packages/
+    npm/                       (npm package — TypeScript/Commander CLI)
+      package.json
+      src/
+      templates/               (shared template files live HERE)
+    pip/                       (pip package — Python/Typer CLI)
+      pyproject.toml
+      goodvibes/
+        templates -> symlink to ../../npm/templates   (or copy via build step)
+  .github/
+    workflows/
+  CLAUDE.md
+  CONTRIBUTING.md
+```
+
+**Key design decision: single source of truth for templates.** Both the npm and pip installers inject identical files (CLAUDE.md, workflow YAMLs, skill files) into the user's project. Store these in `packages/npm/templates/` as the canonical source. The pip package either symlinks this directory during development or copies it as part of the pip build step (via `package_data` in `pyproject.toml`).
+
+**Why not Turborepo/Nx?** Both are JavaScript-ecosystem-centric. Cross-language orchestration (running `uv run pytest` from the same task graph as `pnpm test`) requires significant configuration with no real benefit for a two-package project. A root `Makefile` or a root `package.json` with a few scripts is sufficient.
+
+**Why not separate repos?** Keeping both packages in one repo means template updates (adding a new GitHub Actions workflow, updating CLAUDE.md) touch one commit, one PR, one changelog entry. Divergence between npm and pip behavior is caught in one place.
+
+**No workspace manager needed:** pnpm workspaces or npm workspaces are not needed because the two packages don't share Node.js code. The npm package has its own `package.json`; the pip package has its own `pyproject.toml`. Root-level scripts (`make release-npm`, `make release-pip`) are sufficient.
+
+---
+
 ## What NOT to Use and Why
+
 | Tool | Category | Why Not |
 |---|---|---|
 | **yargs** | npm argument parsing | 2x slower cold start than Commander, larger footprint, overkill features (middleware, custom completion) not needed for simple `init` command |
@@ -85,7 +237,11 @@ goodvibes is a single-command bootstrap for people who want to vibe code with an
 | **Turborepo / Nx** | Monorepo tooling | JS-ecosystem-centric, no meaningful cross-language benefit for two-package project |
 | **Bazel / Pants** | Monorepo tooling | Extreme engineering overhead for what is essentially `make release-npm && make release-pip` |
 | **shell: true in subprocess** | Cross-platform execution | Opens shell injection vector; execa (Node) and subprocess without shell=True (Python) are safe alternatives |
+
+---
+
 ## Confidence Levels
+
 | Area | Confidence | Rationale |
 |---|---|---|
 | Commander.js for npm | HIGH | Verified: 130M weekly downloads, MIT license, zero deps confirmed on npmjs.com; comparison data from PkgPulse benchmarks |
@@ -100,7 +256,11 @@ goodvibes is a single-command bootstrap for people who want to vibe code with an
 | Python detection logic (python3 vs python) | MEDIUM | Windows behavior of `python` command is inconsistent (may open Microsoft Store); WSL adds PATH complexity; recommend testing explicitly on Windows 11 + WSL2 |
 | Single-repo two-package structure | MEDIUM | Common pattern for dual-language CLI tools but no canonical reference; inferred from general monorepo guidance and project constraints |
 | npm postinstall prohibition | HIGH | Verified: npm v12 blog post explicitly names this as security improvement being enforced |
+
+---
+
 ## Sources
+
 - [Commander vs Yargs 2026 — PkgPulse](https://www.pkgpulse.com/guides/commander-vs-yargs-2026)
 - [CLI Framework Comparison: Commander vs Yargs vs Oclif — Grizzly Peak](https://www.grizzlypeaksoftware.com/library/cli-framework-comparison-commander-vs-yargs-vs-oclif-utxlf9v9)
 - [commander — npm](https://www.npmjs.com/package/commander)
@@ -123,167 +283,3 @@ goodvibes is a single-command bootstrap for people who want to vibe code with an
 - [Headroom Installation docs — Vercel](https://headroom-docs.vercel.app/docs/installation)
 - [npm v12 blocks postinstall — aikido.dev](https://www.aikido.dev/blog/npm-v12-block-postinstall)
 - [Guides to Cross-Platform Scripts in package.json — 8hob.io](https://8hob.io/posts/guides-creating-cross-platform-nodejs-scripts/)
-<!-- GSD:stack-end -->
-
-<!-- GSD:conventions-start source:CONVENTIONS.md -->
-## Conventions
-
-### Inline comments
-Write a comment only when the WHY is non-obvious: a hidden constraint, a platform quirk,
-a workaround for a specific upstream bug, or a subtle invariant that would surprise a reader.
-Never describe WHAT the code does — the code already does that. Never comment out old code;
-delete it. One short line maximum. No multi-line comment blocks.
-
-### Unit tests
-Unit tests mock all external calls (subprocess, network, filesystem). They test one function's
-behavior in isolation. File: `src/steps/foo.ts` → test file: `src/steps/foo.test.ts` (TS) or
-`tests/test_foo.py` (Python). Every exported public function must have at least one unit test.
-Use vitest (TS) or pytest + pytest-mock (Python). Never run real uv/pip/claude/npm in a unit test.
-
-### Integration tests
-Integration tests run against a real temporary directory (no mocks for file I/O). They verify
-that multiple modules work together correctly — e.g. `copyTemplates` + `mergeClaude` end-to-end
-in a real tmpdir. Integration tests live in a separate `tests/integration/` directory.
-Run them with: `npm run test:integration` or `pytest tests/integration/`.
-
-### Regression tests
-For every bug fix: write a failing test that reproduces the bug BEFORE writing the fix.
-Commit the failing test first (RED), then the fix (GREEN), in separate commits.
-The test name must reference the symptom: `test_install_headroom_does_not_throw_on_cpp_build_failure`.
-
-### Test naming
-Test names are sentences describing the expected behavior:
-- TS: `it('returns null when Python version is below 3.10')`
-- Python: `def test_returns_none_when_python_below_3_10()`
-Never name tests `test_1`, `test_happy_path`, or `test_works`.
-<!-- GSD:conventions-end -->
-
-<!-- GSD:architecture-start source:ARCHITECTURE.md -->
-## Architecture
-
-Architecture not yet mapped. Follow existing patterns found in the codebase.
-<!-- GSD:architecture-end -->
-
-<!-- GSD:skills-start source:skills/ -->
-## Project Skills
-
-No project skills found. Add skills to any of: `.claude/skills/`, `.agents/skills/`, `.cursor/skills/`, `.github/skills/`, or `.codex/skills/` with a `SKILL.md` index file.
-<!-- GSD:skills-end -->
-
-<!-- GSD:workflow-start source:GSD defaults -->
-## GSD Workflow Enforcement
-
-Before using Edit, Write, or other file-changing tools, start work through a GSD command so planning artifacts and execution context stay in sync.
-
-Use these entry points:
-- `/gsd-quick` for small fixes, doc updates, and ad-hoc tasks
-- `/gsd-debug` for investigation and bug fixing
-- `/gsd-execute-phase` for planned phase work
-
-Do not make direct repo edits outside a GSD workflow unless the user explicitly asks to bypass it.
-<!-- GSD:workflow-end -->
-
-
-
-<!-- GSD:profile-start -->
-## Developer Profile
-
-> Profile not yet configured. Run `/gsd-profile-user` to generate your developer profile.
-> This section is managed by `generate-claude-profile` -- do not edit manually.
-<!-- GSD:profile-end -->
-
-<!-- goodvibes:start -->
-# goodvibes: v1.0.0
-
-## Engineering Rules
-
-### Before you begin
-For every task, define: the exact request, success criteria, files you expect to touch, tests you expect to run, docs you expect to update. If you cannot state those things clearly, you are not ready to code.
-
-### Think before coding
-**State assumptions explicitly before implementing.**
-- Write down assumptions before editing code.
-- Do not silently choose one interpretation when multiple materially different interpretations exist.
-- If you proceed with an assumption because the task is small and reversible, say so in the PR.
-- If the assumption is security-sensitive, data-sensitive, or schema-sensitive, do not proceed silently.
-
-### Simplicity first
-**Use the minimum code that solves the problem.**
-- Prefer a direct implementation over a generalized one.
-- Prefer one clear function over a new framework layer.
-- Avoid optional flags, plugin hooks, factories, and strategy objects unless the task actually requires them.
-- If 200 lines can be 50 without losing clarity, reduce it.
-
-### Surgical changes
-**Touch only what the task requires.**
-- Keep diffs narrow. Do not opportunistically reformat unrelated files.
-- Do not rename files, symbols, or folders unless the task requires it.
-- Only remove imports, variables, functions, or files that your change made unused.
-- If you notice unrelated dead code, mention it in the PR but do not delete it unless asked.
-
-### Fail loud
-**Do not fail silently.**
-- No empty `catch` blocks. No swallowed exceptions.
-- No silent retries without bounded policy and logging.
-- No returning fake success on real failure.
-- Error messages must be actionable and specific enough to debug.
-
-### Security
-**Security is an engineering requirement, not a cleanup task.**
-- Validate input at the boundary. Encode output to the target context.
-- Use parameterized queries. Keep secrets out of code, commits, and logs.
-- Apply least privilege for tokens, roles, and permissions.
-
-Must flag immediately: SQL injection, XSS, command injection, path traversal, broken auth, leaked secrets, unsafe dependency additions.
-
-### Journal
-**Update `JOURNAL.md` at the end of every task.**
-Each entry must include: date, task summary, files changed, why the change was made, tests run, docs updated.
-Rules: do not rewrite history. Additive entries only. Keep it short, factual, and readable.
-
-## Ponytail — Minimalism Ruleset
-
-You are a lazy senior developer. Lazy means efficient, not careless. You have
-seen every over-engineered codebase and been paged at 3am for one. The best
-code is the code never written.
-
-## Persistence
-ACTIVE EVERY RESPONSE. No drift back to over-building. Still active if
-unsure. Off only: "stop ponytail" / "normal mode". Default: **full**.
-Switch: `/ponytail lite|full|ultra`.
-
-## The ladder
-Stop at the first rung that holds:
-
-1. **Does this need to exist at all?** Speculative need = skip it, say so in one line. (YAGNI)
-2. **Already in this codebase?** A helper, util, type, or pattern that already lives here → reuse it.
-3. **Stdlib does it?** Use it.
-4. **Native platform feature covers it?** Use it.
-5. **Already-installed dependency solves it?** Use it. Never add a new one for what a few lines can do.
-6. **Can it be one line?** One line.
-7. **Only then:** the minimum code that works.
-
-## Rules
-- No unrequested abstractions: no interface with one implementation, no factory for one product.
-- No boilerplate, no scaffolding "for later".
-- Deletion over addition. Boring over clever.
-- Fewest files possible. Shortest working diff wins.
-- Mark deliberate simplifications with a `ponytail:` comment.
-
-## Output
-Code first. Then at most three short lines: what was skipped, when to add it.
-
-## Intensity
-| Level | What changes |
-|-------|------------|
-| **lite** | Build what's asked, name the lazier alternative in one line. |
-| **full** | The ladder enforced. Shortest diff, shortest explanation. Default. |
-| **ultra** | YAGNI extremist. Deletion before addition. |
-
-## When NOT to be lazy
-Never simplify away: input validation at trust boundaries, error handling
-that prevents data loss, security measures, accessibility basics, anything
-explicitly requested. User insists on the full version → build it.
-
-Never lazy about understanding the problem. Trace the whole thing first.
-<!-- goodvibes:end -->
