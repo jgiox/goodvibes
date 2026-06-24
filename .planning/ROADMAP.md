@@ -126,7 +126,7 @@ Plans:
 
 **Wave 1** *(blocked on Wave 0 completion)*
 
-- [ ] 04-03-PLAN.md — Wave 1: Implement detect-project-type utilities + extend copy-templates CI variant selection (TS + Python) — tests GREEN
+- [x] 04-03-PLAN.md — Wave 1: Implement detect-project-type utilities + extend copy-templates CI variant selection (TS + Python) — tests GREEN
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -160,5 +160,5 @@ Note: Phase 3 (pip CLI) and Phase 4 (CI scaffolding) have no dependency on each 
 | 1. Template Content & Repo Foundation | 4/4 | Complete   | 2026-06-23 |
 | 2. npm CLI | 5/5 | Complete | 2026-06-23 |
 | 3. pip CLI | 4/4 | Complete   | 2026-06-24 |
-| 4. CI/CD Scaffolding | 2/4 | In Progress|  |
+| 4. CI/CD Scaffolding | 3/4 | In Progress|  |
 | 5. Upgrade Command & Template Repo | 0/TBD | Not started | - |
