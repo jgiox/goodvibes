@@ -29,6 +29,10 @@ def template_dir(tmp_path):
     d = tmp_path / "templates"
     d.mkdir()
     (d / "CLAUDE.md").write_text(TEMPLATE_CONTENT)
+    (d / "CONTRIBUTING.md").write_text("# Contributing\n")
+    workflows = d / ".github" / "workflows"
+    workflows.mkdir(parents=True)
+    (workflows / "ci.yml").write_text("name: CI\n")
     return d
 
 
