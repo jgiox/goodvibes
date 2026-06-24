@@ -18,6 +18,10 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v5
 
+      - name: Test
+        working-directory: packages/pip
+        run: uv run pytest tests/ -x -q
+
       - name: Build wheel
         working-directory: packages/pip
         run: uv build --no-sources
