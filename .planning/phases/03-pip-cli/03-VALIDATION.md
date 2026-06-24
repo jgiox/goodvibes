@@ -7,11 +7,11 @@
 
 | Gate | Status |
 |------|--------|
-| nyquist_compliant | false — will be set true by final plan (03-04) |
-| wave_0_complete | false |
-| wave_1_complete | false |
-| wave_2_complete | false |
-| pypi_published | false |
+| nyquist_compliant | true |
+| wave_0_complete | true |
+| wave_1_complete | true |
+| wave_2_complete | true |
+| pypi_published | false — awaiting human checkpoint (trusted publishing setup + git tag) |
 
 ## Quick Run
 

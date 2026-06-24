@@ -15,7 +15,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Template Content & Repo Foundation** - Author the canonical template files (CLAUDE.md, skills, docs, license) that both CLIs will copy (completed 2026-06-23)
 - [x] **Phase 2: npm CLI** - Build `npx goodvibes init` with full headroom integration, sentinel merge, and project-type detection (completed 2026-06-23)
-- [ ] **Phase 3: pip CLI** - Port the npm CLI to Python and publish to PyPI as `jgiox-goodvibes` (PyPI name; `goodvibes` taken by chemistry package)
+- [x] **Phase 3: pip CLI** - Port the npm CLI to Python and publish to PyPI as `jgiox-goodvibes` (PyPI name; `goodvibes` taken by chemistry package) (completed 2026-06-24)
 - [ ] **Phase 4: CI/CD Scaffolding** - Validate and harden generated GitHub Actions workflows for both project types
 - [ ] **Phase 5: Upgrade Command & Template Repo** - Implement `goodvibes upgrade` and publish the GitHub template repo as the click-to-fork entry point
 
@@ -101,7 +101,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 03-04-PLAN.md — Wave 2: init_cmd.py (Typer command) + main.py (wiring) + publish-pip.yml (trusted publishing) + PyPI publish human checkpoint
+- [x] 03-04-PLAN.md — Wave 2: init_cmd.py (Typer command) + main.py (wiring) + publish-pip.yml (trusted publishing) + PyPI publish human checkpoint
 
 **UI hint**: no
 
@@ -145,6 +145,6 @@ Note: Phase 3 (pip CLI) and Phase 4 (CI scaffolding) have no dependency on each 
 |-------|----------------|--------|-----------|
 | 1. Template Content & Repo Foundation | 4/4 | Complete   | 2026-06-23 |
 | 2. npm CLI | 5/5 | Complete | 2026-06-23 |
-| 3. pip CLI | 3/4 | In Progress|  |
+| 3. pip CLI | 4/4 | Complete   | 2026-06-24 |
 | 4. CI/CD Scaffolding | 0/TBD | Not started | - |
 | 5. Upgrade Command & Template Repo | 0/TBD | Not started | - |
