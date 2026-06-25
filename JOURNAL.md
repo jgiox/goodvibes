@@ -153,3 +153,17 @@ a tag-triggered workflow.
 - Dependabot recognized dependabot.yml and fired update checks for github-actions, pip, npm ecosystems
 - Fixed two template bugs found during verification: `setup-uv@v8` → `v8.2.0` (no major alias exists); security.yml matrix replaced with runtime language detection shell step
 - Phase 4 complete — CI/CD scaffolding ships for Node + Python projects
+
+---
+
+## 2026-06-25 — Phase 5 Plan 03: publish-template.yml workflow added
+
+**What I did:** Created `.github/workflows/publish-template.yml` — a manual `workflow_dispatch` workflow that runs `git subtree push --prefix=templates` to push the contents of `templates/` to `jgiox/goodvibes-template` as the repo root. The initial push to the template repo must be performed by the user after creating the `jgiox/goodvibes-template` repo on GitHub and marking it as a Template repository. The workflow uses `${{ secrets.TEMPLATE_REPO_TOKEN }}` (classic PAT, repo scope) — no secrets hardcoded; no `shell: true`.
+
+**Why:** Phase 5 success criterion 3 — a user can click "Use This Template" on `jgiox/goodvibes-template` and get a working CLAUDE.md-equipped project without running `goodvibes init`.
+
+**Files changed:** `.github/workflows/publish-template.yml` (created), `JOURNAL.md` (this entry).
+
+**Tests run:** YAML syntax verified by read-back; `grep` confirms `workflow_dispatch`, `goodvibes-template`, and `secrets.TEMPLATE_REPO_TOKEN` present; no `shell: true`.
+
+**Docs updated:** JOURNAL.md (this entry).

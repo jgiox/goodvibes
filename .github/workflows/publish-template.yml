@@ -1,0 +1,33 @@
+name: Publish template repo
+
+# Manual trigger only — run this after bumping goodvibes version to sync
+# templates/ contents to jgiox/goodvibes-template.
+#
+# Secret required: TEMPLATE_REPO_TOKEN
+#   Create at: github.com/settings/tokens — classic PAT, repo scope
+#   Limit scope to jgiox/goodvibes-template only (repo:write)
+#   Add as repo secret: Settings → Secrets and variables → Actions → New repository secret
+
+on:
+  workflow_dispatch:
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # full history required by git subtree push
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Push templates/ to jgiox/goodvibes-template
+        run: |
+          git subtree push --prefix=templates \
+            https://x-access-token:${{ secrets.TEMPLATE_REPO_TOKEN }}@github.com/jgiox/goodvibes-template.git \
+            main
