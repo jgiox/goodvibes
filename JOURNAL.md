@@ -195,3 +195,27 @@ a tag-triggered workflow.
 **Tests run:** YAML syntax verified by read-back; `grep` confirms `workflow_dispatch`, `goodvibes-template`, and `secrets.TEMPLATE_REPO_TOKEN` present; no `shell: true`.
 
 **Docs updated:** JOURNAL.md (this entry).
+
+---
+
+## 2026-06-25 — CI fixes + upgrade command UAT bugs
+
+**What I did:** Fixed three CI failures and two runtime bugs discovered during UAT:
+
+1. **ANSI tokenization breaks `"dry-run"` substring check** — GitHub Actions sets `FORCE_COLOR=1`, causing Rich to emit separate ANSI escape segments for `--dry-run` at the hyphen. Fixed `test_main.py::test_init_help_has_dry_run` and `test_upgrade_cmd.py::test_upgrade_help_has_dry_run` to strip ANSI codes (`_ANSI.sub("", result.output)`) before asserting.
+
+2. **`version_gte` crash on empty bundled version** — When `CLAUDE.md` has no goodvibes version sentinel, `detectBundledVersion` returns `None`/`null`. The old guard passed that as `""` to `version_gte`, causing `ValueError: invalid literal for int() with base 10: ''` in Python and a silent wrong-`true` result in TypeScript. Fixed: added `bundledVersion and` guard before calling `version_gte` in both `upgrade_cmd.py` and `upgrade.ts`.
+
+3. **Test mock missing for `resolveTemplatesDir`** — After `vi.resetAllMocks()`, `resolveTemplatesDir` returns `undefined`. The 'skips upgrade when already up to date' test did not mock it, so `bundledVersion` was `null` after the new guard was added. Fixed by adding `vi.mocked(resolveTemplatesDir).mockReturnValue('/mock/templates')`.
+
+4. **Smoke test pointed at wrong harness** — `ci.yml` smoke step ran `verify-phase3.sh --quick` after Phase 5 completed. Updated to `verify-phase5.sh`.
+
+5. **Missing Phase 5 journal entries** — Plans 01 and 02 entries were lost in a `git checkout --theirs JOURNAL.md` merge conflict resolution during Wave 2 merge. Re-added manually.
+
+**Why:** Discovered during live UAT of `goodvibes upgrade --dry-run` and GitHub CI audit.
+
+**Files changed:** `packages/pip/tests/test_main.py`, `packages/pip/tests/test_upgrade_cmd.py`, `packages/pip/src/goodvibes_cli/commands/upgrade_cmd.py`, `packages/npm/src/commands/upgrade.ts`, `packages/npm/src/commands/upgrade.test.ts`, `.github/workflows/ci.yml`, `JOURNAL.md`.
+
+**Tests run:** 62 Python tests GREEN with `FORCE_COLOR=1`. 58 TypeScript tests GREEN. `bash scripts/verify-phase5.sh --quick` — PASS.
+
+**Docs updated:** JOURNAL.md (this entry).
