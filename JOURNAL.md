@@ -142,3 +142,14 @@ a tag-triggered workflow.
 - Added 3 CI variant selection tests and updated comment in test_copy_templates.py
 - Wired detect_project_type into packages/pip/src/goodvibes_cli/commands/init_cmd.py
 - pytest GREEN (56/56 tests pass including 5 detect_project_type tests from Plan 01)
+
+---
+
+## 2026-06-25 — Phase 4 Plan 04: Human verification of generated CI workflows
+
+- Verified goodvibes init writes correct ci.yml for Python project (CI green: https://github.com/jgiox/test-gv-python/actions/runs/28152904156)
+- Verified Dependency Review fires on PR and not on push (https://github.com/jgiox/test-gv-python/actions/runs/28152904169)
+- Verified Security scan (CodeQL) passes with runtime language detection (https://github.com/jgiox/test-gv-python/actions/runs/28152904187)
+- Dependabot recognized dependabot.yml and fired update checks for github-actions, pip, npm ecosystems
+- Fixed two template bugs found during verification: `setup-uv@v8` → `v8.2.0` (no major alias exists); security.yml matrix replaced with runtime language detection shell step
+- Phase 4 complete — CI/CD scaffolding ships for Node + Python projects
