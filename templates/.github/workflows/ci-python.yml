@@ -17,7 +17,7 @@ jobs:
       - uses: actions/checkout@v7
 
       # python-version must be explicit — setup-uv does not auto-read matrix.python (Pitfall 4)
-      - uses: astral-sh/setup-uv@v8
+      - uses: astral-sh/setup-uv@v8.2.0
         with:
           python-version: ${{ matrix.python }}
 
