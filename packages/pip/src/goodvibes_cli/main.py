@@ -1,6 +1,7 @@
 import typer
 
 from goodvibes_cli.commands.init_cmd import init_cmd
+from goodvibes_cli.commands.upgrade_cmd import upgrade_cmd
 
 app = typer.Typer(help="goodvibes — one-command bootstrap for vibe coding projects")
 
@@ -11,6 +12,7 @@ def _callback() -> None:
 
 
 app.command("init")(init_cmd)
+app.command("upgrade")(upgrade_cmd)
 
 if __name__ == "__main__":
     app()
