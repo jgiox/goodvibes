@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
@@ -8,8 +9,6 @@ for arg in "$@"; do
     QUICK=1
   fi
 done
-
-set -euo pipefail
 
 pass=0; fail=0
 
