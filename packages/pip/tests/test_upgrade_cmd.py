@@ -1,4 +1,5 @@
 """Upgrade command tests — mirrors test_main.py pattern."""
+import re
 from unittest.mock import patch
 
 import pytest
@@ -8,11 +9,15 @@ from goodvibes_cli.main import app
 
 runner = CliRunner()
 
+_ANSI = re.compile(r'\x1b\[[0-9;]*m')
+
 
 def test_upgrade_help_has_dry_run():
     result = runner.invoke(app, ["upgrade", "--help"])
     assert result.exit_code == 0
-    assert "dry-run" in result.output
+    # GitHub Actions sets FORCE_COLOR=1; Rich tokenizes "--dry-run" at the hyphen,
+    # splitting ANSI segments so "dry-run" is non-contiguous in the raw output.
+    assert "dry-run" in _ANSI.sub("", result.output)
 
 
 def test_dry_run_shows_summary_without_writing(mocker):

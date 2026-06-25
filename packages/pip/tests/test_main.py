@@ -1,4 +1,5 @@
 """CLI integration tests via typer.testing.CliRunner — RED phase."""
+import re
 from unittest.mock import patch
 
 import pytest
@@ -7,6 +8,8 @@ from typer.testing import CliRunner
 from goodvibes_cli.main import app
 
 runner = CliRunner()
+
+_ANSI = re.compile(r'\x1b\[[0-9;]*m')
 
 
 def test_help_exits_zero():
@@ -22,7 +25,9 @@ def test_help_contains_goodvibes():
 def test_init_help_has_dry_run():
     result = runner.invoke(app, ["init", "--help"])
     assert result.exit_code == 0
-    assert "dry-run" in result.output
+    # GitHub Actions sets FORCE_COLOR=1; Rich tokenizes "--dry-run" at the hyphen,
+    # splitting ANSI segments so "dry-run" is non-contiguous in the raw output.
+    assert "dry-run" in _ANSI.sub("", result.output)
 
 
 def test_init_help_has_minimal():
