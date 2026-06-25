@@ -38,28 +38,29 @@ Both paths inject:
 
 ### Validated
 
-(None yet — ship to validate)
+- [x] Template fork path: all files present at repo root — Validated in Phase 01
+- [x] CLAUDE.md generated from combined karpathy + Code Directions.md rules — Validated in Phase 01
+- [x] caveman skill bundled and ready (forked, Apache 2.0 compatible) — Validated in Phase 01
+- [x] goodvibes-hygiene skill that wraps ponytail plugin and adds hygiene shortcuts — Validated in Phase 01
+- [x] GitHub Actions CI workflow (test, lint, artifact) — Validated in Phase 04
+- [x] GitHub Actions security workflow (CodeQL, pip-audit, npm audit) — Validated in Phase 04
+- [x] Dependency review workflow (PR gate) — Validated in Phase 04
+- [x] Dependabot config (actions, npm, pip) — Validated in Phase 04
+- [x] Docs scaffold: CONTRIBUTING.md, SECURITY.md, JOURNAL.md, CHANGELOG.md — Validated in Phase 01
+- [x] Issue templates (bug, feature) and PR template — Validated in Phase 01
+- [x] Beginner onboarding docs (git basics, fork/clone/PR flow, CI explained) — Validated in Phase 01
+- [x] Apache 2.0 LICENSE — Validated in Phase 01
+- [x] Single-command bootstrap: `npx goodvibes init` sets up a fully configured project — Validated in Phase 02
+- [x] `pip install goodvibes && goodvibes init` equivalent for Python-native users — Validated in Phase 03
+- [x] `goodvibes upgrade` keeps existing projects current (npm + pip) — Validated in Phase 05
+- [x] Click-to-fork GitHub template repo (`jgiox/goodvibes-template`) — Validated in Phase 05
 
 ### Active
 
-- [ ] Single-command bootstrap: `npx goodvibes init` sets up a fully configured project
-- [ ] `pip install goodvibes && goodvibes init` equivalent for Python-native users
-- [ ] Template fork path: all files present in the repo root
-- [ ] CLAUDE.md generated from combined karpathy + Code Directions.md rules
-- [ ] caveman skill bundled and ready (forked, Apache 2.0 compatible)
-- [ ] goodvibes-hygiene skill that wraps ponytail plugin and adds hygiene shortcuts
-- [ ] Headroom bundled/configured via installer (MCP + proxy option)
-- [ ] GitHub Actions CI workflow (test, lint, artifact)
-- [ ] GitHub Actions security workflow (CodeQL, pip-audit, npm audit)
-- [ ] Dependency review workflow (PR gate)
-- [ ] Dependabot config (actions, npm, pip)
-- [ ] Docs scaffold: CONTRIBUTING.md, SECURITY.md, JOURNAL.md, CHANGELOG.md
-- [ ] Issue templates (bug, feature) and PR template
-- [ ] Beginner onboarding docs (git basics, fork/clone/PR flow, CI explained)
-- [ ] Apache 2.0 LICENSE
 - [ ] Publish npm package as `goodvibes` (or `@jgiox/goodvibes`)
 - [ ] Publish pip package as `goodvibes`
 - [ ] README with one-command quickstart as the hero action
+- [ ] Headroom bundled/configured via installer (MCP + proxy option)
 
 ### Out of Scope
 
@@ -118,4 +119,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-06-23 after initialization*
+*Last updated: 2026-06-25 after Phase 05 completion — upgrade command + template repo delivered*
