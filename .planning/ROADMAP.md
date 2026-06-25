@@ -17,7 +17,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 2: npm CLI** - Build `npx goodvibes init` with full headroom integration, sentinel merge, and project-type detection (completed 2026-06-23)
 - [x] **Phase 3: pip CLI** - Port the npm CLI to Python and publish to PyPI as `jgiox-goodvibes` (PyPI name; `goodvibes` taken by chemistry package) (completed 2026-06-24)
 - [x] **Phase 4: CI/CD Scaffolding** - Validate and harden generated GitHub Actions workflows for both project types (completed 2026-06-25)
-- [ ] **Phase 5: Upgrade Command & Template Repo** - Implement `goodvibes upgrade` and publish the GitHub template repo as the click-to-fork entry point
+- [x] **Phase 5: Upgrade Command & Template Repo** - Implement `goodvibes upgrade` and publish the GitHub template repo as the click-to-fork entry point (completed 2026-06-25)
 
 ## Phase Details
 
@@ -157,7 +157,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 05-03-PLAN.md — Wave 2: publish-template.yml workflow + push templates/ to jgiox/goodvibes-template + human verification checkpoint
+- [x] 05-03-PLAN.md — Wave 2: publish-template.yml workflow + push templates/ to jgiox/goodvibes-template + human verification checkpoint
 
 **UI hint**: no
 
@@ -174,4 +174,4 @@ Note: Phase 3 (pip CLI) and Phase 4 (CI scaffolding) have no dependency on each 
 | 2. npm CLI | 5/5 | Complete | 2026-06-23 |
 | 3. pip CLI | 4/4 | Complete   | 2026-06-24 |
 | 4. CI/CD Scaffolding | 4/4 | Complete | 2026-06-25 |
-| 5. Upgrade Command & Template Repo | 2/3 | In Progress|  |
+| 5. Upgrade Command & Template Repo | 3/3 | Complete   | 2026-06-25 |
