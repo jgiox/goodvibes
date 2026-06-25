@@ -174,4 +174,4 @@ Note: Phase 3 (pip CLI) and Phase 4 (CI scaffolding) have no dependency on each 
 | 2. npm CLI | 5/5 | Complete | 2026-06-23 |
 | 3. pip CLI | 4/4 | Complete   | 2026-06-24 |
 | 4. CI/CD Scaffolding | 4/4 | Complete | 2026-06-25 |
-| 5. Upgrade Command & Template Repo | 3/3 | Complete   | 2026-06-25 |
+| 5. Upgrade Command & Template Repo | 3/3 | Complete    | 2026-06-25 |

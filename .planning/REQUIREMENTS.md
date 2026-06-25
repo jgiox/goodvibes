@@ -77,10 +77,10 @@
 
 ### Upgrade
 
-- [ ] **UPG-01**: `npx goodvibes upgrade` (and `goodvibes upgrade`) re-syncs CLAUDE.md, skill files, and CI workflows to the latest published version of goodvibes
-- [ ] **UPG-02**: Upgrade uses template version stamps to detect what was installed vs what is current
-- [ ] **UPG-03**: Upgrade preserves user edits in CLAUDE.md outside sentinel blocks
-- [ ] **UPG-04**: Upgrade prints a diff-style summary of what changed before applying
+- [x] **UPG-01**: `npx goodvibes upgrade` (and `goodvibes upgrade`) re-syncs CLAUDE.md, skill files, and CI workflows to the latest published version of goodvibes
+- [x] **UPG-02**: Upgrade uses template version stamps to detect what was installed vs what is current
+- [x] **UPG-03**: Upgrade preserves user edits in CLAUDE.md outside sentinel blocks
+- [x] **UPG-04**: Upgrade prints a diff-style summary of what changed before applying
 
 ### Repo and License
 
@@ -169,10 +169,10 @@
 | CI-04 | Phase 4 | Pending |
 | CI-05 | Phase 4 | Pending |
 | CI-06 | Phase 4 | Pending |
-| UPG-01 | Phase 5 | Pending |
-| UPG-02 | Phase 5 | Pending |
-| UPG-03 | Phase 5 | Pending |
-| UPG-04 | Phase 5 | Pending |
+| UPG-01 | Phase 5 | Complete |
+| UPG-02 | Phase 5 | Complete |
+| UPG-03 | Phase 5 | Complete |
+| UPG-04 | Phase 5 | Complete |
 
 **Coverage:**
 - v1 requirements: 54 total
