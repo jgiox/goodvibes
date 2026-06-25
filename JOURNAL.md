@@ -156,6 +156,34 @@ a tag-triggered workflow.
 
 ---
 
+## 2026-06-25 — Phase 5 Plan 01: RED tests for upgrade command (TDD gate)
+
+**What I did:** Added failing RED tests for the `goodvibes upgrade` subcommand before any implementation: `packages/npm/src/commands/upgrade.test.ts` (5 vitest tests), `packages/pip/tests/test_upgrade_cmd.py` (6 pytest tests), and `scripts/verify-phase5.sh` smoke harness. All tests fail intentionally — `upgrade.ts` and `upgrade_cmd.py` do not yet exist.
+
+**Why:** TDD discipline per CLAUDE.md conventions — test contract locks in expected behavior before implementation ships in Plan 02.
+
+**Files changed:** `packages/npm/src/commands/upgrade.test.ts` (created), `packages/pip/tests/test_upgrade_cmd.py` (created), `scripts/verify-phase5.sh` (created), `JOURNAL.md` (this entry).
+
+**Tests run:** All tests RED as expected (`Cannot find module './upgrade.js'` for TS; `upgrade` subcommand not registered for Python).
+
+**Docs updated:** JOURNAL.md (this entry).
+
+---
+
+## 2026-06-25 — Phase 5 Plan 02: upgrade subcommand implementation (RED → GREEN)
+
+**What I did:** Implemented `goodvibes upgrade` in both TypeScript (`packages/npm/src/commands/upgrade.ts`) and Python (`packages/pip/src/goodvibes_cli/commands/upgrade_cmd.py`). Both commands: detect installed version via sentinel block, compute file-level changes, support `--dry-run` (prints ~/=/+ summary, exits 0, writes nothing), apply updates via `mergeClaude`/`merge_claude` for CLAUDE.md and overwrite-copy for skill/workflow files. Wired into CLI entry points (`index.ts`, `main.py`). Added path traversal guard and explicit file allowlist.
+
+**Why:** Phase 5 success criterion 1 & 2 — existing projects can run `goodvibes upgrade` to stay current without re-running init.
+
+**Files changed:** `packages/npm/src/commands/upgrade.ts` (created), `packages/pip/src/goodvibes_cli/commands/upgrade_cmd.py` (created), `packages/npm/src/index.ts` (2 lines added), `packages/pip/src/goodvibes_cli/main.py` (2 lines added), `JOURNAL.md` (this entry).
+
+**Tests run:** `cd packages/npm && npm test` — 58 passed (all 5 upgrade tests GREEN). `cd packages/pip && uv run --extra dev pytest -q` — 62 passed (all 6 upgrade tests GREEN). `bash scripts/verify-phase5.sh --quick` — PASS.
+
+**Docs updated:** JOURNAL.md (this entry).
+
+---
+
 ## 2026-06-25 — Phase 5 Plan 03: publish-template.yml workflow added
 
 **What I did:** Created `.github/workflows/publish-template.yml` — a manual `workflow_dispatch` workflow that runs `git subtree push --prefix=templates` to push the contents of `templates/` to `jgiox/goodvibes-template` as the repo root. The initial push to the template repo must be performed by the user after creating the `jgiox/goodvibes-template` repo on GitHub and marking it as a Template repository. The workflow uses `${{ secrets.TEMPLATE_REPO_TOKEN }}` (classic PAT, repo scope) — no secrets hardcoded; no `shell: true`.

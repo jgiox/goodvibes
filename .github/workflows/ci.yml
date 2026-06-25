@@ -58,5 +58,5 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - name: Run verify-phase3.sh
-        run: bash scripts/verify-phase3.sh --quick
+      - name: Run verify-phase5.sh
+        run: bash scripts/verify-phase5.sh --quick
