@@ -36,9 +36,9 @@ vi.mock('node:fs/promises', () => ({
   rename: vi.fn().mockResolvedValue(undefined),
 }))
 
-// Mock detect-project-type
+// Mock detect-project-type — synchronous function, use mockReturnValue not mockResolvedValue
 vi.mock('../utils/detect-project-type.js', () => ({
-  detectProjectType: vi.fn().mockResolvedValue('both'),
+  detectProjectType: vi.fn().mockReturnValue('both'),
 }))
 
 describe('upgrade command', () => {
