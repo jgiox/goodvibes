@@ -13,11 +13,13 @@ done
 pass=0; fail=0
 
 check() {
-  if bash -c "$2" > /dev/null 2>&1; then
-    echo "PASS [$1]"
+  local label="$1"
+  local cmd="$2"
+  if bash -c "$cmd" > /dev/null 2>&1; then
+    echo "PASS [$label]"
     pass=$((pass + 1))
   else
-    echo "FAIL [$1]: $2"
+    echo "FAIL [$label]: $cmd"
     fail=$((fail + 1))
   fi
 }
