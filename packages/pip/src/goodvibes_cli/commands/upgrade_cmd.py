@@ -105,14 +105,17 @@ def upgrade_templates(
             for name in contents:
                 full = pathlib.Path(directory) / name
                 try:
+                    full.resolve().relative_to(template_dir.resolve())  # raises if symlink escapes
+                except ValueError:
+                    ignored.add(name)
+                    continue
+                try:
                     rel = full.relative_to(template_dir)
                 except ValueError:
                     ignored.add(name)
                     continue
                 if name == "CLAUDE.md":
                     ignored.add(name)  # handled by merge_claude
-                if ".." in pathlib.Path(str(rel)).parts:
-                    ignored.add(name)  # path traversal guard T-05-03
                 rel_str = str(rel)
                 # Skip files outside the managed set
                 if not any(

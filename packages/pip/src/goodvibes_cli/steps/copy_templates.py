@@ -54,15 +54,17 @@ def copy_templates(
         for name in contents:
             full = pathlib.Path(directory) / name
             try:
+                full.resolve().relative_to(template_dir.resolve())  # raises if symlink escapes
+            except ValueError:
+                ignored.add(name)
+                continue
+            try:
                 rel = full.relative_to(template_dir)
             except ValueError:
-                # path not relative to template_dir — path traversal
                 ignored.add(name)
                 continue
             if name == "CLAUDE.md":
                 ignored.add(name)  # sentinel merge handles it separately
-            if ".." in pathlib.Path(str(rel)).parts:
-                ignored.add(name)  # path traversal guard (T-03-02-01)
             if minimal and ".github" in rel.parts and "workflows" in rel.parts:
                 ignored.add(name)
             # Skip CI variants not matching the detected project type
