@@ -170,3 +170,17 @@ a tag-triggered workflow.
 **Tests run:** `npm test` — 5 failures in upgrade.test.ts (Cannot find module './upgrade.js'); `pytest tests/test_upgrade_cmd.py -x -q` — 1 failure at first test (upgrade subcommand not registered); `verify-phase5.sh --quick` — exits 1, "Phase 5 gate: FAIL" (7 of 10 checks fail, implementation absent).
 
 **Docs updated:** JOURNAL.md
+
+---
+
+## 2026-06-25 — Phase 5 Plan 02 Task 1: Implement upgrade.ts (TypeScript) + wire into index.ts
+
+**What I did:** Created `packages/npm/src/commands/upgrade.ts` implementing the `registerUpgradeCommand` function and wired it into `packages/npm/src/index.ts`. The upgrade command re-syncs managed files (`.claude/skills/`, `.github/workflows/`, `CLAUDE.md`) without touching JOURNAL.md, CHANGELOG.md, or other user files. CLAUDE.md updates always go through `mergeClaude` to preserve user content outside the sentinel block.
+
+**Files changed:**
+- `packages/npm/src/commands/upgrade.ts` — new file; `registerUpgradeCommand`, 5 internal helpers: `detectInstalledVersion`, `detectBundledVersion`, `computeChanges`, `formatChangeSummary`, `upgradeTemplates`
+- `packages/npm/src/index.ts` — added import and call for `registerUpgradeCommand` (2 lines)
+
+**Why:** Turns 5 RED tests from Plan 01 GREEN. Implements UPG-01 (managed file re-sync), UPG-02 (version detection), UPG-03 (sentinel-aware CLAUDE.md merge), UPG-04 (dry-run diff summary).
+
+**Tests run:** `cd packages/npm && npm test` — 58 passed, 0 failed. All 5 upgrade.test.ts tests GREEN.

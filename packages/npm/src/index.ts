@@ -9,6 +9,7 @@ if (major < 20) {
 
 import { Command } from 'commander'
 import { registerInitCommand } from './commands/init.js'
+import { registerUpgradeCommand } from './commands/upgrade.js'
 
 const program = new Command()
 
@@ -18,5 +19,6 @@ program
   .description('One-command bootstrap for vibe coding projects')
 
 registerInitCommand(program)
+registerUpgradeCommand(program)
 
 await program.parseAsync(process.argv)
