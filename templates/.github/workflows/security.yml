@@ -11,17 +11,12 @@ on:
 
 jobs:
   analyze:
-    name: Analyze (${{ matrix.language }})
+    name: Analyze
     runs-on: ubuntu-latest
     permissions:
       security-events: write
       actions: read
       contents: read
-
-    strategy:
-      fail-fast: false
-      matrix:
-        language: ['javascript-typescript', 'python']
 
     steps:
       - uses: actions/checkout@v7
@@ -29,8 +24,8 @@ jobs:
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v4
         with:
-          languages: ${{ matrix.language }}
-          # Queries: default security-extended adds OWASP Top 10 + supply chain checks
+          # auto detects which languages are present — no matrix needed
+          languages: auto
           queries: security-extended
 
       - name: Autobuild
@@ -38,5 +33,3 @@ jobs:
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v4
-        with:
-          category: "/language:${{ matrix.language }}"
