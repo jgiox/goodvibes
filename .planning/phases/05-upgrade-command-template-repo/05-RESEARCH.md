@@ -608,19 +608,19 @@ def upgrade_cmd(
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **Should upgrade also re-run headroom install/configure-mcp?**
+1. RESOLVED: **Should upgrade also re-run headroom install/configure-mcp?**
    - What we know: headroom install is idempotent (configure-mcp checks before registering)
    - What's unclear: whether a headroom upgrade (new headroom-ai version) should be triggered
    - Recommendation: Keep upgrade focused on file sync only (UPG-01 says "CLAUDE.md, skill files, CI workflows"). Headroom upgrade is a separate concern; v1 skips it.
 
-2. **Should CONTRIBUTING.md, SECURITY.md, docs/onboarding.md get a sentinel pattern in v2?**
+2. RESOLVED: **Should CONTRIBUTING.md, SECURITY.md, docs/onboarding.md get a sentinel pattern in v2?**
    - What we know: v1 treats them as never-touch (user data)
    - What's unclear: whether users want these updated (e.g., onboarding improvements)
    - Recommendation: Out of scope for v1. Deferred.
 
-3. **CI job for template repo sync vs manual checkpoint?**
+3. RESOLVED: **CI job for template repo sync vs manual checkpoint?**
    - What we know: manual checkpoint is simpler and sufficient for v1's release cadence
    - What's unclear: whether a `template-v*` tag trigger is worth the automation effort
    - Recommendation: Manual checkpoint for v1. The planner should include a human step.
