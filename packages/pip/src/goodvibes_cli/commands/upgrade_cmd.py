@@ -169,7 +169,7 @@ def upgrade_cmd(
     installed_version = _detect_installed_version(cwd)
     bundled_version = _detect_bundled_version(template_dir)
 
-    if installed_version and version_gte(installed_version, bundled_version or ""):
+    if installed_version and bundled_version and version_gte(installed_version, bundled_version):
         console.rule(f"[green]Already up to date (v{installed_version})[/green]")
         return
 

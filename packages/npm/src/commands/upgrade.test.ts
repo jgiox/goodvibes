@@ -50,10 +50,12 @@ describe('upgrade command', () => {
     const { outro } = await import('@clack/prompts')
     const { pathExists } = await import('fs-extra')
     const { extractVersion, versionGte } = await import('../utils/sentinel-merge.js')
+    const { resolveTemplatesDir } = await import('../steps/copy-templates.js')
 
     vi.mocked(pathExists).mockResolvedValue(true)
     vi.mocked(extractVersion).mockReturnValue('1.0.0')
     vi.mocked(versionGte).mockReturnValue(true)
+    vi.mocked(resolveTemplatesDir).mockReturnValue('/mock/templates')
 
     const { registerUpgradeCommand } = await import('./upgrade.js')
     const { Command } = await import('commander')

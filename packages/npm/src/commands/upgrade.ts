@@ -129,7 +129,7 @@ export function registerUpgradeCommand(program: Command): void {
       const installedVersion = await detectInstalledVersion(cwd)
       const bundledVersion = await detectBundledVersion(templateDir)
 
-      if (installedVersion && versionGte(installedVersion, bundledVersion ?? '')) {
+      if (installedVersion && bundledVersion && versionGte(installedVersion, bundledVersion)) {
         outro(`Already up to date (v${installedVersion})`)
         return
       }
