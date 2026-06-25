@@ -153,3 +153,20 @@ a tag-triggered workflow.
 - Dependabot recognized dependabot.yml and fired update checks for github-actions, pip, npm ecosystems
 - Fixed two template bugs found during verification: `setup-uv@v8` → `v8.2.0` (no major alias exists); security.yml matrix replaced with runtime language detection shell step
 - Phase 4 complete — CI/CD scaffolding ships for Node + Python projects
+
+---
+
+## 2026-06-25 — Phase 5 Plan 01: RED unit tests for upgrade command (TDD Wave 0)
+
+**What I did:** Wrote failing (RED) unit tests for the upgrade command in both TypeScript and Python, plus the verify-phase5.sh smoke harness. No implementation — tests fail because upgrade.ts and upgrade_cmd.py do not yet exist.
+
+**Files changed:**
+- `packages/npm/src/commands/upgrade.test.ts` — 5 vitest RED tests: skips-up-to-date, dry-run-no-write, absent-CLAUDE-runs-upgrade, diff-summary-printed, preserves-user-content-outside-sentinel
+- `packages/pip/tests/test_upgrade_cmd.py` — 6 pytest RED tests: upgrade-help-has-dry-run, dry-run-shows-summary, skips-when-up-to-date, runs-when-absent, diff-summary-printed, user-content-preserved-via-merge-claude
+- `scripts/verify-phase5.sh` — smoke harness checking upgrade.ts, upgrade_cmd.py, index.ts registration, main.py registration, --dry-run presence, .claude/skills reference
+
+**Why:** TDD discipline requires tests to fail before implementation. Wave 1 (Plans 02-03) will turn these RED tests GREEN.
+
+**Tests run:** `npm test` — 5 failures in upgrade.test.ts (Cannot find module './upgrade.js'); `pytest tests/test_upgrade_cmd.py -x -q` — 1 failure at first test (upgrade subcommand not registered); `verify-phase5.sh --quick` — exits 1, "Phase 5 gate: FAIL" (7 of 10 checks fail, implementation absent).
+
+**Docs updated:** JOURNAL.md
