@@ -17,6 +17,9 @@ def test_upgrade_help_has_dry_run():
 
 def test_dry_run_shows_summary_without_writing(mocker):
     mocker.patch("goodvibes_cli.commands.upgrade_cmd.resolve_templates_dir", return_value=None)
+    mocker.patch("goodvibes_cli.commands.upgrade_cmd._detect_installed_version", return_value=None)
+    mocker.patch("goodvibes_cli.commands.upgrade_cmd._detect_bundled_version", return_value="1.0.0")
+    mocker.patch("goodvibes_cli.commands.upgrade_cmd.version_gte", return_value=False)
     mocker.patch("goodvibes_cli.commands.upgrade_cmd.compute_changes", return_value=[])
     result = runner.invoke(app, ["upgrade", "--dry-run"])
     assert result.exit_code == 0
