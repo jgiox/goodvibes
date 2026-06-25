@@ -27,7 +27,10 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
       - name: Push templates/ to jgiox/goodvibes-template
+        env:
+          TOKEN: ${{ secrets.TEMPLATE_REPO_TOKEN }}
         run: |
-          git subtree push --prefix=templates \
-            https://x-access-token:${{ secrets.TEMPLATE_REPO_TOKEN }}@github.com/jgiox/goodvibes-template.git \
-            main
+          git remote add template-repo \
+            "https://x-access-token:${TOKEN}@github.com/jgiox/goodvibes-template.git"
+          git subtree push --prefix=templates template-repo main
+          git remote remove template-repo
