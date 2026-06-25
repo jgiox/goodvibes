@@ -95,7 +95,9 @@ describe('upgrade command', () => {
     const { tasks } = await import('@clack/prompts')
     const { pathExists } = await import('fs-extra')
     const { versionGte } = await import('../utils/sentinel-merge.js')
+    const { resolveTemplatesDir } = await import('../steps/copy-templates.js')
 
+    vi.mocked(resolveTemplatesDir).mockReturnValue('/fake/templates')
     vi.mocked(pathExists).mockResolvedValue(false)
     vi.mocked(versionGte).mockReturnValue(false)
 
@@ -120,7 +122,9 @@ describe('upgrade command', () => {
     const { note, tasks } = await import('@clack/prompts')
     const { pathExists } = await import('fs-extra')
     const { versionGte } = await import('../utils/sentinel-merge.js')
+    const { resolveTemplatesDir } = await import('../steps/copy-templates.js')
 
+    vi.mocked(resolveTemplatesDir).mockReturnValue('/fake/templates')
     vi.mocked(pathExists).mockResolvedValue(true)
     vi.mocked(versionGte).mockReturnValue(false)
 
@@ -146,7 +150,9 @@ describe('upgrade command', () => {
     const { pathExists } = await import('fs-extra')
     const { versionGte, mergeClaude } = await import('../utils/sentinel-merge.js')
     const { readFile } = await import('node:fs/promises')
+    const { resolveTemplatesDir } = await import('../steps/copy-templates.js')
 
+    vi.mocked(resolveTemplatesDir).mockReturnValue('/fake/templates')
     vi.mocked(pathExists).mockResolvedValue(true)
     vi.mocked(versionGte).mockReturnValue(false)
 

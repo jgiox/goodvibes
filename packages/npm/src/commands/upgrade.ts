@@ -79,38 +79,32 @@ async function upgradeTemplates(templateDir: string, destDir: string, projectTyp
   const selectedVariant = `ci-${projectType}.yml`
   const claudeDest = join(destDir, 'CLAUDE.md')
 
-  if (templateDir) {
-    await copy(templateDir, destDir, {
-      overwrite: true,
-      errorOnExist: false,
-      filter: (src: string) => {
-        if (src.endsWith('CLAUDE.md')) return false // handled by mergeClaude
-        // ponytail: path traversal guard per T-05-02 (templates are repo-controlled but belt-and-suspenders)
-        if (relative(templateDir, src).includes('..')) return false
-        if (src.includes('.claude/skills/')) return true
-        for (const v of ciVariants) {
-          if (src.endsWith(v) && v !== selectedVariant) return false
-        }
-        if (src.includes('.github/workflows/')) return true
-        return false // default: only touch the declared managed set
-      },
-    })
+  await copy(templateDir, destDir, {
+    overwrite: true,
+    errorOnExist: false,
+    filter: (src: string) => {
+      if (src.endsWith('CLAUDE.md')) return false // handled by mergeClaude
+      // ponytail: path traversal guard per T-05-02 (templates are repo-controlled but belt-and-suspenders)
+      if (relative(templateDir, src).includes('..')) return false
+      if (src.includes('.claude/skills/')) return true
+      for (const v of ciVariants) {
+        if (src.endsWith(v) && v !== selectedVariant) return false
+      }
+      if (src.includes('.github/workflows/')) return true
+      return false // default: only touch the declared managed set
+    },
+  })
 
-    // Rename selected CI variant to ci.yml
-    const variantPath = join(destDir, '.github', 'workflows', selectedVariant)
-    const ciPath = join(destDir, '.github', 'workflows', 'ci.yml')
-    if (existsSync(variantPath)) {
-      await rename(variantPath, ciPath)
-    }
-
-    const claudeSrc = join(templateDir, 'CLAUDE.md')
-    const templateContent = await readFile(claudeSrc, 'utf-8')
-    await mergeClaude(claudeDest, templateContent)
-  } else {
-    // templateDir unavailable — still call mergeClaude so CLAUDE.md update path is exercised
-    const templateContent = await readFile(claudeDest, 'utf-8')
-    await mergeClaude(claudeDest, templateContent)
+  // Rename selected CI variant to ci.yml
+  const variantPath = join(destDir, '.github', 'workflows', selectedVariant)
+  const ciPath = join(destDir, '.github', 'workflows', 'ci.yml')
+  if (existsSync(variantPath)) {
+    await rename(variantPath, ciPath)
   }
+
+  const claudeSrc = join(templateDir, 'CLAUDE.md')
+  const templateContent = await readFile(claudeSrc, 'utf-8')
+  await mergeClaude(claudeDest, templateContent)
 
   // Return paths written — walk only the managed prefixes to avoid touching user files
   const allDest = (await listTemplateFiles(destDir)) ?? []
