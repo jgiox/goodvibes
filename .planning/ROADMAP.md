@@ -145,7 +145,20 @@ Plans:
   2. User edits to CLAUDE.md content outside sentinel blocks are preserved after upgrade; the upgrade command prints a diff-style summary of what changed before applying any changes
   3. The `jgiox/goodvibes-template` repo is marked as a GitHub template and contains all validated files from Phase 1-4; a user can click "Use This Template," open the result in Claude Code, and have CLAUDE.md rules take effect immediately
 
-**Plans**: TBD
+**Plans**: 3 plans
+
+**Wave 0**
+
+- [ ] 05-01-PLAN.md — Wave 0: RED unit tests for upgrade command (TS + Python) + verify-phase5.sh smoke harness
+
+**Wave 1** *(blocked on Wave 0 completion)*
+
+- [ ] 05-02-PLAN.md — Wave 1: Implement upgrade command (TS + Python) — tests GREEN; wire into index.ts and main.py
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 05-03-PLAN.md — Wave 2: publish-template.yml workflow + push templates/ to jgiox/goodvibes-template + human verification checkpoint
+
 **UI hint**: no
 
 ## Progress
@@ -161,4 +174,4 @@ Note: Phase 3 (pip CLI) and Phase 4 (CI scaffolding) have no dependency on each 
 | 2. npm CLI | 5/5 | Complete | 2026-06-23 |
 | 3. pip CLI | 4/4 | Complete   | 2026-06-24 |
 | 4. CI/CD Scaffolding | 4/4 | Complete | 2026-06-25 |
-| 5. Upgrade Command & Template Repo | 0/TBD | Not started | - |
+| 5. Upgrade Command & Template Repo | 0/3 | Not started | - |
