@@ -21,11 +21,22 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      - name: Detect languages
+        id: langs
+        run: |
+          py=$(find . -name "*.py" -not -path "./.venv/*" | head -1)
+          js=$(find . \( -name "*.js" -o -name "*.ts" \) -not -path "*/node_modules/*" | head -1)
+          langs=""
+          [ -n "$py" ] && langs="python"
+          [ -n "$js" ] && [ -n "$langs" ] && langs="python,javascript-typescript"
+          [ -n "$js" ] && [ -z "$langs" ] && langs="javascript-typescript"
+          [ -z "$langs" ] && langs="python"
+          echo "value=$langs" >> $GITHUB_OUTPUT
+
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v4
         with:
-          # auto detects which languages are present — no matrix needed
-          languages: auto
+          languages: ${{ steps.langs.outputs.value }}
           queries: security-extended
 
       - name: Autobuild
