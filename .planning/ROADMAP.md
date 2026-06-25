@@ -153,7 +153,7 @@ Plans:
 
 **Wave 1** *(blocked on Wave 0 completion)*
 
-- [ ] 05-02-PLAN.md — Wave 1: Implement upgrade command (TS + Python) — tests GREEN; wire into index.ts and main.py
+- [x] 05-02-PLAN.md — Wave 1: Implement upgrade command (TS + Python) — tests GREEN; wire into index.ts and main.py
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -174,4 +174,4 @@ Note: Phase 3 (pip CLI) and Phase 4 (CI scaffolding) have no dependency on each 
 | 2. npm CLI | 5/5 | Complete | 2026-06-23 |
 | 3. pip CLI | 4/4 | Complete   | 2026-06-24 |
 | 4. CI/CD Scaffolding | 4/4 | Complete | 2026-06-25 |
-| 5. Upgrade Command & Template Repo | 1/3 | In Progress|  |
+| 5. Upgrade Command & Template Repo | 2/3 | In Progress|  |
