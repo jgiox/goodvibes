@@ -181,15 +181,6 @@ def upgrade_cmd(
     with console.status("Upgrading managed files"):
         updated = upgrade_templates(template_dir, cwd, project_type)
 
-    # Always call merge_claude for CLAUDE.md — preserves user content outside sentinel block
-    claude_dest = cwd / "CLAUDE.md"
-    if template_dir:
-        claude_src = template_dir / "CLAUDE.md"
-        template_content = claude_src.read_text(encoding="utf-8") if claude_src.exists() else None
-    else:
-        template_content = None  # ponytail: template unavailable
-    merge_claude(claude_dest, template_content or "")
-
     file_list = "\n".join(updated) if updated else "(no files changed)"
     console.print(Panel(file_list, title="Files updated"))
     console.rule("[green]Upgrade complete![/green]")

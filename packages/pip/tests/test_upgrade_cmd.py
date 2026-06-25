@@ -63,7 +63,7 @@ def test_user_content_outside_sentinel_preserved_after_upgrade(mocker):
     mocker.patch("goodvibes_cli.commands.upgrade_cmd._detect_bundled_version", return_value="1.0.0")
     mocker.patch("goodvibes_cli.commands.upgrade_cmd.version_gte", return_value=False)
     mocker.patch("goodvibes_cli.commands.upgrade_cmd.compute_changes", return_value=[])
-    mock_merge = mocker.patch("goodvibes_cli.commands.upgrade_cmd.merge_claude")
-    mocker.patch("goodvibes_cli.commands.upgrade_cmd.upgrade_templates", return_value=[])
+    mock_upgrade = mocker.patch("goodvibes_cli.commands.upgrade_cmd.upgrade_templates", return_value=[])
     runner.invoke(app, ["upgrade"])
-    assert mock_merge.call_count == 1  # CLAUDE.md must go through merge_claude, not shutil.copy
+    # upgrade_templates is the single owner of merge_claude; verify it ran exactly once
+    assert mock_upgrade.call_count == 1
