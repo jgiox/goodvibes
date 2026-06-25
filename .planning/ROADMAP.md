@@ -149,7 +149,7 @@ Plans:
 
 **Wave 0**
 
-- [ ] 05-01-PLAN.md — Wave 0: RED unit tests for upgrade command (TS + Python) + verify-phase5.sh smoke harness
+- [x] 05-01-PLAN.md — Wave 0: RED unit tests for upgrade command (TS + Python) + verify-phase5.sh smoke harness
 
 **Wave 1** *(blocked on Wave 0 completion)*
 
@@ -174,4 +174,4 @@ Note: Phase 3 (pip CLI) and Phase 4 (CI scaffolding) have no dependency on each 
 | 2. npm CLI | 5/5 | Complete | 2026-06-23 |
 | 3. pip CLI | 4/4 | Complete   | 2026-06-24 |
 | 4. CI/CD Scaffolding | 4/4 | Complete | 2026-06-25 |
-| 5. Upgrade Command & Template Repo | 0/3 | Not started | - |
+| 5. Upgrade Command & Template Repo | 1/3 | In Progress|  |
