@@ -156,45 +156,14 @@ a tag-triggered workflow.
 
 ---
 
-## 2026-06-25 — Phase 5 Plan 01: RED unit tests for upgrade command (TDD Wave 0)
+## 2026-06-25 — Phase 5 Plan 03: publish-template.yml workflow added
 
-**What I did:** Wrote failing (RED) unit tests for the upgrade command in both TypeScript and Python, plus the verify-phase5.sh smoke harness. No implementation — tests fail because upgrade.ts and upgrade_cmd.py do not yet exist.
+**What I did:** Created `.github/workflows/publish-template.yml` — a manual `workflow_dispatch` workflow that runs `git subtree push --prefix=templates` to push the contents of `templates/` to `jgiox/goodvibes-template` as the repo root. The initial push to the template repo must be performed by the user after creating the `jgiox/goodvibes-template` repo on GitHub and marking it as a Template repository. The workflow uses `${{ secrets.TEMPLATE_REPO_TOKEN }}` (classic PAT, repo scope) — no secrets hardcoded; no `shell: true`.
 
-**Files changed:**
-- `packages/npm/src/commands/upgrade.test.ts` — 5 vitest RED tests: skips-up-to-date, dry-run-no-write, absent-CLAUDE-runs-upgrade, diff-summary-printed, preserves-user-content-outside-sentinel
-- `packages/pip/tests/test_upgrade_cmd.py` — 6 pytest RED tests: upgrade-help-has-dry-run, dry-run-shows-summary, skips-when-up-to-date, runs-when-absent, diff-summary-printed, user-content-preserved-via-merge-claude
-- `scripts/verify-phase5.sh` — smoke harness checking upgrade.ts, upgrade_cmd.py, index.ts registration, main.py registration, --dry-run presence, .claude/skills reference
+**Why:** Phase 5 success criterion 3 — a user can click "Use This Template" on `jgiox/goodvibes-template` and get a working CLAUDE.md-equipped project without running `goodvibes init`.
 
-**Why:** TDD discipline requires tests to fail before implementation. Wave 1 (Plans 02-03) will turn these RED tests GREEN.
+**Files changed:** `.github/workflows/publish-template.yml` (created), `JOURNAL.md` (this entry).
 
-**Tests run:** `npm test` — 5 failures in upgrade.test.ts (Cannot find module './upgrade.js'); `pytest tests/test_upgrade_cmd.py -x -q` — 1 failure at first test (upgrade subcommand not registered); `verify-phase5.sh --quick` — exits 1, "Phase 5 gate: FAIL" (7 of 10 checks fail, implementation absent).
+**Tests run:** YAML syntax verified by read-back; `grep` confirms `workflow_dispatch`, `goodvibes-template`, and `secrets.TEMPLATE_REPO_TOKEN` present; no `shell: true`.
 
-**Docs updated:** JOURNAL.md
-
----
-
-## 2026-06-25 — Phase 5 Plan 02 Task 1: Implement upgrade.ts (TypeScript) + wire into index.ts
-
-**What I did:** Created `packages/npm/src/commands/upgrade.ts` implementing the `registerUpgradeCommand` function and wired it into `packages/npm/src/index.ts`. The upgrade command re-syncs managed files (`.claude/skills/`, `.github/workflows/`, `CLAUDE.md`) without touching JOURNAL.md, CHANGELOG.md, or other user files. CLAUDE.md updates always go through `mergeClaude` to preserve user content outside the sentinel block.
-
-**Files changed:**
-- `packages/npm/src/commands/upgrade.ts` — new file; `registerUpgradeCommand`, 5 internal helpers: `detectInstalledVersion`, `detectBundledVersion`, `computeChanges`, `formatChangeSummary`, `upgradeTemplates`
-- `packages/npm/src/index.ts` — added import and call for `registerUpgradeCommand` (2 lines)
-
-**Why:** Turns 5 RED tests from Plan 01 GREEN. Implements UPG-01 (managed file re-sync), UPG-02 (version detection), UPG-03 (sentinel-aware CLAUDE.md merge), UPG-04 (dry-run diff summary).
-
-**Tests run:** `cd packages/npm && npm test` — 58 passed, 0 failed. All 5 upgrade.test.ts tests GREEN.
-
----
-
-## 2026-06-25 — Phase 5 Plan 02 Task 2: Implement upgrade_cmd.py (Python) + wire into main.py
-
-**What I did:** Created `packages/pip/src/goodvibes_cli/commands/upgrade_cmd.py` (Python port of upgrade.ts) and wired it into `packages/pip/src/goodvibes_cli/main.py`. The command mirrors the TS implementation: version detection, dry-run diff summary, overwrite-mode file copy via `shutil.copytree`, and CLAUDE.md update via `merge_claude`. `merge_claude` is called directly from `upgrade_cmd` body (not only inside `upgrade_templates`) so it's independently testable via mocks.
-
-**Files changed:**
-- `packages/pip/src/goodvibes_cli/commands/upgrade_cmd.py` — new file; `upgrade_cmd`, 5 helpers: `_detect_installed_version`, `_detect_bundled_version`, `compute_changes`, `format_change_summary`, `upgrade_templates`
-- `packages/pip/src/goodvibes_cli/main.py` — added import and `app.command("upgrade")` (2 lines)
-
-**Why:** Turns 6 RED pytest tests from Plan 01 GREEN. Implements UPG-01 through UPG-04 for the Python CLI. Path traversal guard (..) in ignore_fn per T-05-03. Managed file scope is explicit allowlist (no unknown files touched).
-
-**Tests run:** `cd packages/pip && uv run --extra dev pytest tests/ -q` — 62 passed, 0 failed. All 6 test_upgrade_cmd.py tests GREEN. `bash scripts/verify-phase5.sh --quick` — 10/10 PASS, "Phase 5 gate: PASS".
+**Docs updated:** JOURNAL.md (this entry).
