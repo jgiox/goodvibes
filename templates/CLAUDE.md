@@ -1,7 +1,7 @@
 # CLAUDE.md
 
 <!-- goodvibes:start -->
-# goodvibes: v1.2.0
+# goodvibes: v1.3.0
 
 ## Engineering Rules
 
