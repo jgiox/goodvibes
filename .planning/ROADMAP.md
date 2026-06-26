@@ -180,7 +180,7 @@ Plans:
 
 **Wave 1**
 
-- [ ] 06-01-PLAN.md — Wave 1: RED tests for npm package (copy-templates.test.ts + init.test.ts) covering UX-01 through MIN-02
+- [x] 06-01-PLAN.md — Wave 1: RED tests for npm package (copy-templates.test.ts + init.test.ts) covering UX-01 through MIN-02
 
 **Wave 2** *(parallel pair — no file conflicts)*
 
@@ -221,5 +221,5 @@ Phase 6 must complete before Phase 7 — the demo GIF must record the hardened C
 | 3. pip CLI | 4/4 | Complete   | 2026-06-24 |
 | 4. CI/CD Scaffolding | 4/4 | Complete | 2026-06-25 |
 | 5. Upgrade Command & Template Repo | 3/3 | Complete    | 2026-06-25 |
-| 6. UX Hardening | 0/3 | Not started | - |
+| 6. UX Hardening | 1/3 | In Progress|  |
 | 7. README & Demo | 0/TBD | Not started | - |
