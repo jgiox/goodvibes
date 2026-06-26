@@ -46,9 +46,9 @@ describe('copyTemplates', () => {
 
   it('copies all template files to empty destination', async () => {
     const templateDir = resolveTemplatesDir()
-    const files = await copyTemplates(templateDir, tmpDir, false, false)
-    expect(files.length).toBeGreaterThan(0)
-    expect(files).toContain('CLAUDE.md')
+    const { written } = await copyTemplates(templateDir, tmpDir, false, false)
+    expect(written.length).toBeGreaterThan(0)
+    expect(written).toContain('CLAUDE.md')
     expect(existsSync(join(tmpDir, 'CLAUDE.md'))).toBe(true)
   })
 
@@ -68,9 +68,9 @@ describe('copyTemplates', () => {
 
   it('dry-run returns file list without writing anything', async () => {
     const templateDir = resolveTemplatesDir()
-    const files = await copyTemplates(templateDir, tmpDir, true, false)
-    expect(files.length).toBeGreaterThan(0)
-    expect(files).toContain('CLAUDE.md')
+    const { written } = await copyTemplates(templateDir, tmpDir, true, false)
+    expect(written.length).toBeGreaterThan(0)
+    expect(written).toContain('CLAUDE.md')
     // Nothing should be written
     expect(existsSync(join(tmpDir, 'CLAUDE.md'))).toBe(false)
   })
@@ -139,5 +139,93 @@ describe('copyTemplates — CI variant selection', () => {
     await copyTemplates(templateDir, tmpDir, false, false, 'python')
     expect(existsSync(join(tmpDir, '.github', 'workflows', 'ci.yml'))).toBe(true)
     expect(existsSync(join(tmpDir, '.github', 'workflows', 'ci-python.yml'))).toBe(false)
+  })
+})
+
+describe('copyTemplates — written/skipped tracking', () => {
+  let tmpDir: string
+  const templateDir = resolveTemplatesDir()
+
+  beforeEach(() => {
+    tmpDir = mkdtempSync(join(tmpdir(), 'gv-tracking-test-'))
+  })
+
+  afterEach(() => {
+    rmSync(tmpDir, { recursive: true, force: true })
+  })
+
+  it('returns object with written and skipped arrays (empty dest)', async () => {
+    const result = await copyTemplates(templateDir, tmpDir, false, false)
+    expect(typeof result === 'object' && result !== null).toBe(true)
+    expect(Array.isArray(result.written)).toBe(true)
+    expect(Array.isArray(result.skipped)).toBe(true)
+    expect(result.written.length).toBeGreaterThan(0)
+    expect(result.skipped.length).toBe(0)
+    expect(result.written).toContain('CLAUDE.md')
+  })
+
+  it('skipped array contains pre-existing files on second run', async () => {
+    await copyTemplates(templateDir, tmpDir, false, false)
+    const result = await copyTemplates(templateDir, tmpDir, false, false)
+    expect(result.skipped.length).toBeGreaterThan(0)
+  })
+})
+
+describe('copyTemplates — ci.yml rename guard', () => {
+  let tmpDir: string
+  const templateDir = resolveTemplatesDir()
+
+  beforeEach(() => {
+    tmpDir = mkdtempSync(join(tmpdir(), 'gv-ci-guard-test-'))
+  })
+
+  afterEach(() => {
+    rmSync(tmpDir, { recursive: true, force: true })
+  })
+
+  it('does not overwrite existing ci.yml in destination (UX-04)', async () => {
+    // First run: ci-node.yml is renamed to ci.yml
+    await copyTemplates(templateDir, tmpDir, false, false, 'node')
+    const ciPath = join(tmpDir, '.github', 'workflows', 'ci.yml')
+    expect(existsSync(ciPath)).toBe(true)
+
+    // User customises their ci.yml
+    writeFileSync(ciPath, '# custom CI\n')
+
+    // Second run: must not overwrite the user's ci.yml
+    const result = await copyTemplates(templateDir, tmpDir, false, false, 'node')
+    expect(readFileSync(ciPath, 'utf-8')).toBe('# custom CI\n')
+    // ci.yml must appear in skipped (not re-written)
+    const ciSkipped = result.skipped.some(f => f.includes('ci.yml'))
+    const ciWritten = result.written.some(f => f.includes('ci.yml'))
+    expect(ciSkipped || !ciWritten).toBe(true)
+  })
+})
+
+describe('copyTemplates — minimal filter scope', () => {
+  let tmpDir: string
+  const templateDir = resolveTemplatesDir()
+
+  beforeEach(() => {
+    tmpDir = mkdtempSync(join(tmpdir(), 'gv-minimal-test-'))
+  })
+
+  afterEach(() => {
+    rmSync(tmpDir, { recursive: true, force: true })
+  })
+
+  it('--minimal skips .github/ISSUE_TEMPLATE (MIN-01)', async () => {
+    await copyTemplates(templateDir, tmpDir, false, true)
+    expect(existsSync(join(tmpDir, '.github', 'ISSUE_TEMPLATE'))).toBe(false)
+  })
+
+  it('--minimal skips docs/ (MIN-01)', async () => {
+    await copyTemplates(templateDir, tmpDir, false, true)
+    expect(existsSync(join(tmpDir, 'docs'))).toBe(false)
+  })
+
+  it('--minimal keeps CLAUDE.md (MIN-01)', async () => {
+    const { written } = await copyTemplates(templateDir, tmpDir, false, true)
+    expect(written.includes('CLAUDE.md') || existsSync(join(tmpDir, 'CLAUDE.md'))).toBe(true)
   })
 })
