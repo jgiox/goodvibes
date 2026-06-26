@@ -54,7 +54,7 @@ def test_dry_run_no_files_written(tmp_path, mocker):
 def test_init_calls_copy_templates(mocker):
     mock_copy = mocker.patch(
         "goodvibes_cli.commands.init_cmd.copy_templates",
-        return_value=[],
+        return_value=([], []),
     )
     mocker.patch("goodvibes_cli.commands.init_cmd.resolve_templates_dir", return_value=None)
     mocker.patch("goodvibes_cli.commands.init_cmd.install_headroom")
@@ -64,7 +64,7 @@ def test_init_calls_copy_templates(mocker):
 
 
 def test_minimal_skips_headroom(mocker):
-    mocker.patch("goodvibes_cli.commands.init_cmd.copy_templates", return_value=[])
+    mocker.patch("goodvibes_cli.commands.init_cmd.copy_templates", return_value=([], []))
     mocker.patch("goodvibes_cli.commands.init_cmd.resolve_templates_dir", return_value=None)
     mock_headroom = mocker.patch("goodvibes_cli.commands.init_cmd.install_headroom")
     mocker.patch("goodvibes_cli.commands.init_cmd.configure_mcp")
@@ -73,7 +73,7 @@ def test_minimal_skips_headroom(mocker):
 
 
 def test_next_steps_in_output(mocker):
-    mocker.patch("goodvibes_cli.commands.init_cmd.copy_templates", return_value=["CLAUDE.md"])
+    mocker.patch("goodvibes_cli.commands.init_cmd.copy_templates", return_value=(["CLAUDE.md"], []))
     mocker.patch("goodvibes_cli.commands.init_cmd.resolve_templates_dir", return_value=None)
     mocker.patch("goodvibes_cli.commands.init_cmd.install_headroom")
     mocker.patch("goodvibes_cli.commands.init_cmd.configure_mcp")

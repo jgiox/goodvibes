@@ -35,6 +35,12 @@ def template_dir(tmp_path):
     (workflows / "ci-node.yml").write_text("name: CI\n")
     (workflows / "ci-python.yml").write_text("name: CI\n")
     (workflows / "ci-both.yml").write_text("name: CI\n")
+    issue_template = d / ".github" / "ISSUE_TEMPLATE"
+    issue_template.mkdir(parents=True)
+    (issue_template / "bug_report.md").write_text("# Bug\n")
+    docs = d / "docs"
+    docs.mkdir()
+    (docs / "onboarding.md").write_text("# Onboarding\n")
     return d
 
 
