@@ -6,6 +6,7 @@ vi.mock('@clack/prompts', () => ({
   outro: vi.fn(),
   note: vi.fn(),
   tasks: vi.fn(),
+  cancel: vi.fn(),
 }))
 
 // Mock copy-templates
@@ -75,7 +76,7 @@ describe('init command', () => {
     const { configureMcp } = await import('../steps/configure-mcp.js')
 
     vi.mocked(resolveTemplatesDir).mockReturnValue('/fake/templates')
-    vi.mocked(copyTemplates).mockResolvedValue(['CLAUDE.md', 'README.md'])
+    vi.mocked(copyTemplates).mockResolvedValue({ written: ['CLAUDE.md', 'README.md'], skipped: [] })
     vi.mocked(listTemplateFiles).mockResolvedValue(['CLAUDE.md', 'README.md'])
 
     // tasks() executes each task function synchronously for testing
@@ -116,7 +117,7 @@ describe('init command', () => {
     const { configureMcp } = await import('../steps/configure-mcp.js')
 
     vi.mocked(resolveTemplatesDir).mockReturnValue('/fake/templates')
-    vi.mocked(copyTemplates).mockResolvedValue(['CLAUDE.md', '.github/workflows/ci.yml', 'README.md'])
+    vi.mocked(copyTemplates).mockResolvedValue({ written: ['CLAUDE.md', '.github/workflows/ci.yml', 'README.md'], skipped: [] })
     vi.mocked(installHeadroom).mockResolvedValue(undefined)
     vi.mocked(configureMcp).mockResolvedValue(undefined)
 
@@ -163,14 +164,14 @@ describe('init command', () => {
     expect(vi.mocked(outro)).toHaveBeenCalledWith(expect.stringContaining("You're all set"))
   })
 
-  it('prints file list completion note with "Files created" title', async () => {
+  it('prints file list completion note with "written" title', async () => {
     const { intro, outro, note, tasks } = await import('@clack/prompts')
     const { copyTemplates, resolveTemplatesDir } = await import('../steps/copy-templates.js')
     const { installHeadroom } = await import('../steps/install-headroom.js')
     const { configureMcp } = await import('../steps/configure-mcp.js')
 
     vi.mocked(resolveTemplatesDir).mockReturnValue('/fake/templates')
-    vi.mocked(copyTemplates).mockResolvedValue(['CLAUDE.md', 'README.md'])
+    vi.mocked(copyTemplates).mockResolvedValue({ written: ['CLAUDE.md', 'README.md'], skipped: [] })
     vi.mocked(installHeadroom).mockResolvedValue(undefined)
     vi.mocked(configureMcp).mockResolvedValue(undefined)
 
@@ -189,7 +190,8 @@ describe('init command', () => {
     await program.parseAsync(['node', 'goodvibes', 'init'])
 
     const noteCalls = vi.mocked(note).mock.calls
-    const fileListCall = noteCalls.find(c => String(c[1]).includes('Files created'))
+    // Updated: title now contains 'written' not 'Files created'
+    const fileListCall = noteCalls.find(c => String(c[1]).toLowerCase().includes('written'))
     expect(fileListCall).toBeDefined()
   })
 
@@ -200,7 +202,7 @@ describe('init command', () => {
     const { configureMcp } = await import('../steps/configure-mcp.js')
 
     vi.mocked(resolveTemplatesDir).mockReturnValue('/fake/templates')
-    vi.mocked(copyTemplates).mockResolvedValue(['CLAUDE.md'])
+    vi.mocked(copyTemplates).mockResolvedValue({ written: ['CLAUDE.md'], skipped: [] })
     vi.mocked(installHeadroom).mockResolvedValue(undefined)
     vi.mocked(configureMcp).mockResolvedValue(undefined)
 
@@ -225,5 +227,190 @@ describe('init command', () => {
     const content = nextStepsCall![0] as string
     const matches = content.match(/^\d+\./gm)
     expect(matches).toHaveLength(3)
+  })
+})
+
+describe('UX-01: non-empty directory notice', () => {
+  beforeEach(() => {
+    vi.resetAllMocks()
+  })
+
+  it('note() is called with non-empty notice when cwd has files', async () => {
+    const fs = await import('node:fs')
+    const readdirSpy = vi.spyOn(fs, 'readdirSync').mockReturnValue(['some-file.txt'] as any)
+
+    const { note, tasks } = await import('@clack/prompts')
+    const { copyTemplates, resolveTemplatesDir } = await import('../steps/copy-templates.js')
+    const { installHeadroom } = await import('../steps/install-headroom.js')
+    const { configureMcp } = await import('../steps/configure-mcp.js')
+
+    vi.mocked(resolveTemplatesDir).mockReturnValue('/fake/templates')
+    vi.mocked(copyTemplates).mockResolvedValue({ written: ['CLAUDE.md'], skipped: [] })
+    vi.mocked(installHeadroom).mockResolvedValue(undefined)
+    vi.mocked(configureMcp).mockResolvedValue(undefined)
+
+    vi.mocked(tasks).mockImplementation(async (taskList: any[]) => {
+      for (const t of taskList) {
+        await t.task(vi.fn())
+      }
+    })
+
+    const { registerInitCommand } = await import('./init.js')
+    const { Command } = await import('commander')
+    const program = new Command()
+    program.exitOverride()
+    registerInitCommand(program)
+
+    await program.parseAsync(['node', 'goodvibes', 'init', '--minimal'])
+
+    readdirSpy.mockRestore()
+
+    const noteCalls = vi.mocked(note).mock.calls
+    const nonEmptyCall = noteCalls.find(c =>
+      String(c[0]).toLowerCase().includes('non-empty') ||
+      String(c[0]).toLowerCase().includes('existing files') ||
+      String(c[1]).toLowerCase().includes('non-empty') ||
+      String(c[1]).toLowerCase().includes('existing files')
+    )
+    expect(nonEmptyCall).toBeDefined()
+  })
+})
+
+describe('UX-02: written/skipped split in completion', () => {
+  beforeEach(() => {
+    vi.resetAllMocks()
+  })
+
+  it("note() called with 'written' title and written file list", async () => {
+    const { note, tasks } = await import('@clack/prompts')
+    const { copyTemplates, resolveTemplatesDir } = await import('../steps/copy-templates.js')
+    const { installHeadroom } = await import('../steps/install-headroom.js')
+    const { configureMcp } = await import('../steps/configure-mcp.js')
+
+    vi.mocked(resolveTemplatesDir).mockReturnValue('/fake/templates')
+    vi.mocked(copyTemplates).mockResolvedValue({ written: ['CLAUDE.md', 'README.md'], skipped: [] })
+    vi.mocked(installHeadroom).mockResolvedValue(undefined)
+    vi.mocked(configureMcp).mockResolvedValue(undefined)
+
+    vi.mocked(tasks).mockImplementation(async (taskList: any[]) => {
+      for (const t of taskList) {
+        await t.task(vi.fn())
+      }
+    })
+
+    const { registerInitCommand } = await import('./init.js')
+    const { Command } = await import('commander')
+    const program = new Command()
+    program.exitOverride()
+    registerInitCommand(program)
+
+    await program.parseAsync(['node', 'goodvibes', 'init'])
+
+    const noteCalls = vi.mocked(note).mock.calls
+    const writtenCall = noteCalls.find(c =>
+      String(c[1]).toLowerCase().includes('written') && String(c[0]).includes('CLAUDE.md')
+    )
+    expect(writtenCall).toBeDefined()
+  })
+
+  it("note() called with 'skipped' title when skipped non-empty", async () => {
+    const { note, tasks } = await import('@clack/prompts')
+    const { copyTemplates, resolveTemplatesDir } = await import('../steps/copy-templates.js')
+    const { installHeadroom } = await import('../steps/install-headroom.js')
+    const { configureMcp } = await import('../steps/configure-mcp.js')
+
+    vi.mocked(resolveTemplatesDir).mockReturnValue('/fake/templates')
+    vi.mocked(copyTemplates).mockResolvedValue({ written: ['CLAUDE.md'], skipped: ['JOURNAL.md'] })
+    vi.mocked(installHeadroom).mockResolvedValue(undefined)
+    vi.mocked(configureMcp).mockResolvedValue(undefined)
+
+    vi.mocked(tasks).mockImplementation(async (taskList: any[]) => {
+      for (const t of taskList) {
+        await t.task(vi.fn())
+      }
+    })
+
+    const { registerInitCommand } = await import('./init.js')
+    const { Command } = await import('commander')
+    const program = new Command()
+    program.exitOverride()
+    registerInitCommand(program)
+
+    await program.parseAsync(['node', 'goodvibes', 'init'])
+
+    const noteCalls = vi.mocked(note).mock.calls
+    const skippedCall = noteCalls.find(c =>
+      String(c[1]).toLowerCase().includes('skipped') && String(c[0]).includes('JOURNAL.md')
+    )
+    expect(skippedCall).toBeDefined()
+  })
+})
+
+describe('UX-03: error surfacing', () => {
+  beforeEach(() => {
+    vi.resetAllMocks()
+  })
+
+  it('EACCES from tasks() calls cancel() and exits 1', async () => {
+    const { tasks, cancel } = await import('@clack/prompts')
+    const { copyTemplates, resolveTemplatesDir } = await import('../steps/copy-templates.js')
+
+    vi.mocked(resolveTemplatesDir).mockReturnValue('/fake/templates')
+    vi.mocked(copyTemplates).mockResolvedValue({ written: [], skipped: [] })
+
+    // tasks() throws EACCES
+    vi.mocked(tasks).mockRejectedValue(Object.assign(new Error('EACCES: permission denied'), { code: 'EACCES' }))
+
+    const exitSpy = vi.spyOn(process, 'exit').mockImplementation((...args) => {
+      throw new Error('exit ' + args[0])
+    })
+
+    const { registerInitCommand } = await import('./init.js')
+    const { Command } = await import('commander')
+    const program = new Command()
+    program.exitOverride()
+    registerInitCommand(program)
+
+    await expect(program.parseAsync(['node', 'goodvibes', 'init'])).rejects.toThrow()
+
+    expect(vi.mocked(cancel)).toHaveBeenCalled()
+    expect(exitSpy).toHaveBeenCalledWith(1)
+
+    exitSpy.mockRestore()
+  })
+})
+
+describe('MIN-02: dry-run + minimal', () => {
+  beforeEach(() => {
+    vi.resetAllMocks()
+  })
+
+  it('--dry-run --minimal excludes .github and docs from preview', async () => {
+    const { note } = await import('@clack/prompts')
+    const { listTemplateFiles, resolveTemplatesDir } = await import('../steps/copy-templates.js')
+
+    vi.mocked(resolveTemplatesDir).mockReturnValue('/fake/templates')
+    vi.mocked(listTemplateFiles).mockResolvedValue([
+      'CLAUDE.md',
+      '.github/workflows/ci.yml',
+      'docs/onboarding.md',
+      '.claude/skills/caveman/SKILL.md',
+    ])
+
+    const { registerInitCommand } = await import('./init.js')
+    const { Command } = await import('commander')
+    const program = new Command()
+    program.exitOverride()
+    registerInitCommand(program)
+
+    await program.parseAsync(['node', 'goodvibes', 'init', '--dry-run', '--minimal'])
+
+    const noteCalls = vi.mocked(note).mock.calls
+    const dryRunCall = noteCalls.find(c => String(c[1]).toLowerCase().includes('dry run'))
+    expect(dryRunCall).toBeDefined()
+    const content = String(dryRunCall![0])
+    expect(content).not.toContain('.github')
+    expect(content).not.toContain('docs/onboarding.md')
+    expect(content).toContain('CLAUDE.md')
   })
 })
