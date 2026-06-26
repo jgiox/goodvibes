@@ -58,38 +58,61 @@ export async function copyTemplates(
   dryRun: boolean,
   minimal: boolean,
   projectType: ProjectType = 'both',
-): Promise<string[]> {
+): Promise<{ written: string[]; skipped: string[] }> {
   const ciVariants = ['ci-node.yml', 'ci-python.yml', 'ci-both.yml']
   const selectedVariant = `ci-${projectType}.yml`
 
   if (dryRun) {
     // Return template files excluding non-selected CI variants (preserves --dry-run NPM-07 behaviour)
     const all = await listTemplateFiles(templateDir)
-    return all.filter(p => !ciVariants.some(v => p.endsWith(v) && v !== selectedVariant))
+    return { written: all.filter(p => !ciVariants.some(v => p.endsWith(v) && v !== selectedVariant)), skipped: [] }
   }
 
-  await copy(templateDir, destDir, {
-    overwrite: false,
-    errorOnExist: false,
-    filter: (src: string) => {
-      if (src.endsWith('CLAUDE.md')) return false // handled by sentinel merge
-      if (minimal && src.includes('.github/workflows')) return false
-      // ponytail: path traversal guard per T-02-02-A (templates are repo-controlled but belt-and-suspenders)
-      if (relative(templateDir, src).includes('..')) return false
-      // Skip CI variants not matching the detected project type
-      for (const variant of ciVariants) {
-        if (src.endsWith(variant) && variant !== selectedVariant) return false
-      }
-      return true
-    },
-  })
+  // Snapshot existing dest paths before copy for written/skipped classification
+  const existingBefore = new Set<string>()
+  if (existsSync(destDir)) {
+    const beforeFiles = await walkDir(destDir, destDir).catch(() => [])
+    for (const f of beforeFiles) existingBefore.add(f)
+  }
+
+  const skippedFiles: string[] = []
+
+  try {
+    await copy(templateDir, destDir, {
+      overwrite: false,
+      errorOnExist: false,
+      filter: (src: string) => {
+        if (src.endsWith('CLAUDE.md')) return false // handled by sentinel merge
+        const rel = relative(templateDir, src)
+        // ponytail: MIN-01 — .github/ and docs/ both skipped
+        if (minimal && (rel.startsWith('.github') || rel.startsWith('docs'))) return false
+        // ponytail: path traversal guard per T-02-02-A (templates are repo-controlled but belt-and-suspenders)
+        if (rel.includes('..')) return false
+        // Skip CI variants not matching the detected project type
+        for (const variant of ciVariants) {
+          if (src.endsWith(variant) && variant !== selectedVariant) return false
+        }
+        return true
+      },
+    })
+  } catch (e) {
+    const err = e as NodeJS.ErrnoException
+    const hint = err.code === 'EACCES' || err.code === 'EPERM'
+      ? 'Check directory permissions.'
+      : 'Check available disk space.'
+    throw new Error(`Cannot copy template files: ${err.message}. ${hint}`)
+  }
 
   // Rename selected CI variant to ci.yml
   if (!minimal) {
     const variantPath = join(destDir, '.github', 'workflows', selectedVariant)
     const ciPath = join(destDir, '.github', 'workflows', 'ci.yml')
     if (existsSync(variantPath)) {
-      await rename(variantPath, ciPath)
+      if (existsSync(ciPath)) {
+        skippedFiles.push('.github/workflows/ci.yml') // ponytail: UX-04
+      } else {
+        await rename(variantPath, ciPath)
+      }
     }
   }
 
@@ -100,5 +123,10 @@ export async function copyTemplates(
 
   // Walk destDir so return shows ci.yml (not ci-node.yml) — per RESEARCH.md Pitfall 6
   const destFiles = await walkDir(destDir, destDir)
-  return destFiles.sort()
+  const allDestFiles = destFiles.sort()
+  const written = allDestFiles.filter(f => !existingBefore.has(f))
+  // CLAUDE.md is always in 'written' — sentinel merge runs regardless (per RESEARCH.md note)
+  const writtenWithClaude = written.includes('CLAUDE.md') ? written : ['CLAUDE.md', ...written]
+  const skipped = [...allDestFiles.filter(f => existingBefore.has(f) && f !== 'CLAUDE.md'), ...skippedFiles]
+  return { written: writtenWithClaude.sort(), skipped: skipped.sort() }
 }
