@@ -1,5 +1,17 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
+// ponytail: ESM namespace is sealed — vi.spyOn(node:fs) fails; partial mock via importOriginal
+vi.mock('node:fs', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('node:fs')>()
+  return { ...actual, readdirSync: vi.fn().mockReturnValue([]) }
+})
+
+// Restore default readdirSync return after each vi.clearAllMocks() call in nested beforeEach blocks
+beforeEach(async () => {
+  const { readdirSync } = await import('node:fs')
+  vi.mocked(readdirSync).mockReturnValue([] as any)
+})
+
 // Mock @clack/prompts
 vi.mock('@clack/prompts', () => ({
   intro: vi.fn(),
@@ -28,7 +40,7 @@ vi.mock('../steps/configure-mcp.js', () => ({
 
 describe('init command', () => {
   beforeEach(() => {
-    vi.resetAllMocks()
+    vi.clearAllMocks()
   })
 
   it('--dry-run: calls listTemplateFiles, prints files, does NOT call installHeadroom or configureMcp', async () => {
@@ -232,12 +244,13 @@ describe('init command', () => {
 
 describe('UX-01: non-empty directory notice', () => {
   beforeEach(() => {
-    vi.resetAllMocks()
+    vi.clearAllMocks()
   })
 
   it('note() is called with non-empty notice when cwd has files', async () => {
-    const fs = await import('node:fs')
-    const readdirSpy = vi.spyOn(fs, 'readdirSync').mockReturnValue(['some-file.txt'] as any)
+    // ponytail: vi.spyOn(node:fs) fails in ESM; use vi.mocked on the module-level mock instead
+    const { readdirSync } = await import('node:fs')
+    vi.mocked(readdirSync).mockReturnValue(['some-file.txt'] as any)
 
     const { note, tasks } = await import('@clack/prompts')
     const { copyTemplates, resolveTemplatesDir } = await import('../steps/copy-templates.js')
@@ -263,8 +276,6 @@ describe('UX-01: non-empty directory notice', () => {
 
     await program.parseAsync(['node', 'goodvibes', 'init', '--minimal'])
 
-    readdirSpy.mockRestore()
-
     const noteCalls = vi.mocked(note).mock.calls
     const nonEmptyCall = noteCalls.find(c =>
       String(c[0]).toLowerCase().includes('non-empty') ||
@@ -278,7 +289,7 @@ describe('UX-01: non-empty directory notice', () => {
 
 describe('UX-02: written/skipped split in completion', () => {
   beforeEach(() => {
-    vi.resetAllMocks()
+    vi.clearAllMocks()
   })
 
   it("note() called with 'written' title and written file list", async () => {
@@ -348,7 +359,7 @@ describe('UX-02: written/skipped split in completion', () => {
 
 describe('UX-03: error surfacing', () => {
   beforeEach(() => {
-    vi.resetAllMocks()
+    vi.clearAllMocks()
   })
 
   it('EACCES from tasks() calls cancel() and exits 1', async () => {
@@ -382,7 +393,7 @@ describe('UX-03: error surfacing', () => {
 
 describe('MIN-02: dry-run + minimal', () => {
   beforeEach(() => {
-    vi.resetAllMocks()
+    vi.clearAllMocks()
   })
 
   it('--dry-run --minimal excludes .github and docs from preview', async () => {
