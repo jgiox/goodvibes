@@ -219,3 +219,20 @@ a tag-triggered workflow.
 **Tests run:** 62 Python tests GREEN with `FORCE_COLOR=1`. 58 TypeScript tests GREEN. `bash scripts/verify-phase5.sh --quick` — PASS.
 
 **Docs updated:** JOURNAL.md (this entry).
+
+---
+
+## 2026-06-26 — self-update + workflow_dispatch publish triggers
+
+**What I did:**
+1. `goodvibes upgrade` now self-updates the installed package before applying templates. Python checks PyPI via `urllib`, runs `uv tool upgrade jgiox-goodvibes` (falls back to `pip install --upgrade`), then `os.execve` re-execs the updated binary with `_GV_UPGRADING=1`. TypeScript checks npm registry via execa, runs `npm install -g @jgiox/goodvibes@{latest}`, then spawns the updated binary and exits. Second pass skips the version check and applies templates directly.
+2. Added `workflow_dispatch:` trigger to `publish-npm.yml` and `publish-pip.yml` so releases can be triggered via the GitHub Actions UI button in addition to git tags.
+3. Added 2 new tests per package (self-update triggers + skipped-when-env-set). Autouse fixture patches `_check_pypi_version` to `None` so baseline tests are unaffected by the new code path.
+
+**Why:** Beginners shouldn't need to know about `npm install -g` or `uv tool upgrade` — `goodvibes upgrade` should be the one command that does everything.
+
+**Files changed:** `packages/pip/src/goodvibes_cli/commands/upgrade_cmd.py`, `packages/npm/src/commands/upgrade.ts`, `packages/pip/tests/test_upgrade_cmd.py`, `packages/npm/src/commands/upgrade.test.ts`, `.github/workflows/publish-npm.yml`, `.github/workflows/publish-pip.yml`.
+
+**Tests run:** 64 Python GREEN, 60 TypeScript GREEN.
+
+**Docs updated:** JOURNAL.md (this entry). PyPI trusted publishing setup instructions provided to user for manual browser steps.
