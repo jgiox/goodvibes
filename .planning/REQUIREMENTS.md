@@ -180,5 +180,50 @@
 - Unmapped: 0
 
 ---
+
+## v1.1.0 Requirements (Milestone: Polish & Discoverability)
+
+### Init UX Hardening (UX)
+
+- [ ] **UX-01**: `goodvibes init` in a non-empty directory prompts the user before proceeding — no silent overwrite
+- [ ] **UX-02**: `goodvibes init` completion summary reports "X files written, Y files skipped" separately — not all destination files listed as "created"
+- [ ] **UX-03**: Common failures (no Python, no git, EACCES/EPERM, headroom build fail) print a plain-English remediation message and exit 1 — no raw Node.js/Python stack traces shown to the user
+- [ ] **UX-04**: Existing `ci.yml` in destination is not silently overwritten — the rename step checks before replacing
+
+### --minimal Hardening (MIN)
+
+- [ ] **MIN-01**: `goodvibes init --minimal` skips all of `.github/` (issue templates, PR template, dependabot, workflows) and `docs/` — not just `.github/workflows/`
+- [ ] **MIN-02**: `goodvibes init --dry-run --minimal` shows only the files that `--minimal` would actually write (currently previews CI files that minimal skips)
+
+### README & Package Pages (README)
+
+- [ ] **README-01**: README hero section contains a single copy-pasteable command that starts a user in under 30 seconds — above the fold, before prerequisites
+- [ ] **README-02**: README displays live npm version, PyPI version, CI status, and license badges
+- [ ] **README-03**: README includes an animated demo GIF showing `goodvibes init` completing in a real terminal (recorded with `--minimal` for deterministic timing)
+- [ ] **README-04**: npm `package.json` and PyPI `pyproject.toml` descriptions, keywords, and homepage URL match the README; README `Flags` section documents what `--minimal` skips
+
+### Terminal Demo (DEMO)
+
+- [ ] **DEMO-01**: `scripts/demo.tape` (VHS) produces a deterministic demo GIF at ≤2MB / 800px width — reproducible by any contributor
+- [ ] **DEMO-02**: `.github/workflows/vhs.yml` auto-regenerates `docs/demo.gif` when `demo.tape` changes on main
+
+## v1.1.0 Traceability
+
+| Requirement | Phase | Status |
+|-------------|-------|--------|
+| UX-01 | Phase 6 | Pending |
+| UX-02 | Phase 6 | Pending |
+| UX-03 | Phase 6 | Pending |
+| UX-04 | Phase 6 | Pending |
+| MIN-01 | Phase 6 | Pending |
+| MIN-02 | Phase 6 | Pending |
+| README-01 | Phase 7 | Pending |
+| README-02 | Phase 7 | Pending |
+| README-03 | Phase 7 | Pending |
+| README-04 | Phase 7 | Pending |
+| DEMO-01 | Phase 7 | Pending |
+| DEMO-02 | Phase 7 | Pending |
+
+---
 *Requirements defined: 2026-06-23*
-*Last updated: 2026-06-23 — traceability populated during roadmap creation*
+*Last updated: 2026-06-26 — v1.1.0 requirements added (Polish & Discoverability milestone)*
