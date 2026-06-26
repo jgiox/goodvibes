@@ -7,6 +7,34 @@ import { copy, pathExists } from 'fs-extra'
 import { readFile, rename } from 'node:fs/promises'
 import { existsSync } from 'fs'
 import { join, relative } from 'path'
+import { execa } from 'execa'
+import { createRequire } from 'node:module'
+
+const _require = createRequire(import.meta.url)
+const _GV_UPGRADING = '_GV_UPGRADING'
+
+async function checkLatestNpmVersion(): Promise<string | null> {
+  try {
+    const { stdout } = await execa('npm', ['view', '@jgiox/goodvibes', 'version'])
+    return stdout.trim() || null
+  } catch {
+    return null
+  }
+}
+
+function getInstalledVersion(): string | null {
+  try {
+    // Walk up from this file to find package.json bundled in the dist
+    const pkg = _require('../../package.json') as { version?: string }
+    return pkg.version ?? null
+  } catch {
+    return null
+  }
+}
+
+async function selfUpdateNpm(version: string): Promise<void> {
+  await execa('npm', ['install', '-g', `@jgiox/goodvibes@${version}`], { stdio: 'inherit' })
+}
 
 const MANAGED_FIXED = new Set([
   'CLAUDE.md',
@@ -121,10 +149,30 @@ export function registerUpgradeCommand(program: Command): void {
     .action(async (options: { dryRun: boolean }) => {
       const dryRun = options.dryRun ?? false
       const cwd = process.cwd()
-      const templateDir = resolveTemplatesDir()
-      const projectType = detectProjectType(cwd)
 
       intro('goodvibes upgrade')
+
+      // Self-update: check npm for a newer package version and re-exec if found.
+      // _GV_UPGRADING prevents infinite re-exec if the new binary still sees itself as outdated.
+      if (!process.env[_GV_UPGRADING]) {
+        const current = getInstalledVersion()
+        const latest = await checkLatestNpmVersion()
+        if (latest && current && !versionGte(current, latest)) {
+          note(`Updating goodvibes ${current} → ${latest}…`, 'New version available')
+          await selfUpdateNpm(latest)
+          note(`Updated to ${latest} — re-applying templates…`, '✓')
+          const { execa: execaFn } = await import('execa')
+          await execaFn(process.argv[1], process.argv.slice(2), {
+            stdio: 'inherit',
+            env: { ...process.env, [_GV_UPGRADING]: '1' },
+          })
+          process.exit(0)
+          return
+        }
+      }
+
+      const templateDir = resolveTemplatesDir()
+      const projectType = detectProjectType(cwd)
 
       const installedVersion = await detectInstalledVersion(cwd)
       const bundledVersion = await detectBundledVersion(templateDir)

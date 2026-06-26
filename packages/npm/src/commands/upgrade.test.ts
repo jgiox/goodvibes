@@ -41,9 +41,21 @@ vi.mock('../utils/detect-project-type.js', () => ({
   detectProjectType: vi.fn().mockReturnValue('both'),
 }))
 
+// Mock execa — prevents real npm view/install calls and re-exec subprocess
+vi.mock('execa', () => ({
+  execa: vi.fn().mockResolvedValue({ stdout: '' }),
+}))
+
+// Mock node:module — prevents real require() for package.json in getInstalledVersion
+vi.mock('node:module', () => ({
+  createRequire: () => () => ({ version: '1.0.0' }),
+}))
+
 describe('upgrade command', () => {
   beforeEach(() => {
     vi.resetAllMocks()
+    // After resetAllMocks, execa returns undefined — checkLatestNpmVersion catches the
+    // resulting TypeError and returns null, so self-update never fires in baseline tests.
   })
 
   it('skips upgrade when already up to date', async () => {
@@ -145,6 +157,65 @@ describe('upgrade command', () => {
     await program.parseAsync(['node', 'goodvibes', 'upgrade'])
 
     expect(vi.mocked(note)).toHaveBeenCalled()
+  })
+
+  it('self-update: triggers npm install when newer version available', async () => {
+    const { execa } = await import('execa')
+    const { versionGte } = await import('../utils/sentinel-merge.js')
+
+    // npm view returns a newer version; versionGte(current, latest) must be false to trigger update
+    vi.mocked(execa).mockResolvedValue({ stdout: '1.0.1' } as any)
+    vi.mocked(versionGte).mockReturnValue(false)
+
+    const exitSpy = vi.spyOn(process, 'exit').mockImplementation((() => {
+      throw new Error('process.exit')
+    }) as never)
+
+    const { registerUpgradeCommand } = await import('./upgrade.js')
+    const { Command } = await import('commander')
+    const program = new Command()
+    program.exitOverride()
+    registerUpgradeCommand(program)
+
+    await program.parseAsync(['node', 'goodvibes', 'upgrade']).catch(() => {})
+
+    // npm install -g must have been called with the new version
+    expect(vi.mocked(execa)).toHaveBeenCalledWith(
+      'npm', ['install', '-g', '@jgiox/goodvibes@1.0.1'], expect.objectContaining({ stdio: 'inherit' })
+    )
+
+    exitSpy.mockRestore()
+  })
+
+  it('self-update: skipped when _GV_UPGRADING env is set', async () => {
+    const { execa } = await import('execa')
+    const { versionGte } = await import('../utils/sentinel-merge.js')
+    const { pathExists } = await import('fs-extra')
+    const { resolveTemplatesDir } = await import('../steps/copy-templates.js')
+
+    // Even though a newer version exists, _GV_UPGRADING prevents the check
+    vi.mocked(versionGte).mockReturnValue(false)
+    vi.mocked(pathExists).mockResolvedValue(false)
+    vi.mocked(resolveTemplatesDir).mockReturnValue('/fake/templates')
+
+    const prevEnv = process.env['_GV_UPGRADING']
+    process.env['_GV_UPGRADING'] = '1'
+
+    const { registerUpgradeCommand } = await import('./upgrade.js')
+    const { Command } = await import('commander')
+    const program = new Command()
+    program.exitOverride()
+    registerUpgradeCommand(program)
+
+    await program.parseAsync(['node', 'goodvibes', 'upgrade'])
+
+    // execa should NOT have been called for npm view (self-update skipped)
+    expect(vi.mocked(execa)).not.toHaveBeenCalledWith(
+      'npm', ['view', '@jgiox/goodvibes', 'version'], expect.anything()
+    )
+
+    if (prevEnv === undefined) delete process.env['_GV_UPGRADING']
+    else process.env['_GV_UPGRADING'] = prevEnv
   })
 
   it('preserves user content outside sentinel blocks after upgrade', async () => {

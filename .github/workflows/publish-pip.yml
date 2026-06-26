@@ -4,6 +4,7 @@ on:
   push:
     tags:
       - 'pip-v*'   # trigger: git tag pip-v1.0.0 && git push origin pip-v1.0.0
+  workflow_dispatch:  # manual button in GitHub Actions UI
 
 jobs:
   publish:

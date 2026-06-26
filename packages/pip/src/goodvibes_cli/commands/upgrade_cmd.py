@@ -1,8 +1,14 @@
 """goodvibes upgrade command — port of upgrade.ts."""
 from __future__ import annotations
 
+import importlib.metadata
+import json
+import os
 import pathlib
 import shutil
+import subprocess
+import sys
+import urllib.request
 from typing import Annotated
 
 import typer
@@ -20,6 +26,35 @@ from goodvibes_cli.utils.sentinel_merge import (
 )
 
 console = Console()
+
+_PYPI_URL = "https://pypi.org/pypi/jgiox-goodvibes/json"
+_UPGRADING_ENV = "_GV_UPGRADING"
+
+
+def _get_package_version() -> str | None:
+    try:
+        return importlib.metadata.version("jgiox-goodvibes")
+    except importlib.metadata.PackageNotFoundError:
+        return None
+
+
+def _check_pypi_version() -> str | None:
+    try:
+        with urllib.request.urlopen(_PYPI_URL, timeout=5) as resp:  # noqa: S310
+            return json.loads(resp.read())["info"]["version"]
+    except Exception:
+        return None
+
+
+def _self_update_pip() -> None:
+    # try uv tool upgrade first; fall back to pip install --upgrade
+    try:
+        subprocess.run(["uv", "tool", "upgrade", "jgiox-goodvibes"], check=True)
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        subprocess.run(
+            [sys.executable, "-m", "pip", "install", "--upgrade", "jgiox-goodvibes"],
+            check=True,
+        )
 
 _MANAGED_FIXED = {
     "CLAUDE.md",
@@ -161,10 +196,24 @@ def upgrade_cmd(
     dry_run: Annotated[bool, typer.Option("--dry-run", help="Preview changes without writing")] = False,
 ) -> None:
     """Re-sync goodvibes-managed files to the latest version."""
+    console.rule("[bold]goodvibes upgrade[/bold]")
+
+    # Self-update: check PyPI for a newer package version and re-exec if found.
+    # _GV_UPGRADING prevents infinite re-exec if the new binary still sees itself as outdated.
+    if not os.environ.get(_UPGRADING_ENV):
+        current = _get_package_version()
+        latest = _check_pypi_version()
+        if latest and current and not version_gte(current, latest):
+            console.print(f"New version available: [bold]{latest}[/bold] (installed: {current})")
+            with console.status(f"Updating goodvibes {current} → {latest}…"):
+                _self_update_pip()
+            console.print(f"[green]✓ Updated to {latest}[/green] — re-applying templates…")
+            os.execve(sys.argv[0], sys.argv, {**os.environ, _UPGRADING_ENV: "1"})
+            return  # unreachable; satisfies type checker
+
     template_dir = resolve_templates_dir()
     cwd = pathlib.Path.cwd()
     project_type = detect_project_type(cwd)
-    console.rule("[bold]goodvibes upgrade[/bold]")
 
     installed_version = _detect_installed_version(cwd)
     bundled_version = _detect_bundled_version(template_dir)
