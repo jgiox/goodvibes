@@ -32,36 +32,68 @@ def init_cmd(
     console.rule("[bold]goodvibes init[/bold]")
 
     if dry_run:
-        files = list_template_files(template_dir)
+        if minimal:
+            all_files = list_template_files(template_dir)
+            files = [f for f in all_files if not f.startswith(".github") and not f.startswith("docs")]
+        else:
+            files_tuple = copy_templates(template_dir, cwd, dry_run=True, minimal=False, project_type=project_type)
+            files = files_tuple[0]
         file_list = "\n".join(f"  Would write: {f}" for f in files)
         console.print(Panel(file_list, title="Dry run — no files written"))
+        if minimal:
+            console.print(Panel(
+                "CI workflows and docs were skipped.\nRun goodvibes init without --minimal to add them.",
+                title="Skipped layers"
+            ))
         console.print(Panel(_NEXT_STEPS, title="Next steps"))
         console.rule("Run without --dry-run to apply these changes.")
         return
 
+    # Non-empty directory notice (UX-01)
+    existing = [e for e in cwd.iterdir() if e.name not in (".git", ".DS_Store")]
+    if existing:
+        console.print(Panel("Existing files will not be overwritten.", title="Non-empty project detected"))
+
     created_files: list[str] = []
+    skipped_files_list: list[str] = []
 
-    with console.status("Copying template files") as status:
-        def log_copy(msg: str) -> None:
-            status.update(msg)
-
-        files = copy_templates(template_dir, cwd, dry_run=False, minimal=minimal, project_type=project_type)
-        created_files.extend(files)
-
-    if not minimal:
-        with console.status("Installing headroom") as status:
-            def log_install(msg: str) -> None:
+    try:
+        with console.status("Copying template files") as status:
+            def log_copy(msg: str) -> None:
                 status.update(msg)
 
-            install_headroom(log_install)
+            written, skipped = copy_templates(template_dir, cwd, dry_run=False, minimal=minimal, project_type=project_type)
+            created_files.extend(written)
+            skipped_files_list.extend(skipped)
 
-        with console.status("Configuring headroom MCP") as status:
-            def log_mcp(msg: str) -> None:
-                status.update(msg)
+        if not minimal:
+            with console.status("Installing headroom") as status:
+                def log_install(msg: str) -> None:
+                    status.update(msg)
 
-            configure_mcp(log_mcp)
+                install_headroom(log_install)
 
-    file_list_str = "\n".join(created_files) if created_files else "(none)"
-    console.print(Panel(file_list_str, title="Files created"))
+            with console.status("Configuring headroom MCP") as status:
+                def log_mcp(msg: str) -> None:
+                    status.update(msg)
+
+                configure_mcp(log_mcp)
+    except PermissionError as e:
+        console.print(f"[red]Error:[/red] {e}")
+        raise typer.Exit(1)
+    except (OSError, Exception) as e:
+        console.print(f"[red]Unexpected error:[/red] {e}")
+        raise typer.Exit(1)
+
+    written_str = "\n".join(created_files) if created_files else "(none)"
+    console.print(Panel(written_str, title=f"Files written ({len(created_files)})"))
+    if skipped_files_list:
+        skipped_str = "\n".join(skipped_files_list)
+        console.print(Panel(skipped_str, title=f"Files skipped ({len(skipped_files_list)})"))
     console.print(Panel(_NEXT_STEPS, title="Next steps"))
+    if minimal:
+        console.print(Panel(
+            "CI workflows and docs were skipped.\nRun goodvibes init without --minimal to add them.",
+            title="Skipped layers"
+        ))
     console.rule("[green]You're all set![/green]")

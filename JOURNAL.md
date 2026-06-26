@@ -317,4 +317,16 @@ end-to-end self-update flow confirmed working. Also added `--version` flag to th
 
 **Tests run:** 64 Python GREEN, 60 TypeScript GREEN.
 
+---
+
+## 2026-06-26 — Phase 6 Plan 03: Python UX hardening (copy_templates tuple return + init_cmd panels)
+
+**What I did:** Implemented Python parity for all Phase 6 UX hardening changes. Updated `copy_templates.py` to return a `(written, skipped)` tuple on all code paths (dry_run and normal). Fixed the no-clobber guard to check `is_file()` instead of `exists()` so directories are traversed on second runs (was silently skipping entire `.github/` subtree). Added ci.yml rename guard (UX-04), expanded minimal filter to exclude all of `.github/` and `docs/` (MIN-01), added PermissionError/OSError wrapping (UX-03). Updated `init_cmd.py` with non-empty directory notice (UX-01), split written/skipped completion panels (UX-02), fixed `--dry-run --minimal` to filter correctly (MIN-02), and wrapped copy block in try/except with plain-English Rich error output. Updated `test_copy_templates.py` (tuple assertions, 6 new tests) and created `test_init_cmd.py` (4 tests). Also updated `test_main.py` mocks to return tuples (Rule 1 auto-fix for pre-existing tests broken by the return type change). Extended conftest `template_dir` fixture to include `.github/ISSUE_TEMPLATE` and `docs/` directories.
+
+**Why:** The pip CLI was missing UX improvements added to the npm CLI in Plans 01 and 02 — accurate written/skipped reporting, ci.yml guard, expanded minimal filter, non-empty project notice, and plain-English error messages.
+
+**Files changed:** `packages/pip/src/goodvibes_cli/steps/copy_templates.py`, `packages/pip/src/goodvibes_cli/commands/init_cmd.py`, `packages/pip/tests/test_copy_templates.py`, `packages/pip/tests/test_init_cmd.py`, `packages/pip/tests/test_main.py`, `packages/pip/tests/conftest.py`.
+
+**Tests run:** 74 Python GREEN.
+
 **Docs updated:** JOURNAL.md (this entry). PyPI trusted publishing setup instructions provided to user for manual browser steps.

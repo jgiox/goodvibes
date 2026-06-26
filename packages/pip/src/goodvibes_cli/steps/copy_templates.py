@@ -33,21 +33,23 @@ def copy_templates(
     dry_run: bool = False,
     minimal: bool = False,
     project_type: str = "both",
-) -> list[str]:
+) -> tuple[list[str], list[str]]:
     """Copy template files to dest_dir, handling CLAUDE.md via sentinel merge.
 
-    Returns the list of file paths relative to dest_dir (shows ci.yml, not ci-node.yml).
-    When dry_run=True, returns the filtered template list without writing any files.
+    Returns (written, skipped) tuple of file paths relative to dest_dir.
+    When dry_run=True, returns (filtered_template_list, []) without writing any files.
     """
     ci_variants = {"ci-node.yml", "ci-python.yml", "ci-both.yml"}
     selected_variant = f"ci-{project_type}.yml"
 
     if dry_run:
-        # Preserve --dry-run behaviour: return template files excluding non-selected CI variants
-        return [
+        all_files = [
             p for p in list_template_files(template_dir)
             if not any(p.endswith(v) and v != selected_variant for v in ci_variants)
         ]
+        return (all_files, [])
+
+    skipped_files: list[str] = []
 
     def ignore_fn(directory: str, contents: list[str]) -> set[str]:
         ignored: set[str] = set()
@@ -65,25 +67,38 @@ def copy_templates(
                 continue
             if name == "CLAUDE.md":
                 ignored.add(name)  # sentinel merge handles it separately
-            if minimal and ".github" in rel.parts and "workflows" in rel.parts:
-                ignored.add(name)
+            if minimal and (".github" in rel.parts or "docs" in rel.parts):
+                ignored.add(name)  # ponytail: MIN-01
             # Skip CI variants not matching the detected project type
             if name in ci_variants and name != selected_variant:
                 ignored.add(name)
-            # No-clobber: skip if destination already exists (T-03-02-03)
+            # No-clobber: skip files (not dirs) that already exist at dest (T-03-02-03)
             dest_candidate = dest_dir / rel
-            if dest_candidate.exists():
+            if dest_candidate.is_file():
                 ignored.add(name)
+                skipped_files.append(str(dest_candidate.relative_to(dest_dir)))
         return ignored
 
-    shutil.copytree(str(template_dir), str(dest_dir), ignore=ignore_fn, dirs_exist_ok=True)
+    try:
+        shutil.copytree(str(template_dir), str(dest_dir), ignore=ignore_fn, dirs_exist_ok=True)
+    except PermissionError as e:
+        raise PermissionError(
+            f"Cannot write files to {dest_dir}.\n"
+            f"Why: Permission denied.\n"
+            f"Fix: chmod u+w {dest_dir}  (macOS/Linux) or check folder properties (Windows)"
+        ) from e
+    except OSError as e:
+        raise OSError(f"Cannot copy template files: {e}. Check available disk space.") from e
 
     # Rename selected CI variant to ci.yml
     if not minimal:
         variant_path = dest_dir / ".github" / "workflows" / selected_variant
         ci_path = dest_dir / ".github" / "workflows" / "ci.yml"
         if variant_path.exists():
-            variant_path.rename(ci_path)
+            if ci_path.exists():
+                skipped_files.append(".github/workflows/ci.yml")  # ponytail: UX-04
+            else:
+                variant_path.rename(ci_path)
 
     # Handle CLAUDE.md via sentinel merge
     claude_src = template_dir / "CLAUDE.md"
@@ -93,4 +108,9 @@ def copy_templates(
         merge_claude(claude_dest, template_content)
 
     # Walk destDir so return shows ci.yml (not ci-node.yml) — per RESEARCH.md Pitfall 6
-    return sorted(str(f.relative_to(dest_dir)) for f in dest_dir.rglob("*") if f.is_file())
+    all_dest = sorted(str(f.relative_to(dest_dir)) for f in dest_dir.rglob("*") if f.is_file())
+    written = [f for f in all_dest if f not in skipped_files]
+    # CLAUDE.md always in written — sentinel merge runs regardless
+    if "CLAUDE.md" not in written:
+        written = ["CLAUDE.md"] + written
+    return (sorted(written), sorted(skipped_files))
