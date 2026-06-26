@@ -20,6 +20,7 @@ jobs:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0  # full history required by git subtree split
+          persist-credentials: false  # prevent checkout's GITHUB_TOKEN from overriding our PAT
 
       - name: Configure git
         run: |
