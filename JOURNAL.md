@@ -222,6 +222,27 @@ a tag-triggered workflow.
 
 ---
 
+## 2026-06-26 — v1.1.0 published to PyPI; self-update UAT passed; --version flag added
+
+**What I did:** Bumped all three version locations (pip `pyproject.toml`, npm `package.json`,
+`templates/CLAUDE.md` sentinel) from 1.0.0 → 1.1.0. Triggered `publish-pip.yml` via
+`workflow_dispatch` button — wheel published to PyPI. Ran live UAT: `uv tool install
+jgiox-goodvibes` fetched 1.0.0; `goodvibes upgrade` detected 1.1.0 on PyPI, self-updated,
+re-exec'd, and printed the full `What will change` diff (12 `+` new files, 1 `~` changed) —
+end-to-end self-update flow confirmed working. Also added `--version` flag to the Typer CLI
+(was missing; `goodvibes --version` previously errored).
+
+**Why:** Close Phase 3 UAT (live PyPI install) and Phase 5 UAT (self-update flow).
+
+**Files changed:** `packages/pip/pyproject.toml`, `packages/npm/package.json`,
+`templates/CLAUDE.md`, `packages/pip/src/goodvibes_cli/main.py`.
+
+**Tests run:** 64 Python GREEN. Publish CI passed. Live `goodvibes upgrade` UAT confirmed.
+
+**Docs updated:** JOURNAL.md (this entry).
+
+---
+
 ## 2026-06-26 — self-update + workflow_dispatch publish triggers
 
 **What I did:**
