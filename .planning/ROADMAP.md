@@ -18,6 +18,8 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 3: pip CLI** - Port the npm CLI to Python and publish to PyPI as `jgiox-goodvibes` (PyPI name; `goodvibes` taken by chemistry package) (completed 2026-06-24)
 - [x] **Phase 4: CI/CD Scaffolding** - Validate and harden generated GitHub Actions workflows for both project types (completed 2026-06-25)
 - [x] **Phase 5: Upgrade Command & Template Repo** - Implement `goodvibes upgrade` and publish the GitHub template repo as the click-to-fork entry point (completed 2026-06-25)
+- [ ] **Phase 6: UX Hardening** - Harden both CLIs for existing projects, fix --minimal scope and --dry-run --minimal combination, and replace raw stack traces with plain-English remediation messages
+- [ ] **Phase 7: README & Demo** - Ship the hero README with badges and an animated demo GIF recorded against the hardened CLI output
 
 ## Phase Details
 
@@ -161,12 +163,46 @@ Plans:
 
 **UI hint**: no
 
+### Phase 6: UX Hardening
+
+**Goal**: Users running `goodvibes init` against an existing project receive accurate feedback about what was written vs skipped, failures surface as plain-English remediation messages, and `--minimal` filters the correct file set in both live and dry-run modes
+**Depends on**: Phase 5
+**Requirements**: UX-01, UX-02, UX-03, UX-04, MIN-01, MIN-02
+**Success Criteria** (what must be TRUE):
+
+  1. Running `goodvibes init` in a non-empty directory shows a notice before any files are written, and the completion summary reports "X files written, Y files skipped (already exist)" as separate counts — not a flat combined list
+  2. Running `goodvibes init` when `ci.yml` already exists in the destination leaves the existing file unchanged and reports it as skipped, not overwritten
+  3. Running `goodvibes init --minimal` skips all of `.github/` (workflows, issue templates, PR template, dependabot) and `docs/` — and the completion next-steps block notes what was skipped and how to add it later
+  4. Running `goodvibes init --dry-run --minimal` shows only the files that `--minimal` would actually write — CLAUDE.md and skills — without listing CI or docs files
+  5. Common failures (no Python detected, EACCES/EPERM on file write, headroom build error) print a plain-English "What failed / Why / How to fix" message and exit 1 without a raw Node.js or Python stack trace visible to the user
+
+**Plans**: TBD
+**UI hint**: no
+
+### Phase 7: README & Demo
+
+**Goal**: First-time visitors to the goodvibes repo understand what it does, see it working, and can start a project in under 30 seconds — all from the README alone
+**Depends on**: Phase 6
+**Requirements**: README-01, README-02, README-03, README-04, DEMO-01, DEMO-02
+**Success Criteria** (what must be TRUE):
+
+  1. The README hero shows a single copy-pasteable `npx goodvibes init` command above the fold, before any prerequisites section, that a new visitor can run in under 30 seconds
+  2. Live npm version, PyPI version, CI status, and license badges appear in the README and each resolves to a non-error state (no gray "error" shields)
+  3. An animated GIF embedded in the README shows `goodvibes init --minimal --dry-run` completing in a real terminal, is under 2MB, renders inline on GitHub without clicking "View raw," and reflects the post-Phase-6 hardened output (written/skipped counts visible)
+  4. `npm package.json` description, keywords, and homepage and PyPI `pyproject.toml` description, keywords, and classifiers match the README; the README `Flags` section states exactly what `--minimal` skips
+  5. `scripts/demo.tape` is committed alongside `docs/demo.gif` so any contributor can reproduce the GIF by running `vhs scripts/demo.tape`; `.github/workflows/vhs.yml` auto-regenerates the GIF when `demo.tape` changes on main
+
+**Plans**: TBD
+**UI hint**: no
+
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
+Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 
 Note: Phase 3 (pip CLI) and Phase 4 (CI scaffolding) have no dependency on each other and can be parallelized if two implementers are available. Both depend only on Phase 2.
+
+Phase 6 must complete before Phase 7 — the demo GIF must record the hardened CLI output (written/skipped summary, correct --minimal scope). Recording before Phase 6 would produce a GIF that does not match what users see after Phase 6 ships.
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
@@ -175,3 +211,5 @@ Note: Phase 3 (pip CLI) and Phase 4 (CI scaffolding) have no dependency on each 
 | 3. pip CLI | 4/4 | Complete   | 2026-06-24 |
 | 4. CI/CD Scaffolding | 4/4 | Complete | 2026-06-25 |
 | 5. Upgrade Command & Template Repo | 3/3 | Complete    | 2026-06-25 |
+| 6. UX Hardening | 0/TBD | Not started | - |
+| 7. README & Demo | 0/TBD | Not started | - |

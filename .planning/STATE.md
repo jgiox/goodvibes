@@ -3,10 +3,10 @@ gsd_state_version: 1.0
 milestone: v1.1.0
 milestone_name: Polish & Discoverability
 status: planning
-last_updated: "2026-06-26T07:47:52.514Z"
+last_updated: "2026-06-26T00:00:00.000Z"
 last_activity: 2026-06-26
 progress:
-  total_phases: 0
+  total_phases: 2
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -17,17 +17,21 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-06-23)
+See: .planning/PROJECT.md (updated 2026-06-25)
 
 **Core value:** One command gives a vibe coder a fully configured project — token efficiency and engineering discipline happen automatically in the background.
-**Current focus:** Milestone complete
+**Current focus:** Milestone v1.1.0 — Phase 6 (UX Hardening) is next
 
 ## Current Position
 
-Phase: Not started (defining requirements)
+Phase: 6 (UX Hardening) — not started
 Plan: —
-Status: Defining requirements
-Last activity: 2026-06-26 — Milestone v1.1.0 started
+Status: Roadmap complete; ready to plan Phase 6
+Last activity: 2026-06-26 — v1.1.0 roadmap created (Phase 6 + Phase 7)
+
+```
+Progress: [----------] 0% (0/2 phases)
+```
 
 ## Performance Metrics
 
@@ -84,6 +88,15 @@ Recent decisions affecting current work:
 - [Phase ?]: D-11: hatchling build hook (hatch_build.py) resolves templates for both source and sdist-derived wheel builds
 - [Phase ?]: D-12: publish-pip.yml triggers on pip-v* tags, uses environment: release for OIDC, no token in repo
 - [Phase ?]: Phase 03 gate: jgiox-goodvibes v1.0.0 published to PyPI via OIDC trusted publishing (pip-v1.0.0 tag)
+- [Phase 06]: --minimal flag is already wired in both CLIs; only the file filter scope needs expanding (all of .github/ + docs/, not just .github/workflows/)
+- [Phase 06]: --dry-run --minimal combination is broken — dry-run branch in init.ts calls listTemplateFiles without passing minimal; fix is to thread minimal into the dry-run preview path
+- [Phase 06]: copyTemplates return type must change from string[] to {written: string[], skipped: string[]} — ripples into exactly one call site in init.ts (and mirrors in copy_templates.py / init_cmd.py)
+- [Phase 06]: ci.yml silent overwrite bug — rename() in copy-templates.ts does not check if ci.yml already exists in dest; add existsSync guard before rename
+- [Phase 06]: No new runtime dependencies for Phase 6 — all changes use already-installed @clack/prompts confirm() and Node.js stdlib readdir
+- [Phase 07]: VHS (charmbracelet/vhs v0.11.0) chosen for demo GIF — MIT, deterministic, CI-native via vhs-action@v2; tape file at scripts/demo.tape, GIF at docs/demo.gif
+- [Phase 07]: Demo must use --minimal --dry-run for deterministic timing — avoids headroom download latency in CI
+- [Phase 07]: Shields.io badge URLs confirmed for @jgiox/goodvibes (npm) and jgiox-goodvibes (PyPI); limit to 4 badges max
+- [Phase 07]: Phase 7 is blocked on Phase 6 completing — GIF must record hardened output (written/skipped counts visible)
 
 ### Pending Todos
 
@@ -94,15 +107,18 @@ None yet.
 - headroom first-run latency unconfirmed: benchmark `uv tool install headroom-ai[all]` on cold cache before writing spinner UX copy in Phase 2
 - Windows Python detection edge case: `python` may open Microsoft Store on Windows 11 without Python; test explicitly in Phase 2
 - `headroom mcp install` idempotency not confirmed: must verify before Phase 2 headroom.ts implementation
+- stefanzweifel/git-auto-commit-action v5 pinning should be verified before use in vhs.yml (MEDIUM confidence from research)
 
 ## Deferred Items
 
 | Category | Item | Status | Deferred At |
 |----------|------|--------|-------------|
-| *(none)* | | | |
+| --force flag | Power-user flag to overwrite existing files on re-run | Deferred to v1.2 | v1.1.0 planning |
+| .gitignore append-merge | Line-by-line dedup merge for existing .gitignore | Deferred to v1.2 | v1.1.0 planning |
+| --debug flag | Stack trace output behind a flag for power users | Deferred to v1.2 | v1.1.0 planning |
 
 ## Session Continuity
 
-Last session: 2026-06-24T09:10:10.288Z
-Stopped at: Phase 03 complete — jgiox-goodvibes v1.0.0 published to PyPI
+Last session: 2026-06-26T00:00:00.000Z
+Stopped at: v1.1.0 roadmap created — two phases (6 and 7) defined
 Resume file: None
