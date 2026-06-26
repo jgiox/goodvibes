@@ -54,8 +54,8 @@ def test_copy_templates_path_traversal_guard(tmp_dir, template_dir, mocker):
 def test_copy_templates_dry_run_returns_list_without_writing(tmp_dir, template_dir):
     from goodvibes_cli.steps.copy_templates import copy_templates
     result = copy_templates(template_dir, tmp_dir, dry_run=True)
-    assert isinstance(result, list)
-    assert len(result) > 0
+    assert isinstance(result, tuple)
+    assert len(result[0]) > 0
     # dry_run must not write any files
     assert not (tmp_dir / "CLAUDE.md").exists()
     assert not (tmp_dir / "CONTRIBUTING.md").exists()
@@ -114,3 +114,59 @@ def test_copy_templates_writes_ci_yml_for_python_project(tmp_dir, template_dir, 
     copy_templates(template_dir, tmp_dir, project_type="python")
     assert (tmp_dir / ".github" / "workflows" / "ci.yml").exists()
     assert not (tmp_dir / ".github" / "workflows" / "ci-python.yml").exists()
+
+
+# --- UX-02 / MIN-01 tuple return tests ---
+
+def test_copy_templates_returns_tuple_of_written_and_skipped(tmp_dir, template_dir, mocker):
+    from goodvibes_cli.steps.copy_templates import copy_templates
+    mocker.patch("goodvibes_cli.steps.copy_templates.merge_claude")
+    result = copy_templates(template_dir, tmp_dir)
+    assert isinstance(result, tuple)
+    assert len(result) == 2
+    written, skipped = result
+    assert isinstance(written, list)
+    assert isinstance(skipped, list)
+    assert len(written) > 0
+    assert len(skipped) == 0
+
+
+def test_copy_templates_skipped_contains_preexisting_files_on_second_run(tmp_dir, template_dir, mocker):
+    from goodvibes_cli.steps.copy_templates import copy_templates
+    mocker.patch("goodvibes_cli.steps.copy_templates.merge_claude")
+    copy_templates(template_dir, tmp_dir)
+    _, skipped = copy_templates(template_dir, tmp_dir)
+    assert len(skipped) > 0
+
+
+def test_copy_templates_does_not_overwrite_existing_ci_yml(tmp_dir, template_dir, mocker):
+    from goodvibes_cli.steps.copy_templates import copy_templates
+    mocker.patch("goodvibes_cli.steps.copy_templates.merge_claude")
+    copy_templates(template_dir, tmp_dir, project_type="node")
+    ci_path = tmp_dir / ".github" / "workflows" / "ci.yml"
+    assert ci_path.exists()
+    ci_path.write_text("# custom CI\n")
+    _, skipped = copy_templates(template_dir, tmp_dir, project_type="node")
+    assert ci_path.read_text() == "# custom CI\n"
+    assert any("ci.yml" in s for s in skipped)
+
+
+def test_copy_templates_minimal_skips_github_issue_templates(tmp_dir, template_dir, mocker):
+    from goodvibes_cli.steps.copy_templates import copy_templates
+    mocker.patch("goodvibes_cli.steps.copy_templates.merge_claude")
+    copy_templates(template_dir, tmp_dir, minimal=True)
+    assert not (tmp_dir / ".github" / "ISSUE_TEMPLATE").exists()
+
+
+def test_copy_templates_minimal_skips_docs_directory(tmp_dir, template_dir, mocker):
+    from goodvibes_cli.steps.copy_templates import copy_templates
+    mocker.patch("goodvibes_cli.steps.copy_templates.merge_claude")
+    copy_templates(template_dir, tmp_dir, minimal=True)
+    assert not (tmp_dir / "docs").exists()
+
+
+def test_copy_templates_minimal_keeps_claude_md(tmp_dir, template_dir, mocker):
+    from goodvibes_cli.steps.copy_templates import copy_templates
+    mocker.patch("goodvibes_cli.steps.copy_templates.merge_claude")
+    written, _ = copy_templates(template_dir, tmp_dir, minimal=True)
+    assert any("CLAUDE.md" in w for w in written) or (tmp_dir / "CLAUDE.md").exists()
