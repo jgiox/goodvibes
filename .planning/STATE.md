@@ -1,17 +1,16 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.0.0
-milestone_name: milestone
-status: milestone_complete
-last_updated: 2026-06-25T09:42:48.042Z
-last_activity: 2026-06-25 -- Phase 05 execution started
+milestone: v1.1.0
+milestone_name: Polish & Discoverability
+status: planning
+last_updated: "2026-06-26T07:47:52.514Z"
+last_activity: 2026-06-26
 progress:
-  total_phases: 5
-  completed_phases: 4
-  total_plans: 21
-  completed_plans: 21
-  percent: 80
-stopped_at: Milestone complete (Phase 05 was final phase)
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
@@ -25,13 +24,10 @@ See: .planning/PROJECT.md (updated 2026-06-23)
 
 ## Current Position
 
-Phase: 05
-Phase: 05 (upgrade-command-template-repo) — PLANNING
-Plan: Not started
-Last activity: 2026-06-25
-Last activity: 2026-06-24 -- Phase 04 execution started
-
-Progress: [██████████] 100%
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-06-26 — Milestone v1.1.0 started
 
 ## Performance Metrics
 

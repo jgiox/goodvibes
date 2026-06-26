@@ -1,5 +1,16 @@
 # goodvibes
 
+## Current Milestone: v1.1.0 Polish & Discoverability
+
+**Goal:** Make goodvibes findable, understandable, and frictionless for real vibe coders encountering it for the first time.
+
+**Target features:**
+- Hero README with one-command quickstart, badges, animated demo GIF
+- npm + PyPI package page polish (descriptions, keywords, homepage links)
+- Actionable beginner-friendly error messages for common failure modes
+- `goodvibes init` hardened for existing non-empty projects
+- `--minimal` flag (CLAUDE.md + skills only, skips headroom and CI)
+
 ## What This Is
 
 goodvibes is a single-command bootstrap for people who want to vibe code with an LLM and not worry about the rest. Run `npx goodvibes init` (or fork the template), start coding, and everything else — code hygiene, token efficiency, git discipline, CI/CD — happens automatically in the background. It is an open-source Apache 2.0 starter kit targeting complete beginners who use Claude, Copilot, or any other LLM coding tool.
