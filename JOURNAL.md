@@ -304,6 +304,32 @@ end-to-end self-update flow confirmed working. Also added `--version` flag to th
 
 ---
 
+## 2026-06-26 — Phase 6 Plan 02: UX hardening GREEN (npm CLI)
+
+**What I did:** Made all 17 RED tests from Phase 6 Plan 01 pass GREEN. Changed `copyTemplates`
+return type from `string[]` to `{ written, skipped }` — tracking new vs. existing files using
+a pre-copy snapshot of destDir. Expanded `--minimal` filter from `.github/workflows` only to
+all of `.github/` and `docs/`. Added ci.yml rename guard so a user-customized `ci.yml` is never
+silently overwritten (UX-04). Wrapped `copy()` in a try/catch for plain-English EACCES/EPERM
+messages. Updated `init.ts` to: add non-empty directory notice before tasks run (UX-01),
+destructure `{ written, skipped }` from `copyTemplates` and display two separate notes (UX-02),
+wrap `tasks()` in try/catch calling `cancel()` + `process.exit(1)` on EACCES (UX-03), fix
+`--dry-run --minimal` to filter out `.github/` and `docs/` from preview (MIN-02), add a
+`--minimal` post-summary note explaining how to add CI/docs later. Fixed UX-01 test: ESM
+namespace is sealed — `vi.spyOn(node:fs)` fails; replaced with `vi.mock('node:fs', importOriginal)`
+partial mock and changed `vi.resetAllMocks()` to `vi.clearAllMocks()` throughout init.test.ts.
+
+**Why:** Phase 6 UX hardening requirements UX-01 through MIN-02.
+
+**Files changed:** `packages/npm/src/steps/copy-templates.ts`, `packages/npm/src/commands/init.ts`,
+`packages/npm/src/commands/init.test.ts`, `JOURNAL.md`.
+
+**Tests run:** `cd packages/npm && npm test -- --run` → 71 passed | 2 todo (73 total). All GREEN.
+
+**Docs updated:** JOURNAL.md (this entry).
+
+---
+
 ## 2026-06-26 — self-update + workflow_dispatch publish triggers
 
 **What I did:**
