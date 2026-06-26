@@ -501,18 +501,18 @@ if (existsSync(variantPath) && !existsSync(ciPath)) {
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **Non-empty dir: notice vs warning severity**
+1. RESOLVED: **Non-empty dir: notice vs warning severity**
    - What we know: ROADMAP says "shows a notice before any files are written" (not a prompt, not abort)
    - What's unclear: Should the notice appear before `intro()` or after? Currently `intro('goodvibes init')` is the first output.
    - Recommendation: Place the notice after `intro()` but before `tasks()` — this matches the flow of: greet → warn → proceed.
 
-2. **`skipped` count for CLAUDE.md**
+2. RESOLVED: **`skipped` count for CLAUDE.md**
    - What we know: CLAUDE.md is handled via sentinel merge, not direct copy. If a CLAUDE.md already exists and is merged (Case D: same version — no change), should it appear in `written` or `skipped`?
    - Recommendation: Treat CLAUDE.md as "written" if `mergeClaude` made any change, "skipped" otherwise. For simplicity in Phase 6, treat it as always "written" — the sentinel merge is not a no-op to the user even when idempotent.
 
-3. **`--force` flag for power users (deferred)**
+3. DEFERRED: **`--force` flag for power users**
    - Already deferred to v1.2 in STATE.md. Do not implement in Phase 6.
 
 ---
