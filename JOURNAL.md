@@ -222,6 +222,28 @@ a tag-triggered workflow.
 
 ---
 
+## 2026-06-26 — v1.3.0: fix CLAUDE.md missing from wheel; goodvibes upgrade end-to-end confirmed
+
+**What I did:** `goodvibes upgrade` was crashing with `FileNotFoundError` on `templates/CLAUDE.md`
+even though CLAUDE.md existed in the source repo. Root cause: `packages/pip/.gitignore` had
+`CLAUDE.md` (unanchored) which git pattern-matches in all subdirectories — so Hatchling
+excluded `src/goodvibes_cli/templates/CLAUDE.md` from the wheel. Fix: changed to `/CLAUDE.md`
+(anchored to `packages/pip/` root only). Rebuilt, verified wheel contains CLAUDE.md, published
+1.3.0. Confirmed end-to-end: `goodvibes upgrade` on stale project self-updates + applies
+templates; `goodvibes upgrade` on current project prints "Already up to date (v1.3.0)".
+
+**Why:** Hatchling respects `.gitignore` patterns when collecting wheel files. Unanchored
+pattern was a false positive from a test artifact fix.
+
+**Files changed:** `packages/pip/.gitignore`, `packages/pip/pyproject.toml`,
+`packages/npm/package.json`, `templates/CLAUDE.md`.
+
+**Tests run:** 64 Python GREEN, 60 TS GREEN. Live UAT confirmed.
+
+**Docs updated:** JOURNAL.md (this entry).
+
+---
+
 ## 2026-06-26 — template repo sync working; all Phase 5 UAT closed
 
 **What I did:** Fixed `publish-template.yml` workflow — two bugs: (1) `actions/checkout@v4`
