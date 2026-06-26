@@ -1,6 +1,6 @@
 {
   "name": "@jgiox/goodvibes",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "One-command bootstrap for vibe coding projects",
   "type": "module",
   "bin": {
@@ -37,7 +37,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "commander": "^15",
+    "commander": "^13",
     "@clack/prompts": "^1",
     "fs-extra": "^11",
     "execa": "^9"
