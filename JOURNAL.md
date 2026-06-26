@@ -222,6 +222,25 @@ a tag-triggered workflow.
 
 ---
 
+## 2026-06-26 — v1.2.0: commander downgrade + --version flag; both packages published
+
+**What I did:** Fixed EBADENGINE warning on Node 20 — commander was at `^15` (requires Node >=22)
+but `engines.node` declares `>=20.12.0`. Downgraded to `^13` (Node >=18) matching CLAUDE.md spec.
+Added `--version` flag to pip CLI. Bumped all three version locations to 1.2.0. Triggered both
+`publish-pip.yml` and `publish-npm.yml` via `workflow_dispatch` — both published successfully.
+`npx @jgiox/goodvibes upgrade --dry-run` now runs warning-free on Node 20.
+
+**Why:** Node engine mismatch between declared constraint and actual dependency requirement.
+
+**Files changed:** `packages/npm/package.json`, `packages/pip/pyproject.toml`,
+`templates/CLAUDE.md`, `packages/pip/src/goodvibes_cli/main.py`.
+
+**Tests run:** 60 TS GREEN, 64 Python GREEN. Both publish CI workflows passed.
+
+**Docs updated:** JOURNAL.md (this entry).
+
+---
+
 ## 2026-06-26 — v1.1.0 published to PyPI; self-update UAT passed; --version flag added
 
 **What I did:** Bumped all three version locations (pip `pyproject.toml`, npm `package.json`,
