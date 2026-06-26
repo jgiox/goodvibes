@@ -176,7 +176,17 @@ Plans:
   4. Running `goodvibes init --dry-run --minimal` shows only the files that `--minimal` would actually write — CLAUDE.md and skills — without listing CI or docs files
   5. Common failures (no Python detected, EACCES/EPERM on file write, headroom build error) print a plain-English "What failed / Why / How to fix" message and exit 1 without a raw Node.js or Python stack trace visible to the user
 
-**Plans**: TBD
+**Plans**: 3 plans
+
+**Wave 1**
+
+- [ ] 06-01-PLAN.md — Wave 1: RED tests for npm package (copy-templates.test.ts + init.test.ts) covering UX-01 through MIN-02
+
+**Wave 2** *(parallel pair — no file conflicts)*
+
+- [ ] 06-02-PLAN.md — Wave 2a: Implement npm package changes (copy-templates.ts + init.ts) — tests GREEN
+- [ ] 06-03-PLAN.md — Wave 2b: Python parity — RED tests + implementation (copy_templates.py + init_cmd.py + test files)
+
 **UI hint**: no
 
 ### Phase 7: README & Demo
@@ -211,5 +221,5 @@ Phase 6 must complete before Phase 7 — the demo GIF must record the hardened C
 | 3. pip CLI | 4/4 | Complete   | 2026-06-24 |
 | 4. CI/CD Scaffolding | 4/4 | Complete | 2026-06-25 |
 | 5. Upgrade Command & Template Repo | 3/3 | Complete    | 2026-06-25 |
-| 6. UX Hardening | 0/TBD | Not started | - |
+| 6. UX Hardening | 0/3 | Not started | - |
 | 7. README & Demo | 0/TBD | Not started | - |
