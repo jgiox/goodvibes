@@ -1,6 +1,6 @@
 [project]
 name = "jgiox-goodvibes"
-version = "1.0.0"
+version = "1.1.0"
 description = "One-command bootstrap for vibe coding projects"
 readme = "README.md"
 requires-python = ">=3.10"
