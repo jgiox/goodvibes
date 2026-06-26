@@ -222,6 +222,26 @@ a tag-triggered workflow.
 
 ---
 
+## 2026-06-26 — template repo sync working; all Phase 5 UAT closed
+
+**What I did:** Fixed `publish-template.yml` workflow — two bugs: (1) `actions/checkout@v4`
+targeting Node 20 which GitHub now forces to run on Node 24 → upgraded to `@v7`; (2)
+`git subtree push` failing 403 because `actions/checkout` installs a credential helper that
+authenticates as `github-actions[bot]`, shadowing the PAT in the remote URL → added
+`persist-credentials: false`. Switched from `git subtree push` to `git subtree split` +
+`git push --force` to handle non-fast-forward when remote history diverges from CI clone.
+Template repo (`jgiox/goodvibes-template`) now synced with latest `templates/`.
+
+**Why:** Phase 5 success criterion 3 — fork flow UAT requires the template repo to be current.
+
+**Files changed:** `.github/workflows/publish-template.yml`.
+
+**Tests run:** Workflow passed on GitHub Actions. Template repo verified updated.
+
+**Docs updated:** JOURNAL.md (this entry).
+
+---
+
 ## 2026-06-26 — v1.2.0: commander downgrade + --version flag; both packages published
 
 **What I did:** Fixed EBADENGINE warning on Node 20 — commander was at `^15` (requires Node >=22)
