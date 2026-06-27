@@ -205,8 +205,8 @@ Plans:
 **Plans**: 3 plansPlans:
 **Wave 1**
 
-- [ ] 07-01-PLAN.md — README hero redesign + npm/PyPI package metadata sync
-- [ ] 07-02-PLAN.md — VHS demo tape (scripts/demo.tape) + initial docs/demo.gif
+- [x] 07-01-PLAN.md — README hero redesign + npm/PyPI package metadata sync
+- [x] 07-02-PLAN.md — VHS demo tape (scripts/demo.tape) + initial docs/demo.gif
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -231,4 +231,4 @@ Phase 6 must complete before Phase 7 — the demo GIF must record the hardened C
 | 4. CI/CD Scaffolding | 4/4 | Complete | 2026-06-25 |
 | 5. Upgrade Command & Template Repo | 3/3 | Complete    | 2026-06-25 |
 | 6. UX Hardening | 3/3 | Complete    | 2026-06-27 |
-| 7. README & Demo | 0/3 | Not started | - |
+| 7. README & Demo | 2/3 | In Progress|  |
