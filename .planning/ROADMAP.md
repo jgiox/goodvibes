@@ -202,7 +202,13 @@ Plans:
   4. `npm package.json` description, keywords, and homepage and PyPI `pyproject.toml` description, keywords, and classifiers match the README; the README `Flags` section states exactly what `--minimal` skips
   5. `scripts/demo.tape` is committed alongside `docs/demo.gif` so any contributor can reproduce the GIF by running `vhs scripts/demo.tape`; `.github/workflows/vhs.yml` auto-regenerates the GIF when `demo.tape` changes on main
 
-**Plans**: TBD
+**Plans**: 3 plans
+Plans:
+
+- [ ] 07-01-PLAN.md — README hero redesign + npm/PyPI package metadata sync
+- [ ] 07-02-PLAN.md — VHS demo tape (scripts/demo.tape) + initial docs/demo.gif
+- [ ] 07-03-PLAN.md — .github/workflows/vhs.yml auto-regen CI workflow
+
 **UI hint**: no
 
 ## Progress
@@ -222,4 +228,4 @@ Phase 6 must complete before Phase 7 — the demo GIF must record the hardened C
 | 4. CI/CD Scaffolding | 4/4 | Complete | 2026-06-25 |
 | 5. Upgrade Command & Template Repo | 3/3 | Complete    | 2026-06-25 |
 | 6. UX Hardening | 3/3 | Complete    | 2026-06-27 |
-| 7. README & Demo | 0/TBD | Not started | - |
+| 7. README & Demo | 0/3 | Not started | - |
