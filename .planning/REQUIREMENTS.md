@@ -185,15 +185,15 @@
 
 ### Init UX Hardening (UX)
 
-- [ ] **UX-01**: `goodvibes init` in a non-empty directory prompts the user before proceeding — no silent overwrite
-- [ ] **UX-02**: `goodvibes init` completion summary reports "X files written, Y files skipped" separately — not all destination files listed as "created"
-- [ ] **UX-03**: Common failures (no Python, no git, EACCES/EPERM, headroom build fail) print a plain-English remediation message and exit 1 — no raw Node.js/Python stack traces shown to the user
-- [ ] **UX-04**: Existing `ci.yml` in destination is not silently overwritten — the rename step checks before replacing
+- [x] **UX-01**: `goodvibes init` in a non-empty directory prompts the user before proceeding — no silent overwrite
+- [x] **UX-02**: `goodvibes init` completion summary reports "X files written, Y files skipped" separately — not all destination files listed as "created"
+- [x] **UX-03**: Common failures (no Python, no git, EACCES/EPERM, headroom build fail) print a plain-English remediation message and exit 1 — no raw Node.js/Python stack traces shown to the user
+- [x] **UX-04**: Existing `ci.yml` in destination is not silently overwritten — the rename step checks before replacing
 
 ### --minimal Hardening (MIN)
 
-- [ ] **MIN-01**: `goodvibes init --minimal` skips all of `.github/` (issue templates, PR template, dependabot, workflows) and `docs/` — not just `.github/workflows/`
-- [ ] **MIN-02**: `goodvibes init --dry-run --minimal` shows only the files that `--minimal` would actually write (currently previews CI files that minimal skips)
+- [x] **MIN-01**: `goodvibes init --minimal` skips all of `.github/` (issue templates, PR template, dependabot, workflows) and `docs/` — not just `.github/workflows/`
+- [x] **MIN-02**: `goodvibes init --dry-run --minimal` shows only the files that `--minimal` would actually write (currently previews CI files that minimal skips)
 
 ### README & Package Pages (README)
 
@@ -211,12 +211,12 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| UX-01 | Phase 6 | Pending |
-| UX-02 | Phase 6 | Pending |
-| UX-03 | Phase 6 | Pending |
-| UX-04 | Phase 6 | Pending |
-| MIN-01 | Phase 6 | Pending |
-| MIN-02 | Phase 6 | Pending |
+| UX-01 | Phase 6 | Complete |
+| UX-02 | Phase 6 | Complete |
+| UX-03 | Phase 6 | Complete |
+| UX-04 | Phase 6 | Complete |
+| MIN-01 | Phase 6 | Complete |
+| MIN-02 | Phase 6 | Complete |
 | README-01 | Phase 7 | Pending |
 | README-02 | Phase 7 | Pending |
 | README-03 | Phase 7 | Pending |

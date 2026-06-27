@@ -2,15 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.1.0
 milestone_name: Polish & Discoverability
-status: executing
-last_updated: "2026-06-26T12:18:46.844Z"
+status: ready_to_plan
+last_updated: 2026-06-27T05:05:28.911Z
 last_activity: 2026-06-26 -- Phase 06 execution started
 progress:
   total_phases: 7
   completed_phases: 5
   total_plans: 24
-  completed_plans: 21
+  completed_plans: 24
   percent: 71
+stopped_at: Phase 06 complete (3/3) — ready to discuss Phase 7
 ---
 
 # Project State
@@ -20,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-25)
 
 **Core value:** One command gives a vibe coder a fully configured project — token efficiency and engineering discipline happen automatically in the background.
-**Current focus:** Phase 06 — ux-hardening
+**Current focus:** Phase 7 — readme & demo
 
 ## Current Position
 
-Phase: 06 (ux-hardening) — EXECUTING
-Plan: 1 of 3
-Status: Executing Phase 06
-Last activity: 2026-06-26 -- Phase 06 execution started
+Phase: 7
+Plan: Not started
+Status: Ready to plan
+Last activity: 2026-06-27
 
 ```
 Progress: [----------] 0% (0/2 phases)
@@ -37,7 +38,7 @@ Progress: [----------] 0% (0/2 phases)
 
 **Velocity:**
 
-- Total plans completed: 3
+- Total plans completed: 6
 - Average duration: -
 - Total execution time: 0 hours
 
@@ -46,6 +47,7 @@ Progress: [----------] 0% (0/2 phases)
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 05 | 3 | - | - |
+| 06 | 3 | - | - |
 
 **Recent Trend:**
 
