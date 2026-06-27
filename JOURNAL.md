@@ -356,3 +356,17 @@ partial mock and changed `vi.resetAllMocks()` to `vi.clearAllMocks()` throughout
 **Tests run:** 74 Python GREEN.
 
 **Docs updated:** JOURNAL.md (this entry). PyPI trusted publishing setup instructions provided to user for manual browser steps.
+
+---
+
+## 2026-06-27 — Phase 7 Plan 01: README hero redesign and package metadata sync
+
+**What I did:** Full hero redesign of `README.md` following D-01 section order: title → tagline blockquote → four flat-square Shields.io badges → GIF embed placeholder → `## Quick start` → `## What you get` (renamed from "What happens when you run it") → `## Flags` → `## What you need first` → `## Platform support` → `## Docs`. The key structural change is moving prerequisites below the fold so visitors see the command before requirements. Updated `## Flags` to explicitly state that `--minimal` skips `.github/` and `docs/`. Added three discovery keywords (`ai-coding`, `claude-code`, `copilot`) to both `packages/npm/package.json` and `packages/pip/pyproject.toml`. Added `[project.urls]` table to `pyproject.toml` with `Homepage = "https://github.com/jgiox/goodvibes"`. Also synced `package-lock.json` version from stale 1.1.0 to 1.3.0.
+
+**Why:** Phase 7 requirement — give the repo a compelling first impression with a hero layout, live badges, and discovery metadata so the npm and PyPI pages match the README.
+
+**Files changed:** `README.md`, `packages/npm/package.json`, `packages/npm/package-lock.json`, `packages/pip/pyproject.toml`, `JOURNAL.md`.
+
+**Tests run:** `cd packages/npm && npm test` → 71 passed | 2 todo. `cd packages/pip && uv run --extra dev pytest tests/` → 74 passed. Both GREEN.
+
+**Docs updated:** JOURNAL.md (this entry).
