@@ -76,6 +76,7 @@ export async function copyTemplates(
   }
 
   const skippedFiles: string[] = []
+  const destCiYml = join(destDir, '.github', 'workflows', 'ci.yml')
 
   try {
     await copy(templateDir, destDir, {
@@ -88,6 +89,8 @@ export async function copyTemplates(
         if (minimal && (rel.startsWith('.github') || rel.startsWith('docs'))) return false
         // ponytail: path traversal guard per T-02-02-A (templates are repo-controlled but belt-and-suspenders)
         if (rel.includes('..')) return false
+        // Skip selected CI variant on re-runs where ci.yml already exists (prevents orphaned variant file)
+        if (src.endsWith(selectedVariant) && existsSync(destCiYml)) return false
         // Skip CI variants not matching the detected project type
         for (const variant of ciVariants) {
           if (src.endsWith(variant) && variant !== selectedVariant) return false
@@ -100,7 +103,8 @@ export async function copyTemplates(
     const hint = err.code === 'EACCES' || err.code === 'EPERM'
       ? 'Check directory permissions.'
       : 'Check available disk space.'
-    throw new Error(`Cannot copy template files: ${err.message}. ${hint}`)
+    err.message = `Cannot copy template files: ${err.message}. ${hint}`
+    throw err
   }
 
   // Rename selected CI variant to ci.yml

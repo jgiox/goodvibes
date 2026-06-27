@@ -72,6 +72,10 @@ def copy_templates(
             # Skip CI variants not matching the detected project type
             if name in ci_variants and name != selected_variant:
                 ignored.add(name)
+            # Skip selected CI variant on re-runs where ci.yml already exists (prevents orphaned variant file)
+            if name == selected_variant and (dest_dir / ".github" / "workflows" / "ci.yml").is_file():
+                ignored.add(name)
+                skipped_files.append(str(pathlib.Path(".github") / "workflows" / "ci.yml"))
             # No-clobber: skip files (not dirs) that already exist at dest (T-03-02-03)
             dest_candidate = dest_dir / rel
             if dest_candidate.is_file():

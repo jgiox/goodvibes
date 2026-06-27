@@ -41,12 +41,12 @@ def test_dry_run_no_files_written(tmp_path, mocker):
         return_value=tmp_path,
     )
     mocker.patch(
-        "goodvibes_cli.commands.init_cmd.list_template_files",
-        return_value=["CONTRIBUTING.md", "CLAUDE.md"],
+        "goodvibes_cli.commands.init_cmd.copy_templates",
+        return_value=(["CONTRIBUTING.md", "CLAUDE.md"], []),
     )
     result = runner.invoke(app, ["init", "--dry-run"])
     assert result.exit_code == 0
-    assert "CONTRIBUTING.md" in result.output or "Dry run" in result.output
+    assert "CONTRIBUTING.md" in result.output
     # No real files written to tmp_path
     assert list(tmp_path.iterdir()) == []
 
