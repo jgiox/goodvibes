@@ -1,6 +1,6 @@
 # goodvibes
 
-## Current Milestone: v1.1.0 Polish & Discoverability
+## Current Milestone: v1.1.0 Polish & Discoverability — Phase 06 Complete
 
 **Goal:** Make goodvibes findable, understandable, and frictionless for real vibe coders encountering it for the first time.
 
@@ -72,6 +72,13 @@ Both paths inject:
 - [ ] Publish pip package as `goodvibes`
 - [ ] README with one-command quickstart as the hero action
 - [ ] Headroom bundled/configured via installer (MCP + proxy option)
+
+### Validated in Phase 06
+- [x] `goodvibes init` shows "Non-empty project detected" note before tasks — Validated in Phase 06
+- [x] Written/skipped file counts shown after copy — Validated in Phase 06
+- [x] ci.yml guard: second run skips rather than overwrites — Validated in Phase 06
+- [x] `--minimal` skips `.github/` and `docs/`, shows "Skipped layers" panel — Validated in Phase 06
+- [x] Python parity: pip package matches npm UX hardening — Validated in Phase 06
 
 ### Out of Scope
 
