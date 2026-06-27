@@ -202,11 +202,14 @@ Plans:
   4. `npm package.json` description, keywords, and homepage and PyPI `pyproject.toml` description, keywords, and classifiers match the README; the README `Flags` section states exactly what `--minimal` skips
   5. `scripts/demo.tape` is committed alongside `docs/demo.gif` so any contributor can reproduce the GIF by running `vhs scripts/demo.tape`; `.github/workflows/vhs.yml` auto-regenerates the GIF when `demo.tape` changes on main
 
-**Plans**: 3 plans
-Plans:
+**Plans**: 3 plansPlans:
+**Wave 1**
 
 - [ ] 07-01-PLAN.md — README hero redesign + npm/PyPI package metadata sync
 - [ ] 07-02-PLAN.md — VHS demo tape (scripts/demo.tape) + initial docs/demo.gif
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
 - [ ] 07-03-PLAN.md — .github/workflows/vhs.yml auto-regen CI workflow
 
 **UI hint**: no

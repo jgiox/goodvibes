@@ -517,17 +517,19 @@ Homepage = "https://github.com/jgiox/goodvibes"
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **GIF file size validation**
    - What we know: `--minimal --dry-run` produces ~10-15 lines of output; 800px at 14px font for ~5-8 seconds
    - What's unclear: Exact GIF file size — not benchmarked
    - Recommendation: First plan task should be local tape test + `ls -lh docs/demo.gif`. If > 2MB, adjust `Set Framerate 24` or `Set PlaybackSpeed 1.5`.
+   - **RESOLVED:** Plans use `Set Framerate 24` by default to keep size minimal; Plan 02 checkpoint includes explicit `size-issue` resume signal with instructions to lower framerate if GIF exceeds 2MB.
 
 2. **`npx` cold-start timing in CI**
    - What we know: `Hide`/`Show` hides download noise from the GIF
    - What's unclear: Whether `Wait+Screen /\$/ 30s` is enough for cold `npx` download on GitHub-hosted runners
    - Recommendation: Set `Wait+Screen /\$/ 60s` initially; reduce after first successful CI run.
+   - **RESOLVED:** Plans use `Wait+Screen /\$/ 60s` (this research's recommendation); Plan 02 checkpoint includes explicit `timeout-issue` resume signal with instructions to increase to 90s if needed.
 
 ---
 
