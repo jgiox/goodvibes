@@ -19,7 +19,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 4: CI/CD Scaffolding** - Validate and harden generated GitHub Actions workflows for both project types (completed 2026-06-25)
 - [x] **Phase 5: Upgrade Command & Template Repo** - Implement `goodvibes upgrade` and publish the GitHub template repo as the click-to-fork entry point (completed 2026-06-25)
 - [x] **Phase 6: UX Hardening** - Harden both CLIs for existing projects, fix --minimal scope and --dry-run --minimal combination, and replace raw stack traces with plain-English remediation messages (completed 2026-06-26)
-- [ ] **Phase 7: README & Demo** - Ship the hero README with badges and an animated demo GIF recorded against the hardened CLI output
+- [x] **Phase 7: README & Demo** - Ship the hero README with badges and an animated demo GIF recorded against the hardened CLI output (completed 2026-06-27)
 
 ## Phase Details
 
@@ -210,7 +210,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 07-03-PLAN.md — .github/workflows/vhs.yml auto-regen CI workflow
+- [x] 07-03-PLAN.md — .github/workflows/vhs.yml auto-regen CI workflow
 
 **UI hint**: no
 
@@ -231,4 +231,4 @@ Phase 6 must complete before Phase 7 — the demo GIF must record the hardened C
 | 4. CI/CD Scaffolding | 4/4 | Complete | 2026-06-25 |
 | 5. Upgrade Command & Template Repo | 3/3 | Complete    | 2026-06-25 |
 | 6. UX Hardening | 3/3 | Complete    | 2026-06-27 |
-| 7. README & Demo | 2/3 | In Progress|  |
+| 7. README & Demo | 3/3 | Complete   | 2026-06-27 |
