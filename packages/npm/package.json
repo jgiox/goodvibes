@@ -24,7 +24,10 @@
     "claude",
     "llm",
     "starter-kit",
-    "cli"
+    "cli",
+    "ai-coding",
+    "claude-code",
+    "copilot"
   ],
   "publishConfig": {
     "access": "public"
