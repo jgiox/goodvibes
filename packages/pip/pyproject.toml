@@ -5,11 +5,14 @@ description = "One-command bootstrap for vibe coding projects"
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "Apache-2.0" }
-keywords = ["scaffold", "vibe-coding", "claude", "llm", "starter-kit", "cli"]
+keywords = ["scaffold", "vibe-coding", "claude", "llm", "starter-kit", "cli", "ai-coding", "claude-code", "copilot"]
 dependencies = ["typer>=0.15", "rich>=14"]
 
 [project.scripts]
 goodvibes = "goodvibes_cli.main:app"
+
+[project.urls]
+Homepage = "https://github.com/jgiox/goodvibes"
 
 [build-system]
 requires = ["hatchling"]
