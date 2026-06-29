@@ -20,11 +20,11 @@ Enter
 Sleep 500ms
 Show
 
-Type "npx @jgiox/goodvibes init --minimal --dry-run"
+# ponytail: global install in vhs.yml avoids npx re-download (npx ignores cache, always checks registry)
+Type "goodvibes init --minimal --dry-run"
 Enter
 
-# Wait for goodvibes outro (unique text, only appears on completion)
-# VHS v0.11.0 default Wait+Screen timeout is 15s; pre-caching keeps npx under 5s
+# Wait for goodvibes outro — unique text that only appears after command completes
 Wait+Screen /Run without/
 
 Sleep 2s
