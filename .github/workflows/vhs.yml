@@ -16,12 +16,19 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - name: Install ffmpeg
-        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - name: Install VHS and dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg ttyd gpg
+          sudo mkdir -p /etc/apt/keyrings
+          curl -fsSL https://repo.charm.sh/apt/gpg.key | \
+            sudo gpg --dearmor -o /etc/apt/keyrings/charm.gpg
+          echo "deb [signed-by=/etc/apt/keyrings/charm.gpg] https://repo.charm.sh/apt/ * *" | \
+            sudo tee /etc/apt/sources.list.d/charm.list > /dev/null
+          sudo apt-get update && sudo apt-get install -y vhs
 
-      - uses: charmbracelet/vhs-action@v2.1.0
-        with:
-          path: 'scripts/demo.tape'
+      - name: Record demo
+        run: vhs scripts/demo.tape
 
       - uses: stefanzweifel/git-auto-commit-action@v7.1.0
         with:
