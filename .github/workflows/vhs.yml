@@ -29,7 +29,9 @@ jobs:
           sudo apt-get update && sudo apt-get install -y vhs
 
       - name: Record demo
-        run: vhs scripts/demo.tape
+        run: |
+          mkdir -p docs
+          cd scripts && vhs demo.tape
 
       - uses: stefanzweifel/git-auto-commit-action@v7.1.0
         with:
