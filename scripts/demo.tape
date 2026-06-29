@@ -1,5 +1,6 @@
 # Source: charmbracelet/vhs v0.11.0 — https://github.com/charmbracelet/vhs
 # DEMO-01: 800px width, ≤2MB, deterministic via --minimal --dry-run
+# CI: vhs.yml pre-installs ffmpeg before running this tape
 
 Output docs/demo.gif
 
