@@ -23,7 +23,7 @@ Show
 Type "npx @jgiox/goodvibes init --minimal --dry-run"
 Enter
 
-# Wait for the shell prompt to return; apt-vhs doesn't accept a timeout arg
-Wait+Screen /\$/
+# Wait for goodvibes outro — unique text that only appears after the command completes
+Wait+Screen /Run without/
 
 Sleep 2s
