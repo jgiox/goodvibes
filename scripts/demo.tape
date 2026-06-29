@@ -23,7 +23,7 @@ Show
 Type "npx @jgiox/goodvibes init --minimal --dry-run"
 Enter
 
-# Wait for the shell prompt to return (command to finish); 60s for cold npx CI
-Wait+Screen /\$/ 60s
+# Wait for the shell prompt to return; apt-vhs doesn't accept a timeout arg
+Wait+Screen /\$/
 
 Sleep 2s
