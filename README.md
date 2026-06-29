@@ -12,7 +12,7 @@
 ## Quick start
 
 ```sh
-npx goodvibes init
+npx @jgiox/goodvibes init
 ```
 
 Or with Python:
@@ -48,7 +48,7 @@ goodvibes init --minimal    # Skip headroom install, all .github/ files, and doc
 |-------------|-----|---------|
 | **git** | Version control — goodvibes sets up git-friendly CI | [git-scm.com](https://git-scm.com/downloads) |
 | **GitHub account** | Where your code lives; CI runs here | [github.com/signup](https://github.com/signup) |
-| **Node.js 20+** | Required for `npx goodvibes init` (the npm CLI) | [nodejs.org](https://nodejs.org) |
+| **Node.js 20+** | Required for `npx @jgiox/goodvibes init` (the npm CLI) | [nodejs.org](https://nodejs.org) |
 | **Python 3.10+** | Required only for `pip install jgiox-goodvibes` (optional) | [python.org](https://python.org/downloads) |
 
 **Windows users:** Use WSL2 for the best experience — install it from the Microsoft Store or with `wsl --install` in PowerShell.

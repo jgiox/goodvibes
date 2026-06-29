@@ -19,7 +19,7 @@ Enter
 Sleep 500ms
 Show
 
-Type "npx goodvibes init --minimal --dry-run"
+Type "npx @jgiox/goodvibes init --minimal --dry-run"
 Enter
 
 # Wait for the shell prompt to return (command to finish); 60s for cold npx CI
