@@ -28,17 +28,15 @@ jobs:
             sudo tee /etc/apt/sources.list.d/charm.list > /dev/null
           sudo apt-get update && sudo apt-get install -y vhs
 
+      - name: Pre-cache @jgiox/goodvibes so VHS npx run is fast (<15s VHS timeout)
+        run: npx --yes @jgiox/goodvibes --version
+
       - name: Record demo
-        continue-on-error: true
         run: |
-          echo "vhs $(vhs --version 2>&1)"
           mkdir -p docs
-          cd scripts && vhs demo.tape 2>&1
-          echo "--- vhs exit: $? ---"
-          ls -la ../docs/ 2>&1 || true
+          cd scripts && vhs demo.tape
 
       - uses: stefanzweifel/git-auto-commit-action@v7.1.0
-        if: always()
         with:
           commit_message: 'chore(demo): regenerate demo.gif'
           file_pattern: 'docs/demo.gif'
