@@ -197,15 +197,15 @@
 
 ### README & Package Pages (README)
 
-- [ ] **README-01**: README hero section contains a single copy-pasteable command that starts a user in under 30 seconds — above the fold, before prerequisites
-- [ ] **README-02**: README displays live npm version, PyPI version, CI status, and license badges
-- [ ] **README-03**: README includes an animated demo GIF showing `goodvibes init` completing in a real terminal (recorded with `--minimal` for deterministic timing)
-- [ ] **README-04**: npm `package.json` and PyPI `pyproject.toml` descriptions, keywords, and homepage URL match the README; README `Flags` section documents what `--minimal` skips
+- [x] **README-01**: README hero section contains a single copy-pasteable command that starts a user in under 30 seconds — above the fold, before prerequisites
+- [x] **README-02**: README displays live npm version, PyPI version, CI status, and license badges
+- [x] **README-03**: README includes an animated demo GIF showing `goodvibes init` completing in a real terminal (recorded with `--minimal` for deterministic timing)
+- [x] **README-04**: npm `package.json` and PyPI `pyproject.toml` descriptions, keywords, and homepage URL match the README; README `Flags` section documents what `--minimal` skips
 
 ### Terminal Demo (DEMO)
 
-- [ ] **DEMO-01**: `scripts/demo.tape` (VHS) produces a deterministic demo GIF at ≤2MB / 800px width — reproducible by any contributor
-- [ ] **DEMO-02**: `.github/workflows/vhs.yml` auto-regenerates `docs/demo.gif` when `demo.tape` changes on main
+- [x] **DEMO-01**: `scripts/demo.tape` (VHS) produces a deterministic demo GIF at ≤2MB / 800px width — reproducible by any contributor
+- [x] **DEMO-02**: `.github/workflows/vhs.yml` auto-regenerates `docs/demo.gif` when `demo.tape` changes on main
 
 ## v1.1.0 Traceability
 
@@ -217,12 +217,12 @@
 | UX-04 | Phase 6 | Complete |
 | MIN-01 | Phase 6 | Complete |
 | MIN-02 | Phase 6 | Complete |
-| README-01 | Phase 7 | Pending |
-| README-02 | Phase 7 | Pending |
-| README-03 | Phase 7 | Pending |
-| README-04 | Phase 7 | Pending |
-| DEMO-01 | Phase 7 | Pending |
-| DEMO-02 | Phase 7 | Pending |
+| README-01 | Phase 7 | Complete |
+| README-02 | Phase 7 | Complete |
+| README-03 | Phase 7 | Complete |
+| README-04 | Phase 7 | Complete |
+| DEMO-01 | Phase 7 | Complete |
+| DEMO-02 | Phase 7 | Complete |
 
 ---
 *Requirements defined: 2026-06-23*
