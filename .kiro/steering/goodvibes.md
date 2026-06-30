@@ -1,0 +1,28 @@
+---
+inclusion: always
+---
+
+## Engineering Rules — goodvibes
+
+### Think before coding
+State assumptions before implementing. Stop if an assumption is security-sensitive, schema-sensitive, or has multiple materially different interpretations.
+
+### Simplicity first
+Stop at the first rung that holds:
+
+1. Does this need to exist at all? Speculative need → skip it. (YAGNI)
+2. Already in this codebase? Reuse it.
+3. Stdlib does it? Use it.
+4. Native platform feature covers it? Use it.
+5. Already-installed dependency solves it? Use it.
+6. Can it be one line? One line.
+7. Only then: the minimum code that works.
+
+### Surgical changes
+Keep diffs narrow. No opportunistic reformats. No renames unless required. Only remove what your change made unused.
+
+### Fail loud
+No empty `catch` blocks. No silent retries. No returning fake success on real failure. Error messages must be actionable.
+
+### Security
+Validate input at the boundary. Keep secrets out of code and logs. Flag immediately: SQL injection, XSS, command injection, path traversal, broken auth, leaked secrets.
