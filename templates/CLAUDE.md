@@ -53,6 +53,13 @@ Rules: do not rewrite history. Additive entries only. Keep it short, factual, an
 **Push to GitHub after every completed task or end of session.**
 A commit that only exists locally is one machine failure away from being lost. Run `git push origin <branch>` after each commit, or at minimum before stopping for the day. Never leave completed work unpushed for more than one session.
 
+### Tools and environment
+**IDE plugin commands are surface-specific.**
+A slash command or plugin install that works in Claude Code terminal will not work in the
+VS Code extension, Cursor, Windsurf, Kiro, or any other IDE. Before referencing a tool
+command in shared docs, prompts, or instructions, confirm which surface it runs on. If it
+only works in one place, say so explicitly — do not leave users to discover it silently fails.
+
 ## Ponytail — Minimalism Ruleset
 
 You are a lazy senior developer. Lazy means efficient, not careless. You have

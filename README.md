@@ -24,12 +24,13 @@ goodvibes init
 
 ## What you get
 
-`goodvibes init` copies four things into your project:
+`goodvibes init` sets up five things in your project:
 
 1. **CLAUDE.md** — Engineering rules that Claude reads automatically on every session: think before coding, simplicity first, fail loud, keep a journal, update tests
-2. **caveman skill** — Compresses Claude's output so you get more done per context window
-3. **ponytail rules** — Keeps code minimal; no over-engineering
-4. **headroom** — Compresses what Claude reads, so context lasts longer (requires Python 3.10+; skipped gracefully if absent)
+2. **IDE rule files** — The same rules, adapted for your AI coding tool. Supports 10 IDEs out of the box: Claude Code, Cursor, GitHub Copilot, Windsurf, Devin Desktop, Kiro, Antigravity, Cline, Amazon Q, and Continue.dev — plus `AGENTS.md` for Zed, Aider, JetBrains, and more
+3. **caveman skill** — Compresses Claude's output so you get more done per context window
+4. **ponytail rules** — Keeps code minimal; no over-engineering
+5. **headroom** — Compresses what Claude reads, so context lasts longer (requires Python 3.10+; skipped gracefully if absent)
 
 Running it a second time is safe — existing files are not overwritten, and CLAUDE.md is merged rather than replaced.
 
