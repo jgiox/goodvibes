@@ -4,7 +4,7 @@ milestone: v1.1.0
 milestone_name: Polish & Discoverability
 status: milestone_complete
 last_updated: 2026-06-30T09:00:00.000Z
-last_activity: 2026-06-30 -- Phase 08 extension complete (v1.4.0) — 10 IDEs now supported
+last_activity: 2026-06-30 -- Phase 08 closed; v1.4.0 published to npm + PyPI
 progress:
   total_phases: 8
   completed_phases: 8
@@ -114,6 +114,9 @@ None.
 | 2026-06-30 | antigravity-gemini-md | Added `GEMINI.md` template for Google Antigravity IDE |
 | 2026-06-30 | phase-8-extension | Added 5 IDE templates (AGENTS.md, Cline, Amazon Q, Continue.dev, Devin Desktop); updated README, onboarding |
 | 2026-06-30 | version-bump-1.4.0 | Bumped npm + pip to v1.4.0; synced prebuild; updated CHANGELOG, STATE, ROADMAP, PROJECT |
+| 2026-06-30 | session-learnings | Added developer gotchas to CLAUDE.md; IDE scoping rule to templates/CLAUDE.md; AGENTS.md note to onboarding |
+| 2026-06-30 | eacces-fix | EACCES error now leads with "check your project directory"; Next Steps panel distinguishes Claude Code vs other IDEs |
+| 2026-06-30 | v1.4.0-publish | Tagged npm-v1.4.0 + pip-v1.4.0; published to npm and PyPI; dogfooded IDE files to repo root |
 
 ### Blockers/Concerns
 

@@ -492,3 +492,17 @@ principles as the other Phase 8 IDE rule files.
 **Tests run:** `uv run pytest packages/pip/tests/` — all pass. `npm test` in packages/npm — all pass.
 
 **Docs updated:** README.md, templates/docs/onboarding.md, JOURNAL.md.
+
+---
+
+## 2026-06-30 — Phase 8 close: session learnings, error message fixes, v1.4.0 published
+
+**What I did:** Distilled session learnings into the project instructions: three developer gotchas added to root `CLAUDE.md` (Python test runner directory, npm prebuild artifact pattern, `tmp_dir` fixture behaviour); IDE plugin surface-scoping rule added to `templates/CLAUDE.md`; AGENTS.md cross-tool note added to `templates/docs/onboarding.md`; README "What you get" updated from 4 to 5 items naming all 10 IDE targets. Fixed two UX bugs: EACCES error message now leads with "check you are in your project directory" instead of just `chmod`; "Next steps" panel now distinguishes Claude Code CLI (plugin install) from all other IDEs (rules already active). Applied goodvibes v1.4.0 templates to the repo itself (dogfooding). Published v1.4.0 to npm and PyPI via `npm-v1.4.0` / `pip-v1.4.0` tags.
+
+**Why:** EACCES from `/home` was a real user error caught during testing; the old message was actively misleading. Next Steps panel was causing confusion for Antigravity and other non-Claude-Code IDE users. Session learnings captured while still fresh.
+
+**Files changed:** `CLAUDE.md`, `templates/CLAUDE.md`, `templates/docs/onboarding.md`, `README.md`, `packages/npm/src/commands/init.ts`, `packages/npm/src/commands/init.test.ts`, `packages/pip/src/goodvibes_cli/commands/init_cmd.py`, `.amazonq/`, `.clinerules/`, `.continue/`, `.cursor/`, `.devin/`, `.kiro/`, `.windsurfrules`, `AGENTS.md`, `GEMINI.md`, `.github/copilot-instructions.md`, `.github/workflows/ci-both.yml`, `.github/workflows/dependency-review.yml`, `.github/workflows/security.yml`, `JOURNAL.md`.
+
+**Tests run:** `npm test` — 98 passed. `uv run pytest tests/` — 102 passed.
+
+**Docs updated:** CLAUDE.md, templates/CLAUDE.md, templates/docs/onboarding.md, README.md, JOURNAL.md.
