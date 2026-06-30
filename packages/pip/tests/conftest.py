@@ -41,6 +41,15 @@ def template_dir(tmp_path):
     docs = d / "docs"
     docs.mkdir()
     (docs / "onboarding.md").write_text("# Onboarding\n")
+    # IDE rule file stubs (Phase 8 — IDE-01 through IDE-04)
+    cursor_rules = d / ".cursor" / "rules"
+    cursor_rules.mkdir(parents=True)
+    (cursor_rules / "goodvibes.mdc").write_text("---\nalwaysApply: true\n---\n# Rules\n")
+    (d / ".github" / "copilot-instructions.md").write_text("# Copilot\n")
+    (d / ".windsurfrules").write_text("# Rules\n")
+    kiro_steering = d / ".kiro" / "steering"
+    kiro_steering.mkdir(parents=True)
+    (kiro_steering / "goodvibes.md").write_text("---\ninclusion: always\n---\n# Rules\n")
     return d
 
 
