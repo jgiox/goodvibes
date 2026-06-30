@@ -36,6 +36,19 @@ def template_dir(tmp_path):
     (d / ".github" / "copilot-instructions.md").write_text("# Copilot\n")
     (d / ".windsurfrules").write_text("# Rules\n")
     (d / "GEMINI.md").write_text("# Rules\n")
+    (d / "AGENTS.md").write_text("# Rules\n")
+    cline_rules = d / ".clinerules"
+    cline_rules.mkdir()
+    (cline_rules / "goodvibes.md").write_text("# Rules\n")
+    amazonq_rules = d / ".amazonq" / "rules"
+    amazonq_rules.mkdir(parents=True)
+    (amazonq_rules / "goodvibes.md").write_text("# Rules\n")
+    continue_rules = d / ".continue" / "rules"
+    continue_rules.mkdir(parents=True)
+    (continue_rules / "goodvibes.md").write_text("# Rules\n")
+    devin_rules = d / ".devin" / "rules"
+    devin_rules.mkdir(parents=True)
+    (devin_rules / "goodvibes.md").write_text("# Rules\n")
     kiro_steering = d / ".kiro" / "steering"
     kiro_steering.mkdir(parents=True)
     (kiro_steering / "goodvibes.md").write_text("---\ninclusion: always\n---\n# Rules\n")

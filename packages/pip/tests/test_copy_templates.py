@@ -273,3 +273,131 @@ def test_copy_templates_minimal_writes_gemini_md(tmp_dir, template_dir, mocker):
     mocker.patch("goodvibes_cli.steps.copy_templates.merge_claude")
     copy_templates(template_dir, tmp_dir, minimal=True)
     assert (tmp_dir / "GEMINI.md").exists()
+
+
+def test_copy_templates_writes_agents_md_on_fresh_init(tmp_dir, template_dir, mocker):
+    from goodvibes_cli.steps.copy_templates import copy_templates
+    mocker.patch("goodvibes_cli.steps.copy_templates.merge_claude")
+    written, _ = copy_templates(template_dir, tmp_dir)
+    assert (tmp_dir / "AGENTS.md").exists()
+    assert any("AGENTS.md" in w for w in written)
+
+
+def test_copy_templates_skips_existing_agents_md_and_counts_as_skipped(tmp_dir, template_dir, mocker):
+    from goodvibes_cli.steps.copy_templates import copy_templates
+    mocker.patch("goodvibes_cli.steps.copy_templates.merge_claude")
+    (tmp_dir / "AGENTS.md").write_text("# custom\n")
+    _, skipped = copy_templates(template_dir, tmp_dir)
+    assert (tmp_dir / "AGENTS.md").read_text() == "# custom\n"
+    assert any("AGENTS.md" in s for s in skipped)
+
+
+def test_copy_templates_minimal_writes_agents_md(tmp_dir, template_dir, mocker):
+    from goodvibes_cli.steps.copy_templates import copy_templates
+    mocker.patch("goodvibes_cli.steps.copy_templates.merge_claude")
+    copy_templates(template_dir, tmp_dir, minimal=True)
+    assert (tmp_dir / "AGENTS.md").exists()
+
+
+def test_copy_templates_writes_clinerules_on_fresh_init(tmp_dir, template_dir, mocker):
+    from goodvibes_cli.steps.copy_templates import copy_templates
+    mocker.patch("goodvibes_cli.steps.copy_templates.merge_claude")
+    written, _ = copy_templates(template_dir, tmp_dir)
+    assert (tmp_dir / ".clinerules" / "goodvibes.md").exists()
+    assert any("clinerules" in w for w in written)
+
+
+def test_copy_templates_skips_existing_clinerules_and_counts_as_skipped(tmp_dir, template_dir, mocker):
+    from goodvibes_cli.steps.copy_templates import copy_templates
+    mocker.patch("goodvibes_cli.steps.copy_templates.merge_claude")
+    cline_dir = tmp_dir / ".clinerules"
+    cline_dir.mkdir()
+    (cline_dir / "goodvibes.md").write_text("# custom\n")
+    _, skipped = copy_templates(template_dir, tmp_dir)
+    assert (cline_dir / "goodvibes.md").read_text() == "# custom\n"
+    assert any("clinerules" in s for s in skipped)
+
+
+def test_copy_templates_minimal_writes_clinerules(tmp_dir, template_dir, mocker):
+    from goodvibes_cli.steps.copy_templates import copy_templates
+    mocker.patch("goodvibes_cli.steps.copy_templates.merge_claude")
+    copy_templates(template_dir, tmp_dir, minimal=True)
+    assert (tmp_dir / ".clinerules" / "goodvibes.md").exists()
+
+
+def test_copy_templates_writes_amazon_q_on_fresh_init(tmp_dir, template_dir, mocker):
+    from goodvibes_cli.steps.copy_templates import copy_templates
+    mocker.patch("goodvibes_cli.steps.copy_templates.merge_claude")
+    written, _ = copy_templates(template_dir, tmp_dir)
+    assert (tmp_dir / ".amazonq" / "rules" / "goodvibes.md").exists()
+    assert any("amazonq" in w for w in written)
+
+
+def test_copy_templates_skips_existing_amazon_q_and_counts_as_skipped(tmp_dir, template_dir, mocker):
+    from goodvibes_cli.steps.copy_templates import copy_templates
+    mocker.patch("goodvibes_cli.steps.copy_templates.merge_claude")
+    amazonq_dir = tmp_dir / ".amazonq" / "rules"
+    amazonq_dir.mkdir(parents=True)
+    (amazonq_dir / "goodvibes.md").write_text("# custom\n")
+    _, skipped = copy_templates(template_dir, tmp_dir)
+    assert (amazonq_dir / "goodvibes.md").read_text() == "# custom\n"
+    assert any("amazonq" in s for s in skipped)
+
+
+def test_copy_templates_minimal_writes_amazon_q(tmp_dir, template_dir, mocker):
+    from goodvibes_cli.steps.copy_templates import copy_templates
+    mocker.patch("goodvibes_cli.steps.copy_templates.merge_claude")
+    copy_templates(template_dir, tmp_dir, minimal=True)
+    assert (tmp_dir / ".amazonq" / "rules" / "goodvibes.md").exists()
+
+
+def test_copy_templates_writes_continue_on_fresh_init(tmp_dir, template_dir, mocker):
+    from goodvibes_cli.steps.copy_templates import copy_templates
+    mocker.patch("goodvibes_cli.steps.copy_templates.merge_claude")
+    written, _ = copy_templates(template_dir, tmp_dir)
+    assert (tmp_dir / ".continue" / "rules" / "goodvibes.md").exists()
+    assert any("continue" in w for w in written)
+
+
+def test_copy_templates_skips_existing_continue_and_counts_as_skipped(tmp_dir, template_dir, mocker):
+    from goodvibes_cli.steps.copy_templates import copy_templates
+    mocker.patch("goodvibes_cli.steps.copy_templates.merge_claude")
+    continue_dir = tmp_dir / ".continue" / "rules"
+    continue_dir.mkdir(parents=True)
+    (continue_dir / "goodvibes.md").write_text("# custom\n")
+    _, skipped = copy_templates(template_dir, tmp_dir)
+    assert (continue_dir / "goodvibes.md").read_text() == "# custom\n"
+    assert any("continue" in s for s in skipped)
+
+
+def test_copy_templates_minimal_writes_continue(tmp_dir, template_dir, mocker):
+    from goodvibes_cli.steps.copy_templates import copy_templates
+    mocker.patch("goodvibes_cli.steps.copy_templates.merge_claude")
+    copy_templates(template_dir, tmp_dir, minimal=True)
+    assert (tmp_dir / ".continue" / "rules" / "goodvibes.md").exists()
+
+
+def test_copy_templates_writes_devin_on_fresh_init(tmp_dir, template_dir, mocker):
+    from goodvibes_cli.steps.copy_templates import copy_templates
+    mocker.patch("goodvibes_cli.steps.copy_templates.merge_claude")
+    written, _ = copy_templates(template_dir, tmp_dir)
+    assert (tmp_dir / ".devin" / "rules" / "goodvibes.md").exists()
+    assert any("devin" in w for w in written)
+
+
+def test_copy_templates_skips_existing_devin_and_counts_as_skipped(tmp_dir, template_dir, mocker):
+    from goodvibes_cli.steps.copy_templates import copy_templates
+    mocker.patch("goodvibes_cli.steps.copy_templates.merge_claude")
+    devin_dir = tmp_dir / ".devin" / "rules"
+    devin_dir.mkdir(parents=True)
+    (devin_dir / "goodvibes.md").write_text("# custom\n")
+    _, skipped = copy_templates(template_dir, tmp_dir)
+    assert (devin_dir / "goodvibes.md").read_text() == "# custom\n"
+    assert any("devin" in s for s in skipped)
+
+
+def test_copy_templates_minimal_writes_devin(tmp_dir, template_dir, mocker):
+    from goodvibes_cli.steps.copy_templates import copy_templates
+    mocker.patch("goodvibes_cli.steps.copy_templates.merge_claude")
+    copy_templates(template_dir, tmp_dir, minimal=True)
+    assert (tmp_dir / ".devin" / "rules" / "goodvibes.md").exists()
