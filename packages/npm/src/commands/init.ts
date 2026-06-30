@@ -88,8 +88,8 @@ export function registerInitCommand(program: Command): void {
       } catch (e) {
         const err = e as NodeJS.ErrnoException
         const msg = err.code === 'EACCES' || err.code === 'EPERM'
-          ? `Cannot write files to ${cwd}.\nWhy: You do not have write permission.\nFix: chmod u+w ${cwd}  (macOS/Linux) or check folder properties (Windows)`
-          : `Setup failed: ${err.message ?? String(e)}\nFix: Run npx goodvibes@latest init`
+          ? `Cannot write files to ${cwd}.\nWhy: You do not have write permission here.\nFix: Make sure you are inside your project directory before running this command.\n      If permissions are the issue: chmod u+w ${cwd}  (macOS/Linux) or check folder properties (Windows)`
+          : `Setup failed: ${err.message ?? String(e)}`
         cancel(msg)
         process.exit(1)
       }

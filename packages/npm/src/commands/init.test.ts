@@ -384,7 +384,7 @@ describe('UX-03: error surfacing', () => {
 
     await expect(program.parseAsync(['node', 'goodvibes', 'init'])).rejects.toThrow()
 
-    expect(vi.mocked(cancel)).toHaveBeenCalled()
+    expect(vi.mocked(cancel)).toHaveBeenCalledWith(expect.stringContaining('project directory'))
     expect(exitSpy).toHaveBeenCalledWith(1)
 
     exitSpy.mockRestore()
