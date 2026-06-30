@@ -40,7 +40,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "commander": "^13",
+    "commander": "^15",
     "@clack/prompts": "^1",
     "fs-extra": "^11",
     "execa": "^9"
