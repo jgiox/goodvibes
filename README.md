@@ -40,7 +40,7 @@ goodvibes init --dry-run    # Preview files without writing anything
 goodvibes init --minimal    # Skip headroom install, all .github/ files, and docs/
 ```
 
-`--minimal` skips: `.github/` (workflows, issue templates, PR template, dependabot, Copilot instructions) and `docs/`. Cursor, Windsurf, and Kiro rule files are written by `--minimal` — they are AI configuration, not scaffolding.
+`--minimal` skips: `.github/` (workflows, issue templates, PR template, dependabot, Copilot instructions) and `docs/`. All IDE rule files (Cursor, Windsurf, Devin Desktop, Kiro, Antigravity, AGENTS.md, Cline, Amazon Q, Continue.dev) are written by `--minimal` — they are AI configuration, not scaffolding.
 
 ## What you need first
 
@@ -71,13 +71,18 @@ goodvibes init --minimal    # Skip headroom install, all .github/ files, and doc
 | Claude Code | `CLAUDE.md` | Any | Automatic — loaded on every session |
 | Cursor | `.cursor/rules/goodvibes.mdc` | 0.45+ | Automatic — `alwaysApply: true` in frontmatter |
 | GitHub Copilot | `.github/copilot-instructions.md` | VS Code Copilot extension | Automatic — applied to all Copilot Chat requests |
-| Windsurf / Devin Desktop | `.windsurfrules` | Any (Windsurf or Devin Desktop) | Automatic — applied to every Cascade conversation |
+| Windsurf (legacy) | `.windsurfrules` | Any Windsurf build | Automatic — applied to every Cascade conversation |
+| Devin Desktop | `.devin/rules/goodvibes.md` | Any Devin Desktop build | Automatic — applied to every Devin conversation |
 | Kiro | `.kiro/steering/goodvibes.md` | Any | Automatic — `inclusion: always` in frontmatter |
 | Antigravity | `GEMINI.md` | Any | Automatic — loaded on every session |
+| AGENTS.md (cross-tool) | `AGENTS.md` | Any | Automatic — read by Zed, Aider, JetBrains Junie, and 10+ other tools |
+| Cline | `.clinerules/goodvibes.md` | Any | Automatic — loaded for all Cline conversations |
+| Amazon Q Developer | `.amazonq/rules/goodvibes.md` | Any | Automatic — loaded as project rules in VS Code and JetBrains |
+| Continue.dev | `.continue/rules/goodvibes.md` | Any | Automatic — applied to all Continue requests |
 
 **Note for GitHub Copilot users:** If instructions do not activate, check that the VS Code setting `github.copilot.chat.codeGeneration.useInstructionFiles` is enabled (it is on by default in recent versions).
 
-**Note on ponytail audit commands:** The minimalism rules (ponytail ladder) are embedded in every IDE rule file above and are always active. On-demand audit commands (`/ponytail-review`, `/ponytail-audit`) require the Claude Code CLI terminal — they are not available in Cursor, Windsurf, Kiro, Copilot, or other IDEs.
+**Note on ponytail audit commands:** The minimalism rules (ponytail ladder) are embedded in every IDE rule file above and are always active. On-demand audit commands (`/ponytail-review`, `/ponytail-audit`) require the Claude Code CLI terminal — they are not available in any non-Claude-Code IDE.
 
 ## Docs
 
