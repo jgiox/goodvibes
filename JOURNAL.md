@@ -478,3 +478,17 @@ principles as the other Phase 8 IDE rule files.
 **Tests run:** `uv run pytest packages/pip/tests/` — all pass. `npm test` in packages/npm — all pass.
 
 **Docs updated:** README.md IDE compatibility table, JOURNAL.md.
+
+---
+
+## 2026-06-30 — Phase 8 extension: 5 new IDE rule files (AGENTS.md, Cline, Amazon Q, Continue.dev, Devin Desktop)
+
+**What I did:** Extended Phase 8 multi-IDE support based on a full IDE coverage audit. Added five new template files: `AGENTS.md` (cross-tool standard, covers Zed / Aider / JetBrains Junie and 10+ other tools), `.clinerules/goodvibes.md` (Cline), `.amazonq/rules/goodvibes.md` (Amazon Q Developer), `.continue/rules/goodvibes.md` (Continue.dev), `.devin/rules/goodvibes.md` (Devin Desktop — Windsurf's rebrand since June 2026). 15 new Python tests + 15 new TS integration tests. README IDE table updated; Cursor alwaysApply bug documented in onboarding.md.
+
+**Why:** Full IDE audit surfaced these gaps. AGENTS.md alone covers 12+ tools. The existing copy machinery picks up new template files automatically — zero CLI code changes needed.
+
+**Files changed:** `templates/AGENTS.md`, `templates/.clinerules/goodvibes.md`, `templates/.amazonq/rules/goodvibes.md`, `templates/.continue/rules/goodvibes.md`, `templates/.devin/rules/goodvibes.md`, `templates/.claude/skills/goodvibes-hygiene/SKILL.md`, `packages/pip/tests/conftest.py`, `packages/pip/tests/test_copy_templates.py`, `packages/npm/src/steps/copy-templates.integration.test.ts`, `README.md`, `templates/docs/onboarding.md`, `JOURNAL.md`.
+
+**Tests run:** `uv run pytest packages/pip/tests/` — all pass. `npm test` in packages/npm — all pass.
+
+**Docs updated:** README.md, templates/docs/onboarding.md, JOURNAL.md.
