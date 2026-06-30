@@ -434,3 +434,17 @@ None of the four files use sentinel comments or version stamps — they are writ
 **Tests run:** `cd packages/npm && npm test` → 80 passed | 2 todo (82 total, +9 new IDE tests, all GREEN). `uv run --with pytest-mock pytest tests/test_copy_templates.py` → 27 passed.
 
 **Docs updated:** JOURNAL.md (this entry).
+
+---
+
+## 2026-06-30 — Phase 8 Plan 03: multi-IDE compatibility table in README
+
+**What I did:** Added `## IDE compatibility` section to `README.md` (after `## Platform support`, before `## Docs`) with a 5-row table covering Claude Code, Cursor, GitHub Copilot, Windsurf / Devin Desktop, and Kiro. Each row states the file written, minimum version/setting, and activation behavior. Added a note below the table for Copilot users about the `github.copilot.chat.codeGeneration.useInstructionFiles` VS Code setting. Updated the `--minimal` sentence in the Flags section to mention Copilot instructions are skipped and that Cursor, Windsurf, and Kiro rule files are written.
+
+**Why:** IDE-05 — README must document each supported IDE, the file written, and how rules activate.
+
+**Files changed:** `README.md`, `JOURNAL.md`.
+
+**Tests run:** `grep -c "cursor/rules/goodvibes\.mdc\|copilot-instructions\|windsurfrules\|kiro/steering" README.md` → 4. `grep -c "useInstructionFiles" README.md` → 1. No other sections modified.
+
+**Docs updated:** JOURNAL.md (this entry).

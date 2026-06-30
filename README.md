@@ -40,7 +40,7 @@ goodvibes init --dry-run    # Preview files without writing anything
 goodvibes init --minimal    # Skip headroom install, all .github/ files, and docs/
 ```
 
-`--minimal` skips: `.github/` (workflows, issue templates, PR template, dependabot) and `docs/`.
+`--minimal` skips: `.github/` (workflows, issue templates, PR template, dependabot, Copilot instructions) and `docs/`. Cursor, Windsurf, and Kiro rule files are written by `--minimal` — they are AI configuration, not scaffolding.
 
 ## What you need first
 
@@ -61,6 +61,20 @@ goodvibes init --minimal    # Skip headroom install, all .github/ files, and doc
 | macOS | ✓ Supported |
 | WSL2 (Windows) | ✓ Supported |
 | Windows (native) | Best-effort |
+
+## IDE compatibility
+
+`goodvibes init` writes a rule file for each supported AI coding tool. All rule files encode the same engineering principles as `CLAUDE.md` and activate automatically — no user configuration needed.
+
+| IDE | File written | Minimum version | Activation |
+|-----|-------------|-----------------|------------|
+| Claude Code | `CLAUDE.md` | Any | Automatic — loaded on every session |
+| Cursor | `.cursor/rules/goodvibes.mdc` | 0.45+ | Automatic — `alwaysApply: true` in frontmatter |
+| GitHub Copilot | `.github/copilot-instructions.md` | VS Code Copilot extension | Automatic — applied to all Copilot Chat requests |
+| Windsurf / Devin Desktop | `.windsurfrules` | Any (Windsurf or Devin Desktop) | Automatic — applied to every Cascade conversation |
+| Kiro | `.kiro/steering/goodvibes.md` | Any | Automatic — `inclusion: always` in frontmatter |
+
+**Note for GitHub Copilot users:** If instructions do not activate, check that the VS Code setting `github.copilot.chat.codeGeneration.useInstructionFiles` is enabled (it is on by default in recent versions).
 
 ## Docs
 
