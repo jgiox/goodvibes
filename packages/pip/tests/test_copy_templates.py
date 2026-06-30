@@ -401,3 +401,18 @@ def test_copy_templates_minimal_writes_devin(tmp_dir, template_dir, mocker):
     mocker.patch("goodvibes_cli.steps.copy_templates.merge_claude")
     copy_templates(template_dir, tmp_dir, minimal=True)
     assert (tmp_dir / ".devin" / "rules" / "goodvibes.md").exists()
+
+
+def test_copy_templates_skips_all_workflow_files_when_dest_already_has_ci(tmp_dir, template_dir, mocker):
+    from goodvibes_cli.steps.copy_templates import copy_templates
+    mocker.patch("goodvibes_cli.steps.copy_templates.merge_claude")
+    workflows_dir = tmp_dir / ".github" / "workflows"
+    workflows_dir.mkdir(parents=True)
+    (workflows_dir / "codeql.yml").write_text("# existing CodeQL\n")
+    copy_templates(template_dir, tmp_dir)
+    # Template security.yml and dependency-review.yml must not be written
+    assert not (workflows_dir / "security.yml").exists()
+    assert not (workflows_dir / "dependency-review.yml").exists()
+    assert not (workflows_dir / "ci.yml").exists()
+    # Original must be untouched
+    assert (workflows_dir / "codeql.yml").read_text() == "# existing CodeQL\n"

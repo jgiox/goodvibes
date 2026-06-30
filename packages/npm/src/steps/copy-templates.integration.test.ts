@@ -406,3 +406,39 @@ describe('copyTemplates — IDE rule files', () => {
     expect(existsSync(join(tmpDir, '.devin', 'rules', 'goodvibes.md'))).toBe(true)
   })
 })
+
+describe('copyTemplates — workflow conflict guard', () => {
+  let tmpDir: string
+  let templateDir: string
+
+  beforeEach(() => {
+    templateDir = resolveTemplatesDir()
+    tmpDir = mkdtempSync(join(tmpdir(), 'gv-workflow-test-'))
+  })
+
+  afterEach(() => {
+    rmSync(tmpDir, { recursive: true, force: true })
+  })
+
+  it('skips all template workflow files when destination already has a CI workflow', async () => {
+    // Simulate a project that already has its own CI (e.g. codeql.yml)
+    const workflowsDir = join(tmpDir, '.github', 'workflows')
+    mkdirSync(workflowsDir, { recursive: true })
+    writeFileSync(join(workflowsDir, 'codeql.yml'), '# existing CodeQL\n')
+
+    await copyTemplates(templateDir, tmpDir, false, false)
+
+    // Template adds security.yml and dependency-review.yml — neither should be written
+    expect(existsSync(join(workflowsDir, 'security.yml'))).toBe(false)
+    expect(existsSync(join(workflowsDir, 'dependency-review.yml'))).toBe(false)
+    // ci.yml from template should also not appear
+    expect(existsSync(join(workflowsDir, 'ci.yml'))).toBe(false)
+    // Original file must be untouched
+    expect(readFileSync(join(workflowsDir, 'codeql.yml'), 'utf-8')).toBe('# existing CodeQL\n')
+  })
+
+  it('writes template workflow files when destination has no existing workflows', async () => {
+    await copyTemplates(templateDir, tmpDir, false, false)
+    expect(existsSync(join(tmpDir, '.github', 'workflows', 'ci.yml'))).toBe(true)
+  })
+})

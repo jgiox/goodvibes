@@ -2,7 +2,7 @@ import { copy } from 'fs-extra'
 import { readFile, rename } from 'node:fs/promises'
 import { readdir } from 'fs/promises'
 import { existsSync } from 'fs'
-import { join, relative } from 'path'
+import { join, relative, sep } from 'path'
 import { fileURLToPath } from 'url'
 import { mergeClaude } from '../utils/sentinel-merge.js'
 import { type ProjectType } from '../utils/detect-project-type.js'
@@ -77,6 +77,10 @@ export async function copyTemplates(
 
   const skippedFiles: string[] = []
   const destCiYml = join(destDir, '.github', 'workflows', 'ci.yml')
+  const workflowPrefix = join('.github', 'workflows') + sep
+  const destHasWorkflows = [...existingBefore].some(
+    f => f.startsWith(workflowPrefix) && f.endsWith('.yml')
+  )
 
   try {
     await copy(templateDir, destDir, {
@@ -95,6 +99,8 @@ export async function copyTemplates(
         for (const variant of ciVariants) {
           if (src.endsWith(variant) && variant !== selectedVariant) return false
         }
+        // Skip all template workflow files if dest already has CI configured
+        if (destHasWorkflows && rel.startsWith(workflowPrefix) && src.endsWith('.yml')) return false
         return true
       },
     })

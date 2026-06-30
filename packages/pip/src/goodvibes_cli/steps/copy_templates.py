@@ -51,6 +51,9 @@ def copy_templates(
 
     skipped_files: list[str] = []
 
+    dest_workflows = dest_dir / ".github" / "workflows"
+    dest_has_workflows = dest_workflows.is_dir() and any(dest_workflows.glob("*.yml"))
+
     def ignore_fn(directory: str, contents: list[str]) -> set[str]:
         ignored: set[str] = set()
         for name in contents:
@@ -71,6 +74,9 @@ def copy_templates(
                 ignored.add(name)  # ponytail: MIN-01
             # Skip CI variants not matching the detected project type
             if name in ci_variants and name != selected_variant:
+                ignored.add(name)
+            # Skip all template workflow files if dest already has CI configured
+            if dest_has_workflows and rel.parts[:2] == (".github", "workflows") and name.endswith((".yml", ".yaml")):
                 ignored.add(name)
             # Skip selected CI variant on re-runs where ci.yml already exists (prevents orphaned variant file)
             if name == selected_variant and (dest_dir / ".github" / "workflows" / "ci.yml").is_file():
