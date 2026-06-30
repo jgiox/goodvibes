@@ -20,6 +20,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 5: Upgrade Command & Template Repo** - Implement `goodvibes upgrade` and publish the GitHub template repo as the click-to-fork entry point (completed 2026-06-25)
 - [x] **Phase 6: UX Hardening** - Harden both CLIs for existing projects, fix --minimal scope and --dry-run --minimal combination, and replace raw stack traces with plain-English remediation messages (completed 2026-06-26)
 - [x] **Phase 7: README & Demo** - Ship the hero README with badges and an animated demo GIF recorded against the hardened CLI output (completed 2026-06-27)
+- [ ] **Phase 8: Multi-IDE Expansion** - Extend goodvibes to write rule files for the VS Code AI-coding ecosystem (Cursor, GitHub Copilot, Windsurf, Kiro) so the same one-command bootstrap works across all major AI-assisted IDEs
 
 ## Phase Details
 
@@ -214,10 +215,36 @@ Plans:
 
 **UI hint**: no
 
+### Phase 8: Multi-IDE Expansion
+
+**Goal**: Running `goodvibes init` writes fully-formed AI rule files for Cursor, GitHub Copilot, Windsurf, and Kiro — the four leading VS Code-ecosystem AI coding tools — so that vibe coders who use any of those IDEs get the same engineering guardrails as Claude Code users, out of the box
+**Depends on**: Phase 1 (template content), Phase 2 (npm CLI), Phase 3 (pip CLI), Phase 6 (UX hardening / no-clobber logic)
+**Requirements**: IDE-01, IDE-02, IDE-03, IDE-04, IDE-05
+**Success Criteria** (what must be TRUE):
+
+  1. Running `goodvibes init` in a blank directory writes `.cursor/rules/goodvibes.mdc`, `.github/copilot-instructions.md`, `.windsurfrules`, and `.kiro/steering/goodvibes.md` in addition to `CLAUDE.md` and the existing template files
+  2. Each IDE rule file encodes the same ponytail minimalism, fail-loud, security-first, and surgical-changes principles as `CLAUDE.md`, formatted in the native format of its target IDE — not a verbatim copy of CLAUDE.md
+  3. Running `goodvibes init` in a project that already has a `.cursorrules` or `.cursor/rules/` directory does not overwrite existing rules — existing files are counted as skipped
+  4. Running `goodvibes init --minimal` skips `.github/copilot-instructions.md` (consistent with `.github/` exclusion) but writes Cursor, Windsurf, and Kiro rule files (they are AI configuration, like CLAUDE.md, not scaffolding)
+  5. README and template repo include a multi-IDE compatibility table listing each supported IDE, the file written, and the minimum IDE version or setting required to activate the rules
+
+**Plans**: 3 plans
+
+**Wave 1** *(parallel — no file conflicts)*
+
+- [ ] 08-01-PLAN.md — Wave 1a: Author four IDE rule template files (.cursor/rules/goodvibes.mdc, .github/copilot-instructions.md, .windsurfrules, .kiro/steering/goodvibes.md)
+- [ ] 08-02-PLAN.md — Wave 1b: Extend copy-templates test suites (TS + Python) with IDE file assertions (IDE-01, IDE-03, IDE-04 coverage)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 08-03-PLAN.md — Wave 2: README multi-IDE compatibility table + update --minimal Flags description (IDE-05)
+
+**UI hint**: no
+
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
+Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
 
 Note: Phase 3 (pip CLI) and Phase 4 (CI scaffolding) have no dependency on each other and can be parallelized if two implementers are available. Both depend only on Phase 2.
 
@@ -232,3 +259,4 @@ Phase 6 must complete before Phase 7 — the demo GIF must record the hardened C
 | 5. Upgrade Command & Template Repo | 3/3 | Complete    | 2026-06-25 |
 | 6. UX Hardening | 3/3 | Complete    | 2026-06-27 |
 | 7. README & Demo | 3/3 | Complete    | 2026-06-29 |
+| 8. Multi-IDE Expansion | 0/3 | Pending    | — |
