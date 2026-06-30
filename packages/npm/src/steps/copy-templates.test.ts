@@ -144,9 +144,10 @@ describe('copyTemplates — CI variant selection', () => {
 
 describe('copyTemplates — written/skipped tracking', () => {
   let tmpDir: string
-  const templateDir = resolveTemplatesDir()
+  let templateDir: string
 
   beforeEach(() => {
+    templateDir = resolveTemplatesDir()
     tmpDir = mkdtempSync(join(tmpdir(), 'gv-tracking-test-'))
   })
 
@@ -173,9 +174,10 @@ describe('copyTemplates — written/skipped tracking', () => {
 
 describe('copyTemplates — ci.yml rename guard', () => {
   let tmpDir: string
-  const templateDir = resolveTemplatesDir()
+  let templateDir: string
 
   beforeEach(() => {
+    templateDir = resolveTemplatesDir()
     tmpDir = mkdtempSync(join(tmpdir(), 'gv-ci-guard-test-'))
   })
 
@@ -203,9 +205,10 @@ describe('copyTemplates — ci.yml rename guard', () => {
 
 describe('copyTemplates — minimal filter scope', () => {
   let tmpDir: string
-  const templateDir = resolveTemplatesDir()
+  let templateDir: string
 
   beforeEach(() => {
+    templateDir = resolveTemplatesDir()
     tmpDir = mkdtempSync(join(tmpdir(), 'gv-minimal-test-'))
   })
 
@@ -231,9 +234,10 @@ describe('copyTemplates — minimal filter scope', () => {
 
 describe('copyTemplates — IDE rule files', () => {
   let tmpDir: string
-  const templateDir = resolveTemplatesDir()
+  let templateDir: string
 
   beforeEach(() => {
+    templateDir = resolveTemplatesDir()
     tmpDir = mkdtempSync(join(tmpdir(), 'gv-ide-test-'))
   })
 
