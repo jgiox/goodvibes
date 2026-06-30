@@ -462,3 +462,19 @@ None of the four files use sentinel comments or version stamps — they are writ
 **Tests run:** None — docs only.
 
 **Docs updated:** JOURNAL.md (this entry).
+
+---
+
+## 2026-06-30 — Quick: Antigravity IDE support (GEMINI.md)
+
+**What I did:** Added `templates/GEMINI.md` for Google's Antigravity IDE (VS Code fork, late 2025).
+Antigravity reads `GEMINI.md` at the repo root — plain markdown, always-active. Same engineering
+principles as the other Phase 8 IDE rule files.
+
+**Why:** User reported ponytail rules not visible in Antigravity. GEMINI.md was missing from the template set.
+
+**Files changed:** `templates/GEMINI.md` (created), `packages/pip/tests/conftest.py`, `packages/pip/tests/test_copy_templates.py`, `packages/npm/src/steps/copy-templates.integration.test.ts`, `README.md`, `templates/.claude/skills/goodvibes-hygiene/SKILL.md`, `JOURNAL.md`.
+
+**Tests run:** `uv run pytest packages/pip/tests/` — all pass. `npm test` in packages/npm — all pass.
+
+**Docs updated:** README.md IDE compatibility table, JOURNAL.md.
