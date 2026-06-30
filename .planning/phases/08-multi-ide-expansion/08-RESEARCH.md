@@ -489,22 +489,22 @@ No new threat surface introduced. The IDE rule files are static authored content
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Does Copilot require a VS Code setting to activate `copilot-instructions.md`?**
    - What we know: The GitHub docs say the file is "automatically applied"; but some sources mention a `useInstructionFiles` setting
    - What's unclear: Whether the setting is enabled by default or must be toggled
-   - Recommendation: Document the setting in the README compatibility table (IDE-05) as "check VS Code settings if rules don't activate"
+   - RESOLVED: Document the setting in the README compatibility table (IDE-05) as "check VS Code settings if rules don't activate." The file itself is correct regardless; the activation caveat belongs in docs, not in the template.
 
 2. **Should `.kiro/steering/goodvibes.md` use `inclusion: auto` instead of `inclusion: always`?**
    - What we know: `auto` mode has Kiro's agent decide when to load the rule; `always` loads it on every request
    - What's unclear: Token cost tradeoff for Kiro users
-   - Recommendation: Default to `inclusion: always` (consistent with CLAUDE.md always-on behavior); users can change inclusion mode
+   - RESOLVED: Use `inclusion: always`. Engineering rules must be in context for every request — same behavior as CLAUDE.md. Users who prefer `auto` can edit the file after install (no-clobber protects edits on re-run).
 
 3. **Should `goodvibes upgrade` ever update IDE rule files?**
    - What we know: CLAUDE.md is upgraded via sentinel merge; other template files are in MANAGED_FIXED; IDE rule files have no sentinel mechanism
    - What's unclear: User expectation — would they want engineering rule improvements to propagate?
-   - Recommendation: Leave IDE rule files out of `MANAGED_FIXED` for now. No-clobber on first install, never touched by upgrade. This is the safest default (avoids destroying user customizations). Can revisit in v1.3.0.
+   - RESOLVED: IDE rule files stay out of `MANAGED_FIXED`. Write-once on first install, never touched by upgrade. Avoids destroying user customizations. Revisit in v1.3.0 if demand arises.
 
 ---
 

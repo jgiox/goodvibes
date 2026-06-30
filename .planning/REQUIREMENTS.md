@@ -225,5 +225,27 @@
 | DEMO-02 | Phase 7 | Complete |
 
 ---
+
+## v1.2.0 Requirements (Milestone: Multi-IDE Expansion)
+
+### IDE Ecosystem (IDE)
+
+- [ ] **IDE-01**: `goodvibes init` writes rule files for Cursor (`.cursor/rules/goodvibes.mdc`), GitHub Copilot (`.github/copilot-instructions.md`), Windsurf (`.windsurfrules`), and Kiro (`.kiro/steering/goodvibes.md`) alongside `CLAUDE.md` — zero-config, no prompts
+- [ ] **IDE-02**: Each IDE rule file contains the same engineering principles as `CLAUDE.md` (ponytail minimalism, fail-loud error handling, security-first, surgical changes) adapted to each IDE's native format and conventions — not a copy-paste of CLAUDE.md
+- [ ] **IDE-03**: IDE rule files obey the same no-clobber logic as CLAUDE.md — existing user-edited files are counted as "skipped" and never silently overwritten
+- [ ] **IDE-04**: `--minimal` excludes `.github/copilot-instructions.md` (consistent with the existing `.github/` exclusion rule); Cursor, Windsurf, and Kiro rule files are written by `--minimal` (they are AI configuration, parallel to CLAUDE.md, not scaffolding)
+- [ ] **IDE-05**: README and template repo updated with a multi-IDE compatibility table documenting which IDEs are supported and what file is written for each
+
+## v1.2.0 Traceability
+
+| Requirement | Phase | Status |
+|-------------|-------|--------|
+| IDE-01 | Phase 8 | Pending |
+| IDE-02 | Phase 8 | Pending |
+| IDE-03 | Phase 8 | Pending |
+| IDE-04 | Phase 8 | Pending |
+| IDE-05 | Phase 8 | Pending |
+
+---
 *Requirements defined: 2026-06-23*
-*Last updated: 2026-06-26 — v1.1.0 requirements added (Polish & Discoverability milestone)*
+*Last updated: 2026-06-30 — v1.2.0 requirements added (Multi-IDE Expansion milestone)*
