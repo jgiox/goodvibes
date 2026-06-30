@@ -293,4 +293,22 @@ describe('copyTemplates — IDE rule files', () => {
     await copyTemplates(templateDir, tmpDir, false, true)
     expect(existsSync(join(tmpDir, '.kiro', 'steering', 'goodvibes.md'))).toBe(true)
   })
+
+  it('writes GEMINI.md on fresh init', async () => {
+    const { written } = await copyTemplates(templateDir, tmpDir, false, false)
+    expect(existsSync(join(tmpDir, 'GEMINI.md'))).toBe(true)
+    expect(written.some((f: string) => f.includes('GEMINI.md'))).toBe(true)
+  })
+
+  it('skips existing GEMINI.md and counts it as skipped', async () => {
+    writeFileSync(join(tmpDir, 'GEMINI.md'), '# custom\n')
+    const { skipped } = await copyTemplates(templateDir, tmpDir, false, false)
+    expect(readFileSync(join(tmpDir, 'GEMINI.md'), 'utf8')).toBe('# custom\n')
+    expect(skipped.some((f: string) => f.includes('GEMINI.md'))).toBe(true)
+  })
+
+  it('writes GEMINI.md under --minimal', async () => {
+    const { written } = await copyTemplates(templateDir, tmpDir, false, true)
+    expect(existsSync(join(tmpDir, 'GEMINI.md'))).toBe(true)
+  })
 })

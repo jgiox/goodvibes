@@ -35,6 +35,7 @@ def template_dir(tmp_path):
     (cursor_rules / "goodvibes.mdc").write_text("---\nalwaysApply: true\n---\n# Rules\n")
     (d / ".github" / "copilot-instructions.md").write_text("# Copilot\n")
     (d / ".windsurfrules").write_text("# Rules\n")
+    (d / "GEMINI.md").write_text("# Rules\n")
     kiro_steering = d / ".kiro" / "steering"
     kiro_steering.mkdir(parents=True)
     (kiro_steering / "goodvibes.md").write_text("---\ninclusion: always\n---\n# Rules\n")

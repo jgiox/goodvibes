@@ -17,9 +17,9 @@ explicit on-demand audits.
 
 ## Setup
 
-> **Using Cursor, Windsurf, Kiro, Copilot, or another IDE?**
+> **Using Cursor, Windsurf, Kiro, Copilot, Antigravity, or another IDE?**
 > The minimalism rules are already embedded in your project's IDE rule file
-> (`.cursor/rules/goodvibes.mdc`, `.windsurfrules`, `.kiro/steering/goodvibes.md`, etc.)
+> (`.cursor/rules/goodvibes.mdc`, `GEMINI.md`, `.windsurfrules`, `.kiro/steering/goodvibes.md`, etc.)
 > and activate automatically — no plugin setup needed. The `/ponytail-review` and
 > `/ponytail-audit` commands below are **Claude Code CLI terminal only** and are not
 > available in other IDEs.

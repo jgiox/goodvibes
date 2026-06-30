@@ -73,6 +73,7 @@ goodvibes init --minimal    # Skip headroom install, all .github/ files, and doc
 | GitHub Copilot | `.github/copilot-instructions.md` | VS Code Copilot extension | Automatic — applied to all Copilot Chat requests |
 | Windsurf / Devin Desktop | `.windsurfrules` | Any (Windsurf or Devin Desktop) | Automatic — applied to every Cascade conversation |
 | Kiro | `.kiro/steering/goodvibes.md` | Any | Automatic — `inclusion: always` in frontmatter |
+| Antigravity | `GEMINI.md` | Any | Automatic — loaded on every session |
 
 **Note for GitHub Copilot users:** If instructions do not activate, check that the VS Code setting `github.copilot.chat.codeGeneration.useInstructionFiles` is enabled (it is on by default in recent versions).
 

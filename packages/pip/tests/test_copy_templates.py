@@ -249,3 +249,27 @@ def test_copy_templates_minimal_writes_kiro_steering(tmp_dir, template_dir, mock
     mocker.patch("goodvibes_cli.steps.copy_templates.merge_claude")
     copy_templates(template_dir, tmp_dir, minimal=True)
     assert (tmp_dir / ".kiro" / "steering" / "goodvibes.md").exists()
+
+
+def test_copy_templates_writes_gemini_md_on_fresh_init(tmp_dir, template_dir, mocker):
+    from goodvibes_cli.steps.copy_templates import copy_templates
+    mocker.patch("goodvibes_cli.steps.copy_templates.merge_claude")
+    written, _ = copy_templates(template_dir, tmp_dir)
+    assert (tmp_dir / "GEMINI.md").exists()
+    assert any("GEMINI.md" in w for w in written)
+
+
+def test_copy_templates_skips_existing_gemini_md_and_counts_as_skipped(tmp_dir, template_dir, mocker):
+    from goodvibes_cli.steps.copy_templates import copy_templates
+    mocker.patch("goodvibes_cli.steps.copy_templates.merge_claude")
+    (tmp_dir / "GEMINI.md").write_text("# custom\n")
+    _, skipped = copy_templates(template_dir, tmp_dir)
+    assert (tmp_dir / "GEMINI.md").read_text() == "# custom\n"
+    assert any("GEMINI.md" in s for s in skipped)
+
+
+def test_copy_templates_minimal_writes_gemini_md(tmp_dir, template_dir, mocker):
+    from goodvibes_cli.steps.copy_templates import copy_templates
+    mocker.patch("goodvibes_cli.steps.copy_templates.merge_claude")
+    copy_templates(template_dir, tmp_dir, minimal=True)
+    assert (tmp_dir / "GEMINI.md").exists()
