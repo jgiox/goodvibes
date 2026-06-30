@@ -420,3 +420,17 @@ None of the four files use sentinel comments or version stamps — they are writ
 **Tests run:** Verification grep checks confirmed all four files have correct frontmatter (or no frontmatter), no sentinel markers, and `.windsurfrules` is under 3000 chars. MANAGED_FIXED confirmed free of IDE paths in both CLIs.
 
 **Docs updated:** JOURNAL.md (this entry).
+
+---
+
+## 2026-06-30 — Phase 8 Plan 02: IDE rule file test coverage (TS + Python)
+
+**What I did:** Extended both copy-templates test suites with 9 new assertions each covering IDE-01 (fresh init writes all four IDE files), IDE-03 (no-clobber on existing `.cursor/rules/goodvibes.mdc`), and IDE-04 (`--minimal` skips `.github/copilot-instructions.md`, writes the other three IDE files). In TypeScript, appended `describe('copyTemplates — IDE rule files')` block to `copy-templates.test.ts` with real `resolveTemplatesDir()` calls (integration-style). In Python, added four IDE stub files to the `template_dir` conftest fixture, then appended 9 test functions to `test_copy_templates.py`.
+
+**Why:** Pitfall 6 from 08-RESEARCH.md — the existing tests did not assert IDE file presence. Template files shipped in plan 08-01, so the copy machinery handled them already; these tests serve as regression guards.
+
+**Files changed:** `packages/npm/src/steps/copy-templates.test.ts`, `packages/pip/tests/test_copy_templates.py`, `packages/pip/tests/conftest.py`, `JOURNAL.md`.
+
+**Tests run:** `cd packages/npm && npm test` → 80 passed | 2 todo (82 total, +9 new IDE tests, all GREEN). `uv run --with pytest-mock pytest tests/test_copy_templates.py` → 27 passed.
+
+**Docs updated:** JOURNAL.md (this entry).

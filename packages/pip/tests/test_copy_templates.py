@@ -170,3 +170,73 @@ def test_copy_templates_minimal_keeps_claude_md(tmp_dir, template_dir, mocker):
     mocker.patch("goodvibes_cli.steps.copy_templates.merge_claude")
     written, _ = copy_templates(template_dir, tmp_dir, minimal=True)
     assert any("CLAUDE.md" in w for w in written) or (tmp_dir / "CLAUDE.md").exists()
+
+
+# --- IDE rule file tests (Phase 8 — IDE-01, IDE-03, IDE-04) ---
+
+def test_copy_templates_writes_cursor_mdc_on_fresh_init(tmp_dir, template_dir, mocker):
+    from goodvibes_cli.steps.copy_templates import copy_templates
+    mocker.patch("goodvibes_cli.steps.copy_templates.merge_claude")
+    written, _ = copy_templates(template_dir, tmp_dir)
+    assert (tmp_dir / ".cursor" / "rules" / "goodvibes.mdc").exists()
+    assert any("goodvibes.mdc" in w for w in written)
+
+
+def test_copy_templates_writes_windsurfrules_on_fresh_init(tmp_dir, template_dir, mocker):
+    from goodvibes_cli.steps.copy_templates import copy_templates
+    mocker.patch("goodvibes_cli.steps.copy_templates.merge_claude")
+    copy_templates(template_dir, tmp_dir)
+    assert (tmp_dir / ".windsurfrules").exists()
+
+
+def test_copy_templates_writes_kiro_steering_on_fresh_init(tmp_dir, template_dir, mocker):
+    from goodvibes_cli.steps.copy_templates import copy_templates
+    mocker.patch("goodvibes_cli.steps.copy_templates.merge_claude")
+    copy_templates(template_dir, tmp_dir)
+    assert (tmp_dir / ".kiro" / "steering" / "goodvibes.md").exists()
+
+
+def test_copy_templates_writes_copilot_instructions_on_fresh_init(tmp_dir, template_dir, mocker):
+    from goodvibes_cli.steps.copy_templates import copy_templates
+    mocker.patch("goodvibes_cli.steps.copy_templates.merge_claude")
+    copy_templates(template_dir, tmp_dir)
+    assert (tmp_dir / ".github" / "copilot-instructions.md").exists()
+
+
+def test_copy_templates_skips_existing_cursor_mdc_and_counts_as_skipped(tmp_dir, template_dir, mocker):
+    from goodvibes_cli.steps.copy_templates import copy_templates
+    mocker.patch("goodvibes_cli.steps.copy_templates.merge_claude")
+    cursor_dir = tmp_dir / ".cursor" / "rules"
+    cursor_dir.mkdir(parents=True)
+    (cursor_dir / "goodvibes.mdc").write_text("# custom\n")
+    _, skipped = copy_templates(template_dir, tmp_dir)
+    assert (cursor_dir / "goodvibes.mdc").read_text() == "# custom\n"
+    assert any("goodvibes.mdc" in s for s in skipped)
+
+
+def test_copy_templates_minimal_skips_copilot_instructions(tmp_dir, template_dir, mocker):
+    from goodvibes_cli.steps.copy_templates import copy_templates
+    mocker.patch("goodvibes_cli.steps.copy_templates.merge_claude")
+    copy_templates(template_dir, tmp_dir, minimal=True)
+    assert not (tmp_dir / ".github" / "copilot-instructions.md").exists()
+
+
+def test_copy_templates_minimal_writes_cursor_mdc(tmp_dir, template_dir, mocker):
+    from goodvibes_cli.steps.copy_templates import copy_templates
+    mocker.patch("goodvibes_cli.steps.copy_templates.merge_claude")
+    copy_templates(template_dir, tmp_dir, minimal=True)
+    assert (tmp_dir / ".cursor" / "rules" / "goodvibes.mdc").exists()
+
+
+def test_copy_templates_minimal_writes_windsurfrules(tmp_dir, template_dir, mocker):
+    from goodvibes_cli.steps.copy_templates import copy_templates
+    mocker.patch("goodvibes_cli.steps.copy_templates.merge_claude")
+    copy_templates(template_dir, tmp_dir, minimal=True)
+    assert (tmp_dir / ".windsurfrules").exists()
+
+
+def test_copy_templates_minimal_writes_kiro_steering(tmp_dir, template_dir, mocker):
+    from goodvibes_cli.steps.copy_templates import copy_templates
+    mocker.patch("goodvibes_cli.steps.copy_templates.merge_claude")
+    copy_templates(template_dir, tmp_dir, minimal=True)
+    assert (tmp_dir / ".kiro" / "steering" / "goodvibes.md").exists()

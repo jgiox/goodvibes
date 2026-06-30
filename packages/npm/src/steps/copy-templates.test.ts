@@ -229,3 +229,65 @@ describe('copyTemplates — minimal filter scope', () => {
     expect(written.includes('CLAUDE.md') || existsSync(join(tmpDir, 'CLAUDE.md'))).toBe(true)
   })
 })
+
+describe('copyTemplates — IDE rule files', () => {
+  let tmpDir: string
+  const templateDir = resolveTemplatesDir()
+
+  beforeEach(() => {
+    tmpDir = mkdtempSync(join(tmpdir(), 'gv-ide-test-'))
+  })
+
+  afterEach(() => {
+    rmSync(tmpDir, { recursive: true, force: true })
+  })
+
+  it('writes .cursor/rules/goodvibes.mdc on fresh init (IDE-01)', async () => {
+    const { written } = await copyTemplates(templateDir, tmpDir, false, false)
+    expect(existsSync(join(tmpDir, '.cursor', 'rules', 'goodvibes.mdc'))).toBe(true)
+    expect(written).toContain('.cursor/rules/goodvibes.mdc')
+  })
+
+  it('writes .windsurfrules on fresh init (IDE-01)', async () => {
+    await copyTemplates(templateDir, tmpDir, false, false)
+    expect(existsSync(join(tmpDir, '.windsurfrules'))).toBe(true)
+  })
+
+  it('writes .kiro/steering/goodvibes.md on fresh init (IDE-01)', async () => {
+    await copyTemplates(templateDir, tmpDir, false, false)
+    expect(existsSync(join(tmpDir, '.kiro', 'steering', 'goodvibes.md'))).toBe(true)
+  })
+
+  it('writes .github/copilot-instructions.md on fresh init (IDE-01)', async () => {
+    await copyTemplates(templateDir, tmpDir, false, false)
+    expect(existsSync(join(tmpDir, '.github', 'copilot-instructions.md'))).toBe(true)
+  })
+
+  it('existing .cursor/rules/goodvibes.mdc is counted as skipped not overwritten (IDE-03)', async () => {
+    mkdirSync(join(tmpDir, '.cursor', 'rules'), { recursive: true })
+    writeFileSync(join(tmpDir, '.cursor', 'rules', 'goodvibes.mdc'), '# custom cursor rules\n')
+    const { skipped } = await copyTemplates(templateDir, tmpDir, false, false)
+    expect(readFileSync(join(tmpDir, '.cursor', 'rules', 'goodvibes.mdc'), 'utf-8')).toBe('# custom cursor rules\n')
+    expect(skipped.some(f => f.includes('goodvibes.mdc'))).toBe(true)
+  })
+
+  it('--minimal skips .github/copilot-instructions.md (IDE-04)', async () => {
+    await copyTemplates(templateDir, tmpDir, false, true)
+    expect(existsSync(join(tmpDir, '.github', 'copilot-instructions.md'))).toBe(false)
+  })
+
+  it('--minimal writes .cursor/rules/goodvibes.mdc (IDE-04)', async () => {
+    await copyTemplates(templateDir, tmpDir, false, true)
+    expect(existsSync(join(tmpDir, '.cursor', 'rules', 'goodvibes.mdc'))).toBe(true)
+  })
+
+  it('--minimal writes .windsurfrules (IDE-04)', async () => {
+    await copyTemplates(templateDir, tmpDir, false, true)
+    expect(existsSync(join(tmpDir, '.windsurfrules'))).toBe(true)
+  })
+
+  it('--minimal writes .kiro/steering/goodvibes.md (IDE-04)', async () => {
+    await copyTemplates(templateDir, tmpDir, false, true)
+    expect(existsSync(join(tmpDir, '.kiro', 'steering', 'goodvibes.md'))).toBe(true)
+  })
+})
