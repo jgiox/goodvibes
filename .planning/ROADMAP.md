@@ -232,8 +232,8 @@ Plans:
 
 **Wave 1** *(parallel — no file conflicts)*
 
-- [ ] 08-01-PLAN.md — Wave 1a: Author four IDE rule template files (.cursor/rules/goodvibes.mdc, .github/copilot-instructions.md, .windsurfrules, .kiro/steering/goodvibes.md)
-- [ ] 08-02-PLAN.md — Wave 1b: Extend copy-templates test suites (TS + Python) with IDE file assertions (IDE-01, IDE-03, IDE-04 coverage)
+- [x] 08-01-PLAN.md — Wave 1a: Author four IDE rule template files (.cursor/rules/goodvibes.mdc, .github/copilot-instructions.md, .windsurfrules, .kiro/steering/goodvibes.md)
+- [x] 08-02-PLAN.md — Wave 1b: Extend copy-templates test suites (TS + Python) with IDE file assertions (IDE-01, IDE-03, IDE-04 coverage)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -259,4 +259,4 @@ Phase 6 must complete before Phase 7 — the demo GIF must record the hardened C
 | 5. Upgrade Command & Template Repo | 3/3 | Complete    | 2026-06-25 |
 | 6. UX Hardening | 3/3 | Complete    | 2026-06-27 |
 | 7. README & Demo | 3/3 | Complete    | 2026-06-29 |
-| 8. Multi-IDE Expansion | 0/3 | Pending    | — |
+| 8. Multi-IDE Expansion | 2/3 | In Progress|  |
