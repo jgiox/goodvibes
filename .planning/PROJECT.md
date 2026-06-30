@@ -1,6 +1,6 @@
 # goodvibes
 
-## Current Milestone: v1.1.0 Polish & Discoverability — Phase 06 Complete
+## Current Milestone: v1.1.0 Polish & Discoverability — Phase 08 Complete (Milestone Complete)
 
 **Goal:** Make goodvibes findable, understandable, and frictionless for real vibe coders encountering it for the first time.
 
@@ -79,6 +79,13 @@ Both paths inject:
 - [x] ci.yml guard: second run skips rather than overwrites — Validated in Phase 06
 - [x] `--minimal` skips `.github/` and `docs/`, shows "Skipped layers" panel — Validated in Phase 06
 - [x] Python parity: pip package matches npm UX hardening — Validated in Phase 06
+
+### Validated in Phase 08
+- [x] `goodvibes init` writes Cursor, Copilot, Windsurf, and Kiro IDE rule files — Validated in Phase 08
+- [x] Each IDE rule file uses IDE-native format (MDC frontmatter, plain markdown, or steering frontmatter) — Validated in Phase 08
+- [x] No-clobber: existing IDE rule files are skipped, not overwritten — Validated in Phase 08
+- [x] `--minimal` writes Cursor/Windsurf/Kiro rule files, skips Copilot instructions — Validated in Phase 08
+- [x] README documents all 5 supported IDEs with file paths and activation instructions — Validated in Phase 08
 
 ### Out of Scope
 
