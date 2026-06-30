@@ -259,4 +259,4 @@ Phase 6 must complete before Phase 7 — the demo GIF must record the hardened C
 | 5. Upgrade Command & Template Repo | 3/3 | Complete    | 2026-06-25 |
 | 6. UX Hardening | 3/3 | Complete    | 2026-06-27 |
 | 7. README & Demo | 3/3 | Complete    | 2026-06-29 |
-| 8. Multi-IDE Expansion | 3/3 | Complete   | 2026-06-30 |
+| 8. Multi-IDE Expansion | 3/3 | Complete    | 2026-06-30 |
