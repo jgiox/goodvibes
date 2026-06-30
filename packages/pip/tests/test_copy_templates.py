@@ -42,19 +42,21 @@ def test_copy_templates_path_traversal_guard(tmp_dir, template_dir, mocker, tmp_
     from goodvibes_cli.steps.copy_templates import copy_templates
     mocker.patch("goodvibes_cli.steps.copy_templates.merge_claude")
 
-    # Create a file outside the template dir that a malicious symlink could point to
-    outside = tmp_path / "outside.txt"
+    # Create a file outside both template_dir and tmp_dir (separate subdirectory)
+    outside_dir = tmp_path / "external"
+    outside_dir.mkdir()
+    outside = outside_dir / "secret.txt"
     outside.write_text("secret")
 
-    # Plant a symlink inside template_dir that escapes to outside
+    # Plant a symlink inside template_dir that escapes to the external file
     link = template_dir / "escape.txt"
     link.symlink_to(outside)
 
     copy_templates(template_dir, tmp_dir)
 
-    # The symlink target must NOT appear in the destination
+    # The symlink must NOT be copied to the destination
     assert not (tmp_dir / "escape.txt").exists()
-    assert not (tmp_dir / "outside.txt").exists()
+    assert not (tmp_dir / "escape.txt").is_symlink()
 
 
 def test_copy_templates_dry_run_returns_list_without_writing(tmp_dir, template_dir):
