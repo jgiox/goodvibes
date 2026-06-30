@@ -370,3 +370,32 @@ partial mock and changed `vi.resetAllMocks()` to `vi.clearAllMocks()` throughout
 **Tests run:** `cd packages/npm && npm test` → 71 passed | 2 todo. `cd packages/pip && uv run --extra dev pytest tests/` → 74 passed. Both GREEN.
 
 **Docs updated:** JOURNAL.md (this entry).
+
+---
+
+## 2026-06-29 — Phase 7 Plans 02 + 03: VHS tape and vhs.yml workflow
+
+**What I did:** Committed `scripts/demo.tape` (VHS tape for 800×500 Dracula terminal demo of
+`goodvibes init --minimal`) and `.github/workflows/vhs.yml` (CI workflow that runs VHS on push
+to `scripts/demo.tape` and commits the resulting GIF back). The workflow uses the charm.sh apt
+repository to install VHS (replacing a broken vhs-action@v2.1.0 whose internal ffmpeg downloader
+always fails on ubuntu-latest). The tape uses `npm install -g @jgiox/goodvibes` before recording so
+the shell sees the binary without an npx registry round-trip.
+
+**What I learned:** VHS v0.11.0 `Wait+Screen` only scans the visible terminal viewport (~35 lines
+at 14px in a 500px window), not the scrollback buffer. The goodvibes init output is 60+ lines, so
+the outro text is never in the viewport — Wait+Screen times out after its hardcoded 15 seconds
+regardless of how long the command actually runs. Fix: use `Sleep 20s` (real init finishes in ~3s
+with global install; 17s margin). Also: npx always re-checks the registry even with a warm cache,
+so pre-caching with `npx @jgiox/goodvibes --version` doesn't help — global install is required.
+
+**Decisions made:** `Framerate 10` (200 frames, 119 KB GIF) vs. default 24fps (~2 MB).
+Output path is `../docs/demo.gif` because VHS is run from `scripts/`. Path filter
+`paths: ['scripts/demo.tape']` on the vhs.yml push trigger prevents the CI-committed GIF from
+re-triggering the workflow.
+
+**Files changed:** `scripts/demo.tape`, `.github/workflows/vhs.yml`, `docs/demo.gif` (CI-produced at commit 7f3b19a).
+
+**Tests run:** VHS CI run 28396836801 — SUCCESS in 1m19s. `docs/demo.gif`: GIF 89a, 800×500, 119 KB.
+
+**Docs updated:** `.planning/phases/07-readme-demo/07-VERIFICATION.md`, `07-HUMAN-UAT.md`, `JOURNAL.md` (this entry). Phase 7 closed.
