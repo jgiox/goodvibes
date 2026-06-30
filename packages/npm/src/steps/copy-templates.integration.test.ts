@@ -311,4 +311,98 @@ describe('copyTemplates — IDE rule files', () => {
     const { written } = await copyTemplates(templateDir, tmpDir, false, true)
     expect(existsSync(join(tmpDir, 'GEMINI.md'))).toBe(true)
   })
+
+  it('writes AGENTS.md on fresh init', async () => {
+    const { written } = await copyTemplates(templateDir, tmpDir, false, false)
+    expect(existsSync(join(tmpDir, 'AGENTS.md'))).toBe(true)
+    expect(written.some((f: string) => f.includes('AGENTS.md'))).toBe(true)
+  })
+
+  it('skips existing AGENTS.md and counts it as skipped', async () => {
+    writeFileSync(join(tmpDir, 'AGENTS.md'), '# custom\n')
+    const { skipped } = await copyTemplates(templateDir, tmpDir, false, false)
+    expect(readFileSync(join(tmpDir, 'AGENTS.md'), 'utf8')).toBe('# custom\n')
+    expect(skipped.some((f: string) => f.includes('AGENTS.md'))).toBe(true)
+  })
+
+  it('writes AGENTS.md under --minimal', async () => {
+    await copyTemplates(templateDir, tmpDir, false, true)
+    expect(existsSync(join(tmpDir, 'AGENTS.md'))).toBe(true)
+  })
+
+  it('writes .clinerules/goodvibes.md on fresh init', async () => {
+    const { written } = await copyTemplates(templateDir, tmpDir, false, false)
+    expect(existsSync(join(tmpDir, '.clinerules', 'goodvibes.md'))).toBe(true)
+    expect(written.some((f: string) => f.includes('clinerules'))).toBe(true)
+  })
+
+  it('skips existing .clinerules/goodvibes.md and counts it as skipped', async () => {
+    mkdirSync(join(tmpDir, '.clinerules'), { recursive: true })
+    writeFileSync(join(tmpDir, '.clinerules', 'goodvibes.md'), '# custom\n')
+    const { skipped } = await copyTemplates(templateDir, tmpDir, false, false)
+    expect(readFileSync(join(tmpDir, '.clinerules', 'goodvibes.md'), 'utf8')).toBe('# custom\n')
+    expect(skipped.some((f: string) => f.includes('clinerules'))).toBe(true)
+  })
+
+  it('writes .clinerules/goodvibes.md under --minimal', async () => {
+    await copyTemplates(templateDir, tmpDir, false, true)
+    expect(existsSync(join(tmpDir, '.clinerules', 'goodvibes.md'))).toBe(true)
+  })
+
+  it('writes .amazonq/rules/goodvibes.md on fresh init', async () => {
+    const { written } = await copyTemplates(templateDir, tmpDir, false, false)
+    expect(existsSync(join(tmpDir, '.amazonq', 'rules', 'goodvibes.md'))).toBe(true)
+    expect(written.some((f: string) => f.includes('amazonq'))).toBe(true)
+  })
+
+  it('skips existing .amazonq/rules/goodvibes.md and counts it as skipped', async () => {
+    mkdirSync(join(tmpDir, '.amazonq', 'rules'), { recursive: true })
+    writeFileSync(join(tmpDir, '.amazonq', 'rules', 'goodvibes.md'), '# custom\n')
+    const { skipped } = await copyTemplates(templateDir, tmpDir, false, false)
+    expect(readFileSync(join(tmpDir, '.amazonq', 'rules', 'goodvibes.md'), 'utf8')).toBe('# custom\n')
+    expect(skipped.some((f: string) => f.includes('amazonq'))).toBe(true)
+  })
+
+  it('writes .amazonq/rules/goodvibes.md under --minimal', async () => {
+    await copyTemplates(templateDir, tmpDir, false, true)
+    expect(existsSync(join(tmpDir, '.amazonq', 'rules', 'goodvibes.md'))).toBe(true)
+  })
+
+  it('writes .continue/rules/goodvibes.md on fresh init', async () => {
+    const { written } = await copyTemplates(templateDir, tmpDir, false, false)
+    expect(existsSync(join(tmpDir, '.continue', 'rules', 'goodvibes.md'))).toBe(true)
+    expect(written.some((f: string) => f.includes('continue'))).toBe(true)
+  })
+
+  it('skips existing .continue/rules/goodvibes.md and counts it as skipped', async () => {
+    mkdirSync(join(tmpDir, '.continue', 'rules'), { recursive: true })
+    writeFileSync(join(tmpDir, '.continue', 'rules', 'goodvibes.md'), '# custom\n')
+    const { skipped } = await copyTemplates(templateDir, tmpDir, false, false)
+    expect(readFileSync(join(tmpDir, '.continue', 'rules', 'goodvibes.md'), 'utf8')).toBe('# custom\n')
+    expect(skipped.some((f: string) => f.includes('continue'))).toBe(true)
+  })
+
+  it('writes .continue/rules/goodvibes.md under --minimal', async () => {
+    await copyTemplates(templateDir, tmpDir, false, true)
+    expect(existsSync(join(tmpDir, '.continue', 'rules', 'goodvibes.md'))).toBe(true)
+  })
+
+  it('writes .devin/rules/goodvibes.md on fresh init', async () => {
+    const { written } = await copyTemplates(templateDir, tmpDir, false, false)
+    expect(existsSync(join(tmpDir, '.devin', 'rules', 'goodvibes.md'))).toBe(true)
+    expect(written.some((f: string) => f.includes('devin'))).toBe(true)
+  })
+
+  it('skips existing .devin/rules/goodvibes.md and counts it as skipped', async () => {
+    mkdirSync(join(tmpDir, '.devin', 'rules'), { recursive: true })
+    writeFileSync(join(tmpDir, '.devin', 'rules', 'goodvibes.md'), '# custom\n')
+    const { skipped } = await copyTemplates(templateDir, tmpDir, false, false)
+    expect(readFileSync(join(tmpDir, '.devin', 'rules', 'goodvibes.md'), 'utf8')).toBe('# custom\n')
+    expect(skipped.some((f: string) => f.includes('devin'))).toBe(true)
+  })
+
+  it('writes .devin/rules/goodvibes.md under --minimal', async () => {
+    await copyTemplates(templateDir, tmpDir, false, true)
+    expect(existsSync(join(tmpDir, '.devin', 'rules', 'goodvibes.md'))).toBe(true)
+  })
 })
