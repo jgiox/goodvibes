@@ -168,8 +168,9 @@ describe('init command', () => {
     // note() called for next steps
     const nextStepsCall = noteCalls.find(c => String(c[1]).includes('Next steps'))
     expect(nextStepsCall).toBeDefined()
-    expect(nextStepsCall![0]).toContain('Open this project in Claude Code')
+    expect(nextStepsCall![0]).toContain('Open this project in your AI coding tool')
     expect(nextStepsCall![0]).toContain('ponytail')
+    expect(nextStepsCall![0]).toContain('rules already active')
     expect(nextStepsCall![0]).toContain('Start coding')
 
     // outro called

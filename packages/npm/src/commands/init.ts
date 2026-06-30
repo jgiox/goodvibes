@@ -38,8 +38,9 @@ export function registerInitCommand(program: Command): void {
         note(files.map(f => `  Would write: ${f}`).join('\n'), 'Dry run — no files written')
         note(
           [
-            '1. Open this project in Claude Code',
-            '2. In Claude Code CLI: /plugin marketplace add DietrichGebert/ponytail',
+            '1. Open this project in your AI coding tool',
+            '2. Claude Code users: /plugin marketplace add DietrichGebert/ponytail',
+            '   Other IDEs (Cursor, Windsurf, Kiro, Antigravity, etc.): rules already active',
             '3. Start coding — CLAUDE.md rules are already active',
             ...(minimal ? ['4. Run without --minimal to also add CI workflows and docs.'] : []),
           ].join('\n'),
@@ -100,8 +101,9 @@ export function registerInitCommand(program: Command): void {
       }
 
       const nextSteps = [
-        '1. Open this project in Claude Code',
-        '2. In Claude Code CLI: /plugin marketplace add DietrichGebert/ponytail',
+        '1. Open this project in your AI coding tool',
+        '2. Claude Code users: /plugin marketplace add DietrichGebert/ponytail',
+        '   Other IDEs (Cursor, Windsurf, Kiro, Antigravity, etc.): rules already active',
         '3. Start coding — CLAUDE.md rules are already active',
       ].join('\n')
       note(nextSteps, 'Next steps')

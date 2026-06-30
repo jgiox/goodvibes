@@ -14,8 +14,9 @@ from goodvibes_cli.utils.detect_project_type import detect_project_type
 console = Console()
 
 _NEXT_STEPS = (
-    "1. Open this project in Claude Code\n"
-    "2. In Claude Code CLI: /plugin marketplace add DietrichGebert/ponytail\n"
+    "1. Open this project in your AI coding tool\n"
+    "2. Claude Code users: /plugin marketplace add DietrichGebert/ponytail\n"
+    "   Other IDEs (Cursor, Windsurf, Kiro, Antigravity, etc.): rules already active\n"
     "3. Start coding — CLAUDE.md rules are already active"
 )
 
