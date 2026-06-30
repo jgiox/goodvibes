@@ -399,3 +399,24 @@ re-triggering the workflow.
 **Tests run:** VHS CI run 28396836801 — SUCCESS in 1m19s. `docs/demo.gif`: GIF 89a, 800×500, 119 KB.
 
 **Docs updated:** `.planning/phases/07-readme-demo/07-VERIFICATION.md`, `07-HUMAN-UAT.md`, `JOURNAL.md` (this entry). Phase 7 closed.
+
+---
+
+## 2026-06-30 — Phase 8 Plan 01: four IDE rule template files added
+
+**What I did:** Created four static template files for multi-IDE support. All four are walked by the existing `fs-extra copy` / `shutil.copytree` machinery on every `goodvibes init` run — no CLI code changes were needed.
+
+- `templates/.cursor/rules/goodvibes.mdc` — Cursor MDC file with `alwaysApply: true` frontmatter; encodes ponytail ladder, fail-loud, surgical changes, security rules; under 200 words
+- `templates/.kiro/steering/goodvibes.md` — Kiro steering file with `inclusion: always` frontmatter on line 1; same principle set
+- `templates/.github/copilot-instructions.md` — plain markdown (no frontmatter); excluded by `--minimal` via existing `.github/` guard
+- `templates/.windsurfrules` — plain markdown (no frontmatter); 1161 chars (well under Windsurf's 12,000-char silent-truncation limit)
+
+None of the four files use sentinel comments or version stamps — they are write-once on `goodvibes init`, never touched by `goodvibes upgrade` (not in `MANAGED_FIXED`).
+
+**Why:** Phase 8 requirement — extend goodvibes to support Cursor, GitHub Copilot, Windsurf/Devin Desktop, and Kiro out of the box.
+
+**Files changed:** `templates/.cursor/rules/goodvibes.mdc` (created), `templates/.github/copilot-instructions.md` (created), `templates/.windsurfrules` (created), `templates/.kiro/steering/goodvibes.md` (created), `JOURNAL.md` (this entry).
+
+**Tests run:** Verification grep checks confirmed all four files have correct frontmatter (or no frontmatter), no sentinel markers, and `.windsurfrules` is under 3000 chars. MANAGED_FIXED confirmed free of IDE paths in both CLIs.
+
+**Docs updated:** JOURNAL.md (this entry).
