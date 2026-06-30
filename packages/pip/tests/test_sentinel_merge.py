@@ -1,7 +1,7 @@
 """Tests for sentinel_merge — Wave 1 (03-02-PLAN.md)."""
 import pytest
 
-from .conftest import SENTINEL_START, SENTINEL_END, TEMPLATE_CONTENT
+from .conftest import SENTINEL_START, SENTINEL_END, TEMPLATE_CONTENT, TEMPLATE_CONTENT_V130
 
 
 # ---------------------------------------------------------------------------
@@ -111,6 +111,16 @@ def test_merge_claude_case_d2_skips_write_when_version_newer(tmp_dir):
     existing = f"# My CLAUDE.md\n\n{SENTINEL_START}\n# goodvibes: v2.0.0\n\nNewer rules.\n{SENTINEL_END}\n"
     dest.write_text(existing)
     merge_claude(dest, TEMPLATE_CONTENT)
+    assert dest.read_text() == existing
+
+
+def test_merge_claude_case_d_skips_write_when_version_is_v1_3_0(tmp_dir):
+    # Covers the same-version skip real users hit on every re-run after v1.3.0 install
+    from goodvibes_cli.utils.sentinel_merge import merge_claude
+    dest = tmp_dir / "CLAUDE.md"
+    existing = f"# My CLAUDE.md\n\n{SENTINEL_START}\n# goodvibes: v1.3.0\n\nCurrent rules.\n{SENTINEL_END}\n"
+    dest.write_text(existing)
+    merge_claude(dest, TEMPLATE_CONTENT_V130)
     assert dest.read_text() == existing
 
 

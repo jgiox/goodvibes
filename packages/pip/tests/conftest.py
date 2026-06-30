@@ -16,6 +16,18 @@ Some rule here.
 {SENTINEL_END}
 """
 
+# v1.3.0 variant — covers Case D (same-version skip) for current production template
+TEMPLATE_CONTENT_V130 = f"""# CLAUDE.md
+
+{SENTINEL_START}
+# goodvibes: v1.3.0
+
+## Engineering Rules
+
+Some rule here.
+{SENTINEL_END}
+"""
+
 
 @pytest.fixture
 def tmp_dir(tmp_path):
