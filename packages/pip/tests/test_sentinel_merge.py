@@ -1,7 +1,7 @@
 """Tests for sentinel_merge — Wave 1 (03-02-PLAN.md)."""
 import pytest
 
-from .conftest import SENTINEL_START, SENTINEL_END, TEMPLATE_CONTENT, TEMPLATE_CONTENT_V130
+from .fixtures import SENTINEL_START, SENTINEL_END, TEMPLATE_CONTENT, TEMPLATE_CONTENT_V130
 
 
 # ---------------------------------------------------------------------------

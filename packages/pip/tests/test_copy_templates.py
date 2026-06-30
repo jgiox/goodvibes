@@ -2,7 +2,7 @@
 import pathlib
 import pytest
 
-from .conftest import TEMPLATE_CONTENT
+from .fixtures import TEMPLATE_CONTENT
 
 
 def test_copy_templates_copies_files_to_destination(tmp_dir, template_dir, mocker):

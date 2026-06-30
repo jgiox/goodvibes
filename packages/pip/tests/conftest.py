@@ -1,32 +1,8 @@
 """Shared pytest fixtures for goodvibes_cli tests."""
 import pytest
 
-SENTINEL_START = "<!-- goodvibes:start -->"
-SENTINEL_END = "<!-- goodvibes:end -->"
-
-# Matches Phase 2 sentinel-merge.test.ts TEMPLATE_CONTENT (same markers, v1.0.0)
-TEMPLATE_CONTENT = f"""# CLAUDE.md
-
-{SENTINEL_START}
-# goodvibes: v1.0.0
-
-## Engineering Rules
-
-Some rule here.
-{SENTINEL_END}
-"""
-
-# v1.3.0 variant — covers Case D (same-version skip) for current production template
-TEMPLATE_CONTENT_V130 = f"""# CLAUDE.md
-
-{SENTINEL_START}
-# goodvibes: v1.3.0
-
-## Engineering Rules
-
-Some rule here.
-{SENTINEL_END}
-"""
+# Re-export from fixtures.py so conftest fixtures can use them without double-import
+from .fixtures import SENTINEL_START, SENTINEL_END, TEMPLATE_CONTENT, TEMPLATE_CONTENT_V130
 
 
 @pytest.fixture
