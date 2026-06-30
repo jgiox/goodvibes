@@ -17,7 +17,14 @@ explicit on-demand audits.
 
 ## Setup
 
-Ponytail commands require the ponytail plugin. Install it in Claude Code:
+> **Using Cursor, Windsurf, Kiro, Copilot, or another IDE?**
+> The minimalism rules are already embedded in your project's IDE rule file
+> (`.cursor/rules/goodvibes.mdc`, `.windsurfrules`, `.kiro/steering/goodvibes.md`, etc.)
+> and activate automatically — no plugin setup needed. The `/ponytail-review` and
+> `/ponytail-audit` commands below are **Claude Code CLI terminal only** and are not
+> available in other IDEs.
+
+Ponytail commands require the ponytail plugin. Install it in **Claude Code CLI terminal**:
 
 ```
 /plugin marketplace add DietrichGebert/ponytail

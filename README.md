@@ -76,6 +76,8 @@ goodvibes init --minimal    # Skip headroom install, all .github/ files, and doc
 
 **Note for GitHub Copilot users:** If instructions do not activate, check that the VS Code setting `github.copilot.chat.codeGeneration.useInstructionFiles` is enabled (it is on by default in recent versions).
 
+**Note on ponytail audit commands:** The minimalism rules (ponytail ladder) are embedded in every IDE rule file above and are always active. On-demand audit commands (`/ponytail-review`, `/ponytail-audit`) require the Claude Code CLI terminal — they are not available in Cursor, Windsurf, Kiro, Copilot, or other IDEs.
+
 ## Docs
 
 - [docs/onboarding.md](docs/onboarding.md) — git and GitHub basics for complete beginners

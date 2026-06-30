@@ -448,3 +448,17 @@ None of the four files use sentinel comments or version stamps — they are writ
 **Tests run:** `grep -c "cursor/rules/goodvibes\.mdc\|copilot-instructions\|windsurfrules\|kiro/steering" README.md` → 4. `grep -c "useInstructionFiles" README.md` → 1. No other sections modified.
 
 **Docs updated:** JOURNAL.md (this entry).
+
+---
+
+## 2026-06-30 — Quick fix: ponytail setup instructions for non-Claude-Code IDEs
+
+**What I did:** Clarified that the `/plugin marketplace add` and `/plugin install ponytail@ponytail` commands in `goodvibes-hygiene/SKILL.md` are Claude Code CLI terminal only. Added a blockquote callout at the top of `## Setup` directing Cursor/Windsurf/Kiro/Copilot users to their embedded IDE rule file instead. Also added a note in the README `## IDE compatibility` section explaining that `/ponytail-review` and `/ponytail-audit` audit commands are CLI-only while the always-on minimalism rules work in all IDEs.
+
+**Why:** Users of VS Code-like IDEs saw the ponytail setup instructions and tried to run `/plugin marketplace add` — a command that only works in the Claude Code CLI terminal, not in the extension or other IDEs.
+
+**Files changed:** `templates/.claude/skills/goodvibes-hygiene/SKILL.md`, `README.md`, `JOURNAL.md`.
+
+**Tests run:** None — docs only.
+
+**Docs updated:** JOURNAL.md (this entry).
