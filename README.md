@@ -7,8 +7,6 @@
 [![CI](https://img.shields.io/github/actions/workflow/status/jgiox/goodvibes/ci.yml?style=flat-square)](https://github.com/jgiox/goodvibes/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue?style=flat-square)](LICENSE)
 
-[![demo](docs/demo.gif)](docs/demo.gif)
-
 ## Quick start
 
 ```sh
@@ -21,6 +19,8 @@ Or with Python:
 pip install jgiox-goodvibes
 goodvibes init
 ```
+
+[![demo](docs/demo.gif)](docs/demo.gif)
 
 ## What you get
 
