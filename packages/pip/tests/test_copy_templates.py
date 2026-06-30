@@ -38,17 +38,23 @@ def test_copy_templates_skips_github_workflows_when_minimal(tmp_dir, template_di
     assert not (tmp_dir / ".github" / "workflows" / "ci.yml").exists()
 
 
-def test_copy_templates_path_traversal_guard(tmp_dir, template_dir, mocker):
+def test_copy_templates_path_traversal_guard(tmp_dir, template_dir, mocker, tmp_path):
     from goodvibes_cli.steps.copy_templates import copy_templates
     mocker.patch("goodvibes_cli.steps.copy_templates.merge_claude")
-    # Normal file in template should copy fine; no escape should occur
-    (template_dir / "safe.txt").write_text("ok")
+
+    # Create a file outside the template dir that a malicious symlink could point to
+    outside = tmp_path / "outside.txt"
+    outside.write_text("secret")
+
+    # Plant a symlink inside template_dir that escapes to outside
+    link = template_dir / "escape.txt"
+    link.symlink_to(outside)
+
     copy_templates(template_dir, tmp_dir)
-    # safe.txt copies, no path traversal exception, dest stays within tmp_dir
-    assert (tmp_dir / "safe.txt").exists()
-    # Verify no files escaped outside tmp_dir
-    for f in tmp_dir.rglob("*"):
-        assert str(f).startswith(str(tmp_dir))
+
+    # The symlink target must NOT appear in the destination
+    assert not (tmp_dir / "escape.txt").exists()
+    assert not (tmp_dir / "outside.txt").exists()
 
 
 def test_copy_templates_dry_run_returns_list_without_writing(tmp_dir, template_dir):
