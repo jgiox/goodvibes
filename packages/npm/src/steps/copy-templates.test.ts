@@ -195,10 +195,9 @@ describe('copyTemplates — ci.yml rename guard', () => {
     // Second run: must not overwrite the user's ci.yml
     const result = await copyTemplates(templateDir, tmpDir, false, false, 'node')
     expect(readFileSync(ciPath, 'utf-8')).toBe('# custom CI\n')
-    // ci.yml must appear in skipped (not re-written)
-    const ciSkipped = result.skipped.some(f => f.includes('ci.yml'))
-    const ciWritten = result.written.some(f => f.includes('ci.yml'))
-    expect(ciSkipped || !ciWritten).toBe(true)
+    // ci.yml must appear in skipped and must NOT appear in written
+    expect(result.skipped.some(f => f.includes('ci.yml'))).toBe(true)
+    expect(result.written.some(f => f.includes('ci.yml'))).toBe(false)
   })
 })
 
