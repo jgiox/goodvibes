@@ -106,15 +106,17 @@ def copy_templates(
 
     # Handle CLAUDE.md via sentinel merge
     claude_src = template_dir / "CLAUDE.md"
+    claude_merged = False
     if claude_src.exists():
         claude_dest = dest_dir / "CLAUDE.md"
         template_content = claude_src.read_text(encoding="utf-8")
         merge_claude(claude_dest, template_content)
+        claude_merged = True
 
     # Walk destDir so return shows ci.yml (not ci-node.yml) — per RESEARCH.md Pitfall 6
     all_dest = sorted(str(f.relative_to(dest_dir)) for f in dest_dir.rglob("*") if f.is_file())
     written = [f for f in all_dest if f not in skipped_files]
-    # CLAUDE.md always in written — sentinel merge runs regardless
-    if "CLAUDE.md" not in written:
+    # Only inject CLAUDE.md into written if sentinel merge actually ran
+    if claude_merged and "CLAUDE.md" not in written:
         written = ["CLAUDE.md"] + written
     return (sorted(written), sorted(skipped_files))

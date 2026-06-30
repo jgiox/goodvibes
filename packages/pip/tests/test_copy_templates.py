@@ -78,8 +78,9 @@ def test_copy_templates_handles_empty_template_dir(tmp_dir, tmp_path, mocker):
     empty.mkdir()
     # Empty template has no CLAUDE.md — merge_claude must not be called
     merge = mocker.patch("goodvibes_cli.steps.copy_templates.merge_claude")
-    copy_templates(empty, tmp_dir)
+    written, skipped = copy_templates(empty, tmp_dir)
     merge.assert_not_called()
+    assert "CLAUDE.md" not in written  # must not report fake success
 
 
 def test_copy_templates_github_workflows_copied_when_not_minimal(tmp_dir, template_dir, mocker):
