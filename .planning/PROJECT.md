@@ -87,6 +87,17 @@ Both paths inject:
 - [x] `--minimal` writes Cursor/Windsurf/Kiro rule files, skips Copilot instructions — Validated in Phase 08
 - [x] README documents all 5 supported IDEs with file paths and activation instructions — Validated in Phase 08
 
+### Validated in Phase 08 Extension (v1.4.0)
+- [x] `GEMINI.md` written for Google Antigravity IDE — Validated 2026-06-30
+- [x] `AGENTS.md` cross-tool file written — covers Zed, Aider, JetBrains Junie, and 10+ tools — Validated 2026-06-30
+- [x] `.clinerules/goodvibes.md` written for Cline VS Code extension — Validated 2026-06-30
+- [x] `.amazonq/rules/goodvibes.md` written for Amazon Q Developer — Validated 2026-06-30
+- [x] `.continue/rules/goodvibes.md` written for Continue.dev — Validated 2026-06-30
+- [x] `.devin/rules/goodvibes.md` written for Devin Desktop (Windsurf rebrand) — Validated 2026-06-30
+- [x] `goodvibes-hygiene/SKILL.md` setup section clarifies `/plugin marketplace` commands are Claude Code CLI terminal only — Validated 2026-06-30
+- [x] Cursor `alwaysApply` agent-mode bug documented in `docs/onboarding.md` — Validated 2026-06-30
+- [x] README IDE table lists all 10 supported IDEs/tools with file paths and activation — Validated 2026-06-30
+
 ### Out of Scope
 
 - Building a new LLM or agent framework — goodvibes wires together existing tools, it does not replace them

@@ -20,7 +20,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 5: Upgrade Command & Template Repo** - Implement `goodvibes upgrade` and publish the GitHub template repo as the click-to-fork entry point (completed 2026-06-25)
 - [x] **Phase 6: UX Hardening** - Harden both CLIs for existing projects, fix --minimal scope and --dry-run --minimal combination, and replace raw stack traces with plain-English remediation messages (completed 2026-06-26)
 - [x] **Phase 7: README & Demo** - Ship the hero README with badges and an animated demo GIF recorded against the hardened CLI output (completed 2026-06-27)
-- [x] **Phase 8: Multi-IDE Expansion** - Extend goodvibes to write rule files for the VS Code AI-coding ecosystem (Cursor, GitHub Copilot, Windsurf, Kiro) so the same one-command bootstrap works across all major AI-assisted IDEs (completed 2026-06-30)
+- [x] **Phase 8: Multi-IDE Expansion** - Extend goodvibes to write rule files for 10 AI coding IDEs and tools: Cursor, GitHub Copilot, Windsurf/Devin Desktop, Kiro, Antigravity, AGENTS.md (cross-tool), Cline, Amazon Q Developer, Continue.dev. Includes Cursor alwaysApply troubleshooting note. (completed 2026-06-30)
 
 ## Phase Details
 

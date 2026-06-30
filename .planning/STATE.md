@@ -3,11 +3,11 @@ gsd_state_version: 1.0
 milestone: v1.1.0
 milestone_name: Polish & Discoverability
 status: milestone_complete
-last_updated: 2026-06-30T08:07:44.965Z
-last_activity: 2026-06-30 -- Phase 08 execution started
+last_updated: 2026-06-30T09:00:00.000Z
+last_activity: 2026-06-30 -- Phase 08 extension complete (v1.4.0) — 10 IDEs now supported
 progress:
   total_phases: 8
-  completed_phases: 7
+  completed_phases: 8
   total_plans: 30
   completed_plans: 30
   percent: 88
@@ -104,14 +104,20 @@ Recent decisions affecting current work:
 
 ### Pending Todos
 
-None yet.
+None.
+
+### Quick Tasks Completed
+
+| Date | Slug | Summary |
+|------|------|---------|
+| 2026-06-30 | ponytail-ide-setup-fix | Clarified `/plugin marketplace` is Claude Code CLI only; added IDE callout to SKILL.md and README |
+| 2026-06-30 | antigravity-gemini-md | Added `GEMINI.md` template for Google Antigravity IDE |
+| 2026-06-30 | phase-8-extension | Added 5 IDE templates (AGENTS.md, Cline, Amazon Q, Continue.dev, Devin Desktop); updated README, onboarding |
+| 2026-06-30 | version-bump-1.4.0 | Bumped npm + pip to v1.4.0; synced prebuild; updated CHANGELOG, STATE, ROADMAP, PROJECT |
 
 ### Blockers/Concerns
 
-- headroom first-run latency unconfirmed: benchmark `uv tool install headroom-ai[all]` on cold cache before writing spinner UX copy in Phase 2
-- Windows Python detection edge case: `python` may open Microsoft Store on Windows 11 without Python; test explicitly in Phase 2
-- `headroom mcp install` idempotency not confirmed: must verify before Phase 2 headroom.ts implementation
-- stefanzweifel/git-auto-commit-action v5 pinning should be verified before use in vhs.yml (MEDIUM confidence from research)
+None outstanding. Previous blockers (headroom latency, Windows Python detection, MCP idempotency) were resolved in Phase 2/3 execution.
 
 ## Deferred Items
 
@@ -123,6 +129,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-06-27T05:32:20.151Z
-Stopped at: Phase 7 context gathered
+Last session: 2026-06-30
+Stopped at: Phase 8 extension complete — v1.4.0 ready to publish
 Resume file: .planning/phases/07-readme-demo/07-CONTEXT.md
