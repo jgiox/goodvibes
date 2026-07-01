@@ -506,3 +506,22 @@ principles as the other Phase 8 IDE rule files.
 **Tests run:** `npm test` — 98 passed. `uv run pytest tests/` — 102 passed.
 
 **Docs updated:** CLAUDE.md, templates/CLAUDE.md, templates/docs/onboarding.md, README.md, JOURNAL.md.
+
+---
+
+## 2026-07-01 — Phase 9 Plan 01: four vibe platform template files added
+
+**What I did:** Created four static template files for vibe-coding platform support. All are copied by existing `fs-extra copy` / `shutil.copytree` machinery on `goodvibes init` — no CLI code changes needed.
+
+- `templates/replit.md` — plain markdown (no frontmatter), Replit-native section headers, goodvibes engineering rules; includes note that Replit Agent may regenerate this file on first session
+- `templates/.bolt/prompt` — plain text only (no markdown syntax), same engineering rules for Bolt.new; lives in `.bolt/` subdirectory Bolt.new reads on project open
+- `templates/docs/platform-setup/chatgpt.md` — beginner guide to paste goodvibes rules into ChatGPT Projects custom instructions; includes step-by-step UI walkthrough and paste block
+- `templates/docs/platform-setup/base44.md` — beginner guide for Base44 AI controls; same structure as chatgpt.md, includes note about Base44 Skills feature being out of scope
+
+**Why:** Phase 9 expands goodvibes to cover vibe-coding platforms (Replit, Bolt.new) and UI-only AI tools (ChatGPT Projects, Base44) that have no file-based rule mechanism.
+
+**Files changed:** `templates/replit.md` (created), `templates/.bolt/prompt` (created), `templates/docs/platform-setup/chatgpt.md` (created), `templates/docs/platform-setup/base44.md` (created), `JOURNAL.md` (this entry).
+
+**Tests run:** File existence, frontmatter-free check, and character count verification — all pass. No unit tests required (static file content only; tests are in Plan 02).
+
+**Docs updated:** JOURNAL.md (this entry).
