@@ -570,7 +570,7 @@ program
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **`update` vs `upgrade`: alias or rename?**
    - What we know: Phase 10 ROADMAP says `goodvibes update`; REQUIREMENTS.md v2 item NPM-V2-01 says `goodvibes update`; Phase 5 shipped `goodvibes upgrade`.
