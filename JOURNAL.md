@@ -571,3 +571,17 @@ Docs updated: README.md (IDE table + count), CHANGELOG.md, JOURNAL.md
 **Tests run:** cd packages/npm && npm test — 116 passed. cd packages/pip && uv run pytest tests/ — 111 passed.
 
 **Docs updated:** JOURNAL.md
+
+---
+
+## 2026-07-01 — Phase 10 Plan 03: Vibe Coder Completeness — docs and version bump (v1.6.0)
+
+**What I did:** Authored `templates/docs/getting-started.md` (beginner flow guide, VCC-04) and five IDE platform-setup guides under `templates/docs/platform-setup/` for Cursor, Windsurf, Kiro, Replit Agent, and Bolt.new (VCC-06). Extended the `template_dir` fixture in `packages/pip/tests/conftest.py` to include `docs/getting-started.md` and `docs/platform-setup/cursor.md` stubs. Bumped both packages to v1.6.0 and updated CHANGELOG.md.
+
+**Files changed:** templates/docs/getting-started.md (new), templates/docs/platform-setup/cursor.md (new), templates/docs/platform-setup/windsurf.md (new), templates/docs/platform-setup/kiro.md (new), templates/docs/platform-setup/replit.md (new), templates/docs/platform-setup/bolt.md (new), packages/pip/tests/conftest.py, packages/npm/package.json, packages/pip/pyproject.toml, CHANGELOG.md
+
+**Why:** VCC-04: new users need a guided path from `goodvibes init` to their first commit. VCC-06: Cursor/Windsurf/Kiro read project rule files automatically; Replit and Bolt.new need the paste-in-system-prompt pattern because they do not read project files. Platform guides make this discoverable.
+
+**Tests run:** cd packages/npm && npm test — all passed. cd packages/pip && uv run pytest tests/ — all passed.
+
+**Docs updated:** CHANGELOG.md, JOURNAL.md, templates/docs/getting-started.md, templates/docs/platform-setup/*.md

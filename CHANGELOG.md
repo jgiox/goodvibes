@@ -6,6 +6,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/2.0.0/),
 
 ## [Unreleased]
 
+## [1.6.0] — 2026-07-01
+
+### Added
+
+- `goodvibes update` command — alias for `goodvibes upgrade` (VCC-01)
+- `goodvibes doctor` command — checks headroom, git identity, CLAUDE.md, and sentinel block; exits non-zero on any failure (VCC-02)
+- `goodvibes --version` now reads version from package.json dynamically (VCC-03)
+- `docs/getting-started.md` template — beginner flow guide from init to first commit (VCC-04)
+- Headroom install step now shows "what is headroom?" description and skips gracefully if already installed (VCC-05)
+- Platform setup guides for Cursor, Windsurf, Kiro, Replit Agent, and Bolt.new with ponytail activation instructions (VCC-06)
+
 ## [1.5.0] - 2026-07-01
 
 ### Added
