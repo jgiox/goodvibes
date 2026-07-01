@@ -29,6 +29,10 @@ def template_dir(tmp_path):
     docs = d / "docs"
     docs.mkdir()
     (docs / "onboarding.md").write_text("# Onboarding\n")
+    (docs / "getting-started.md").write_text("# Getting started\n")
+    platform_setup = docs / "platform-setup"
+    platform_setup.mkdir()
+    (platform_setup / "cursor.md").write_text("# Stub\n")
     # IDE rule file stubs (Phase 8 — IDE-01 through IDE-04)
     cursor_rules = d / ".cursor" / "rules"
     cursor_rules.mkdir(parents=True)
