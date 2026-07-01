@@ -22,7 +22,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 7: README & Demo** - Ship the hero README with badges and an animated demo GIF recorded against the hardened CLI output (completed 2026-06-27)
 - [x] **Phase 8: Multi-IDE Expansion** - Extend goodvibes to write rule files for 10 AI coding IDEs and tools: Cursor, GitHub Copilot, Windsurf/Devin Desktop, Kiro, Antigravity, AGENTS.md (cross-tool), Cline, Amazon Q Developer, Continue.dev. Includes Cursor alwaysApply troubleshooting note. (completed 2026-06-30)
 - [x] **Phase 9: OpenAI/Codex & Vibe-coding Platform Expansion** - Extend goodvibes to serve users of OpenAI Codex CLI, Replit Agent, Bolt.new, Lovable, ChatGPT Projects, and Base44. (completed 2026-07-01)
-- [ ] **Phase 10: Vibe Coder Completeness** - Ship the commands and guides that turn a successful `goodvibes init` into a complete, confident vibe-coding setup: `goodvibes update`, `goodvibes doctor`, `goodvibes --version`, headroom install transparency, newbie flow guide, and ponytail discipline guidance for non-Claude Code IDE users.
+- [x] **Phase 10: Vibe Coder Completeness** - Ship the commands and guides that turn a successful `goodvibes init` into a complete, confident vibe-coding setup: `goodvibes update`, `goodvibes doctor`, `goodvibes --version`, headroom install transparency, newbie flow guide, and ponytail discipline guidance for non-Claude Code IDE users. (completed 2026-07-01)
 
 ## Phase Details
 
@@ -283,7 +283,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 10-03-PLAN.md — Wave 2: Template docs (getting-started.md + 5 IDE ponytail guides) + CHANGELOG + JOURNAL + version bump to 1.6.0
+- [x] 10-03-PLAN.md — Wave 2: Template docs (getting-started.md + 5 IDE ponytail guides) + CHANGELOG + JOURNAL + version bump to 1.6.0
 
 **UI hint**: no
 
@@ -307,4 +307,4 @@ Phase 6 must complete before Phase 7 — the demo GIF must record the hardened C
 | 7. README & Demo | 3/3 | Complete    | 2026-06-29 |
 | 8. Multi-IDE Expansion | 3/3 | Complete    | 2026-06-30 |
 | 9. OpenAI/Codex & Vibe-coding Platform Expansion | 3/3 | Complete    | 2026-07-01 |
-| 10. Vibe Coder Completeness | 2/3 | In Progress|  |
+| 10. Vibe Coder Completeness | 3/3 | Complete   | 2026-07-01 |
