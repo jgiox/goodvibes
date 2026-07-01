@@ -80,8 +80,8 @@ goodvibes init --minimal    # Skip headroom install, all .github/ files, and doc
 | Cline | `.clinerules/goodvibes.md` | Any | Automatic — loaded for all Cline conversations |
 | Amazon Q Developer | `.amazonq/rules/goodvibes.md` | Any | Automatic — loaded as project rules in VS Code and JetBrains |
 | Continue.dev | `.continue/rules/goodvibes.md` | Any | Automatic — applied to all Continue requests |
-| OpenAI Codex CLI | `AGENTS.md` (already written) | Any | Automatic — Codex reads AGENTS.md from project root |
-| Lovable | `AGENTS.md` + `CLAUDE.md` (already written) | Any | Automatic — Lovable reads both from repo root |
+| OpenAI Codex CLI | `AGENTS.md` | Any | Automatic — Codex reads AGENTS.md from project root |
+| Lovable | `AGENTS.md` + `CLAUDE.md` | Any | Automatic — Lovable reads both from repo root |
 | Replit Agent | `replit.md` | Any | Automatic — Replit Agent reads replit.md from project root |
 | Bolt.new | `.bolt/prompt` | Any | Automatic — read when project is opened in Bolt |
 
