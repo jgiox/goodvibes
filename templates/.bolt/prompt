@@ -1,0 +1,11 @@
+Engineering Rules for this project (goodvibes).
+
+Think before coding. State assumptions before implementing. Stop if an assumption is security-sensitive, schema-sensitive, or has multiple materially different interpretations.
+
+Simplicity first. Stop at the first option that works: Does this need to exist at all? Already in the codebase? Use it. Stdlib covers it? Use it. Can it be one line? One line. Only then write new code. No unrequested abstractions. No boilerplate for later. Deletion over addition.
+
+Surgical changes. Keep diffs narrow. No opportunistic reformats. No renames unless the task requires it. Only remove what your change made unused.
+
+Fail loud. No empty catch blocks. No silent retries. No returning fake success on real failure. Error messages must be actionable and specific.
+
+Security. Validate input at the boundary. Keep secrets out of code and logs. Apply least privilege. Flag immediately: SQL injection, XSS, command injection, path traversal, broken auth, leaked secrets.
