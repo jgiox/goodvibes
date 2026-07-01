@@ -27,7 +27,7 @@ goodvibes init
 `goodvibes init` sets up five things in your project:
 
 1. **CLAUDE.md** — Engineering rules that Claude reads automatically on every session: think before coding, simplicity first, fail loud, keep a journal, update tests
-2. **IDE rule files** — The same rules, adapted for your AI coding tool. Supports 10 IDEs out of the box: Claude Code, Cursor, GitHub Copilot, Windsurf, Devin Desktop, Kiro, Antigravity, Cline, Amazon Q, and Continue.dev — plus `AGENTS.md` for Zed, Aider, JetBrains, and more
+2. **IDE rule files** — The same rules, adapted for your AI coding tool. Supports 14 AI coding tools out of the box: Claude Code, Cursor, GitHub Copilot, Windsurf, Devin Desktop, Kiro, Antigravity, Cline, Amazon Q, Continue.dev, OpenAI Codex CLI, Lovable, Replit Agent, and Bolt.new
 3. **caveman skill** — Compresses Claude's output so you get more done per context window
 4. **ponytail rules** — Keeps code minimal; no over-engineering
 5. **headroom** — Compresses what Claude reads, so context lasts longer (requires Python 3.10+; skipped gracefully if absent)
@@ -41,7 +41,7 @@ goodvibes init --dry-run    # Preview files without writing anything
 goodvibes init --minimal    # Skip headroom install, all .github/ files, and docs/
 ```
 
-`--minimal` skips: `.github/` (workflows, issue templates, PR template, dependabot, Copilot instructions) and `docs/`. All IDE rule files (Cursor, Windsurf, Devin Desktop, Kiro, Antigravity, AGENTS.md, Cline, Amazon Q, Continue.dev) are written by `--minimal` — they are AI configuration, not scaffolding.
+`--minimal` skips: `.github/` (workflows, issue templates, PR template, dependabot, Copilot instructions) and `docs/`. All IDE rule files (Cursor, Windsurf, Devin Desktop, Kiro, Antigravity, AGENTS.md, Cline, Amazon Q, Continue.dev, replit.md, .bolt/prompt) are written by `--minimal` — they are AI configuration, not scaffolding.
 
 ## What you need first
 
@@ -80,6 +80,10 @@ goodvibes init --minimal    # Skip headroom install, all .github/ files, and doc
 | Cline | `.clinerules/goodvibes.md` | Any | Automatic — loaded for all Cline conversations |
 | Amazon Q Developer | `.amazonq/rules/goodvibes.md` | Any | Automatic — loaded as project rules in VS Code and JetBrains |
 | Continue.dev | `.continue/rules/goodvibes.md` | Any | Automatic — applied to all Continue requests |
+| OpenAI Codex CLI | `AGENTS.md` (already written) | Any | Automatic — Codex reads AGENTS.md from project root |
+| Lovable | `AGENTS.md` + `CLAUDE.md` (already written) | Any | Automatic — Lovable reads both from repo root |
+| Replit Agent | `replit.md` | Any | Automatic — Replit Agent reads replit.md from project root |
+| Bolt.new | `.bolt/prompt` | Any | Automatic — read when project is opened in Bolt |
 
 **Note for GitHub Copilot users:** If instructions do not activate, check that the VS Code setting `github.copilot.chat.codeGeneration.useInstructionFiles` is enabled (it is on by default in recent versions).
 
