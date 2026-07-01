@@ -52,6 +52,10 @@ def template_dir(tmp_path):
     kiro_steering = d / ".kiro" / "steering"
     kiro_steering.mkdir(parents=True)
     (kiro_steering / "goodvibes.md").write_text("---\ninclusion: always\n---\n# Rules\n")
+    (d / "replit.md").write_text("## Project\n")
+    bolt_dir = d / ".bolt"
+    bolt_dir.mkdir()
+    (bolt_dir / "prompt").write_text("Engineering rules\n")
     return d
 
 

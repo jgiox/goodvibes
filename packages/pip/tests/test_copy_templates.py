@@ -416,3 +416,53 @@ def test_copy_templates_skips_all_workflow_files_when_dest_already_has_ci(tmp_di
     assert not (workflows_dir / "ci.yml").exists()
     # Original must be untouched
     assert (workflows_dir / "codeql.yml").read_text() == "# existing CodeQL\n"
+
+
+# --- Vibe platform template tests (Phase 9 — VPE-01 through VPE-06) ---
+
+def test_copy_templates_writes_replit_md_on_fresh_init(tmp_dir, template_dir, mocker):
+    from goodvibes_cli.steps.copy_templates import copy_templates
+    mocker.patch("goodvibes_cli.steps.copy_templates.merge_claude")
+    copy_templates(template_dir, tmp_dir)
+    assert (tmp_dir / "replit.md").exists()
+
+
+def test_copy_templates_skips_existing_replit_md_and_counts_as_skipped(tmp_dir, template_dir, mocker):
+    from goodvibes_cli.steps.copy_templates import copy_templates
+    mocker.patch("goodvibes_cli.steps.copy_templates.merge_claude")
+    (tmp_dir / "replit.md").write_text("# custom\n")
+    _, skipped = copy_templates(template_dir, tmp_dir)
+    assert (tmp_dir / "replit.md").read_text() == "# custom\n"
+    assert any("replit.md" in s for s in skipped)
+
+
+def test_copy_templates_minimal_writes_replit_md(tmp_dir, template_dir, mocker):
+    from goodvibes_cli.steps.copy_templates import copy_templates
+    mocker.patch("goodvibes_cli.steps.copy_templates.merge_claude")
+    copy_templates(template_dir, tmp_dir, minimal=True)
+    assert (tmp_dir / "replit.md").exists()
+
+
+def test_copy_templates_writes_bolt_prompt_on_fresh_init(tmp_dir, template_dir, mocker):
+    from goodvibes_cli.steps.copy_templates import copy_templates
+    mocker.patch("goodvibes_cli.steps.copy_templates.merge_claude")
+    copy_templates(template_dir, tmp_dir)
+    assert (tmp_dir / ".bolt" / "prompt").exists()
+
+
+def test_copy_templates_skips_existing_bolt_prompt_and_counts_as_skipped(tmp_dir, template_dir, mocker):
+    from goodvibes_cli.steps.copy_templates import copy_templates
+    mocker.patch("goodvibes_cli.steps.copy_templates.merge_claude")
+    bolt_dir = tmp_dir / ".bolt"
+    bolt_dir.mkdir()
+    (bolt_dir / "prompt").write_text("# custom\n")
+    _, skipped = copy_templates(template_dir, tmp_dir)
+    assert (bolt_dir / "prompt").read_text() == "# custom\n"
+    assert any(".bolt" in s for s in skipped)
+
+
+def test_copy_templates_minimal_writes_bolt_prompt(tmp_dir, template_dir, mocker):
+    from goodvibes_cli.steps.copy_templates import copy_templates
+    mocker.patch("goodvibes_cli.steps.copy_templates.merge_claude")
+    copy_templates(template_dir, tmp_dir, minimal=True)
+    assert (tmp_dir / ".bolt" / "prompt").exists()
