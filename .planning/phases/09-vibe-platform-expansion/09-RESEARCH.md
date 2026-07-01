@@ -477,7 +477,7 @@ No new threat surface introduced. The two new files are static authored content,
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Is `.bolt/prompt` or `.bolt/promptfile` the correct file name?**
    - What we know: Multiple community sources use both names; official Bolt docs describe UI-based Knowledge but mention `.bolt/promptfile` in the prompting guide.
