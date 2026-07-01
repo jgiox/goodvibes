@@ -72,6 +72,15 @@ def test_minimal_skips_headroom(mocker):
     assert mock_headroom.call_count == 0
 
 
+def test_version_output_includes_installed_version():
+    import importlib.metadata
+    version = importlib.metadata.version("jgiox-goodvibes")
+    result = runner.invoke(app, ["--version"])
+    assert result.exit_code == 0
+    assert version in result.output
+    assert "1.0.0" not in result.output
+
+
 def test_next_steps_in_output(mocker):
     mocker.patch("goodvibes_cli.commands.init_cmd.copy_templates", return_value=(["CLAUDE.md"], []))
     mocker.patch("goodvibes_cli.commands.init_cmd.resolve_templates_dir", return_value=None)

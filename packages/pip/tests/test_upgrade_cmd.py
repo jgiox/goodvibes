@@ -97,6 +97,11 @@ def test_self_update_triggers_when_newer_version_available(mocker):
     assert "1.0.1" in result.output
 
 
+def test_update_alias_is_registered_in_app():
+    from goodvibes_cli.main import app
+    assert any(c.name == "update" for c in app.registered_commands)
+
+
 def test_self_update_skipped_when_env_set(mocker):
     mocker.patch("goodvibes_cli.commands.upgrade_cmd._get_package_version", return_value="1.0.0")
     mocker.patch("goodvibes_cli.commands.upgrade_cmd._check_pypi_version", return_value="1.0.1")
