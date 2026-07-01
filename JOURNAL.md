@@ -543,3 +543,17 @@ Tests run: cd packages/pip && uv run pytest tests/ (all passing)
            cd packages/npm && npm run test:integration (all passing)
 
 Docs updated: README.md (IDE table + count), CHANGELOG.md, JOURNAL.md
+
+---
+
+## 2026-07-01 — Phase 10 Plan 01: Vibe Coder Completeness — CLI gaps (VCC-01..03, VCC-05)
+
+**What I did:** Wired `goodvibes update` alias, fixed `--version` hardcoded string, added `goodvibes doctor` command, and added headroom install transparency (description log + idempotency probe) in both npm (TypeScript) and pip (Python) CLIs.
+
+**Files changed:** packages/npm/src/index.ts, packages/npm/src/commands/upgrade.ts, packages/npm/src/commands/doctor.ts (new), packages/npm/src/steps/install-headroom.ts, packages/npm/src/commands/doctor.test.ts (new), packages/npm/src/steps/install-headroom.test.ts; packages/pip/src/goodvibes_cli/main.py, packages/pip/src/goodvibes_cli/commands/doctor_cmd.py (new), packages/pip/src/goodvibes_cli/steps/install_headroom.py, packages/pip/tests/test_install_headroom.py
+
+**Why:** VCC-01: `goodvibes update` was undiscoverable without an alias. VCC-02: `--version` was hardcoded as '1.0.0' instead of reading from package.json. VCC-03: no `doctor` command existed to diagnose setup issues. VCC-05: headroom install gave no feedback about what it was doing or whether it was already installed.
+
+**Tests run:** cd packages/npm && npm test — 116 passed. cd packages/pip && uv run pytest tests/ — 111 passed.
+
+**Docs updated:** JOURNAL.md
