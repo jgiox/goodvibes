@@ -546,6 +546,20 @@ Docs updated: README.md (IDE table + count), CHANGELOG.md, JOURNAL.md
 
 ---
 
+## 2026-07-01 — Phase 10 Plan 02: Vibe Coder Completeness — unit test coverage
+
+**What I did:** Added Phase 10 unit tests covering VCC-01 through VCC-05 behavior: alias test in upgrade.test.ts, version test in index.test.ts, 11-test doctor suite in test_doctor_cmd.py, alias test in test_upgrade_cmd.py, and version test in test_main.py.
+
+**Files changed:** packages/npm/src/commands/upgrade.test.ts, packages/npm/src/index.test.ts, packages/pip/tests/test_doctor_cmd.py (new), packages/pip/tests/test_upgrade_cmd.py, packages/pip/tests/test_main.py
+
+**Why:** VCC requirements need automated regression coverage so future changes can't silently break alias routing, version display, or doctor checks.
+
+**Tests run:** cd packages/npm && npm test — 117 passed, 1 skipped. cd packages/pip && uv run pytest tests/ — 124 passed.
+
+**Docs updated:** JOURNAL.md
+
+---
+
 ## 2026-07-01 — Phase 10 Plan 01: Vibe Coder Completeness — CLI gaps (VCC-01..03, VCC-05)
 
 **What I did:** Wired `goodvibes update` alias, fixed `--version` hardcoded string, added `goodvibes doctor` command, and added headroom install transparency (description log + idempotency probe) in both npm (TypeScript) and pip (Python) CLIs.

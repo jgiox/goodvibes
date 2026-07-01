@@ -279,7 +279,7 @@ Plans:
 **Wave 1** *(parallel — no file conflicts)*
 
 - [x] 10-01-PLAN.md — Wave 1a: CLI code changes — update alias, doctor command, --version fix, headroom transparency (npm + pip)
-- [ ] 10-02-PLAN.md — Wave 1b: Unit tests for all VCC-01/02/03/05 behaviors (npm + pip)
+- [x] 10-02-PLAN.md — Wave 1b: Unit tests for all VCC-01/02/03/05 behaviors (npm + pip)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -307,4 +307,4 @@ Phase 6 must complete before Phase 7 — the demo GIF must record the hardened C
 | 7. README & Demo | 3/3 | Complete    | 2026-06-29 |
 | 8. Multi-IDE Expansion | 3/3 | Complete    | 2026-06-30 |
 | 9. OpenAI/Codex & Vibe-coding Platform Expansion | 3/3 | Complete    | 2026-07-01 |
-| 10. Vibe Coder Completeness | 1/3 | In Progress|  |
+| 10. Vibe Coder Completeness | 2/3 | In Progress|  |
