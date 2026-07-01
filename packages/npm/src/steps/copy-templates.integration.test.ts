@@ -405,6 +405,43 @@ describe('copyTemplates — IDE rule files', () => {
     await copyTemplates(templateDir, tmpDir, false, true)
     expect(existsSync(join(tmpDir, '.devin', 'rules', 'goodvibes.md'))).toBe(true)
   })
+
+  it('writes replit.md on fresh init (VPE-01)', async () => {
+    const { written } = await copyTemplates(templateDir, tmpDir, false, false)
+    expect(existsSync(join(tmpDir, 'replit.md'))).toBe(true)
+    expect(written.some((f: string) => f.includes('replit.md'))).toBe(true)
+  })
+
+  it('skips existing replit.md and counts it as skipped (VPE-02)', async () => {
+    writeFileSync(join(tmpDir, 'replit.md'), '# custom\n')
+    const { skipped } = await copyTemplates(templateDir, tmpDir, false, false)
+    expect(readFileSync(join(tmpDir, 'replit.md'), 'utf8')).toBe('# custom\n')
+    expect(skipped.some((f: string) => f.includes('replit.md'))).toBe(true)
+  })
+
+  it('writes replit.md under --minimal (VPE-03)', async () => {
+    await copyTemplates(templateDir, tmpDir, false, true)
+    expect(existsSync(join(tmpDir, 'replit.md'))).toBe(true)
+  })
+
+  it('writes .bolt/prompt on fresh init (VPE-04)', async () => {
+    const { written } = await copyTemplates(templateDir, tmpDir, false, false)
+    expect(existsSync(join(tmpDir, '.bolt', 'prompt'))).toBe(true)
+    expect(written.some((f: string) => f.includes('.bolt'))).toBe(true)
+  })
+
+  it('skips existing .bolt/prompt and counts it as skipped (VPE-05)', async () => {
+    mkdirSync(join(tmpDir, '.bolt'), { recursive: true })
+    writeFileSync(join(tmpDir, '.bolt', 'prompt'), 'custom\n')
+    const { skipped } = await copyTemplates(templateDir, tmpDir, false, false)
+    expect(readFileSync(join(tmpDir, '.bolt', 'prompt'), 'utf8')).toBe('custom\n')
+    expect(skipped.some((f: string) => f.includes('.bolt'))).toBe(true)
+  })
+
+  it('writes .bolt/prompt under --minimal (VPE-06)', async () => {
+    await copyTemplates(templateDir, tmpDir, false, true)
+    expect(existsSync(join(tmpDir, '.bolt', 'prompt'))).toBe(true)
+  })
 })
 
 describe('copyTemplates — workflow conflict guard', () => {
