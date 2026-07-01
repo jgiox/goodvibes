@@ -525,3 +525,21 @@ principles as the other Phase 8 IDE rule files.
 **Tests run:** File existence, frontmatter-free check, and character count verification — all pass. No unit tests required (static file content only; tests are in Plan 02).
 
 **Docs updated:** JOURNAL.md (this entry).
+
+---
+
+## 2026-07-01 — Phase 9: Vibe Platform Expansion (v1.5.0)
+
+Added two new template files (replit.md, .bolt/prompt) and two platform setup guides
+(docs/platform-setup/chatgpt.md, docs/platform-setup/base44.md). Updated README IDE
+compatibility table to cover Codex CLI, Lovable, Replit Agent, and Bolt.new.
+No CLI code changes — copy machinery picks up new template files automatically.
+
+Files changed: templates/replit.md (new), templates/.bolt/prompt (new),
+templates/docs/platform-setup/chatgpt.md (new), templates/docs/platform-setup/base44.md (new),
+README.md, CHANGELOG.md, packages/npm/package.json, packages/pip/pyproject.toml, templates/CLAUDE.md
+
+Tests run: cd packages/pip && uv run pytest tests/ (all passing)
+           cd packages/npm && npm run test:integration (all passing)
+
+Docs updated: README.md (IDE table + count), CHANGELOG.md, JOURNAL.md

@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/2.0.0/),
 
 ## [Unreleased]
 
+## [1.5.0] - 2026-07-01
+
+### Added
+
+- `replit.md` — Replit Agent reads this from project root automatically; encodes goodvibes engineering rules
+- `.bolt/prompt` — Bolt.new reads this when the project opens; encodes the same rules in plain text
+- `docs/platform-setup/chatgpt.md` — beginner guide for pasting goodvibes rules into ChatGPT Projects custom instructions
+- `docs/platform-setup/base44.md` — beginner guide for Base44 AI controls
+- README IDE compatibility table: added Codex CLI, Lovable, Replit Agent, Bolt.new
+
 ## [1.4.0] - 2026-06-30
 
 ### Added
@@ -75,3 +85,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/2.0.0/),
 - `docs/onboarding.md` — git and GitHub basics for complete beginners
 - `Apache-2.0` LICENSE and NOTICE file
 - `goodvibes upgrade` command and GitHub template repo (`jgiox/goodvibes-template`)
+
+[1.5.0]: https://github.com/jgiox/goodvibes/compare/v1.4.0...v1.5.0
+[1.4.0]: https://github.com/jgiox/goodvibes/compare/v1.3.0...v1.4.0
+[1.3.0]: https://github.com/jgiox/goodvibes/compare/v1.2.0...v1.3.0
+[1.2.0]: https://github.com/jgiox/goodvibes/compare/v1.1.0...v1.2.0
+[1.1.0]: https://github.com/jgiox/goodvibes/compare/v1.0.0...v1.1.0
+[1.0.0]: https://github.com/jgiox/goodvibes/releases/tag/v1.0.0
