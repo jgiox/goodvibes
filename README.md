@@ -91,7 +91,13 @@ goodvibes init --minimal    # Skip headroom install, all .github/ files, and doc
 
 ## Docs
 
+- [docs/getting-started.md](docs/getting-started.md) — first steps after `goodvibes init`
 - [docs/onboarding.md](docs/onboarding.md) — git and GitHub basics for complete beginners
+- [docs/platform-setup/cursor.md](docs/platform-setup/cursor.md) — Cursor ponytail setup
+- [docs/platform-setup/windsurf.md](docs/platform-setup/windsurf.md) — Windsurf ponytail setup
+- [docs/platform-setup/kiro.md](docs/platform-setup/kiro.md) — Kiro ponytail setup
+- [docs/platform-setup/replit.md](docs/platform-setup/replit.md) — Replit Agent setup
+- [docs/platform-setup/bolt.md](docs/platform-setup/bolt.md) — Bolt.new setup
 - [CONTRIBUTING.md](CONTRIBUTING.md) — how to contribute
 - [SECURITY.md](SECURITY.md) — reporting vulnerabilities
 - [CHANGELOG.md](CHANGELOG.md) — what changed in each release
