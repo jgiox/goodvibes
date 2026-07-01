@@ -21,6 +21,8 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 6: UX Hardening** - Harden both CLIs for existing projects, fix --minimal scope and --dry-run --minimal combination, and replace raw stack traces with plain-English remediation messages (completed 2026-06-26)
 - [x] **Phase 7: README & Demo** - Ship the hero README with badges and an animated demo GIF recorded against the hardened CLI output (completed 2026-06-27)
 - [x] **Phase 8: Multi-IDE Expansion** - Extend goodvibes to write rule files for 10 AI coding IDEs and tools: Cursor, GitHub Copilot, Windsurf/Devin Desktop, Kiro, Antigravity, AGENTS.md (cross-tool), Cline, Amazon Q Developer, Continue.dev. Includes Cursor alwaysApply troubleshooting note. (completed 2026-06-30)
+- [x] **Phase 9: OpenAI/Codex & Vibe-coding Platform Expansion** - Extend goodvibes to serve users of OpenAI Codex CLI, Replit Agent, Bolt.new, Lovable, ChatGPT Projects, and Base44. (completed 2026-07-01)
+- [ ] **Phase 10: Vibe Coder Completeness** - Ship the commands and guides that turn a successful `goodvibes init` into a complete, confident vibe-coding setup: `goodvibes update`, `goodvibes doctor`, `goodvibes --version`, headroom install transparency, newbie flow guide, and ponytail discipline guidance for non-Claude Code IDE users.
 
 ## Phase Details
 
@@ -258,10 +260,37 @@ Plans:
 
 **UI hint**: no
 
+### Phase 10: Vibe Coder Completeness
+
+**Goal**: Ship the commands and guides that turn a successful `goodvibes init` into a complete, confident vibe-coding setup — `goodvibes update`, `goodvibes doctor`, `goodvibes --version`, headroom install transparency, a newbie "what now?" flow guide, and ponytail audit guidance for non-Claude Code IDE users
+**Depends on**: Phase 9
+**Requirements**: VCC-01, VCC-02, VCC-03, VCC-04, VCC-05, VCC-06
+**Success Criteria** (what must be TRUE):
+
+  1. `goodvibes update` re-runs the sentinel merge and copies updated template files into an existing project without overwriting user edits outside sentinel blocks; skipped on first-run directories
+  2. `goodvibes doctor` prints a pass/fail checklist — headroom installed, git configured, CLAUDE.md present, sentinel block intact — with plain-English remediation for each failure, and exits non-zero when any check fails
+  3. `goodvibes --version` prints the installed package version and exits 0
+  4. `docs/getting-started.md` walks a complete beginner from "I just ran init" through their first vibe-coded feature — understand the rules, make a change, commit, push — completable in under 5 minutes
+  5. The headroom install step shows explicit status (installing / already installed / skipped — Python not found) and a one-sentence explanation of what headroom does, so beginners are never confused about the silent step
+  6. Non-Claude Code IDE users (Cursor, Windsurf, Replit, Bolt.new, etc.) get a "what do I do now?" section in their platform setup guide explaining how to apply ponytail discipline manually when Claude Code skills are unavailable
+
+**Plans**: 3 plans
+
+**Wave 1** *(parallel — no file conflicts)*
+
+- [ ] 10-01-PLAN.md — Wave 1a: CLI code changes — update alias, doctor command, --version fix, headroom transparency (npm + pip)
+- [ ] 10-02-PLAN.md — Wave 1b: Unit tests for all VCC-01/02/03/05 behaviors (npm + pip)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 10-03-PLAN.md — Wave 2: Template docs (getting-started.md + 5 IDE ponytail guides) + CHANGELOG + JOURNAL + version bump to 1.6.0
+
+**UI hint**: no
+
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
+Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9 → 10
 
 Note: Phase 3 (pip CLI) and Phase 4 (CI scaffolding) have no dependency on each other and can be parallelized if two implementers are available. Both depend only on Phase 2.
 
@@ -278,3 +307,4 @@ Phase 6 must complete before Phase 7 — the demo GIF must record the hardened C
 | 7. README & Demo | 3/3 | Complete    | 2026-06-29 |
 | 8. Multi-IDE Expansion | 3/3 | Complete    | 2026-06-30 |
 | 9. OpenAI/Codex & Vibe-coding Platform Expansion | 3/3 | Complete    | 2026-07-01 |
+| 10. Vibe Coder Completeness | 0/3 | Pending | — |
