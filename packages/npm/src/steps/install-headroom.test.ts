@@ -38,7 +38,11 @@ describe('installHeadroom', () => {
     vi.mocked(detectPython).mockResolvedValueOnce('python3')
 
     const { execa } = await import('execa')
-    vi.mocked(execa).mockResolvedValueOnce({ exitCode: 0 } as any)
+    const enoentError = new Error('ENOENT')
+    ;(enoentError as any).code = 'ENOENT'
+    vi.mocked(execa)
+      .mockRejectedValueOnce(enoentError) // idempotency probe ENOENT — not installed yet
+      .mockResolvedValueOnce({ exitCode: 0 } as any) // uv succeeds
 
     const { installHeadroom } = await import('./install-headroom.js')
     const log = vi.fn()
@@ -55,6 +59,7 @@ describe('installHeadroom', () => {
     const enoentError = new Error('ENOENT')
     ;(enoentError as any).code = 'ENOENT'
     vi.mocked(execa)
+      .mockRejectedValueOnce(enoentError)  // idempotency probe ENOENT
       .mockRejectedValueOnce(enoentError)  // uv ENOENT
       .mockResolvedValueOnce({ exitCode: 0 } as any)  // pipx succeeds
 
@@ -62,8 +67,8 @@ describe('installHeadroom', () => {
     const log = vi.fn()
     await installHeadroom(log)
 
-    expect(vi.mocked(execa)).toHaveBeenNthCalledWith(1, 'uv', ['tool', 'install', 'headroom-ai[all]'])
-    expect(vi.mocked(execa)).toHaveBeenNthCalledWith(2, 'pipx', ['install', 'headroom-ai[all]'])
+    expect(vi.mocked(execa)).toHaveBeenNthCalledWith(2, 'uv', ['tool', 'install', 'headroom-ai[all]'])
+    expect(vi.mocked(execa)).toHaveBeenNthCalledWith(3, 'pipx', ['install', 'headroom-ai[all]'])
   })
 
   it('falls back to pip --user when uv and pipx are ENOENT', async () => {
@@ -74,6 +79,7 @@ describe('installHeadroom', () => {
     const enoentError = new Error('ENOENT')
     ;(enoentError as any).code = 'ENOENT'
     vi.mocked(execa)
+      .mockRejectedValueOnce(enoentError)  // idempotency probe ENOENT
       .mockRejectedValueOnce(enoentError)  // uv ENOENT
       .mockRejectedValueOnce(enoentError)  // pipx ENOENT
       .mockResolvedValueOnce({ exitCode: 0 } as any)  // pip succeeds
@@ -82,7 +88,7 @@ describe('installHeadroom', () => {
     const log = vi.fn()
     await installHeadroom(log)
 
-    expect(vi.mocked(execa)).toHaveBeenNthCalledWith(3, 'python3', ['-m', 'pip', 'install', '--user', 'headroom-ai[all]'])
+    expect(vi.mocked(execa)).toHaveBeenNthCalledWith(4, 'python3', ['-m', 'pip', 'install', '--user', 'headroom-ai[all]'])
   })
 
   it('prints ONNX model warning before running the install subprocess', async () => {
@@ -91,20 +97,24 @@ describe('installHeadroom', () => {
 
     const { execa } = await import('execa')
     const logCalls: string[] = []
-    let execaCalled = false
+    let uvInstallCalled = false
+    const enoentError = new Error('ENOENT')
+    ;(enoentError as any).code = 'ENOENT'
 
-    vi.mocked(execa).mockImplementationOnce(async (..._args: any[]) => {
-      // Verify warning was already logged before install runs
-      expect(logCalls.some(msg => msg.includes('model') && msg.includes('minutes'))).toBe(true)
-      execaCalled = true
-      return { exitCode: 0 } as any
-    })
+    vi.mocked(execa)
+      .mockRejectedValueOnce(enoentError) // idempotency probe ENOENT
+      .mockImplementationOnce(async (..._args: any[]) => {
+        // Verify ONNX warning was logged before uv install runs
+        expect(logCalls.some(msg => msg.includes('model') && msg.includes('minutes'))).toBe(true)
+        uvInstallCalled = true
+        return { exitCode: 0 } as any
+      })
 
     const { installHeadroom } = await import('./install-headroom.js')
     const log = vi.fn((msg: string) => { logCalls.push(msg) })
     await installHeadroom(log)
 
-    expect(execaCalled).toBe(true)
+    expect(uvInstallCalled).toBe(true)
     expect(logCalls.some(msg => msg.includes('model'))).toBe(true)
     expect(logCalls.some(msg => msg.includes('minutes'))).toBe(true)
   })
@@ -117,13 +127,57 @@ describe('installHeadroom', () => {
     const enoentError = new Error('ENOENT')
     ;(enoentError as any).code = 'ENOENT'
     vi.mocked(execa)
-      .mockRejectedValueOnce(enoentError)
-      .mockRejectedValueOnce(enoentError)
-      .mockRejectedValueOnce(enoentError)
+      .mockRejectedValueOnce(enoentError)  // idempotency probe ENOENT — headroom not found
+      .mockRejectedValueOnce(enoentError)  // uv ENOENT
+      .mockRejectedValueOnce(enoentError)  // pipx ENOENT
+      .mockRejectedValueOnce(enoentError)  // pip ENOENT
 
     const { installHeadroom } = await import('./install-headroom.js')
     const log = vi.fn()
     await expect(installHeadroom(log)).resolves.toBeUndefined()
     expect(log).toHaveBeenCalledWith(expect.stringMatching(/no.*installer|installer.*not.*found|uv.*pipx.*pip/i))
+  })
+
+  it('logs description before any subprocess call', async () => {
+    const { detectPython } = await import('../utils/detect-python.js')
+    vi.mocked(detectPython).mockResolvedValueOnce('python3')
+
+    const { execa } = await import('execa')
+    const logCalls: string[] = []
+    const enoentError = new Error('ENOENT')
+    ;(enoentError as any).code = 'ENOENT'
+
+    // First call is the idempotency probe — ENOENT means not installed yet
+    vi.mocked(execa)
+      .mockRejectedValueOnce(enoentError) // probe ENOENT → fall through
+      .mockImplementationOnce(async (..._args: any[]) => {
+        // Description must have been logged BEFORE this install call
+        expect(logCalls.some(msg => msg.includes('headroom compresses'))).toBe(true)
+        return { exitCode: 0 } as any
+      })
+
+    const { installHeadroom } = await import('./install-headroom.js')
+    const log = vi.fn((msg: string) => { logCalls.push(msg) })
+    await installHeadroom(log)
+
+    expect(logCalls.some(msg => msg.includes('headroom compresses'))).toBe(true)
+  })
+
+  it('logs already installed message and skips installer when headroom is on PATH', async () => {
+    const { detectPython } = await import('../utils/detect-python.js')
+    vi.mocked(detectPython).mockResolvedValueOnce('python3')
+
+    const { execa } = await import('execa')
+    // Idempotency probe succeeds — headroom already installed
+    vi.mocked(execa).mockResolvedValueOnce({ stdout: '1.0.0' } as any)
+
+    const { installHeadroom } = await import('./install-headroom.js')
+    const log = vi.fn()
+    await installHeadroom(log)
+
+    expect(log).toHaveBeenCalledWith(expect.stringContaining('already installed'))
+    // Only the probe call — no installer should be called
+    expect(vi.mocked(execa)).toHaveBeenCalledTimes(1)
+    expect(vi.mocked(execa)).toHaveBeenCalledWith('headroom', ['--version'])
   })
 })
