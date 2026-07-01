@@ -241,6 +241,23 @@ Plans:
 
 **UI hint**: no
 
+### Phase 9: OpenAI/Codex & Vibe-coding Platform Expansion
+
+**Goal**: Extend goodvibes to serve users of OpenAI Codex CLI, ChatGPT-based workflows, and the leading vibe-coding platforms (Lovable, Replit, Base44) — writing platform-native rule files where the platform supports them, and providing clear integration guides where it does not
+**Depends on**: Phase 8 (multi-IDE rule file infrastructure)
+**Requirements**: TBD — derived during planning
+**Success Criteria** (what must be TRUE):
+
+  1. Users running `goodvibes init` get rule files or integration artifacts for Codex CLI, Lovable, Replit, and Base44 where the platform supports file-based rules
+  2. Platforms that don't support file injection have a documented one-time setup path (copy-paste system prompt, API/webhook integration, or configuration file) included in `docs/`
+  3. README IDE compatibility table is updated with all newly supported platforms and the activation method for each
+  4. All new template files are covered by tests in both the npm and pip suites
+  5. A beginner vibe-coder landing on any of these platforms can follow the goodvibes setup path in under 5 minutes without leaving their platform
+
+**Plans**: TBD
+
+**UI hint**: no
+
 ## Progress
 
 **Execution Order:**
@@ -260,3 +277,4 @@ Phase 6 must complete before Phase 7 — the demo GIF must record the hardened C
 | 6. UX Hardening | 3/3 | Complete    | 2026-06-27 |
 | 7. README & Demo | 3/3 | Complete    | 2026-06-29 |
 | 8. Multi-IDE Expansion | 3/3 | Complete    | 2026-06-30 |
+| 9. OpenAI/Codex & Vibe-coding Platform Expansion | 2/3 | In Progress|  |
