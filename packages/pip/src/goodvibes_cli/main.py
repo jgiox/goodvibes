@@ -2,6 +2,7 @@ import importlib.metadata
 
 import typer
 
+from goodvibes_cli.commands.doctor_cmd import doctor_cmd
 from goodvibes_cli.commands.init_cmd import init_cmd
 from goodvibes_cli.commands.upgrade_cmd import upgrade_cmd
 
@@ -24,6 +25,8 @@ def _callback(
 
 app.command("init")(init_cmd)
 app.command("upgrade")(upgrade_cmd)
+app.command("update")(upgrade_cmd)
+app.command("doctor")(doctor_cmd)
 
 if __name__ == "__main__":
     app()

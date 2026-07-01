@@ -14,6 +14,8 @@ def test_uv_found_and_succeeds(mocker):
         "goodvibes_cli.steps.install_headroom.detect_python",
         return_value="python3",
     )
+    # headroom not on PATH — idempotency probe returns None → proceed to install
+    mocker.patch("goodvibes_cli.steps.install_headroom.shutil.which", return_value=None)
     run = mocker.patch(
         "goodvibes_cli.steps.install_headroom.subprocess.run",
         return_value=subprocess.CompletedProcess(
@@ -39,6 +41,7 @@ def test_pipx_fallback_when_uv_enoent(mocker):
         "goodvibes_cli.steps.install_headroom.detect_python",
         return_value="python3",
     )
+    mocker.patch("goodvibes_cli.steps.install_headroom.shutil.which", return_value=None)
 
     def side_effect(cmd_list, **kwargs):
         if cmd_list[0] == "uv":
@@ -64,6 +67,7 @@ def test_pip_fallback_when_uv_and_pipx_enoent(mocker):
         "goodvibes_cli.steps.install_headroom.detect_python",
         return_value="python3",
     )
+    mocker.patch("goodvibes_cli.steps.install_headroom.shutil.which", return_value=None)
 
     def side_effect(cmd_list, **kwargs):
         if cmd_list[0] in ("uv", "pipx"):
@@ -90,6 +94,7 @@ def test_all_enoent_logs_warning(mocker):
         "goodvibes_cli.steps.install_headroom.detect_python",
         return_value="python3",
     )
+    mocker.patch("goodvibes_cli.steps.install_headroom.shutil.which", return_value=None)
     mocker.patch(
         "goodvibes_cli.steps.install_headroom.subprocess.run",
         side_effect=FileNotFoundError("not found"),
@@ -108,6 +113,7 @@ def test_called_process_error_soft_fail(mocker):
         "goodvibes_cli.steps.install_headroom.detect_python",
         return_value="python3",
     )
+    mocker.patch("goodvibes_cli.steps.install_headroom.shutil.which", return_value=None)
     run = mocker.patch(
         "goodvibes_cli.steps.install_headroom.subprocess.run",
         side_effect=subprocess.CalledProcessError(
@@ -132,6 +138,7 @@ def test_pipx_fallback_when_uv_called_process_error(mocker):
         "goodvibes_cli.steps.install_headroom.detect_python",
         return_value="python3",
     )
+    mocker.patch("goodvibes_cli.steps.install_headroom.shutil.which", return_value=None)
 
     def side_effect(cmd_list, **kwargs):
         if cmd_list[0] == "uv":
@@ -174,6 +181,8 @@ def test_onnx_warning_logged_before_subprocess(mocker):
         "goodvibes_cli.steps.install_headroom.detect_python",
         return_value="python3",
     )
+    # headroom not on PATH so idempotency probe is skipped and we reach the installer loop
+    mocker.patch("goodvibes_cli.steps.install_headroom.shutil.which", return_value=None)
     event_log: list[str] = []
 
     def recording_run(cmd_list, **kwargs):
@@ -211,6 +220,7 @@ def test_no_shell_true(mocker):
         "goodvibes_cli.steps.install_headroom.detect_python",
         return_value="python3",
     )
+    mocker.patch("goodvibes_cli.steps.install_headroom.shutil.which", return_value=None)
     run = mocker.patch(
         "goodvibes_cli.steps.install_headroom.subprocess.run",
         return_value=subprocess.CompletedProcess(
@@ -223,3 +233,57 @@ def test_no_shell_true(mocker):
 
     for call in run.call_args_list:
         assert call.kwargs.get("shell") is not True
+
+
+def test_already_installed_skips_installer(mocker):
+    """install_headroom logs 'already installed' and returns without calling subprocess when headroom is on PATH."""
+    mocker.patch(
+        "goodvibes_cli.steps.install_headroom.detect_python",
+        return_value="python3",
+    )
+    # headroom already on PATH
+    mocker.patch("goodvibes_cli.steps.install_headroom.shutil.which", return_value="/usr/local/bin/headroom")
+    run = mocker.patch("goodvibes_cli.steps.install_headroom.subprocess.run")
+
+    from goodvibes_cli.steps.install_headroom import install_headroom
+
+    log_calls: list[str] = []
+    install_headroom(log_calls.append)
+
+    assert any("already installed" in m for m in log_calls)
+    run.assert_not_called()
+
+
+def test_description_logged_before_idempotency_check(mocker):
+    """Description message is logged before any subprocess or shutil.which call."""
+    mocker.patch(
+        "goodvibes_cli.steps.install_headroom.detect_python",
+        return_value="python3",
+    )
+    event_log: list[str] = []
+
+    def recording_which(name: str):
+        event_log.append(f"which:{name}")
+        return None
+
+    mocker.patch("goodvibes_cli.steps.install_headroom.shutil.which", side_effect=recording_which)
+    mocker.patch(
+        "goodvibes_cli.steps.install_headroom.subprocess.run",
+        return_value=subprocess.CompletedProcess(args=["uv"], returncode=0, stdout="", stderr=""),
+    )
+
+    def recording_log(msg: str) -> None:
+        event_log.append(f"log:{msg}")
+
+    from goodvibes_cli.steps.install_headroom import install_headroom
+
+    install_headroom(recording_log)
+
+    desc_idx = next(
+        (i for i, e in enumerate(event_log) if e.startswith("log:") and "headroom compresses" in e),
+        None,
+    )
+    which_idx = next((i for i, e in enumerate(event_log) if e.startswith("which:")), None)
+    assert desc_idx is not None, "Description must be logged"
+    assert which_idx is not None, "shutil.which must be called"
+    assert desc_idx < which_idx, "Description must appear before the idempotency check"

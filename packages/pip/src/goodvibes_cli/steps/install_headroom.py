@@ -1,4 +1,5 @@
 """Install headroom-ai via uv → pipx → pip fallback chain."""
+import shutil
 import subprocess
 from typing import Callable
 
@@ -18,6 +19,13 @@ def install_headroom(log: Callable[[str], None]) -> None:
             "Python 3.10+ not found — skipping headroom install. "
             "Install Python 3.10+ and run `goodvibes init` again."
         )
+        return
+
+    log("headroom compresses AI context to save tokens — this keeps your costs down and sessions faster.")
+
+    # Idempotency probe: skip installer if headroom is already on PATH
+    if shutil.which("headroom") is not None:
+        log("headroom already installed — skipping")
         return
 
     # HDR-03: ONNX warning BEFORE any subprocess call — shows even if installer is slow

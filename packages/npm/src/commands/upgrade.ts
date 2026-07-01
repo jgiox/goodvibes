@@ -144,6 +144,7 @@ async function upgradeTemplates(templateDir: string, destDir: string, projectTyp
 export function registerUpgradeCommand(program: Command): void {
   program
     .command('upgrade')
+    .alias('update')
     .description('Update goodvibes-managed files to the latest version')
     .option('--dry-run', 'Preview what would change without writing')
     .action(async (options: { dryRun: boolean }) => {

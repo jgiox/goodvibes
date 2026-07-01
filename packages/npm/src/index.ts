@@ -7,18 +7,24 @@ if (major < 20) {
   process.exit(1)
 }
 
+import { createRequire } from 'node:module'
 import { Command } from 'commander'
 import { registerInitCommand } from './commands/init.js'
 import { registerUpgradeCommand } from './commands/upgrade.js'
+import { registerDoctorCommand } from './commands/doctor.js'
+
+const _require = createRequire(import.meta.url)
+const _pkg = _require('../package.json') as { version: string }
 
 const program = new Command()
 
 program
   .name('goodvibes')
-  .version('1.0.0')
+  .version(_pkg.version)
   .description('One-command bootstrap for vibe coding projects')
 
 registerInitCommand(program)
 registerUpgradeCommand(program)
+registerDoctorCommand(program)
 
 await program.parseAsync(process.argv)

@@ -21,6 +21,21 @@ export async function installHeadroom(log: (msg: string) => void): Promise<void>
     return
   }
 
+  log('headroom compresses AI context to save tokens — this keeps your costs down and sessions faster.')
+
+  // Idempotency probe: skip installer if headroom is already on PATH
+  try {
+    await execa('headroom', ['--version'])
+    log('headroom already installed — skipping')
+    return
+  } catch (e: unknown) {
+    if ((e as NodeJS.ErrnoException).code !== 'ENOENT') {
+      // Non-ENOENT probe failure: log and fall through to installer
+      log(`headroom probe failed: ${(e as Error).message?.split('\n')[0] ?? 'unknown'}`)
+    }
+    // ENOENT: headroom not on PATH — proceed with installer loop
+  }
+
   // HDR-03: warn about ONNX model download BEFORE the subprocess starts
   log('Note: headroom will download its compression model on first use — this may take 1–3 minutes on a slow connection.')
 
