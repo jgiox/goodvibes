@@ -266,3 +266,20 @@ describe('upgrade command', () => {
     expect(vi.mocked(mergeClaude).mock.calls[0][0]).toMatch(/CLAUDE\.md/)
   })
 })
+
+describe('formatChangeSummary', () => {
+  it('uses English labels for changed new and unchanged statuses', async () => {
+    const { formatChangeSummary } = await import('./upgrade.js')
+    const result = formatChangeSummary([
+      { path: 'CLAUDE.md', status: 'changed' },
+      { path: '.claude/skills/foo', status: 'new' },
+      { path: 'ci.yml', status: 'unchanged' },
+    ])
+    expect(result).toContain('updated CLAUDE.md')
+    expect(result).toContain('new .claude/skills/foo')
+    expect(result).toContain('unchanged ci.yml')
+    expect(result).not.toContain('~')
+    expect(result).not.toContain('+')
+    expect(result).not.toContain('=')
+  })
+})

@@ -14,6 +14,8 @@ vi.mock('node:fs', () => ({
   readFileSync: vi.fn(),
 }))
 
+vi.mock('node:module', () => ({ createRequire: () => () => ({ version: '1.6.1' }) }))
+
 describe('doctor command', () => {
   beforeEach(() => {
     vi.resetAllMocks()
@@ -244,6 +246,34 @@ describe('doctor command', () => {
       expect(exitSpy).toHaveBeenCalledWith(1)
 
       exitSpy.mockRestore()
+    })
+  })
+
+  describe('version line', () => {
+    it('doctor output includes goodvibes version as first line', async () => {
+      const { execa } = await import('execa')
+      vi.mocked(execa).mockResolvedValue({ stdout: 'value' } as any)
+
+      const { existsSync, readFileSync } = await import('node:fs')
+      vi.mocked(existsSync).mockReturnValue(true)
+      vi.mocked(readFileSync).mockReturnValue(
+        '<!-- goodvibes:start -->\ncontent\n<!-- goodvibes:end -->'
+      )
+
+      const { note } = await import('@clack/prompts')
+
+      const { registerDoctorCommand } = await import('./doctor.js')
+      let capturedAction: () => Promise<void> = async () => {}
+      const program = {
+        command: vi.fn().mockReturnThis(),
+        description: vi.fn().mockReturnThis(),
+        action: vi.fn((fn) => { capturedAction = fn; return { command: vi.fn() } }),
+      }
+      registerDoctorCommand(program as any)
+      await capturedAction()
+
+      const firstNoteArg = vi.mocked(note).mock.calls[0][0] as string
+      expect(firstNoteArg.split('\n')[0]).toBe('goodvibes v1.6.1')
     })
   })
 })
