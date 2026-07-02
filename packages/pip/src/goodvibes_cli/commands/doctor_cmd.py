@@ -1,6 +1,7 @@
 """goodvibes doctor command — checks that goodvibes setup is complete."""
 from __future__ import annotations
 
+import importlib.metadata
 import pathlib
 import shutil
 import subprocess
@@ -15,6 +16,13 @@ SENTINEL_START = "<!-- goodvibes:start -->"
 SENTINEL_END = "<!-- goodvibes:end -->"
 
 console = Console()
+
+
+def _installed_version() -> str:
+    try:
+        return importlib.metadata.version("goodvibes-cli")
+    except importlib.metadata.PackageNotFoundError:
+        return "unknown"
 
 
 @dataclass
@@ -89,7 +97,8 @@ def doctor_cmd() -> None:
         _check_sentinel(cwd),
     ]
 
-    lines = [f"{'✓' if r.passed else '✗'} {r.label}" for r in results]
+    version = _installed_version()
+    lines = [f"goodvibes v{version}"] + [f"{'✓' if r.passed else '✗'} {r.label}" for r in results]
     console.print(Panel("\n".join(lines), title="goodvibes doctor"))
 
     failures = [r for r in results if not r.passed]

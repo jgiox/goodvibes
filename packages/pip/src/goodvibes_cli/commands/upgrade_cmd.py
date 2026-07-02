@@ -111,7 +111,7 @@ def compute_changes(
 def format_change_summary(changes: list[tuple[str, str]]) -> str:
     if not changes:
         return "(no managed files found)"
-    symbol = {"changed": "~", "unchanged": "=", "new": "+"}
+    symbol = {"changed": "updated", "unchanged": "unchanged", "new": "new"}
     return "\n".join(f"{symbol.get(s, '?')} {p}" for p, s in changes)
 
 
