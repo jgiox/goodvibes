@@ -602,6 +602,20 @@ Docs updated: README.md (IDE table + count), CHANGELOG.md, JOURNAL.md
 
 ---
 
+## 2026-07-02 — Phase 11-01: Renamed both packages to goodvibes-cli
+
+**What I did:** Renamed the npm package from `@jgiox/goodvibes` to `goodvibes-cli` and the pip package from `jgiox-goodvibes` to `goodvibes-cli`. Updated all call sites atomically: `upgrade.ts` (npm view + npm install -g), `upgrade_cmd.py` (PYPI_URL, importlib.metadata.version, uv tool upgrade, pip install), `main.py` (version callback). Updated `pyproject.toml` with classifiers and Repository URL. Updated CI workflows (`publish-pip.yml`, `vhs.yml`), README.md badges and install commands, `packages/pip/README.md`, and `scripts/verify-phase3.sh`. Regenerated `uv.lock`.
+
+**Files changed:** packages/npm/package.json, packages/npm/src/commands/upgrade.ts, packages/npm/src/commands/upgrade.test.ts, packages/pip/pyproject.toml, packages/pip/uv.lock, packages/pip/src/goodvibes_cli/main.py, packages/pip/src/goodvibes_cli/commands/upgrade_cmd.py, packages/pip/tests/test_main.py, .github/workflows/publish-pip.yml, .github/workflows/vhs.yml, README.md, packages/pip/README.md, scripts/verify-phase3.sh.
+
+**Why:** PKG-01 — discoverable package names without requiring knowledge of the maintainer handle.
+
+**Tests run:** `npm test` (117 passed), `uv run pytest tests/` (124 passed).
+
+**Docs updated:** JOURNAL.md, README.md, packages/pip/README.md.
+
+---
+
 ## 2026-07-02 — Closed all open phase UATs (phases 03, 05, 10)
 
 **What I did:** Recorded user approval for all outstanding human-UAT items. Phase 10 UAT items (getting-started.md beginner accessibility, IDE platform guide accuracy) approved by user after live testing. Phase 05 UAT items (template fork flow, upgrade dry-run) approved after successful end-to-end upgrade verification with v1.6.1. Phase 03 human-needed items (PyPI install, upgrade end-to-end) covered by live testing sessions. Updated status to `complete` in all three VERIFICATION.md and HUMAN-UAT.md files.
