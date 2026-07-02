@@ -304,7 +304,7 @@ Plans:
 
 **Wave 1**
 
-- [ ] 11-01-PLAN.md — Wave 1: Package rename — npm goodvibes-cli + pip goodvibes-cli; update all call sites (upgrade.ts, upgrade_cmd.py, main.py), tests, README badges, publish-pip.yml wheel check (PKG-01)
+- [x] 11-01-PLAN.md — Wave 1: Package rename — npm goodvibes-cli + pip goodvibes-cli; update all call sites (upgrade.ts, upgrade_cmd.py, main.py), tests, README badges, publish-pip.yml wheel check (PKG-01)
 
 **Wave 2** *(parallel — no file conflicts)*
 
@@ -338,4 +338,4 @@ Phase 6 must complete before Phase 7 — the demo GIF must record the hardened C
 | 8. Multi-IDE Expansion | 3/3 | Complete    | 2026-06-30 |
 | 9. OpenAI/Codex & Vibe-coding Platform Expansion | 3/3 | Complete    | 2026-07-01 |
 | 10. Vibe Coder Completeness | 3/3 | Complete    | 2026-07-01 |
-| 11. Publish Quality & Discoverability | 0/4 | Pending | — |
+| 11. Publish Quality & Discoverability | 1/4 | In Progress|  |
