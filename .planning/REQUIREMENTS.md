@@ -252,29 +252,29 @@
 
 ### Publish Quality (PUB)
 
-- [ ] **PUB-01**: A GitHub Actions job runs after every successful publish to npm and PyPI — it installs the package from the registry in a clean tmpdir, runs `goodvibes init --dry-run`, and asserts exit 0 and expected files present; the publish job fails if this smoke test fails
-- [ ] **PUB-02**: A CI check (pre-push or PR gate) validates that the `# goodvibes: vX.Y.Z` header in `templates/CLAUDE.md` matches the version in `packages/npm/package.json` and `packages/pip/pyproject.toml`; the check fails with an actionable error if any are out of sync
+- [x] **PUB-01**: A GitHub Actions job runs after every successful publish to npm and PyPI — it installs the package from the registry in a clean tmpdir, runs `goodvibes init --dry-run`, and asserts exit 0 and expected files present; the publish job fails if this smoke test fails
+- [x] **PUB-02**: A CI check (pre-push or PR gate) validates that the `# goodvibes: vX.Y.Z` header in `templates/CLAUDE.md` matches the version in `packages/npm/package.json` and `packages/pip/pyproject.toml`; the check fails with an actionable error if any are out of sync
 
 ### Package Naming & Discoverability (PKG)
 
-- [ ] **PKG-01**: Both the npm and pip packages are renamed to names that (a) contain the word "goodvibes", (b) are available on their respective registry, (c) have no existing popular package conflict; all in-repo references (README, code, CI, docs) updated to the new names; old package names retain a deprecation notice pointing to the new names
-- [ ] **PKG-02**: npm package page has a polished description (1–2 sentences, not "TODO"), relevant keywords, homepage URL, and repository link; PyPI package page has a matching description, keywords, homepage, and appropriate classifiers (Development Status, Intended Audience, Topic)
+- [x] **PKG-01**: Both the npm and pip packages are renamed to names that (a) contain the word "goodvibes", (b) are available on their respective registry, (c) have no existing popular package conflict; all in-repo references (README, code, CI, docs) updated to the new names; old package names retain a deprecation notice pointing to the new names
+- [x] **PKG-02**: npm package page has a polished description (1–2 sentences, not "TODO"), relevant keywords, homepage URL, and repository link; PyPI package page has a matching description, keywords, homepage, and appropriate classifiers (Development Status, Intended Audience, Topic)
 
 ### UX Polish (POL)
 
-- [ ] **POL-01**: `goodvibes doctor` output includes the installed goodvibes version as the first line of the check panel (e.g. `goodvibes v1.6.1`)
-- [ ] **POL-02**: `goodvibes upgrade --dry-run` change summary prints human-readable status words (`new`, `updated`, `unchanged`) instead of `+`, `~`, `=` symbols — legible to beginners unfamiliar with diff notation
+- [x] **POL-01**: `goodvibes doctor` output includes the installed goodvibes version as the first line of the check panel (e.g. `goodvibes v1.6.1`)
+- [x] **POL-02**: `goodvibes upgrade --dry-run` change summary prints human-readable status words (`new`, `updated`, `unchanged`) instead of `+`, `~`, `=` symbols — legible to beginners unfamiliar with diff notation
 
 ## v1.1.0 Traceability
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| PUB-01 | Phase 11 | Pending |
-| PUB-02 | Phase 11 | Pending |
-| PKG-01 | Phase 11 | Pending |
-| PKG-02 | Phase 11 | Pending |
-| POL-01 | Phase 11 | Pending |
-| POL-02 | Phase 11 | Pending |
+| PUB-01 | Phase 11 | Complete |
+| PUB-02 | Phase 11 | Complete |
+| PKG-01 | Phase 11 | Complete |
+| PKG-02 | Phase 11 | Complete |
+| POL-01 | Phase 11 | Complete |
+| POL-02 | Phase 11 | Complete |
 
 ---
 *Requirements defined: 2026-06-23*
