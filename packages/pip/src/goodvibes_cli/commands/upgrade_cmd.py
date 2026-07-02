@@ -27,13 +27,13 @@ from goodvibes_cli.utils.sentinel_merge import (
 
 console = Console()
 
-_PYPI_URL = "https://pypi.org/pypi/jgiox-goodvibes/json"
+_PYPI_URL = "https://pypi.org/pypi/goodvibes-cli/json"
 _UPGRADING_ENV = "_GV_UPGRADING"
 
 
 def _get_package_version() -> str | None:
     try:
-        return importlib.metadata.version("jgiox-goodvibes")
+        return importlib.metadata.version("goodvibes-cli")
     except importlib.metadata.PackageNotFoundError:
         return None
 
@@ -49,10 +49,10 @@ def _check_pypi_version() -> str | None:
 def _self_update_pip() -> None:
     # try uv tool upgrade first; fall back to pip install --upgrade
     try:
-        subprocess.run(["uv", "tool", "upgrade", "jgiox-goodvibes"], check=True)
+        subprocess.run(["uv", "tool", "upgrade", "goodvibes-cli"], check=True)
     except (subprocess.CalledProcessError, FileNotFoundError):
         subprocess.run(
-            [sys.executable, "-m", "pip", "install", "--upgrade", "jgiox-goodvibes"],
+            [sys.executable, "-m", "pip", "install", "--upgrade", "goodvibes-cli"],
             check=True,
         )
 

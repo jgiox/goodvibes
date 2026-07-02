@@ -1,11 +1,24 @@
 [project]
-name = "jgiox-goodvibes"
+name = "goodvibes-cli"
 version = "1.6.1"
 description = "One-command bootstrap for vibe coding projects"
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "Apache-2.0" }
 keywords = ["scaffold", "vibe-coding", "claude", "llm", "starter-kit", "cli", "ai-coding", "claude-code", "copilot"]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Developers",
+    "Environment :: Console",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development",
+    "Topic :: Software Development :: Code Generators",
+    "Topic :: Utilities",
+]
 dependencies = ["typer>=0.15", "rich>=14"]
 
 [project.scripts]
@@ -13,6 +26,7 @@ goodvibes = "goodvibes_cli.main:app"
 
 [project.urls]
 Homepage = "https://github.com/jgiox/goodvibes"
+Repository = "https://github.com/jgiox/goodvibes"
 
 [build-system]
 requires = ["hatchling"]

@@ -28,8 +28,8 @@ jobs:
             sudo tee /etc/apt/sources.list.d/charm.list > /dev/null
           sudo apt-get update && sudo apt-get install -y vhs
 
-      - name: Install @jgiox/goodvibes globally so VHS shell can run it without npx download
-        run: npm install -g @jgiox/goodvibes
+      - name: Install goodvibes-cli globally so VHS shell can run it without npx download
+        run: npm install -g goodvibes-cli
 
       - name: Record demo
         run: |

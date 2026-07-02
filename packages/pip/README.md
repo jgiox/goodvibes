@@ -3,6 +3,6 @@
 One-command bootstrap for vibe coding projects.
 
 ```
-pip install jgiox-goodvibes
+pip install goodvibes-cli
 goodvibes init
 ```

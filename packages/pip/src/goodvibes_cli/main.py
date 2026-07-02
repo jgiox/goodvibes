@@ -11,7 +11,7 @@ app = typer.Typer(help="goodvibes — one-command bootstrap for vibe coding proj
 
 def _version_callback(value: bool) -> None:
     if value:
-        version = importlib.metadata.version("jgiox-goodvibes")
+        version = importlib.metadata.version("goodvibes-cli")
         typer.echo(f"goodvibes {version}")
         raise typer.Exit()
 

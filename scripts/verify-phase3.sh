@@ -29,8 +29,8 @@ check() {
 # PIP-PKG-01: pyproject.toml exists
 check "PIP-PKG-01" "test -f packages/pip/pyproject.toml"
 
-# PIP-PKG-02: pyproject.toml name field is "jgiox-goodvibes" (D-01)
-check "PIP-PKG-02" "grep -q 'name = \"jgiox-goodvibes\"' packages/pip/pyproject.toml"
+# PIP-PKG-02: pyproject.toml name field is "goodvibes-cli" (PKG-01)
+check "PIP-PKG-02" "grep -q 'name = \"goodvibes-cli\"' packages/pip/pyproject.toml"
 
 # PIP-PKG-03: pyproject.toml has goodvibes script entry point (D-04)
 check "PIP-PKG-03" "grep -q 'goodvibes = \"goodvibes_cli.main:app\"' packages/pip/pyproject.toml"

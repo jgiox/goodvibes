@@ -2,21 +2,21 @@
 
 > One command. Production-grade project. No config.
 
-[![npm](https://img.shields.io/npm/v/%40jgiox%2Fgoodvibes?style=flat-square)](https://www.npmjs.com/package/@jgiox/goodvibes)
-[![PyPI](https://img.shields.io/pypi/v/jgiox-goodvibes?style=flat-square)](https://pypi.org/project/jgiox-goodvibes/)
+[![npm](https://img.shields.io/npm/v/goodvibes-cli?style=flat-square)](https://www.npmjs.com/package/goodvibes-cli)
+[![PyPI](https://img.shields.io/pypi/v/goodvibes-cli?style=flat-square)](https://pypi.org/project/goodvibes-cli/)
 [![CI](https://img.shields.io/github/actions/workflow/status/jgiox/goodvibes/ci.yml?style=flat-square)](https://github.com/jgiox/goodvibes/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue?style=flat-square)](LICENSE)
 
 ## Quick start
 
 ```sh
-npx @jgiox/goodvibes init
+npx goodvibes-cli init
 ```
 
 Or with Python:
 
 ```sh
-pip install jgiox-goodvibes
+pip install goodvibes-cli
 goodvibes init
 ```
 
@@ -49,8 +49,8 @@ goodvibes init --minimal    # Skip headroom install, all .github/ files, and doc
 |-------------|-----|---------|
 | **git** | Version control — goodvibes sets up git-friendly CI | [git-scm.com](https://git-scm.com/downloads) |
 | **GitHub account** | Where your code lives; CI runs here | [github.com/signup](https://github.com/signup) |
-| **Node.js 20+** | Required for `npx @jgiox/goodvibes init` (the npm CLI) | [nodejs.org](https://nodejs.org) |
-| **Python 3.10+** | Required only for `pip install jgiox-goodvibes` (optional) | [python.org](https://python.org/downloads) |
+| **Node.js 20+** | Required for `npx goodvibes-cli init` (the npm CLI) | [nodejs.org](https://nodejs.org) |
+| **Python 3.10+** | Required only for `pip install goodvibes-cli` (optional) | [python.org](https://python.org/downloads) |
 
 **Windows users:** Use WSL2 for the best experience — install it from the Microsoft Store or with `wsl --install` in PowerShell.
 

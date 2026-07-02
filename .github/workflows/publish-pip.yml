@@ -27,8 +27,8 @@ jobs:
         working-directory: packages/pip
         run: uv build --no-sources
 
-      - name: Verify wheel name (D-01 — jgiox-goodvibes)
-        run: test -f packages/pip/dist/jgiox_goodvibes-*.whl
+      - name: Verify wheel name (PKG-01 — goodvibes-cli)
+        run: test -f packages/pip/dist/goodvibes_cli-*.whl
 
       - name: Publish to PyPI
         working-directory: packages/pip

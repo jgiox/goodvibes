@@ -1,5 +1,5 @@
 {
-  "name": "@jgiox/goodvibes",
+  "name": "goodvibes-cli",
   "version": "1.6.1",
   "description": "One-command bootstrap for vibe coding projects",
   "type": "module",
@@ -14,6 +14,7 @@
     "dist",
     "templates"
   ],
+  "homepage": "https://github.com/jgiox/goodvibes",
   "repository": {
     "type": "git",
     "url": "https://github.com/jgiox/goodvibes"

@@ -74,7 +74,7 @@ def test_minimal_skips_headroom(mocker):
 
 def test_version_output_includes_installed_version():
     import importlib.metadata
-    version = importlib.metadata.version("jgiox-goodvibes")
+    version = importlib.metadata.version("goodvibes-cli")
     result = runner.invoke(app, ["--version"])
     assert result.exit_code == 0
     assert version in result.output
