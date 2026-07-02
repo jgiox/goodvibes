@@ -627,3 +627,17 @@ Docs updated: README.md (IDE table + count), CHANGELOG.md, JOURNAL.md
 **Tests run:** None — documentation closure only.
 
 **Docs updated:** JOURNAL.md, all affected HUMAN-UAT.md and VERIFICATION.md files.
+
+---
+
+## 2026-07-02 — Phase 11-03: Doctor version header + upgrade English diff labels (TDD)
+
+**What I did:** Two 2-5 line patches with TDD (RED then GREEN commits). POL-01: `goodvibes doctor` now shows `goodvibes v1.6.1` as the first line of its check panel in both npm (via `createRequire` + `_getVersion()`) and pip (via `importlib.metadata` + `_installed_version()`). POL-02: `goodvibes upgrade --dry-run` now shows `updated`, `new`, `unchanged` instead of `~`, `+`, `=` — `formatChangeSummary` (TS) and `format_change_summary` (Python) both updated; `formatChangeSummary` now exported from `upgrade.ts` for direct unit testing.
+
+**Files changed:** packages/npm/src/commands/doctor.ts, packages/npm/src/commands/upgrade.ts, packages/npm/src/commands/doctor.test.ts, packages/npm/src/commands/upgrade.test.ts, packages/pip/src/goodvibes_cli/commands/doctor_cmd.py, packages/pip/src/goodvibes_cli/commands/upgrade_cmd.py, packages/pip/tests/test_doctor_cmd.py, packages/pip/tests/test_upgrade_cmd.py.
+
+**Why:** POL-01/POL-02 — beginners seeing `goodvibes doctor` output now have immediate version context; `upgrade --dry-run` diff is legible without a symbol legend.
+
+**Tests run:** `npm test` (119 passed), `uv run pytest tests/` (126 passed).
+
+**Docs updated:** JOURNAL.md.
