@@ -1,6 +1,7 @@
 """Unit tests for doctor_cmd — VCC-02 Python parity test coverage."""
 from __future__ import annotations
 
+import importlib.metadata
 import pathlib
 import subprocess
 from unittest.mock import MagicMock, patch
@@ -112,3 +113,16 @@ def test_doctor_cmd_collects_all_failures_before_exiting(mocker, tmp_path):
     # Both failure labels must appear in output before exit — collect-all behavior
     assert "headroom" in result.output
     assert "user.name" in result.output
+
+
+def test_doctor_output_starts_with_version_line(mocker, tmp_path):
+    mocker.patch("goodvibes_cli.commands.doctor_cmd.importlib.metadata.version", return_value="1.6.1")
+    mocker.patch("goodvibes_cli.commands.doctor_cmd._check_headroom", return_value=CheckResult(label="headroom on PATH", passed=True))
+    mocker.patch("goodvibes_cli.commands.doctor_cmd._check_git_config", return_value=CheckResult(label="git user.name", passed=True))
+    mocker.patch("goodvibes_cli.commands.doctor_cmd._check_claude_md", return_value=CheckResult(label="CLAUDE.md present", passed=True))
+    mocker.patch("goodvibes_cli.commands.doctor_cmd._check_sentinel", return_value=CheckResult(label="goodvibes sentinel block", passed=True))
+    mocker.patch("goodvibes_cli.commands.doctor_cmd.pathlib.Path.cwd", return_value=tmp_path)
+    from goodvibes_cli.main import app
+    from typer.testing import CliRunner as TR
+    result = TR().invoke(app, ["doctor"])
+    assert "goodvibes v1.6.1" in result.output

@@ -66,8 +66,8 @@ def test_diff_summary_printed_before_apply(mocker):
     mocker.patch("goodvibes_cli.commands.upgrade_cmd.upgrade_templates", return_value=[])
     result = runner.invoke(app, ["upgrade"])
     assert result.exit_code == 0
-    # Diff summary printed — at least one change marker or "change" keyword in output
-    assert any(marker in result.output for marker in ["~", "changed", "change", "will change"])
+    # Diff summary printed with English label (updated) or panel title (will change)
+    assert "updated" in result.output or "will change" in result.output
 
 
 def test_user_content_outside_sentinel_preserved_after_upgrade(mocker):
@@ -109,3 +109,13 @@ def test_self_update_skipped_when_env_set(mocker):
     result = runner.invoke(app, ["upgrade"], env={"_GV_UPGRADING": "1"})
     assert mock_update.call_count == 0
     assert result.exit_code == 0
+
+
+def test_format_change_summary_uses_english_labels():
+    from goodvibes_cli.commands.upgrade_cmd import format_change_summary
+    result = format_change_summary([("CLAUDE.md", "changed"), ("new-file.md", "new"), ("ci.yml", "unchanged")])
+    assert "updated CLAUDE.md" in result
+    assert "new new-file.md" in result
+    assert "unchanged ci.yml" in result
+    assert "~" not in result
+    assert "+" not in result
