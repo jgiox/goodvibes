@@ -181,7 +181,7 @@ describe('upgrade command', () => {
 
     // npm install -g must have been called with the new version
     expect(vi.mocked(execa)).toHaveBeenCalledWith(
-      'npm', ['install', '-g', '@jgiox/goodvibes@1.0.1'], expect.objectContaining({ stdio: 'inherit' })
+      'npm', ['install', '-g', 'goodvibes-cli@1.0.1'], expect.objectContaining({ stdio: 'inherit' })
     )
 
     exitSpy.mockRestore()
@@ -211,7 +211,7 @@ describe('upgrade command', () => {
 
     // execa should NOT have been called for npm view (self-update skipped)
     expect(vi.mocked(execa)).not.toHaveBeenCalledWith(
-      'npm', ['view', '@jgiox/goodvibes', 'version'], expect.anything()
+      'npm', ['view', 'goodvibes-cli', 'version'], expect.anything()
     )
 
     if (prevEnv === undefined) delete process.env['_GV_UPGRADING']

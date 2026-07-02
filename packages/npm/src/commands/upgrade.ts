@@ -15,7 +15,7 @@ const _GV_UPGRADING = '_GV_UPGRADING'
 
 async function checkLatestNpmVersion(): Promise<string | null> {
   try {
-    const { stdout } = await execa('npm', ['view', '@jgiox/goodvibes', 'version'])
+    const { stdout } = await execa('npm', ['view', 'goodvibes-cli', 'version'])
     return stdout.trim() || null
   } catch {
     return null
@@ -33,7 +33,7 @@ function getInstalledVersion(): string | null {
 }
 
 async function selfUpdateNpm(version: string): Promise<void> {
-  await execa('npm', ['install', '-g', `@jgiox/goodvibes@${version}`], { stdio: 'inherit' })
+  await execa('npm', ['install', '-g', `goodvibes-cli@${version}`], { stdio: 'inherit' })
 }
 
 const MANAGED_FIXED = new Set([
