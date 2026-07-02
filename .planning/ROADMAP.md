@@ -313,7 +313,7 @@ Plans:
 
 **Wave 3** *(blocked on Wave 1-2 completion)*
 
-- [ ] 11-04-PLAN.md — Wave 3: PyPI OIDC trusted publisher checkpoint + pip tombstone stub + npm tombstone docs + JOURNAL.md (PKG-01 deprecation, PKG-02)
+- [x] 11-04-PLAN.md — Wave 3: PyPI OIDC trusted publisher checkpoint + pip tombstone stub + npm tombstone docs + JOURNAL.md (PKG-01 deprecation, PKG-02)
 
 **UI hint**: no
 
@@ -338,4 +338,4 @@ Phase 6 must complete before Phase 7 — the demo GIF must record the hardened C
 | 8. Multi-IDE Expansion | 3/3 | Complete    | 2026-06-30 |
 | 9. OpenAI/Codex & Vibe-coding Platform Expansion | 3/3 | Complete    | 2026-07-01 |
 | 10. Vibe Coder Completeness | 3/3 | Complete    | 2026-07-01 |
-| 11. Publish Quality & Discoverability | 3/4 | In Progress|  |
+| 11. Publish Quality & Discoverability | 4/4 | Complete   | 2026-07-02 |
