@@ -33,3 +33,23 @@ jobs:
       - name: Publish to PyPI
         working-directory: packages/pip
         run: uv publish --trusted-publishing always
+
+  smoke-test:
+    needs: publish
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+
+      - name: Wait for registry propagation
+        run: sleep 30
+
+      - name: Install from PyPI
+        run: uv tool install goodvibes-cli
+
+      - name: Smoke test
+        run: |
+          TMPDIR=$(mktemp -d)
+          cd $TMPDIR
+          goodvibes init --dry-run 2>&1 | tee /tmp/gv-out.txt
+          grep -q "CLAUDE.md" /tmp/gv-out.txt

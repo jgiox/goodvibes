@@ -42,3 +42,26 @@ jobs:
         run: npm publish --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  smoke-test:
+    needs: publish
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wait for registry propagation
+        run: sleep 30
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '20'
+
+      - name: Install from npm
+        run: |
+          VERSION=${GITHUB_REF_NAME#npm-v}
+          npm install -g goodvibes-cli@$VERSION
+
+      - name: Smoke test
+        run: |
+          TMPDIR=$(mktemp -d)
+          cd $TMPDIR
+          goodvibes init --dry-run 2>&1 | tee /tmp/gv-out.txt
+          grep -q "CLAUDE.md" /tmp/gv-out.txt
