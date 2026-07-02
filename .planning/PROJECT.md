@@ -155,4 +155,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-07-01 after Phase 09 completion — v1.5.0 vibe platform expansion: replit.md, .bolt/prompt, chatgpt.md, base44.md templates; IDE table now covers 14 tools*
+*Last updated: 2026-07-02 after Phase 11 completion — v1.6.1 publish quality & discoverability: npm/pip packages renamed to goodvibes-cli, CI smoke-test gates (PUB-01/PUB-02), doctor version header (POL-01), upgrade English labels (POL-02), PyPI OIDC trusted publisher configured, tombstone stubs for old package names*
