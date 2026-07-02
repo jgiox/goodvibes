@@ -46,6 +46,7 @@ jobs:
   smoke-test:
     needs: publish
     runs-on: ubuntu-latest
+    permissions: {}
     steps:
       - name: Wait for registry propagation
         run: sleep 30

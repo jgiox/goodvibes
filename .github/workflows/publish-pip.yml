@@ -37,6 +37,7 @@ jobs:
   smoke-test:
     needs: publish
     runs-on: ubuntu-latest
+    permissions: {}
     steps:
       - name: Install uv
         uses: astral-sh/setup-uv@v7
