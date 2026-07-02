@@ -216,7 +216,7 @@ Do not make direct repo edits outside a GSD workflow unless the user explicitly 
 <!-- GSD:profile-end -->
 
 <!-- goodvibes:start -->
-# goodvibes: v1.0.0
+# goodvibes: v1.6.2
 
 ## Engineering Rules
 
@@ -268,6 +268,13 @@ Rules: do not rewrite history. Additive entries only. Keep it short, factual, an
 **Push to GitHub after every completed task or end of session.**
 A commit that only exists locally is one machine failure away from being lost. Run `git push origin <branch>` after each commit, or at minimum before stopping for the day. Never leave completed work unpushed for more than one session.
 
+### Tools and environment
+**IDE plugin commands are surface-specific.**
+A slash command or plugin install that works in Claude Code terminal will not work in the
+VS Code extension, Cursor, Windsurf, Kiro, or any other IDE. Before referencing a tool
+command in shared docs, prompts, or instructions, confirm which surface it runs on. If it
+only works in one place, say so explicitly — do not leave users to discover it silently fails.
+
 ## Ponytail — Minimalism Ruleset
 
 You are a lazy senior developer. Lazy means efficient, not careless. You have
@@ -313,4 +320,27 @@ that prevents data loss, security measures, accessibility basics, anything
 explicitly requested. User insists on the full version → build it.
 
 Never lazy about understanding the problem. Trace the whole thing first.
+
+## Testing
+
+**Inline comments:** Only write a comment when WHY is non-obvious. Never describe what the
+code does. No docstrings for self-evident functions. One line max.
+
+**Unit tests:** Mock all external calls (subprocess, network, filesystem). Test one function
+in isolation. File: `src/steps/foo.ts` → `src/steps/foo.test.ts` (TS) or `tests/test_foo.py`
+(Python). Every public function gets at least one test. Use vitest (TS) or pytest + pytest-mock
+(Python). Never run real uv/pip/claude/npm in a unit test.
+
+**Integration tests:** Use a real temporary directory, no mocks for file ops. Verify that
+modules work together. Live in `tests/integration/` or `src/**/*.integration.test.ts`.
+Run with: `npm run test:integration` or `pytest tests/integration/`.
+
+**Regression tests:** For every bug fix — write a failing test reproducing the bug BEFORE the
+fix. Commit the failing test first (RED), then the fix (GREEN), in separate commits.
+Test name must reference the symptom: `test_install_headroom_does_not_throw_on_cpp_failure`.
+
+**Test naming:** Test names are sentences describing the expected behavior.
+- TS: `it('returns null when Python version is below 3.10')`
+- Python: `def test_returns_none_when_python_below_3_10()`
+Never name tests `test_1`, `test_happy_path`, or `test_works`.
 <!-- goodvibes:end -->

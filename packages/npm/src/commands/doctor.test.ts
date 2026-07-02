@@ -14,7 +14,7 @@ vi.mock('node:fs', () => ({
   readFileSync: vi.fn(),
 }))
 
-vi.mock('node:module', () => ({ createRequire: () => () => ({ version: '1.6.1' }) }))
+vi.mock('node:module', () => ({ createRequire: () => () => ({ version: '1.6.2' }) }))
 
 describe('doctor command', () => {
   beforeEach(() => {
@@ -273,7 +273,7 @@ describe('doctor command', () => {
       await capturedAction()
 
       const firstNoteArg = vi.mocked(note).mock.calls[0][0] as string
-      expect(firstNoteArg.split('\n')[0]).toBe('goodvibes v1.6.1')
+      expect(firstNoteArg.split('\n')[0]).toBe('goodvibes v1.6.2')
     })
   })
 })
