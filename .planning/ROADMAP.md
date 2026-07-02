@@ -287,10 +287,40 @@ Plans:
 
 **UI hint**: no
 
+### Phase 11: Publish Quality & Discoverability
+
+**Goal**: Make goodvibes trustworthy to install and easy to find — a post-publish smoke test so "published" and "works" are the same thing, a CI stamp guard so the v1.4.0 false-up-to-date bug can never recur, proper package names that include "goodvibes" without registry conflicts, polished npm/PyPI pages, and two small UX improvements that beginners encounter on day one
+**Depends on**: Phase 10
+**Requirements**: PUB-01, PUB-02, PKG-01, PKG-02, POL-01, POL-02
+**Success Criteria** (what must be TRUE):
+
+  1. A publish followed by a smoke test failure blocks the release before users see a broken package
+  2. A PR that bumps the package version without bumping `templates/CLAUDE.md` fails CI with a clear message pointing to the stale file
+  3. `npx goodvibes-cli init` and `pip install goodvibes-cli && goodvibes init` install a working package that lands on a polished registry page with description, keywords, homepage, and classifiers
+  4. `goodvibes doctor` output starts with the installed version so a support conversation can begin with "what version are you on?"
+  5. A beginner running `goodvibes upgrade --dry-run` reads "new / updated / unchanged" and understands the output without a legend
+
+**Plans**: 4 plans
+
+**Wave 1**
+
+- [ ] 11-01-PLAN.md — Wave 1: Package rename — npm goodvibes-cli + pip goodvibes-cli; update all call sites (upgrade.ts, upgrade_cmd.py, main.py), tests, README badges, publish-pip.yml wheel check (PKG-01)
+
+**Wave 2** *(parallel — no file conflicts)*
+
+- [ ] 11-02-PLAN.md — Wave 2a: CI gates — check-stamps job in ci.yml + smoke-test jobs in publish-npm.yml and publish-pip.yml (PUB-01, PUB-02)
+- [ ] 11-03-PLAN.md — Wave 2b: UX polish — doctor version line prepend (TS + Python) + upgrade English labels (TS + Python) + classifiers/homepage fields in pyproject.toml and package.json (POL-01, POL-02, PKG-02)
+
+**Wave 3** *(blocked on Wave 1-2 completion)*
+
+- [ ] 11-04-PLAN.md — Wave 3: PyPI OIDC trusted publisher checkpoint + pip tombstone stub + npm tombstone docs + JOURNAL.md (PKG-01 deprecation, PKG-02)
+
+**UI hint**: no
+
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9 → 10
+Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9 → 10 → 11
 
 Note: Phase 3 (pip CLI) and Phase 4 (CI scaffolding) have no dependency on each other and can be parallelized if two implementers are available. Both depend only on Phase 2.
 
@@ -308,3 +338,4 @@ Phase 6 must complete before Phase 7 — the demo GIF must record the hardened C
 | 8. Multi-IDE Expansion | 3/3 | Complete    | 2026-06-30 |
 | 9. OpenAI/Codex & Vibe-coding Platform Expansion | 3/3 | Complete    | 2026-07-01 |
 | 10. Vibe Coder Completeness | 3/3 | Complete    | 2026-07-01 |
+| 11. Publish Quality & Discoverability | 0/4 | Pending | — |
