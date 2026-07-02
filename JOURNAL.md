@@ -585,3 +585,31 @@ Docs updated: README.md (IDE table + count), CHANGELOG.md, JOURNAL.md
 **Tests run:** cd packages/npm && npm test — all passed. cd packages/pip && uv run pytest tests/ — all passed.
 
 **Docs updated:** CHANGELOG.md, JOURNAL.md, templates/docs/getting-started.md, templates/docs/platform-setup/*.md
+
+---
+
+## 2026-07-02 — Bug fix: upgrade version-comparison used stale template stamp (v1.6.1)
+
+**What I did:** Fixed a systemic bug in `goodvibes upgrade` / `goodvibes update` where the "already up to date" check read the version from the bundled `templates/CLAUDE.md` file rather than the installed binary's package metadata. When v1.4.0 shipped without bumping that file's header, users upgrading from v1.3.0 to v1.4.0 saw "Already up to date (v1.3.0)" because both the project and the bundled template said v1.3.0. Also confirmed that `goodvibes update` (the alias added in v1.6.0) works correctly via Click dispatch — the "No such command" error was because v1.4.0 predated the alias. Bumped to v1.6.1 to ship the fix.
+
+**Files changed:** packages/npm/src/commands/upgrade.ts (removed `detectBundledVersion`, use `getInstalledVersion()` for comparison), packages/pip/src/goodvibes_cli/commands/upgrade_cmd.py (removed `_detect_bundled_version`, use `_get_package_version()` for comparison), packages/pip/tests/test_upgrade_cmd.py (removed dead `_detect_bundled_version` mocks), packages/npm/package.json, packages/pip/pyproject.toml, templates/CLAUDE.md (v1.6.1 stamp).
+
+**Why:** The template stamp is a file that requires a manual update step each release. Using the binary's own package metadata version eliminates that manual step as a source of truth for the comparison, making the check reliable regardless of whether a developer remembers to bump the file.
+
+**Tests run:** cd packages/npm && npx vitest run — 117 passed. cd packages/pip && uv run pytest tests/ — all passed.
+
+**Docs updated:** JOURNAL.md
+
+---
+
+## 2026-07-02 — Closed all open phase UATs (phases 03, 05, 10)
+
+**What I did:** Recorded user approval for all outstanding human-UAT items. Phase 10 UAT items (getting-started.md beginner accessibility, IDE platform guide accuracy) approved by user after live testing. Phase 05 UAT items (template fork flow, upgrade dry-run) approved after successful end-to-end upgrade verification with v1.6.1. Phase 03 human-needed items (PyPI install, upgrade end-to-end) covered by live testing sessions. Updated status to `complete` in all three VERIFICATION.md and HUMAN-UAT.md files.
+
+**Files changed:** .planning/phases/03-pip-cli/03-VERIFICATION.md, .planning/phases/05-upgrade-command-template-repo/05-HUMAN-UAT.md, .planning/phases/05-upgrade-command-template-repo/05-VERIFICATION.md, .planning/phases/10-vibe-coder-completeness/10-HUMAN-UAT.md, .planning/phases/10-vibe-coder-completeness/10-VERIFICATION.md.
+
+**Why:** All phases are now fully closed. goodvibes v1.6.1 is live and verified end-to-end.
+
+**Tests run:** None — documentation closure only.
+
+**Docs updated:** JOURNAL.md, all affected HUMAN-UAT.md and VERIFICATION.md files.
