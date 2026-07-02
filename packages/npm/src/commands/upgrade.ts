@@ -88,10 +88,10 @@ async function computeChanges(
   return results.sort((a, b) => a.path.localeCompare(b.path))
 }
 
-function formatChangeSummary(changes: Array<{ path: string; status: string }>): string {
+export function formatChangeSummary(changes: Array<{ path: string; status: string }>): string {
   if (changes.length === 0) return '(no managed files found)'
-  const symbol: Record<string, string> = { changed: '~', unchanged: '=', new: '+' }
-  return changes.map(c => `${symbol[c.status] ?? '?'} ${c.path}`).join('\n')
+  const label: Record<string, string> = { changed: 'updated', unchanged: 'unchanged', new: 'new' }
+  return changes.map(c => `${label[c.status] ?? '?'} ${c.path}`).join('\n')
 }
 
 async function upgradeTemplates(templateDir: string, destDir: string, projectType: string): Promise<string[]> {

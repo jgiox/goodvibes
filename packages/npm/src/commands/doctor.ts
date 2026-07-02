@@ -3,6 +3,15 @@ import { note, outro } from '@clack/prompts'
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { execa } from 'execa'
+import { createRequire } from 'node:module'
+
+const _require = createRequire(import.meta.url)
+function _getVersion(): string {
+  try {
+    const pkg = _require('../../package.json') as { version?: string }
+    return pkg.version ?? 'unknown'
+  } catch { return 'unknown' }
+}
 
 // ponytail: not imported from sentinel-merge.ts — those constants are module-private
 const SENTINEL_START = '<!-- goodvibes:start -->'
@@ -85,7 +94,8 @@ export function registerDoctorCommand(program: Command): void {
 
       const all: CheckResult[] = [headroomResult, ...gitResults, claudeMdResult, sentinelResult]
 
-      const lines = all.map(r => `${r.pass ? '✓' : '✗'} ${r.label}`)
+      const version = _getVersion()
+      const lines = [`goodvibes v${version}`, ...all.map(r => `${r.pass ? '✓' : '✗'} ${r.label}`)]
       note(lines.join('\n'), 'goodvibes doctor')
 
       const failures = all.filter(r => !r.pass)
