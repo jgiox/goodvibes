@@ -627,3 +627,17 @@ Docs updated: README.md (IDE table + count), CHANGELOG.md, JOURNAL.md
 **Tests run:** None — documentation closure only.
 
 **Docs updated:** JOURNAL.md, all affected HUMAN-UAT.md and VERIFICATION.md files.
+
+---
+
+## 2026-07-02 — Phase 11-02: CI stamp gate and publish smoke-test jobs (PUB-01, PUB-02)
+
+**What I did:** Added two CI gates. First: a `check-stamps` job in `ci.yml` that runs in parallel (no `needs`) on every push/PR and fails with a clear fix instruction when `packages/npm/package.json`, `packages/pip/pyproject.toml`, and `templates/CLAUDE.md` version stamps diverge. Second: `smoke-test` jobs appended to both publish workflows — each waits 30 seconds for registry propagation, installs the just-published package from the public registry, runs `goodvibes init --dry-run` in a tmpdir, and asserts `CLAUDE.md` appears in output via tee+grep.
+
+**Files changed:** `.github/workflows/ci.yml` (check-stamps job added), `.github/workflows/publish-npm.yml` (smoke-test job added), `.github/workflows/publish-pip.yml` (smoke-test job added).
+
+**Why:** PUB-02 prevents the v1.4.0-class stale-stamp regression from shipping again. PUB-01 makes "published" synonymous with "works" — if the registry install fails, we know before users hit it.
+
+**Tests run:** YAML lint passed (python3 yaml.safe_load) on all three files. All grep assertions verified in worktree.
+
+**Docs updated:** JOURNAL.md.
