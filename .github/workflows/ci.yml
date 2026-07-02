@@ -63,3 +63,28 @@ jobs:
 
       - name: Run verify-phase5.sh
         run: bash scripts/verify-phase5.sh --quick
+
+  check-stamps:
+    name: Version stamps in sync
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Check version stamps are in sync
+        run: |
+          NPM_VER=$(grep '"version"' packages/npm/package.json | head -1 | sed 's/.*"version": "\(.*\)".*/\1/')
+          PIP_VER=$(grep '^version' packages/pip/pyproject.toml | sed 's/version = "\(.*\)"/\1/')
+          TPL_VER=$(grep '^# goodvibes: v' templates/CLAUDE.md | sed 's/# goodvibes: v//')
+
+          echo "npm:      $NPM_VER"
+          echo "pip:      $PIP_VER"
+          echo "template: $TPL_VER"
+
+          if [ "$NPM_VER" != "$PIP_VER" ] || [ "$NPM_VER" != "$TPL_VER" ]; then
+            echo ""
+            echo "ERROR: Version stamps are out of sync."
+            echo "Fix: update templates/CLAUDE.md header to '# goodvibes: v$NPM_VER'"
+            echo "Fix: update packages/pip/pyproject.toml version to match packages/npm/package.json"
+            exit 1
+          fi
+          echo "All stamps in sync: v$NPM_VER"
