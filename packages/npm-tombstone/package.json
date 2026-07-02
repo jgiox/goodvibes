@@ -1,0 +1,7 @@
+{
+  "name": "@jgiox/goodvibes",
+  "version": "2.0.0",
+  "description": "DEPRECATED — Renamed to goodvibes-cli. Install: npm install -g goodvibes-cli",
+  "_deprecation_note": "This stub is NOT published to npm. npm deprecate command was run manually: npm deprecate '@jgiox/goodvibes@*' 'Renamed to goodvibes-cli. Install: npm install -g goodvibes-cli'",
+  "license": "Apache-2.0"
+}

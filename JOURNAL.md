@@ -655,3 +655,17 @@ Docs updated: README.md (IDE table + count), CHANGELOG.md, JOURNAL.md
 **Tests run:** `npm test` (119 passed), `uv run pytest tests/` (126 passed).
 
 **Docs updated:** JOURNAL.md.
+
+---
+
+## 2026-07-02 — Phase 11-04: PyPI OIDC setup, tombstone stubs, Phase 11 complete
+
+**What I did:** Human checkpoint completed — PyPI trusted publisher configured for `goodvibes-cli` (GitHub Actions / jgiox/goodvibes / publish-pip.yml / release environment) and `npm deprecate "@jgiox/goodvibes@*"` run with redirect message. Created `packages/pip-tombstone/pyproject.toml` (stub wheel for jgiox-goodvibes v2.0.0 that depends on goodvibes-cli — pip auto-installs the new package for users on the old name). Created `packages/npm-tombstone/package.json` (documents the npm deprecate command run; no npm publish needed since deprecation is registry-level).
+
+**Files changed:** packages/pip-tombstone/pyproject.toml (new), packages/npm-tombstone/package.json (new), JOURNAL.md.
+
+**Why:** PKG-01 deprecation strategy — users still running the old package names get auto-redirected without a broken install. PyPI OIDC is required before any pip-v* tag push or publish-pip.yml will succeed.
+
+**Tests run:** npm test (119 passed), uv run pytest tests/ (126 passed) — no new tests needed for static stub files.
+
+**Docs updated:** JOURNAL.md. Phase 11 complete — goodvibes is published as goodvibes-cli on both npm and PyPI, with CI smoke tests gating every future publish.
