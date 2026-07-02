@@ -120,8 +120,9 @@ Phase 11 installs no new packages. The only registry operations are:
 │    init --dry-run   │           │    goodvibes-cli      │
 │  assert exit 0      │           │  goodvibes init       │
 │  assert CLAUDE.md   │           │    --dry-run          │
-│  in tmpdir          │           │  assert exit 0        │
-└─────────────────────┘           └──────────────────────┘
+│  in tmpdir          │           │  assert CLAUDE.md     │
+└─────────────────────┘           │  in output            │
+                                  └──────────────────────┘
 
 [PR / push to main]
          │
@@ -179,9 +180,8 @@ smoke-test:
     - name: Smoke test
       run: |
         cd $(mktemp -d)
-        goodvibes init --dry-run
-        test $? -eq 0
-        test -f CLAUDE.md || (echo "CLAUDE.md not in dry-run output" && exit 1)
+        goodvibes init --dry-run 2>&1 | tee /tmp/gv-out.txt
+        grep -q "CLAUDE.md" /tmp/gv-out.txt
 ```
 
 **Registry propagation timing:** npm registry typically propagates within seconds to a few minutes for public packages on npmjs.org (as opposed to GitHub Packages). A 30-second sleep is a conservative safe margin used by many open source publish pipelines. [ASSUMED — no official SLA documented by npm]
@@ -208,8 +208,8 @@ smoke-test:
     - name: Smoke test
       run: |
         cd $(mktemp -d)
-        goodvibes init --dry-run
-        test $? -eq 0
+        goodvibes init --dry-run 2>&1 | tee /tmp/gv-out.txt
+        grep -q "CLAUDE.md" /tmp/gv-out.txt
 ```
 
 **PyPI propagation:** Comparable to npm — seconds on release, with a 30-second margin being standard practice in open source. [ASSUMED]
@@ -336,6 +336,7 @@ symbol = {"changed": "updated", "unchanged": "unchanged", "new": "new"}
 - **`shell: true` in CI steps:** No shell injection risk here since all inputs are constants, but use array form anyway per project security policy.
 - **Importing version helper from `upgrade.ts` into `doctor.ts`:** Avoid cross-command imports — duplicate the 5-line helper. Commands are leaves, not a shared library.
 - **Using `jq` in CI without a setup step:** jq is pre-installed on GitHub's ubuntu-latest runners [VERIFIED: GitHub Actions runner image documentation] but not guaranteed on macOS runners. Use `node -p` or pure `grep`/`sed` for maximum portability.
+- **Asserting file presence in smoke test for --dry-run:** `--dry-run` prints file names but does not write to disk. Assert on output text (`grep -q "CLAUDE.md" /tmp/gv-out.txt`), not file presence (`test -f CLAUDE.md`).
 
 ---
 
@@ -388,8 +389,11 @@ All references to old names must be updated. Key locations:
 | `packages/pip/src/goodvibes_cli/main.py` | `importlib.metadata.version("jgiox-goodvibes")` | `goodvibes-cli` |
 | `packages/npm/src/commands/upgrade.ts` | `npm view @jgiox/goodvibes version`, `npm install -g @jgiox/goodvibes@...` | `goodvibes-cli` |
 | `.github/workflows/publish-pip.yml` | `test -f packages/pip/dist/jgiox_goodvibes-*.whl` | `goodvibes_cli-*.whl` |
+| `.github/workflows/vhs.yml` | `npm install -g @jgiox/goodvibes` | `npm install -g goodvibes-cli` |
 | `README.md` | badge URLs (`jgiox-goodvibes` PyPI badge, `@jgiox/goodvibes` npm badge) | update to new names |
-| `scripts/demo.tape` | `npm install -g @jgiox/goodvibes` | `npm install -g goodvibes-cli` |
+| `packages/pip/README.md` | `pip install jgiox-goodvibes` | `pip install goodvibes-cli` |
+| `scripts/verify-phase3.sh` | `grep -q 'name = "jgiox-goodvibes"'` | `grep -q 'name = "goodvibes-cli"'` |
+| `scripts/demo.tape` | (none — uses `goodvibes init --minimal` binary call only; package name not referenced) | no change needed |
 | `packages/npm/.gitignore` | — | no change |
 
 **Test files:** grep for `jgiox-goodvibes` and `@jgiox/goodvibes` in test files. Specifically:
@@ -452,7 +456,7 @@ classifiers = [
 | Registry propagation polling | Loop with retries | Fixed `sleep 30` | CDN propagation is fast on npmjs.org; retry logic adds complexity for marginal benefit |
 | npm name conflict check | Custom validation script | `npm view <name>` returning 404 | Already done in research; no runtime check needed |
 | PyPI deprecation | Custom "please upgrade" logic in old package | Stub wheel with `install_requires=["goodvibes-cli"]` | pip handles the redirect automatically |
-| Smoke test assertion framework | Install pytest in smoke runner | `test $? -eq 0` and `test -f FILE` shell assertions | 2 lines of shell; no framework needed |
+| Smoke test assertion framework | Install pytest in smoke runner | `grep -q "CLAUDE.md" /tmp/gv-out.txt` shell assertion | 2 lines of shell; no framework needed; assert on output text, not file presence (--dry-run does not write to disk) |
 
 ---
 
@@ -514,6 +518,11 @@ classifiers = [
 **Why it happens:** Badge URLs are hardcoded strings, not derived from package.json.
 **How to avoid:** Update both badge URLs in README.md as part of the rename task.
 
+### Pitfall 8: Smoke test asserts file presence for --dry-run
+**What goes wrong:** `test -f CLAUDE.md` in smoke test tmpdir always fails because `--dry-run` prints file names to stdout but does not write to disk.
+**Why it happens:** The --dry-run flag is designed to preview what would be written, not to write it.
+**How to avoid:** Pipe output: `goodvibes init --dry-run 2>&1 | tee /tmp/gv-out.txt` then `grep -q "CLAUDE.md" /tmp/gv-out.txt`.
+
 ---
 
 ## Code Examples
@@ -554,6 +563,8 @@ dependencies = ["goodvibes-cli"]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 ```
+
+Note: The tombstone goes in `packages/pip-tombstone/` in this repo — a single `pyproject.toml` with no source code, published once manually.
 
 ### Doctor Version Line Prepend (TypeScript)
 
@@ -625,22 +636,16 @@ def doctor_cmd() -> None:
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Should the smoke test use `npx goodvibes-cli init --dry-run` (cold install) or pre-install?**
-   - What we know: `npx` adds registry round-trip; `npm install -g` is faster but requires root on some systems; smoke test runs on GitHub Actions ubuntu-latest (root available)
-   - What's unclear: whether `npx goodvibes-cli@VERSION` would work without version pinning
-   - Recommendation: Use `npm install -g goodvibes-cli@$VERSION` then call binary directly — matches the JOURNAL observation that npx always re-checks the registry even with warm cache
+   - Resolution: Use `npm install -g goodvibes-cli@$VERSION` then call binary directly — avoids npx re-check behavior on every run (per JOURNAL observation). This is what the plan implements.
 
 2. **Should the version-stamp gate run as a pre-push hook in addition to CI?**
-   - What we know: PUB-02 specifies "pre-push hook OR PR gate"; the project currently has no git hooks configured
-   - What's unclear: whether adding a git hook would improve developer experience or add friction
-   - Recommendation: PR gate via `ci.yml` is sufficient for PUB-02; git hooks are optional. Planner should add as a separate task only if the user specifically requests it.
+   - Resolution: CI PR gate via `ci.yml` only — hooks are skippable by developers, CI is enforced. No git hook added.
 
 3. **Should the PyPI stub wheel for `jgiox-goodvibes` be published from the same repo or a separate micro-repo?**
-   - What we know: the stub is a one-file pyproject.toml with no source; it can live in `packages/pip-tombstone/` or as a separate repo
-   - What's unclear: maintenance burden; trusted publishing for the stub needs its own PyPI config
-   - Recommendation: Put in `packages/pip-tombstone/` with a manual one-time publish step; no automated CI needed for a tombstone package.
+   - Resolution: `packages/pip-tombstone/` in this repo — a single `pyproject.toml` with no source, published once manually. Simpler than a standalone repo; no CI needed for a one-time tombstone publish.
 
 ---
 
