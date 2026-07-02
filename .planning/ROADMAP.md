@@ -308,8 +308,8 @@ Plans:
 
 **Wave 2** *(parallel — no file conflicts)*
 
-- [ ] 11-02-PLAN.md — Wave 2a: CI gates — check-stamps job in ci.yml + smoke-test jobs in publish-npm.yml and publish-pip.yml (PUB-01, PUB-02)
-- [ ] 11-03-PLAN.md — Wave 2b: UX polish — doctor version line prepend (TS + Python) + upgrade English labels (TS + Python) + classifiers/homepage fields in pyproject.toml and package.json (POL-01, POL-02, PKG-02)
+- [x] 11-02-PLAN.md — Wave 2a: CI gates — check-stamps job in ci.yml + smoke-test jobs in publish-npm.yml and publish-pip.yml (PUB-01, PUB-02)
+- [x] 11-03-PLAN.md — Wave 2b: UX polish — doctor version line prepend (TS + Python) + upgrade English labels (TS + Python) + classifiers/homepage fields in pyproject.toml and package.json (POL-01, POL-02, PKG-02)
 
 **Wave 3** *(blocked on Wave 1-2 completion)*
 
@@ -338,4 +338,4 @@ Phase 6 must complete before Phase 7 — the demo GIF must record the hardened C
 | 8. Multi-IDE Expansion | 3/3 | Complete    | 2026-06-30 |
 | 9. OpenAI/Codex & Vibe-coding Platform Expansion | 3/3 | Complete    | 2026-07-01 |
 | 10. Vibe Coder Completeness | 3/3 | Complete    | 2026-07-01 |
-| 11. Publish Quality & Discoverability | 1/4 | In Progress|  |
+| 11. Publish Quality & Discoverability | 3/4 | In Progress|  |
