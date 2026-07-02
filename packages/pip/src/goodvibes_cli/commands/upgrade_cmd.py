@@ -72,15 +72,6 @@ def _detect_installed_version(cwd: pathlib.Path) -> str | None:
     return extract_version(claude_path.read_text(encoding="utf-8"))
 
 
-def _detect_bundled_version(template_dir: pathlib.Path) -> str | None:
-    if not template_dir:
-        return None
-    claude_src = template_dir / "CLAUDE.md"
-    if not claude_src.exists():
-        return None
-    return extract_version(claude_src.read_text(encoding="utf-8"))
-
-
 def compute_changes(
     template_dir: pathlib.Path,
     dest_dir: pathlib.Path,
@@ -216,7 +207,7 @@ def upgrade_cmd(
     project_type = detect_project_type(cwd)
 
     installed_version = _detect_installed_version(cwd)
-    bundled_version = _detect_bundled_version(template_dir)
+    bundled_version = _get_package_version()
 
     if installed_version and bundled_version and version_gte(installed_version, bundled_version):
         console.rule(f"[green]Already up to date (v{installed_version})[/green]")

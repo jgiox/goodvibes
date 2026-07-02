@@ -51,14 +51,6 @@ async function detectInstalledVersion(cwd: string): Promise<string | null> {
   return extractVersion(content)
 }
 
-async function detectBundledVersion(templateDir: string): Promise<string | null> {
-  if (!templateDir) return null
-  const claudeSrc = join(templateDir, 'CLAUDE.md')
-  if (!(await pathExists(claudeSrc))) return null
-  const content = await readFile(claudeSrc, 'utf-8')
-  return extractVersion(content)
-}
-
 async function computeChanges(
   templateDir: string,
   destDir: string,
@@ -176,7 +168,7 @@ export function registerUpgradeCommand(program: Command): void {
       const projectType = detectProjectType(cwd)
 
       const installedVersion = await detectInstalledVersion(cwd)
-      const bundledVersion = await detectBundledVersion(templateDir)
+      const bundledVersion = getInstalledVersion()
 
       if (installedVersion && bundledVersion && versionGte(installedVersion, bundledVersion)) {
         outro(`Already up to date (v${installedVersion})`)

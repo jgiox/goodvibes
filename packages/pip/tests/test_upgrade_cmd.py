@@ -32,7 +32,6 @@ def test_upgrade_help_has_dry_run():
 def test_dry_run_shows_summary_without_writing(mocker):
     mocker.patch("goodvibes_cli.commands.upgrade_cmd.resolve_templates_dir", return_value=None)
     mocker.patch("goodvibes_cli.commands.upgrade_cmd._detect_installed_version", return_value=None)
-    mocker.patch("goodvibes_cli.commands.upgrade_cmd._detect_bundled_version", return_value="1.0.0")
     mocker.patch("goodvibes_cli.commands.upgrade_cmd.version_gte", return_value=False)
     mocker.patch("goodvibes_cli.commands.upgrade_cmd.compute_changes", return_value=[])
     result = runner.invoke(app, ["upgrade", "--dry-run"])
@@ -43,7 +42,6 @@ def test_dry_run_shows_summary_without_writing(mocker):
 def test_skips_when_already_up_to_date(mocker):
     mocker.patch("goodvibes_cli.commands.upgrade_cmd.resolve_templates_dir", return_value=None)
     mocker.patch("goodvibes_cli.commands.upgrade_cmd._detect_installed_version", return_value="1.0.0")
-    mocker.patch("goodvibes_cli.commands.upgrade_cmd._detect_bundled_version", return_value="1.0.0")
     mocker.patch("goodvibes_cli.commands.upgrade_cmd.version_gte", return_value=True)
     result = runner.invoke(app, ["upgrade"])
     assert result.exit_code == 0
@@ -54,7 +52,6 @@ def test_runs_upgrade_when_claude_md_absent(mocker):
     mocker.patch("goodvibes_cli.commands.upgrade_cmd.resolve_templates_dir", return_value=None)
     mock_upgrade = mocker.patch("goodvibes_cli.commands.upgrade_cmd.upgrade_templates", return_value=[])
     mocker.patch("goodvibes_cli.commands.upgrade_cmd._detect_installed_version", return_value=None)
-    mocker.patch("goodvibes_cli.commands.upgrade_cmd._detect_bundled_version", return_value="1.0.0")
     mocker.patch("goodvibes_cli.commands.upgrade_cmd.version_gte", return_value=False)
     mocker.patch("goodvibes_cli.commands.upgrade_cmd.compute_changes", return_value=[])
     result = runner.invoke(app, ["upgrade"])
@@ -64,7 +61,6 @@ def test_runs_upgrade_when_claude_md_absent(mocker):
 def test_diff_summary_printed_before_apply(mocker):
     mocker.patch("goodvibes_cli.commands.upgrade_cmd.resolve_templates_dir", return_value=None)
     mocker.patch("goodvibes_cli.commands.upgrade_cmd._detect_installed_version", return_value=None)
-    mocker.patch("goodvibes_cli.commands.upgrade_cmd._detect_bundled_version", return_value="1.0.0")
     mocker.patch("goodvibes_cli.commands.upgrade_cmd.version_gte", return_value=False)
     mocker.patch("goodvibes_cli.commands.upgrade_cmd.compute_changes", return_value=[("CLAUDE.md", "changed")])
     mocker.patch("goodvibes_cli.commands.upgrade_cmd.upgrade_templates", return_value=[])
@@ -77,7 +73,6 @@ def test_diff_summary_printed_before_apply(mocker):
 def test_user_content_outside_sentinel_preserved_after_upgrade(mocker):
     mocker.patch("goodvibes_cli.commands.upgrade_cmd.resolve_templates_dir", return_value=None)
     mocker.patch("goodvibes_cli.commands.upgrade_cmd._detect_installed_version", return_value=None)
-    mocker.patch("goodvibes_cli.commands.upgrade_cmd._detect_bundled_version", return_value="1.0.0")
     mocker.patch("goodvibes_cli.commands.upgrade_cmd.version_gte", return_value=False)
     mocker.patch("goodvibes_cli.commands.upgrade_cmd.compute_changes", return_value=[])
     mock_upgrade = mocker.patch("goodvibes_cli.commands.upgrade_cmd.upgrade_templates", return_value=[])
@@ -108,7 +103,6 @@ def test_self_update_skipped_when_env_set(mocker):
     mock_update = mocker.patch("goodvibes_cli.commands.upgrade_cmd._self_update_pip")
     mocker.patch("goodvibes_cli.commands.upgrade_cmd.resolve_templates_dir", return_value=None)
     mocker.patch("goodvibes_cli.commands.upgrade_cmd._detect_installed_version", return_value="1.0.0")
-    mocker.patch("goodvibes_cli.commands.upgrade_cmd._detect_bundled_version", return_value="1.0.1")
     mocker.patch("goodvibes_cli.commands.upgrade_cmd.version_gte", return_value=False)
     mocker.patch("goodvibes_cli.commands.upgrade_cmd.compute_changes", return_value=[])
     mocker.patch("goodvibes_cli.commands.upgrade_cmd.upgrade_templates", return_value=[])
