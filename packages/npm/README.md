@@ -2,25 +2,20 @@
 
 > One command. Production-grade project. No config.
 
-[![PyPI](https://img.shields.io/pypi/v/goodvibes-cli?style=flat-square)](https://pypi.org/project/goodvibes-cli/)
 [![npm](https://img.shields.io/npm/v/goodvibes-cli?style=flat-square)](https://www.npmjs.com/package/goodvibes-cli)
+[![PyPI](https://img.shields.io/pypi/v/goodvibes-cli?style=flat-square)](https://pypi.org/project/goodvibes-cli/)
 [![CI](https://img.shields.io/github/actions/workflow/status/jgiox/goodvibes/ci.yml?style=flat-square)](https://github.com/jgiox/goodvibes/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue?style=flat-square)](https://github.com/jgiox/goodvibes/blob/main/LICENSE)
 
-goodvibes is a single-command bootstrap for people who want to vibe code with an LLM and not worry about the rest. Run `goodvibes init`, start coding, and everything else — code hygiene, token efficiency, git discipline, CI/CD — happens automatically in the background.
+goodvibes is a single-command bootstrap for people who want to vibe code with an LLM and not worry about the rest. Run `npx goodvibes-cli init`, start coding, and everything else — code hygiene, token efficiency, git discipline, CI/CD — happens automatically in the background.
 
 ## Quick start
 
 ```sh
-pip install goodvibes-cli
-goodvibes init
-```
-
-Or without installing (Node.js):
-
-```sh
 npx goodvibes-cli init
 ```
+
+That's it. No install required.
 
 ## What you get
 
@@ -43,7 +38,7 @@ goodvibes init --minimal    # Skip headroom install, all .github/ files, and doc
 
 ## Requirements
 
-- Python 3.10+
+- Node.js 20+
 - git
 - A GitHub account (for CI)
 
@@ -75,7 +70,7 @@ goodvibes init --minimal    # Skip headroom install, all .github/ files, and doc
 - [GitHub](https://github.com/jgiox/goodvibes) — source, issues, discussions
 - [Getting started](https://github.com/jgiox/goodvibes/blob/main/docs/getting-started.md)
 - [Changelog](https://github.com/jgiox/goodvibes/blob/main/CHANGELOG.md)
-- [npm package](https://www.npmjs.com/package/goodvibes-cli) — `npx goodvibes-cli init`
+- [Python package](https://pypi.org/project/goodvibes-cli/) — `pip install goodvibes-cli`
 
 ## License
 
