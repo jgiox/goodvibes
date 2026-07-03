@@ -1,281 +1,75 @@
 # Requirements: goodvibes
 
-**Defined:** 2026-06-23
+**Defined:** 2026-06-23 (v1.0 — v1.1.0)
+**Updated:** 2026-07-03 (v1.2.0 Growth & Retention)
 **Core Value:** One command gives a vibe coder a fully configured project — token efficiency and engineering discipline happen automatically in the background.
 
-## v1 Requirements
+## v1.2.0 Requirements (Active)
 
-### CLI — npm
+### Headroom Integration
 
-- [ ] **NPM-01**: User can run `npx goodvibes init` in any empty or existing directory and get a fully configured project
-- [ ] **NPM-02**: CLI runs without asking any questions (zero-config, fully opinionated defaults)
-- [ ] **NPM-03**: CLI displays named steps with spinners during init (not silent)
-- [ ] **NPM-04**: CLI prints an explicit file list of everything it created or modified on completion
-- [ ] **NPM-05**: CLI prints a "what to do next" block (max 3 steps) after install
-- [ ] **NPM-06**: CLI supports `--minimal` flag (skip headroom install, skip CI workflows) for advanced users who want only the Claude skills + CLAUDE.md
-- [ ] **NPM-07**: CLI supports `--dry-run` flag to preview what would be written without touching the filesystem
-- [x] **NPM-08**: CLI requires Node 20 LTS or higher and errors clearly if not met
-- [x] **NPM-09**: CLI works on Linux and macOS; Windows documented as best-effort (WSL recommended)
-- [ ] **NPM-10**: CLI uses `cross-spawn` for all subprocess calls to avoid Windows PATH issues
-- [ ] **NPM-11**: npm package published as `goodvibes` (or `@jgiox/goodvibes`)
+- [ ] **HDR2-01**: `goodvibes init` reports actual headroom install outcome — installed, already-installed, skipped (no Python), or failed — in the init outro
+- [ ] **HDR2-02**: `goodvibes init` reports MCP config outcome separately — written, already-configured, or failed
+- [ ] **HDR2-03**: Headroom probe uses `headroom compress --help` (not just `--version`) to catch broken installs
+- [ ] **HDR2-04**: All headroom subprocess calls have a hard 10-second timeout
+- [ ] **HDR2-05**: `goodvibes doctor` headroom check reflects real functional status (installed + working vs just on PATH)
 
-### CLI — pip
+### Telemetry
 
-- [x] **PIP-01**: User can run `pip install goodvibes && goodvibes init` and get the same result as `npx goodvibes init`
-- [x] **PIP-02**: pip CLI is a Python port of the npm CLI with identical output behavior
-- [x] **PIP-03**: pip CLI installs headroom-ai[all] at runtime via uv→pipx→pip chain (same as npm CLI); fails gracefully if C++ build tools absent; headroom is NOT a declared pyproject.toml dependency (D-02: declaring it breaks pip install on machines without hnswlib build tools)
-- [x] **PIP-04**: pip package published to PyPI as `jgiox-goodvibes` (D-01: `goodvibes` taken by Paton Research Group chemistry package v4.3.0); CLI entry point command remains `goodvibes`
-- [x] **PIP-05**: pip CLI requires Python 3.10+ and errors clearly if not met
+- [ ] **TEL-01**: `goodvibes init` sends an anonymous fire-and-forget event to a GDPR-compliant endpoint (no PII, no persistent user ID)
+- [ ] **TEL-02**: Telemetry uses a per-invocation `randomUUID()` — never stored on disk
+- [ ] **TEL-03**: Opt-out via `DO_NOT_TRACK=1` or `GOODVIBES_NO_TELEMETRY=1`; auto-suppressed when `CI=true`
+- [ ] **TEL-04**: One-line disclosure shown in init intro before tasks run
+- [ ] **TEL-05**: Telemetry never blocks or slows init — `Promise.race` with 1-second grace after tasks complete
 
-### CLAUDE.md
+### Update Command
 
-- [x] **CLAUDEMD-01**: `init` writes a `CLAUDE.md` to the target project root (or merges into existing using sentinel blocks)
-- [x] **CLAUDEMD-02**: CLAUDE.md is 80–100 lines — curated from karpathy rules and Code Directions.md to only what a vibe coder needs every session
-- [x] **CLAUDEMD-03**: CLAUDE.md includes a version stamp (e.g. `# goodvibes: v1.0.0`) for future upgrade compatibility
-- [x] **CLAUDEMD-04**: CLAUDE.md auto-activates ponytail minimalism rules (no manual `/ponytail` invocation required)
-- [x] **CLAUDEMD-05**: CLAUDE.md covers: think before coding, simplicity first, surgical changes, fail loud, security basics, journal requirement — and nothing else
+- [ ] **UPD-01**: `goodvibes init` writes `.goodvibes.json` manifest (SHA-256 hash per managed file + goodvibes version)
+- [ ] **UPD-02**: `goodvibes update` reads manifest and categorises files: managed (safe to overwrite), user-modified (skip), net-new (write)
+- [ ] **UPD-03**: `goodvibes update --dry-run` shows what would change before writing anything
+- [ ] **UPD-04**: `goodvibes update` prompts confirmation before overwrites; `--force` skips prompt for CI use
+- [ ] **UPD-05**: Projects initialized before v1.2.0 (no manifest) receive a clear actionable message — no silent failure
+- [ ] **UPD-06**: `sentinel-merge` guards against SENTINEL_START without SENTINEL_END (prevents CLAUDE.md data-loss)
 
-### caveman Skill
+## Deferred to v1.3.0
 
-- [x] **CAV-01**: `init` writes the caveman Claude skill to `.claude/skills/caveman/` in the target project
-- [x] **CAV-02**: caveman skill is forked from `juliusbrussee/caveman` with full attribution and Apache 2.0 NOTICE file
-- [x] **CAV-03**: caveman skill works out of the box with no configuration required
-
-### goodvibes-hygiene Skill
-
-- [x] **HYG-01**: `init` writes a `goodvibes-hygiene` Claude skill to `.claude/skills/goodvibes-hygiene/`
-- [x] **HYG-02**: Skill wraps the key ponytail commands (`/ponytail-review`, `/ponytail-audit`) with goodvibes-specific context
-- [x] **HYG-03**: Skill instructs the user to install ponytail via `/plugin marketplace add DietrichGebert/ponytail` and surfaces this in the post-install "what to do next" block
-
-### headroom Integration
-
-- [ ] **HDR-01**: `init` installs `headroom-ai[all]` via `pipx install headroom-ai[all]` (preferred) with `pip install --user` as fallback
-- [ ] **HDR-02**: Before installing, CLI detects Python 3.10+ and warns clearly if absent (skip headroom gracefully, do not fail the whole init)
-- [ ] **HDR-03**: CLI warns the user that the first headroom run will download an ONNX model and may take 1–3 minutes
-- [ ] **HDR-04**: `init` configures headroom as a global MCP server in `~/.claude/` (not project-scoped)
-- [ ] **HDR-05**: `init` checks if headroom is already configured before installing (idempotent — safe to run twice)
-- [ ] **HDR-06**: headroom installation does NOT use npm postinstall hooks (blocked in npm v12)
-
-### GitHub Actions Scaffolding
-
-- [ ] **CI-01**: `init` writes `.github/workflows/ci.yml` — runs tests and lint for detected project type (Node or Python)
-- [ ] **CI-02**: `init` writes `.github/workflows/security.yml` — CodeQL + dependency audit
-- [ ] **CI-03**: `init` writes `.github/workflows/dependency-review.yml` — blocks PRs with high-severity deps
-- [ ] **CI-04**: `init` writes `.github/dependabot.yml` — weekly updates for GitHub Actions, npm, and pip
-- [ ] **CI-05**: CLI detects project type (presence of `package.json` or `pyproject.toml`/`requirements.txt`) and generates the appropriate CI workflow; defaults to both if neither exists
-- [ ] **CI-06**: Generated workflows pass on the first push with zero additional user configuration
-
-### Docs Scaffolding
-
-- [x] **DOCS-01**: `init` writes `CONTRIBUTING.md` with the git fork/branch/PR workflow explained for beginners
-- [x] **DOCS-02**: `init` writes `SECURITY.md` with private vulnerability reporting guidance
-- [x] **DOCS-03**: `init` writes `JOURNAL.md` with template and example entry
-- [x] **DOCS-04**: `init` writes `CHANGELOG.md` with Unreleased section ready
-- [x] **DOCS-05**: `init` writes `.github/ISSUE_TEMPLATE/bug_report.yml` and `feature_request.yml`
-- [x] **DOCS-06**: `init` writes `.github/PULL_REQUEST_TEMPLATE.md` with the standard checklist
-- [x] **DOCS-07**: `init` writes `docs/onboarding.md` — beginner guide covering git clone, branch, PR workflow in plain language
-
-### Upgrade
-
-- [x] **UPG-01**: `npx goodvibes upgrade` (and `goodvibes upgrade`) re-syncs CLAUDE.md, skill files, and CI workflows to the latest published version of goodvibes
-- [x] **UPG-02**: Upgrade uses template version stamps to detect what was installed vs what is current
-- [x] **UPG-03**: Upgrade preserves user edits in CLAUDE.md outside sentinel blocks
-- [x] **UPG-04**: Upgrade prints a diff-style summary of what changed before applying
-
-### Repo and License
-
-- [x] **REPO-01**: Apache 2.0 `LICENSE` file at repo root
-- [x] **REPO-02**: `NOTICE` file crediting caveman (juliusbrussee/caveman, MIT), ponytail (DietrichGebert/ponytail, MIT), and headroom (headroomlabs-ai/headroom, Apache 2.0)
-- [x] **REPO-03**: Repo README has `npx goodvibes init` as the hero action — the first thing a visitor sees
-- [x] **REPO-04**: Template files symlinked between npm and pip packages (single source of truth)
-
-## v2 Requirements
-
-### Enhanced CLI
-- **NPM-V2-01**: `goodvibes update` — re-sync an existing install without full reinit
-- **NPM-V2-02**: `--template <name>` flag for project-type-specific variants (e.g. `--template nextjs`, `--template fastapi`)
-- **NPM-V2-03**: Interactive wizard mode (`--interactive`) for users who want to choose which layers to install
-
-### Platform
-- **PLAT-V2-01**: Full native Windows support (no WSL requirement)
-- **PLAT-V2-02**: Alpine/musl wheel distribution for headroom
-
-### Ecosystem
-- **ECO-V2-01**: GitHub template repo (`jgiox/goodvibes-template`) as a click-to-fork alternative
-- **ECO-V2-02**: headroom proxy mode setup as an optional step (for users who want session-level compression, not just MCP)
+- User-modified file detection beyond manifest hashing (3-way merge, conflict markers)
+- Telemetry in `goodvibes update` and `goodvibes doctor` runs
+- `goodvibes telemetry disable` command
+- `--force` flag for init re-runs (overwrite existing files)
+- `.gitignore` line-by-line dedup merge
+- `--debug` flag for stack trace output
 
 ## Out of Scope
 
-| Feature | Reason |
-|---------|--------|
-| Plugin/extension marketplace | Yeoman failure mode — composability kills simplicity |
-| Web UI or dashboard | CLI-only for v1; adds infrastructure complexity with no beginner benefit |
-| Publishing to npm/PyPI automatically via CI | Manual publish for v1 — semantic-release is premature until release cadence is established |
-| New AI/LLM agent framework | goodvibes wires existing tools; it does not replace them |
-| Per-language boilerplate (React, FastAPI starters) | Language-agnostic is the constraint; boilerplate belongs in separate templates |
-| Real-time token dashboard | headroom has its own dashboard; goodvibes does not duplicate it |
+- Telemetry with any user-identifiable properties (OS, version, IP, persistent ID)
+- Interactive telemetry opt-in prompt — breaks zero-config, opt-in rates below 3%
+- 3-way merge for update command — beginners cannot resolve conflict markers
+- `goodvibes update` walking the project directory beyond managed template files
+- Building a new LLM or agent framework
+- Language-specific boilerplate beyond minimal CI examples
+
+## Previously Validated (v1.0–v1.1.0)
+
+All prior requirements from v1.0–v1.1.0 are validated. See ROADMAP.md phases 01–11 for details.
 
 ## Traceability
 
-| Requirement | Phase | Status |
-|-------------|-------|--------|
-| CLAUDEMD-01 | Phase 1 | Complete |
-| CLAUDEMD-02 | Phase 1 | Complete |
-| CLAUDEMD-03 | Phase 1 | Complete |
-| CLAUDEMD-04 | Phase 1 | Complete |
-| CLAUDEMD-05 | Phase 1 | Complete |
-| CAV-01 | Phase 1 | Complete |
-| CAV-02 | Phase 1 | Complete |
-| CAV-03 | Phase 1 | Complete |
-| HYG-01 | Phase 1 | Complete |
-| HYG-02 | Phase 1 | Complete |
-| HYG-03 | Phase 1 | Complete |
-| DOCS-01 | Phase 1 | Complete |
-| DOCS-02 | Phase 1 | Complete |
-| DOCS-03 | Phase 1 | Complete |
-| DOCS-04 | Phase 1 | Complete |
-| DOCS-05 | Phase 1 | Complete |
-| DOCS-06 | Phase 1 | Complete |
-| DOCS-07 | Phase 1 | Complete |
-| REPO-01 | Phase 1 | Complete |
-| REPO-02 | Phase 1 | Complete |
-| REPO-03 | Phase 1 | Complete |
-| REPO-04 | Phase 1 | Complete |
-| NPM-01 | Phase 2 | Pending |
-| NPM-02 | Phase 2 | Pending |
-| NPM-03 | Phase 2 | Pending |
-| NPM-04 | Phase 2 | Pending |
-| NPM-05 | Phase 2 | Pending |
-| NPM-06 | Phase 2 | Pending |
-| NPM-07 | Phase 2 | Pending |
-| NPM-08 | Phase 2 | Complete |
-| NPM-09 | Phase 2 | Complete |
-| NPM-10 | Phase 2 | Pending |
-| NPM-11 | Phase 2 | Pending |
-| HDR-01 | Phase 2 | Pending |
-| HDR-02 | Phase 2 | Pending |
-| HDR-03 | Phase 2 | Pending |
-| HDR-04 | Phase 2 | Pending |
-| HDR-05 | Phase 2 | Pending |
-| HDR-06 | Phase 2 | Pending |
-| PIP-01 | Phase 3 | Complete |
-| PIP-02 | Phase 3 | Complete |
-| PIP-03 | Phase 3 | Complete |
-| PIP-04 | Phase 3 | Complete |
-| PIP-05 | Phase 3 | Complete |
-| CI-01 | Phase 4 | Pending |
-| CI-02 | Phase 4 | Pending |
-| CI-03 | Phase 4 | Pending |
-| CI-04 | Phase 4 | Pending |
-| CI-05 | Phase 4 | Pending |
-| CI-06 | Phase 4 | Pending |
-| UPG-01 | Phase 5 | Complete |
-| UPG-02 | Phase 5 | Complete |
-| UPG-03 | Phase 5 | Complete |
-| UPG-04 | Phase 5 | Complete |
-
-**Coverage:**
-- v1 requirements: 54 total
-- Mapped to phases: 54
-- Unmapped: 0
-
----
-
-## v1.1.0 Requirements (Milestone: Polish & Discoverability)
-
-### Init UX Hardening (UX)
-
-- [x] **UX-01**: `goodvibes init` in a non-empty directory prompts the user before proceeding — no silent overwrite
-- [x] **UX-02**: `goodvibes init` completion summary reports "X files written, Y files skipped" separately — not all destination files listed as "created"
-- [x] **UX-03**: Common failures (no Python, no git, EACCES/EPERM, headroom build fail) print a plain-English remediation message and exit 1 — no raw Node.js/Python stack traces shown to the user
-- [x] **UX-04**: Existing `ci.yml` in destination is not silently overwritten — the rename step checks before replacing
-
-### --minimal Hardening (MIN)
-
-- [x] **MIN-01**: `goodvibes init --minimal` skips all of `.github/` (issue templates, PR template, dependabot, workflows) and `docs/` — not just `.github/workflows/`
-- [x] **MIN-02**: `goodvibes init --dry-run --minimal` shows only the files that `--minimal` would actually write (currently previews CI files that minimal skips)
-
-### README & Package Pages (README)
-
-- [x] **README-01**: README hero section contains a single copy-pasteable command that starts a user in under 30 seconds — above the fold, before prerequisites
-- [x] **README-02**: README displays live npm version, PyPI version, CI status, and license badges
-- [x] **README-03**: README includes an animated demo GIF showing `goodvibes init` completing in a real terminal (recorded with `--minimal` for deterministic timing)
-- [x] **README-04**: npm `package.json` and PyPI `pyproject.toml` descriptions, keywords, and homepage URL match the README; README `Flags` section documents what `--minimal` skips
-
-### Terminal Demo (DEMO)
-
-- [x] **DEMO-01**: `scripts/demo.tape` (VHS) produces a deterministic demo GIF at ≤2MB / 800px width — reproducible by any contributor
-- [x] **DEMO-02**: `.github/workflows/vhs.yml` auto-regenerates `docs/demo.gif` when `demo.tape` changes on main
-
-## v1.1.0 Traceability
-
-| Requirement | Phase | Status |
-|-------------|-------|--------|
-| UX-01 | Phase 6 | Complete |
-| UX-02 | Phase 6 | Complete |
-| UX-03 | Phase 6 | Complete |
-| UX-04 | Phase 6 | Complete |
-| MIN-01 | Phase 6 | Complete |
-| MIN-02 | Phase 6 | Complete |
-| README-01 | Phase 7 | Complete |
-| README-02 | Phase 7 | Complete |
-| README-03 | Phase 7 | Complete |
-| README-04 | Phase 7 | Complete |
-| DEMO-01 | Phase 7 | Complete |
-| DEMO-02 | Phase 7 | Complete |
-
----
-
-## v1.2.0 Requirements (Milestone: Multi-IDE Expansion)
-
-### IDE Ecosystem (IDE)
-
-- [x] **IDE-01**: `goodvibes init` writes rule files for Cursor (`.cursor/rules/goodvibes.mdc`), GitHub Copilot (`.github/copilot-instructions.md`), Windsurf (`.windsurfrules`), and Kiro (`.kiro/steering/goodvibes.md`) alongside `CLAUDE.md` — zero-config, no prompts
-- [x] **IDE-02**: Each IDE rule file contains the same engineering principles as `CLAUDE.md` (ponytail minimalism, fail-loud error handling, security-first, surgical changes) adapted to each IDE's native format and conventions — not a copy-paste of CLAUDE.md
-- [x] **IDE-03**: IDE rule files obey the same no-clobber logic as CLAUDE.md — existing user-edited files are counted as "skipped" and never silently overwritten
-- [x] **IDE-04**: `--minimal` excludes `.github/copilot-instructions.md` (consistent with the existing `.github/` exclusion rule); Cursor, Windsurf, and Kiro rule files are written by `--minimal` (they are AI configuration, parallel to CLAUDE.md, not scaffolding)
-- [x] **IDE-05**: README and template repo updated with a multi-IDE compatibility table documenting which IDEs are supported and what file is written for each
-
-## v1.2.0 Traceability
-
-| Requirement | Phase | Status |
-|-------------|-------|--------|
-| IDE-01 | Phase 8 | Complete |
-| IDE-02 | Phase 8 | Complete |
-| IDE-03 | Phase 8 | Complete |
-| IDE-04 | Phase 8 | Complete |
-| IDE-05 | Phase 8 | Complete |
-
----
-
-## v1.1.0 Requirements (Milestone: Publish Quality & Discoverability)
-
-### Publish Quality (PUB)
-
-- [x] **PUB-01**: A GitHub Actions job runs after every successful publish to npm and PyPI — it installs the package from the registry in a clean tmpdir, runs `goodvibes init --dry-run`, and asserts exit 0 and expected files present; the publish job fails if this smoke test fails
-- [x] **PUB-02**: A CI check (pre-push or PR gate) validates that the `# goodvibes: vX.Y.Z` header in `templates/CLAUDE.md` matches the version in `packages/npm/package.json` and `packages/pip/pyproject.toml`; the check fails with an actionable error if any are out of sync
-
-### Package Naming & Discoverability (PKG)
-
-- [x] **PKG-01**: Both the npm and pip packages are renamed to names that (a) contain the word "goodvibes", (b) are available on their respective registry, (c) have no existing popular package conflict; all in-repo references (README, code, CI, docs) updated to the new names; old package names retain a deprecation notice pointing to the new names
-- [x] **PKG-02**: npm package page has a polished description (1–2 sentences, not "TODO"), relevant keywords, homepage URL, and repository link; PyPI package page has a matching description, keywords, homepage, and appropriate classifiers (Development Status, Intended Audience, Topic)
-
-### UX Polish (POL)
-
-- [x] **POL-01**: `goodvibes doctor` output includes the installed goodvibes version as the first line of the check panel (e.g. `goodvibes v1.6.1`)
-- [x] **POL-02**: `goodvibes upgrade --dry-run` change summary prints human-readable status words (`new`, `updated`, `unchanged`) instead of `+`, `~`, `=` symbols — legible to beginners unfamiliar with diff notation
-
-## v1.1.0 Traceability
-
-| Requirement | Phase | Status |
-|-------------|-------|--------|
-| PUB-01 | Phase 11 | Complete |
-| PUB-02 | Phase 11 | Complete |
-| PKG-01 | Phase 11 | Complete |
-| PKG-02 | Phase 11 | Complete |
-| POL-01 | Phase 11 | Complete |
-| POL-02 | Phase 11 | Complete |
-
----
-*Requirements defined: 2026-06-23*
-*Last updated: 2026-07-02 — v1.1.0 requirements added (Publish Quality & Discoverability milestone)*
+| REQ-ID | Phase | Status |
+|--------|-------|--------|
+| HDR2-01 | Phase 12 | Pending |
+| HDR2-02 | Phase 12 | Pending |
+| HDR2-03 | Phase 12 | Pending |
+| HDR2-04 | Phase 12 | Pending |
+| HDR2-05 | Phase 12 | Pending |
+| TEL-01 | Phase 13 | Pending |
+| TEL-02 | Phase 13 | Pending |
+| TEL-03 | Phase 13 | Pending |
+| TEL-04 | Phase 13 | Pending |
+| TEL-05 | Phase 13 | Pending |
+| UPD-01 | Phase 14 | Pending |
+| UPD-02 | Phase 14 | Pending |
+| UPD-03 | Phase 14 | Pending |
+| UPD-04 | Phase 14 | Pending |
+| UPD-05 | Phase 14 | Pending |
+| UPD-06 | Phase 14 | Pending |
