@@ -141,6 +141,7 @@ License: Apache 2.0
 | Headroom bundled via installer | Too heavy to copy into template (Python/Rust); installer can pip-install it | — Pending |
 | Ponytail referenced not forked | Ponytail is a maintained plugin; reference keeps users on latest version | — Pending |
 | caveman forked directly | Small skill file set, MIT-compatible, fits inside .claude/skills/ naturally | — Pending |
+| Telemetry endpoint: Cloudflare Worker + KV | PostHog excluded (logs source IPs, PII under GDPR Art 4(1)); Plausible excluded (managed service, less control); CF Worker increments KV counter and discards request — zero IP storage, full control | Phase 13 |
 | Zero-config philosophy | New coders should not have to configure anything to get the benefits | — Pending |
 
 ## Evolution
