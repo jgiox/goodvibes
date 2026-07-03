@@ -1,242 +1,355 @@
-# Stack Research: goodvibes
+# Technology Stack
 
-**Researched:** 2026-06-23
-**Overall confidence:** HIGH (npm), HIGH (pip), MEDIUM (headroom bundling), MEDIUM (monorepo)
+**Project:** goodvibes
+**Researched:** 2026-07-03 (v1.0 original: 2026-06-23; v1.1.0: 2026-06-26; updated for v1.2.0 Growth & Retention milestone)
 
 ---
 
-## Recommended Stack
+## Existing Stack (v1.0 — Do Not Re-research)
 
-### npm CLI Package
-
-**Framework: Commander.js v12+**
-
-Use Commander.js, not yargs or meow. Rationale:
-- Zero dependencies — keeps `npx goodvibes init` cold-start lean (~18 ms vs ~35 ms for yargs on Node 20)
-- Git-style subcommands (`init`, `update`, `check`) map naturally to its API
-- MIT license — fully compatible with Apache 2.0
-- 130M+ weekly downloads; the de facto standard for scaffolding CLIs (create-react-app, vue-cli, etc. all use it or Commander descendants)
-- Meow is excellent for type inference but lacks subcommand support needed for future `goodvibes update` command
-
-**Interactive prompts: @clack/prompts**
-
-Use `@clack/prompts`, not inquirer. Rationale:
-- ~4 KB gzipped vs. inquirer's much larger footprint — critical for npx cold-start experience
-- TypeScript-native, ESM-first — no CommonJS shim pain
-- Built-in `spinner`, `group()`, and cancellation handling cover 100% of a scaffolding wizard's needs
-- Opinionated beautiful output with zero configuration — right for a "zero-config" tool aimed at beginners
-- MIT license
-
-**Language / bundler: TypeScript + tsup**
-
-Write the CLI in TypeScript, bundle with tsup (powered by esbuild). Rationale:
-- tsup outputs both ESM and CJS from one config — handles the ongoing Node.js dual-module mess without manual effort
-- Single bundled file means no runtime resolution cost for npx users
-- tsup is MIT licensed
-
-**File system operations: fs-extra (MIT)**
-
-Use `fs-extra` for all file copy / mkdir / template injection operations. It:
-- Adds `copy()`, `mkdirs()`, `outputFile()` with Promises on top of Node's native `fs`
-- Uses `graceful-fs` internally, preventing `EMFILE` errors on Windows (too many open file handles)
-- Avoids any platform-specific shell commands (`cp`, `xcopy`) — pure Node.js, cross-platform by construction
-
-**Subprocess calls: execa v9+ (MIT)**
-
-Use `execa` for any subprocess invocations (e.g., calling `uv tool install headroom-ai` during init). Rationale:
-- Promise-based, no callback nesting
-- Correct Windows shebang and PATHEXT handling out of the box
-- No shell injection risk — args are passed as arrays, not strings
-- Sindre Sorhus's most downloaded utility; battle-tested on all three platforms
-
-**Core dependencies summary:**
+Already validated and in production. Not changing for v1.2.0.
 
 | Package | Version | Purpose | License |
 |---|---|---|---|
-| `commander` | ^13 | Argument parsing, subcommands | MIT |
-| `@clack/prompts` | ^0.9 | Interactive wizard UX | MIT |
+| `commander` | ^15 | Argument parsing, subcommands | MIT |
+| `@clack/prompts` | ^1 | Interactive wizard UX | MIT |
 | `fs-extra` | ^11 | Cross-platform file copy/write | MIT |
-| `execa` | ^9 | Subprocess calls (pip, uv, git) | MIT |
+| `execa` | ^9 | Subprocess calls (uv, git) | MIT |
 | `tsup` | ^8 | Build / bundle | MIT |
-| `typescript` | ^5.5 | Language | Apache 2.0 |
+| `typescript` | ^6 | Language | Apache 2.0 |
+| `typer` | ^0.15 | pip CLI framework | MIT |
+| `rich` | ^14 | Terminal output | MIT |
 
-All MIT — no compatibility issue with the project's Apache 2.0 license.
-
----
-
-### pip CLI Package
-
-**Framework: Typer**
-
-Use Typer, not Click directly or argparse. Rationale:
-- Built on Click (BSD-3-Clause, compatible with Apache 2.0) — inherits Click's battle-tested reliability
-- Type-hint-driven API eliminates ~40% of the decorator boilerplate Click requires
-- Since Typer 0.26.0, Click is vendored inside Typer — single install, no transitive version conflicts
-- Auto-generated `--help` is beautiful without configuration
-- MIT license
-
-**Templating: No copier or cookiecutter**
-
-goodvibes does not need a templating engine. The Python CLI's job is to copy static files (CLAUDE.md, workflow YAMLs, skill files) into the user's project — these are not parameterized templates that vary per user. Use Python's built-in `shutil.copy2()` and `pathlib.Path` for file injection. This is simpler, has zero additional dependencies, and avoids the `copier`/`cookiecutter` learning curve for contributors.
-
-If variable substitution is ever needed (e.g., inserting the user's GitHub repo name), use Python's `str.replace()` or `string.Template` from the standard library — not a full templating framework.
-
-**Package manager: uv (for development and installation)**
-
-Recommend `uv` for the goodvibes pip package development workflow. Rationale:
-- Pure Python project — no conda-forge or system libraries needed, which is exactly uv's target use case
-- Dramatically faster than pip/poetry for CI and local dev
-- `uv tool install headroom-ai` is the recommended way to install headroom — use this in the goodvibes init flow
-- MIT license; the Astral ecosystem is dominant for new Python tooling in 2025-2026
-- Pixi is overkill here (designed for mixed conda/PyPI environments, data science, system libraries)
-
-**Python version target: 3.10+**
-
-headroom-ai requires Python 3.10+, so goodvibes pip package must also declare `python_requires = ">=3.10"`. This is a hard lower bound driven by the dependency, not a choice.
-
-**Core dependencies summary:**
-
-| Package | Version | Purpose | License |
-|---|---|---|---|
-| `typer` | ^0.15 | CLI framework | MIT |
-| `rich` | ^14 | Terminal output (pulled in by typer[all]) | MIT |
-| Python stdlib only | — | File copy (`shutil`, `pathlib`) | PSF |
+Note: package.json actually shows `commander ^15`, `@clack/prompts ^1`, `typescript ^6`, `@types/node ^26`, `vitest ^4` — the v1.1.0 STACK.md listed older versions, the above reflects actual current versions.
 
 ---
 
-### Cross-Platform File Injection
+## New Tooling for v1.1.0
 
-**Use pure Node.js / pure Python — no shell commands.**
+See prior STACK.md entry (VHS, shields.io, --minimal flag). No changes for v1.2.0.
 
-The single most important rule for cross-platform safety is: never use shell commands in scaffolding scripts. `cp`, `xcopy`, `mkdir -p`, and `rm -rf` all have platform-specific behavior or require `shell: true` in subprocess calls (which opens injection vectors).
+---
 
-**npm side:**
+## New Tooling for v1.2.0
 
-```js
-import { copy, outputFile, ensureDir } from 'fs-extra'
+Three features, zero new dependencies across all three. Detailed below.
 
-// Copy a template directory into the user's project
-await copy(templateSrcDir, targetDir, { overwrite: false, errorOnExist: false })
+---
 
-// Write a single generated file
-await outputFile(path.join(targetDir, 'CLAUDE.md'), claudeMdContent)
+### 1. Headroom Integration Validation
+
+**Decision: No new dependencies. Refactor return types only.**
+
+**What the problem is now:**
+
+`installHeadroom()` and `configureMcp()` both return `Promise<void>`. The `@clack/prompts` `tasks()` array in `init.ts` hard-codes the task return value as `'headroom ready'` and `'MCP server registered'` regardless of whether the install succeeded, was skipped (Python absent), or failed (C++ build error).
+
+The user sees "headroom ready" even when headroom was not installed, because the return value is a fixed string, not derived from the function's outcome.
+
+**What to change:**
+
+Change both functions to return a structured result instead of void:
+
+```typescript
+// In install-headroom.ts
+export type HeadroomInstallResult =
+  | { status: 'installed' }
+  | { status: 'already-installed' }
+  | { status: 'skipped'; reason: string }
+  | { status: 'failed'; reason: string }
+
+export async function installHeadroom(
+  log: (msg: string) => void
+): Promise<HeadroomInstallResult>
 ```
 
-`fs-extra.copy()` is recursive, handles nested directories, and works identically on Windows, macOS, and Linux.
+```typescript
+// In configure-mcp.ts
+export type McpConfigResult =
+  | { status: 'registered' }
+  | { status: 'already-registered' }
+  | { status: 'skipped'; reason: string }
+  | { status: 'failed'; reason: string }
 
-**Path handling:** Always use `path.join()` or `path.resolve()` — never string concatenate paths with `/` or `\\`. On Windows, `path.join` uses backslashes automatically; `fs-extra` normalizes them for file operations.
-
-**Python side:**
-
-```python
-import shutil
-from pathlib import Path
-
-# Recursive copy
-shutil.copytree(src, dest, dirs_exist_ok=True)
-
-# Single file
-shutil.copy2(src_file, dest_file)
+export async function configureMcp(
+  log: (msg: string) => void
+): Promise<McpConfigResult>
 ```
 
-`pathlib.Path` handles separator normalization. `shutil.copytree(dirs_exist_ok=True)` (Python 3.8+) merges into existing directories without error.
+The `init.ts` task then returns the human-readable string from the result:
 
-**Line endings:** Ship all template files with LF (`\n`). Git's `.gitattributes` should enforce `text=auto eol=lf` on the goodvibes repo to prevent Windows CRLF commits corrupting YAML/shell scripts.
-
-**Executable bits on shell scripts:** When copying GitHub Actions workflow files or shell scripts, preserve permissions with `shutil.copy2()` (copies metadata) on Python side, and set mode explicitly with `fs.chmod()` on the npm side if needed.
-
----
-
-### Headroom Bundling Strategy
-
-**Verdict: Runtime subprocess install via `uv tool install`, with graceful fallback.**
-
-headroom-ai is available on both PyPI (`pip install headroom-ai`) and npm (`npm install headroom-ai`). The npm package is a TypeScript SDK that requires a running Python proxy server — it is NOT a standalone installer. This rules out making headroom-ai an npm dependency.
-
-**Recommended flow in `goodvibes init`:**
-
-1. Detect Python 3.10+ on the user's PATH (try `python3 --version`, then `python --version` on Windows)
-2. Detect `uv` on PATH — if present, install via `uv tool install "headroom-ai[all]"` (installs into isolated tool env, globally available, idiomatic 2025 approach)
-3. Fallback: if no `uv`, run `pip install --user "headroom-ai[all]"` via `execa` (npm) or `subprocess` (Python)
-4. If Python is not found at all: print a clear warning, skip headroom installation, and note in the generated CLAUDE.md that headroom must be installed manually
-5. Verify installation by running `headroom --version` as a subprocess
-
-**Do NOT use npm `postinstall` hooks** to install Python packages. npm v12 is actively blocking and warning on postinstall scripts as a supply-chain security measure. A postinstall hook that calls `pip` would also fail silently on systems without Python, giving beginners a confusing partial installation.
-
-**Do NOT declare headroom-ai as an npm `optionalDependencies`**. The npm headroom-ai package is a proxy client, not the compression tool itself. Installing it as an npm dep would pull in an SDK that won't work without the Python server running.
-
-**Detection utility (Node.js):**
-
-```ts
-import { execa } from 'execa'
-
-async function detectPython(): Promise<string | null> {
-  for (const cmd of ['python3', 'python']) {
-    try {
-      const { stdout } = await execa(cmd, ['--version'])
-      const match = stdout.match(/Python (\d+\.\d+)/)
-      if (match && parseFloat(match[1]) >= 3.10) return cmd
-    } catch {}
-  }
-  return null
+```typescript
+{
+  title: 'Installing headroom',
+  task: async (message) => {
+    const result = await installHeadroom(msg => message(msg))
+    switch (result.status) {
+      case 'installed': return 'headroom installed'
+      case 'already-installed': return 'headroom already installed'
+      case 'skipped': return `headroom skipped — ${result.reason}`
+      case 'failed': return `headroom install failed — ${result.reason}`
+    }
+  },
 }
 ```
 
-**headroom's license: Apache 2.0** — fully compatible with goodvibes Apache 2.0. No conflict.
+**Post-install validation:**
+
+After the installer loop succeeds in `installHeadroom`, run `headroom --version` to confirm the binary is on PATH and usable. If this probe fails after a fresh install, return `{ status: 'failed', reason: 'headroom binary not found on PATH after install (check shell PATH)' }`. This uses the already-imported `execa` — no new dependency.
+
+**Post-MCP validation:**
+
+After `claude mcp add` or `headroom mcp install` succeeds in `configureMcp`, run `headroom mcp status` as a final probe and include whether it returned exit 0 in the result. Again, already uses `execa`.
+
+**Final status display:**
+
+Add a note after the task list in `init.ts` that summarizes the headroom state:
+
+```
+headroom: installed | MCP: registered
+```
+
+or
+
+```
+headroom: skipped (Python 3.10+ not found) | MCP: not configured
+```
+
+This is a single `note()` call using already-installed `@clack/prompts`.
+
+**Confidence:** HIGH — confirmed by reading current source. The root cause is clear (fixed return strings). The fix is a type change and switch statement.
 
 ---
 
-### Monorepo vs Separate Packages
+### 2. Anonymous Install Telemetry
 
-**Verdict: Single Git repo, two separate top-level package directories, no monorepo tooling.**
+**Decision: Native `fetch()` (Node 20 built-in) + PostHog EU Cloud. Zero new npm dependencies. Zero new pip dependencies.**
 
-goodvibes ships as two packages: `goodvibes` on npm and `goodvibes` on PyPI. The functional overlap is small (both copy the same set of template files), but the implementation languages are completely different. A monorepo tool like Turborepo or Nx only makes sense when tasks meaningfully cross package boundaries (shared type definitions, cross-package test runs, unified build pipelines). That doesn't apply here.
+**Why this approach:**
 
-**Recommended structure:**
+| Criterion | posthog-node SDK | Raw fetch() to PostHog | Plausible Events API | Custom serverless counter |
+|---|---|---|---|---|
+| New npm dependencies | Yes (~500KB) | None | None | None |
+| GDPR compliance | Yes (EU Cloud) | Yes (EU Cloud) | Yes (privacy-first, cookies-free) | Depends on impl |
+| Infrastructure needed | No | No | $9/mo or self-host | Cloudflare Worker (free) |
+| Dashboard / analytics | Yes | Yes (via PostHog UI) | Yes | No |
+| Person profile creation | Opt-in | Opt-out via $process_person_profile: false | N/A | N/A |
+| Free tier | 1M events/month | 1M events/month | Paid only (no free tier) | 100K req/day free |
+| Offline handling | Built-in (fire & forget) | Manual (AbortSignal.timeout) | Manual | Manual |
+
+PostHog Cloud EU (`https://eu.posthog.com`) with a raw `fetch()` call is the right pick. It gives a real analytics dashboard at zero new dependencies and handles the GDPR requirement by:
+- Using `$process_person_profile: false` so no person record is created in PostHog
+- Not sending IP in the request body (only the source IP reaches PostHog's server, which they hash and discard per their GDPR policy)
+- Using a random per-invocation UUID as `distinct_id` — never stored on disk, never reused
+
+**Why not posthog-node:** It would add ~500KB to the CLI bundle, contradicting the zero-dep philosophy. The raw `fetch()` call for a single event is 15 lines.
+
+**Why not Plausible:** No free tier. Requires paying $9/month or self-hosting Docker infrastructure for a simple counter.
+
+**Why not a custom Cloudflare Worker:** Requires maintaining separate infrastructure. PostHog free tier is simpler and gives a proper analytics dashboard.
+
+**Node.js version dependency:** `fetch()` is stable and built-in since Node 18. goodvibes requires `>=20.12.0`, so no polyfill is needed.
+
+**Implementation skeleton (npm, TypeScript):**
+
+```typescript
+// src/telemetry.ts
+import { randomUUID } from 'node:crypto'
+
+const POSTHOG_KEY = 'phc_...'   // PostHog project API key (not secret, safe to ship in CLI)
+const POSTHOG_HOST = 'https://eu.posthog.com'
+
+export async function trackInit(props: {
+  version: string
+  os: string
+  headroomStatus: string
+}): Promise<void> {
+  if (process.env.GOODVIBES_TELEMETRY_DISABLED === '1') return
+
+  try {
+    await fetch(`${POSTHOG_HOST}/capture/`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        api_key: POSTHOG_KEY,
+        event: 'init',
+        distinct_id: `anon-${randomUUID()}`,   // fresh UUID each run, never stored
+        properties: {
+          version: props.version,
+          os: props.os,
+          headroom_status: props.headroomStatus,
+          $process_person_profile: false,       // GDPR: no person record created
+        },
+      }),
+      signal: AbortSignal.timeout(3000),        // never block the CLI
+    })
+  } catch {
+    // Swallow silently — telemetry must never fail the CLI
+  }
+}
+```
+
+**Python equivalent (pip package):**
+
+```python
+# src/goodvibes_cli/telemetry.py
+import json
+import os
+import uuid
+from urllib.request import Request, urlopen
+
+POSTHOG_KEY = "phc_..."
+POSTHOG_HOST = "https://eu.posthog.com"
+
+def track_init(version: str, os_name: str, headroom_status: str) -> None:
+    if os.environ.get("GOODVIBES_TELEMETRY_DISABLED") == "1":
+        return
+    payload = json.dumps({
+        "api_key": POSTHOG_KEY,
+        "event": "init",
+        "distinct_id": f"anon-{uuid.uuid4()}",
+        "properties": {
+            "version": version,
+            "os": os_name,
+            "headroom_status": headroom_status,
+            "$process_person_profile": False,
+        },
+    }).encode()
+    try:
+        req = Request(f"{POSTHOG_HOST}/capture/", data=payload,
+                      headers={"Content-Type": "application/json"}, method="POST")
+        urlopen(req, timeout=3)
+    except Exception:
+        pass  # Never fail the CLI for telemetry
+```
+
+**Opt-out mechanism:**
+
+Primary: `GOODVIBES_TELEMETRY_DISABLED=1` environment variable. This covers CI environments (set in GitHub Actions secrets), Docker containers, and users who want permanent opt-out via their shell profile.
+
+No persistent config file for opt-out. The env var is the simplest mechanism that works everywhere without creating a `~/.goodvibes/` directory that users would be confused by. This matches the pattern used by Next.js (`NEXT_TELEMETRY_DISABLED=1`) and most CLI tools.
+
+**GDPR compliance checklist:**
+- [x] No PII collected (no email, username, IP stored, no persistent ID)
+- [x] Opt-out via env var, documented in README
+- [x] `$process_person_profile: false` prevents PostHog from creating person records
+- [x] Per-invocation UUID — not persisted, no fingerprinting across sessions
+- [x] EU Cloud endpoint — data stays in EU
+- [x] Telemetry mention in README and init output (first run notice)
+
+**First-run notice:** On the very first `goodvibes init`, emit a one-line note via `@clack/prompts` `note()`:
 
 ```
-goodvibes/                     (git root, Apache 2.0)
-  packages/
-    npm/                       (npm package — TypeScript/Commander CLI)
-      package.json
-      src/
-      templates/               (shared template files live HERE)
-    pip/                       (pip package — Python/Typer CLI)
-      pyproject.toml
-      goodvibes/
-        templates -> symlink to ../../npm/templates   (or copy via build step)
-  .github/
-    workflows/
-  CLAUDE.md
-  CONTRIBUTING.md
+Anonymous usage data is collected to improve goodvibes.
+Set GOODVIBES_TELEMETRY_DISABLED=1 to opt out.
 ```
 
-**Key design decision: single source of truth for templates.** Both the npm and pip installers inject identical files (CLAUDE.md, workflow YAMLs, skill files) into the user's project. Store these in `packages/npm/templates/` as the canonical source. The pip package either symlinks this directory during development or copies it as part of the pip build step (via `package_data` in `pyproject.toml`).
+This appears in the task output, not as a blocking prompt. It does not gate the install.
 
-**Why not Turborepo/Nx?** Both are JavaScript-ecosystem-centric. Cross-language orchestration (running `uv run pytest` from the same task graph as `pnpm test`) requires significant configuration with no real benefit for a two-package project. A root `Makefile` or a root `package.json` with a few scripts is sufficient.
-
-**Why not separate repos?** Keeping both packages in one repo means template updates (adding a new GitHub Actions workflow, updating CLAUDE.md) touch one commit, one PR, one changelog entry. Divergence between npm and pip behavior is caught in one place.
-
-**No workspace manager needed:** pnpm workspaces or npm workspaces are not needed because the two packages don't share Node.js code. The npm package has its own `package.json`; the pip package has its own `pyproject.toml`. Root-level scripts (`make release-npm`, `make release-pip`) are sufficient.
+**Confidence:** HIGH — PostHog Node.js docs verified, `$process_person_profile` property confirmed, EU endpoint confirmed. `fetch()` built-in stability in Node 20 confirmed. urllib.request is stdlib, no verification needed.
 
 ---
 
-## What NOT to Use and Why
+### 3. `goodvibes update` Command
 
-| Tool | Category | Why Not |
-|---|---|---|
-| **yargs** | npm argument parsing | 2x slower cold start than Commander, larger footprint, overkill features (middleware, custom completion) not needed for simple `init` command |
-| **meow** | npm argument parsing | No built-in subcommand support; would require manual dispatch for future `goodvibes update` |
-| **inquirer / @inquirer/prompts** | npm prompts | Larger bundle, CommonJS-first (needs shim for ESM), @clack/prompts covers all needed prompt types with less code |
-| **oclif** | npm CLI framework | Full framework with code generation, plugin system, Heroku-style architecture — massive overkill for a two-command installer |
-| **copier / cookiecutter** | Python templating | goodvibes copies static files, not parameterized templates; `shutil.copytree` is sufficient; adding a templating dep increases contributor friction |
-| **pixi** | Python env management | Designed for conda/scientific computing; adds complexity not needed for a pure-PyPI Python CLI |
-| **poetry** | Python packaging | uv is faster and is the current recommendation; poetry adds lockfile complexity not needed for a CLI-only package |
-| **postinstall npm hooks** | headroom installation | npm v12 actively blocks these as security risk; fails silently when Python is absent; gives beginners confusing errors |
-| **npm optionalDependencies: headroom-ai** | headroom bundling | The npm headroom-ai package is a proxy client SDK, not the compression tool; installing it without the Python server running does nothing |
-| **Turborepo / Nx** | Monorepo tooling | JS-ecosystem-centric, no meaningful cross-language benefit for two-package project |
-| **Bazel / Pants** | Monorepo tooling | Extreme engineering overhead for what is essentially `make release-npm && make release-pip` |
-| **shell: true in subprocess** | Cross-platform execution | Opens shell injection vector; execa (Node) and subprocess without shell=True (Python) are safe alternatives |
+**Decision: SHA-256 manifest file (`.goodvibes.json`). Zero new dependencies.**
+
+**The core problem:**
+
+`goodvibes update` needs to pull new template versions into an existing project without overwriting files the user has edited. A naïve "overwrite everything" approach breaks user customizations. A naïve "skip everything existing" approach means users never get template improvements.
+
+The right signal is: "was this file changed since goodvibes wrote it?" Not "does this file exist?" The SHA-256 of the file goodvibes originally wrote is the ground truth.
+
+**The manifest approach:**
+
+On `goodvibes init`, after all files are written, create `.goodvibes.json`:
+
+```json
+{
+  "version": "1.6.2",
+  "init_date": "2026-07-03",
+  "files": {
+    "CLAUDE.md": "sha256:e3b0c44298fc1c149afbf4c8996fb924...",
+    ".github/workflows/ci-node.yml": "sha256:d82c3f5b1a7...",
+    ".claude/skills/caveman/SKILL.md": "sha256:b94f6f125c7..."
+  }
+}
+```
+
+On `goodvibes update`:
+
+1. Read `.goodvibes.json` — if absent, exit with: "This project was not initialized with goodvibes init, or .goodvibes.json was deleted. Run goodvibes init to set up the project."
+2. Load new templates from the installed goodvibes package (same `resolveTemplatesDir()` used by init)
+3. For each template file in the new package:
+   - **File not in manifest** (added in a newer goodvibes version): write it; add to manifest
+   - **File in manifest, not on disk** (user deleted): write it; update manifest hash
+   - **File in manifest, on disk, disk hash == manifest hash**: user hasn't modified it → overwrite with new template; update manifest hash
+   - **File in manifest, on disk, disk hash != manifest hash**: user modified it → skip; report as "kept (user-modified)"
+4. Write updated `.goodvibes.json`
+5. Show summary: "Updated N files, kept M (user-modified), added K (new files)"
+
+**Implementation uses only existing tools:**
+- `node:crypto` (`createHash('sha256')`) — built-in
+- `fs-extra` (`readFile`, `outputFile`) — already installed
+- `fs-extra` `pathExists()` — already installed
+
+No three-way merge needed. Goodvibes writes static files, not parameterized templates — if the template file and the project file are identical (same SHA), the update is safe. If the user has edited the file, goodvibes defers to the user.
+
+**Edge case: CLAUDE.md**
+
+CLAUDE.md is always modified by users (goodvibes merges rules into it, then users add their own). Its SHA will always differ from the original template. The update command skips it and shows "CLAUDE.md — kept (user-modified)". This is correct behavior: CLAUDE.md is a living document, not a static template.
+
+**Edge case: `.goodvibes.json` missing**
+
+Introduced in v1.2.0 — projects initialized with v1.1.x or earlier do not have a manifest. `goodvibes update` should detect this and print:
+
+```
+.goodvibes.json not found — this project was initialized with an older version of goodvibes.
+Run goodvibes init to re-initialize and create the manifest, then goodvibes update will work going forward.
+```
+
+Do not attempt a "best-effort update without manifest" — the risk of overwriting user-modified files is too high.
+
+**`.goodvibes.json` should be committed** — it's not secret, it's small, and committing it means the whole team benefits from `goodvibes update` working correctly.
+
+**No new dependencies:**
+- npm: `node:crypto` (built-in since Node 10) + `fs-extra` (already installed) + `node:fs/promises` (built-in)
+- pip: `hashlib` (stdlib) + `pathlib` (stdlib) + `shutil` (stdlib)
+
+**Confidence:** HIGH — SHA-256 file integrity is a solved problem in every runtime. The manifest pattern is used by package managers, Docker layer caching, and npm's `package-lock.json`. No external validation needed.
+
+---
+
+## What NOT to Add for v1.2.0
+
+| Tool | Why Not |
+|---|---|
+| `posthog-node` | Adds ~500KB bundle; raw `fetch()` achieves the same single-event capture in 15 lines |
+| `plausible-telemetry` (npm) | Published 5 years ago, 0.1.0, effectively unmaintained; Plausible's HTTP API works directly via fetch |
+| `diff` / `diff3` npm package | Three-way merge is overkill for static file templates; SHA hash comparison is sufficient |
+| `copier` (Python) | Template engine approach for parametrized templates; goodvibes uses static files — shutil.copytree is enough |
+| `@sindresorhus/conf` | Persistent config store for opt-out preference; env var (GOODVIBES_TELEMETRY_DISABLED=1) is simpler and CI-friendly |
+| `uuid` npm package | `node:crypto` `randomUUID()` is built-in since Node 14.17 and covers the per-invocation UUID need |
+| Cloudflare Worker / custom backend | Additional infrastructure to maintain; PostHog free tier (1M events/month) covers the counter need with a real dashboard |
+| `semver` npm package | Not needed; version comparison for update command just reads the manifest version string — no range logic required |
+
+---
+
+## Summary of New Additions for v1.2.0
+
+| Addition | Type | Where | New runtime dep? |
+|---|---|---|---|
+| `HeadroomInstallResult` / `McpConfigResult` types | Code change | `install-headroom.ts`, `configure-mcp.ts` | No |
+| Structured return from headroom steps | Code change | `install-headroom.ts`, `configure-mcp.ts`, `init.ts` | No |
+| Post-install `headroom --version` probe | Code change | `install-headroom.ts` | No |
+| Headroom status `note()` in init output | Code change | `init.ts` | No |
+| `src/telemetry.ts` | New file | `packages/npm/src/` | No (uses node:crypto + fetch) |
+| `goodvibes_cli/telemetry.py` | New file | `packages/pip/src/` | No (uses urllib.request + hashlib) |
+| `.goodvibes.json` manifest writer | Code change | `init.ts` / `init_cmd.py` | No |
+| `goodvibes update` command | New command | `packages/npm/src/commands/update.ts` + pip equivalent | No |
+| PostHog project (external setup) | External | PostHog EU Cloud dashboard | N/A |
+
+Zero new runtime dependencies for either package.
 
 ---
 
@@ -244,42 +357,28 @@ goodvibes/                     (git root, Apache 2.0)
 
 | Area | Confidence | Rationale |
 |---|---|---|
-| Commander.js for npm | HIGH | Verified: 130M weekly downloads, MIT license, zero deps confirmed on npmjs.com; comparison data from PkgPulse benchmarks |
-| @clack/prompts | HIGH | Verified: 4KB gzip confirmed, MIT, ESM-native; multiple independent sources converge on this as modern default |
-| fs-extra for file ops | HIGH | Verified: standard in every major Node.js scaffolding tutorial; graceful-fs Windows behavior documented |
-| execa for subprocess | HIGH | Verified: Sindre Sorhus repo, MIT, most-downloaded process utility; Windows PATHEXT handling confirmed in docs |
-| tsup for bundling | HIGH | Verified: standard ESM+CJS bundler for CLI packages in 2025; used by major projects |
-| Typer for pip CLI | HIGH | Verified: MIT, built on Click BSD-3, Click vendored since 0.26.0; PyPI metadata confirmed |
-| uv for pip tooling | HIGH | Verified: dominant Python package manager for pure-PyPI projects in 2025-2026; astral.sh docs |
-| shutil / pathlib for file ops | HIGH | Python stdlib — no research needed |
-| headroom install via uv tool install | MEDIUM | headroom-ai Apache 2.0 confirmed on PyPI and GitHub; uv tool install pattern verified in uv docs; but exact behavior of `uv tool install headroom-ai[all]` on first-run (download size, ONNX model pull) not benchmarked — may be slow on first init, needs UX consideration |
-| Python detection logic (python3 vs python) | MEDIUM | Windows behavior of `python` command is inconsistent (may open Microsoft Store); WSL adds PATH complexity; recommend testing explicitly on Windows 11 + WSL2 |
-| Single-repo two-package structure | MEDIUM | Common pattern for dual-language CLI tools but no canonical reference; inferred from general monorepo guidance and project constraints |
-| npm postinstall prohibition | HIGH | Verified: npm v12 blog post explicitly names this as security improvement being enforced |
+| Headroom return-type refactor | HIGH | Source code read directly; root cause confirmed; fix is mechanical |
+| `fetch()` available in Node 20 | HIGH | Node.js docs confirm stable since Node 18, unflagged since Node 21; project requires >=20.12.0 |
+| PostHog `$process_person_profile: false` | HIGH | PostHog docs confirmed this property prevents person record creation; EU Cloud endpoint confirmed |
+| `urllib.request` for Python telemetry | HIGH | Python stdlib since 3.0; no research needed |
+| SHA-256 manifest update strategy | HIGH | Standard pattern used by package managers; `node:crypto` and Python `hashlib` both provide sha256 |
+| GDPR compliance of per-invocation UUID | HIGH | No persistence = no tracking = no GDPR concern; `$process_person_profile: false` prevents PostHog profiling |
+| `.goodvibes.json` not-in-manifest behavior | MEDIUM | The "older project" edge case is well-understood but the specific UX error message needs user testing |
+| PostHog free tier limits | MEDIUM | "1M events/month free" confirmed on PostHog pricing page; actual rate limit enforcement not tested |
 
 ---
 
 ## Sources
 
-- [Commander vs Yargs 2026 — PkgPulse](https://www.pkgpulse.com/guides/commander-vs-yargs-2026)
-- [CLI Framework Comparison: Commander vs Yargs vs Oclif — Grizzly Peak](https://www.grizzlypeaksoftware.com/library/cli-framework-comparison-commander-vs-yargs-vs-oclif-utxlf9v9)
-- [commander — npm](https://www.npmjs.com/package/commander)
-- [@clack/prompts — The Modern Alternative to Inquirer.js (DEV Community)](https://dev.to/chengyixu/clackprompts-the-modern-alternative-to-inquirerjs-1ohb)
-- [Ink vs @clack/prompts vs Enquirer 2026 — PkgPulse](https://www.pkgpulse.com/guides/ink-vs-clack-vs-enquirer-interactive-cli-nodejs-2026)
-- [fs-extra — npm](https://www.npmjs.com/package/fs-extra)
-- [Building a Modern CLI Scaffolder from Scratch — Montek](https://www.montek.dev/post/building-a-modern-cli-scaffolder-from-scratch)
-- [execa — GitHub (sindresorhus)](https://github.com/sindresorhus/execa)
-- [tsup — npm](https://www.npmjs.com/package/tsup)
-- [TypeScript in 2025 with ESM and CJS — Liran Tal](https://lirantal.com/blog/typescript-in-2025-with-esm-and-cjs-npm-publishing)
-- [Click vs Typer — Who Wins in 2025? — PyInns](https://www.pyinns.com/tools/click-vs-typer)
-- [Typer alternatives page — tiangolo.com](https://typer.tiangolo.com/alternatives/)
-- [typer — PyPI](https://pypi.org/project/typer/)
-- [Python package managers: uv vs pixi? — Jacob Tomlinson](https://jacobtomlinson.dev/posts/2025/python-package-managers-uv-vs-pixi/)
-- [When should I choose pixi over uv? — pydevtools](https://pydevtools.com/handbook/explanation/when-should-i-choose-pixi-over-uv/)
-- [uv tools documentation — astral.sh](https://docs.astral.sh/uv/guides/tools/)
-- [From Cookiecutter to Copier, uv, and Just — Medium](https://medium.com/@gema.correa/from-cookiecutter-to-copier-uv-and-just-the-new-python-project-stack-90fb4ba247a9)
-- [headroom — GitHub (chopratejas)](https://github.com/chopratejas/headroom)
-- [headroom-ai — PyPI](https://pypi.org/project/headroom-ai/)
-- [Headroom Installation docs — Vercel](https://headroom-docs.vercel.app/docs/installation)
-- [npm v12 blocks postinstall — aikido.dev](https://www.aikido.dev/blog/npm-v12-block-postinstall)
-- [Guides to Cross-Platform Scripts in package.json — 8hob.io](https://8hob.io/posts/guides-creating-cross-platform-nodejs-scripts/)
+- [PostHog Node.js library — posthog.com/docs](https://posthog.com/docs/libraries/node)
+- [Next.js Telemetry — nextjs.org/telemetry](https://nextjs.org/telemetry) — reference pattern for opt-out via env var
+- [Plausible Events API — plausible.io/docs/events-api](https://plausible.io/docs/events-api) — considered and rejected (no free tier)
+- [Copier update mechanism — copier.readthedocs.io](https://copier.readthedocs.io/en/stable/updating/) — three-way merge approach; too heavy for static files
+- [posthog-node — npm](https://www.npmjs.com/package/posthog-node?activeTab=dependents) — 518 dependents, v5.28.5 current as of July 2026
+- [Archon telemetry issue — github.com/coleam00/Archon](https://github.com/coleam00/Archon/issues/1261) — reference pattern for anonymous CLI telemetry with PostHog
+- [headroom MCP commands — headroom-docs.vercel.app](https://headroom-docs.vercel.app/docs/installation) — `headroom mcp status`, `headroom doctor` confirmed
+- Codebase read directly: `packages/npm/src/steps/install-headroom.ts`, `configure-mcp.ts`, `commands/init.ts`, `packages/pip/src/goodvibes_cli/steps/`
+
+---
+*Stack research for: goodvibes v1.2.0 Growth & Retention (headroom validation, telemetry, update command)*
+*Researched: 2026-07-03*

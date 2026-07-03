@@ -1,490 +1,378 @@
-# Architecture Research: goodvibes
+# Architecture Research: goodvibes v1.2.0 Growth & Retention
 
-**Researched:** 2026-06-23
-**Confidence:** HIGH (core patterns); MEDIUM (headroom integration specifics)
-
----
-
-## Component Overview
-
-goodvibes has three distinct runtime contexts that must coexist in a single repo:
-
-| Context | Who uses it | What it needs |
-|---|---|---|
-| GitHub template repo | User who clicks "Use this template" or forks | All deliverable files at repo root, no CLI machinery visible |
-| npm CLI (`npx goodvibes init`) | JS/TS user in an existing or empty project | `bin/` entry point, `templates/` folder bundled in npm package |
-| pip CLI (`goodvibes init`) | Python user in an existing or empty project | `goodvibes/` Python package, same `templates/` accessible via `importlib.resources` |
-
-The critical insight from studying create-next-app, create-hono, and degit: **templates are static files that live inside the CLI package itself, co-located in a `templates/` directory.** The CLI locates them at runtime using `path.join(__dirname, '../templates')` (Node) or `importlib.resources.files('goodvibes').joinpath('templates')` (Python). No remote fetch is needed for the core scaffold files.
+**Milestone:** v1.2.0 — Growth & Retention (headroom validation, telemetry, update command)
+**Researched:** 2026-07-03
+**Confidence:** HIGH — all findings from direct source-code reading, no inference required
 
 ---
 
-## Dual-Delivery Architecture
+## Existing Architecture — Canonical Map
 
-### The Fundamental Tension
-
-A GitHub template repo copies everything from the repo root. A CLI copies files from its bundled `templates/` folder. These two surfaces are not naturally the same.
-
-**The resolution:** Use a `template/` directory at repo root that holds the canonical deliverable files. The CLI copies from `template/`. The GitHub template repo IS the repo — but users who fork it get `template/` contents AND the CLI source code.
-
-This is not a problem if you treat the GitHub template as a "fork then delete what you don't need" experience, which is exactly how create-next-app and degit handle it — the template repo is the authoritative source; the CLI is a convenience layer that copies from it.
-
-**Recommended approach: single-repo, two surfaces**
+The codebase is a two-package monorepo. TypeScript is canonical; Python is a port. Every feature lands in both simultaneously.
 
 ```
-goodvibes/                       <- GitHub template repo root
-  template/                      <- canonical scaffold files (CLI copies FROM here)
-    CLAUDE.md
-    .claude/
-      skills/caveman/
-      skills/goodvibes-hygiene/
-    .github/
-      workflows/
-      ISSUE_TEMPLATE/
-      PULL_REQUEST_TEMPLATE.md
-    docs/
-    CONTRIBUTING.md
-    SECURITY.md
-    JOURNAL.md
-    CHANGELOG.md
-  bin/                           <- npm CLI entry point
-    goodvibes.js
-  goodvibes/                     <- Python package
-    __init__.py
-    cli.py
-    templates -> symlink or copy of ../template/
-  src/                           <- shared TypeScript CLI logic (compiled to bin/)
-    init.ts
-    copy.ts
-    merge_claude_md.ts
-    headroom.ts
-  package.json
-  pyproject.toml
-  README.md
-  LICENSE
+packages/npm/src/
+  index.ts                         <- entry; registers all three commands
+  commands/
+    init.ts                        <- action handler; orchestrates steps via tasks()
+    upgrade.ts                     <- action handler; self-update + template sync; exposes .alias('update')
+    doctor.ts                      <- health-check command; checkHeadroom(), checkGit(), etc.
+  steps/
+    copy-templates.ts              <- copyTemplates(), listTemplateFiles(), resolveTemplatesDir()
+    install-headroom.ts            <- installHeadroom(log) → Promise<void>
+    configure-mcp.ts               <- configureMcp(log) → Promise<void>
+  utils/
+    detect-project-type.ts
+    detect-python.ts
+    sentinel-merge.ts
+
+packages/pip/src/goodvibes_cli/
+  main.py                          <- Typer app; registers init, upgrade, update, doctor
+  commands/
+    init_cmd.py                    <- mirrors init.ts; orchestrates steps via console.status()
+    upgrade_cmd.py                 <- mirrors upgrade.ts; self-update + template sync
+    doctor_cmd.py
+  steps/
+    copy_templates.py
+    install_headroom.py            <- install_headroom(log) → None
+    configure_mcp.py               <- configure_mcp(log) → None
+  utils/
+    detect_project_type.py
+    detect_python.py
+    sentinel_merge.py
 ```
 
-When a user forks the GitHub template, they get `template/` (what they want), `bin/` and `src/` (they can delete or ignore), and `package.json`/`pyproject.toml` (also ignorable). This is acceptable — the README hero path is "fork and delete the CLI stuff" or "use the CLI, don't fork."
-
-**Alternative: degit pattern (recommended for Path A simplicity)**
-
-The GitHub template repo has NO CLI machinery at root. It is purely the deliverable files:
-
-```
-goodvibes-template/        <- separate GitHub repo, marked as template
-  CLAUDE.md
-  .claude/skills/...
-  .github/workflows/...
-  docs/
-  ...
-
-goodvibes-cli/             <- separate GitHub repo, npm + pip published
-  templates/ -> fetched from goodvibes-template at publish time, or copied
-  bin/
-  src/
-  pyproject.toml
-  package.json
-```
-
-This separation is cleaner but adds repo maintenance overhead. The create-next-app model (templates bundled inside the CLI package, co-located in the same monorepo) is the better precedent for a small team.
-
-**Decision: single repo, `template/` subdirectory.** The GitHub "Use This Template" button copies the whole repo root — so the repo root must be the deliverable. This conflicts with having `src/`, `bin/`, `pyproject.toml` at root. Resolve this pragmatically: the GitHub template experience is "fork and the junk is visible but harmless." The README must explain this. Alternatively, configure GitHub template to exclude certain files using `.github/template/exclude` — but GitHub does not support per-file exclusions in template repos as of 2026.
-
-**Final recommendation: two repos.**
-
-- `jgiox/goodvibes` — the CLI source (npm + pip), references `jgiox/goodvibes-template` 
-- `jgiox/goodvibes-template` — the GitHub template repo, purely deliverable files, also the `templates/` source of truth for the CLI
-
-The CLI `npx goodvibes init` copies from its bundled `templates/` folder (which mirrors `jgiox/goodvibes-template` at publish time). This mirrors exactly how create-hono works: templates are a separate concern from CLI logic.
+Two architectural invariants to preserve:
+1. Steps accept a `log: (msg: string) => void` / `log: Callable[[str], None]` — never write to console directly.
+2. Steps never throw on soft failures (installer not found, headroom binary absent). They log and return.
 
 ---
 
-## Component Diagram
+## Feature 1: Headroom Integration Validation
 
+### Finding: Validation already happens — it is just not returned
+
+`installHeadroom()` already runs an idempotency probe (`headroom --version` in TS, `shutil.which("headroom")` in Python) and has three distinct internal outcomes:
+
+| Outcome | Current behavior | What user sees |
+|---------|-----------------|----------------|
+| Python not found | logs skip message, returns | spinner updates, then disappears |
+| Already installed | logs "already installed — skipping", returns | spinner updates, then disappears |
+| Install succeeded | returns after successful execa call | task completes silently |
+| Install soft-failed | logs failure message, returns | spinner updates, then disappears |
+
+The `log` messages reach the `@clack/prompts` spinner only while the task is active. After `tasks()` resolves, all log output is gone. `init.ts` always shows `'headroom ready'` in the task list regardless of outcome (line 73 of init.ts: the task callback returns a hardcoded string).
+
+**Root problem:** the outcome is not surfaced in the post-init summary.
+
+### Decision: Extend return types, not a new file
+
+A new `validate-headroom.ts` step would re-run `headroom --version`, which `installHeadroom()` already ran. That is wasteful and violates Ponytail. The fix is returning the outcome.
+
+**TS change — `install-headroom.ts`:**
+
+```typescript
+// Export a discriminated union instead of void
+export type HeadroomResult =
+  | { status: 'installed' }
+  | { status: 'already-installed' }
+  | { status: 'skipped'; reason: string }
+  | { status: 'failed'; reason: string }
+
+export async function installHeadroom(log: (msg: string) => void): Promise<HeadroomResult>
 ```
-User runs: npx goodvibes init
-                 |
-                 v
-         [ goodvibes npm package ]
-         |-- bin/goodvibes.js (entry)
-         |-- src/init.ts
-         |     |-- detect existing CLAUDE.md
-         |     |-- copy templates/
-         |     |-- merge_claude_md()
-         |     |-- setup_headroom()
-         |
-         |-- templates/          <-- bundled static files
-               |-- CLAUDE.md
-               |-- .claude/skills/caveman/
-               |-- .claude/skills/goodvibes-hygiene/
-               |-- .github/workflows/
-               |-- docs/
-               |-- ...
-                 |
-                 v
-           [target project dir]
-           (files written here)
-                 |
-                 v
-           headroom setup
-           (subprocess: pip install headroom-ai[mcp])
-           (subprocess: headroom mcp install)
 
+Each existing `return` in `installHeadroom` maps to one of the four variants:
+- `pythonCmd === null` → `{ status: 'skipped', reason: 'Python 3.10+ not found' }`
+- probe succeeds → `{ status: 'already-installed' }`
+- `execa` install succeeds → `{ status: 'installed' }`
+- all installers exhausted or CalledProcessError → `{ status: 'failed', reason: ... }`
 
-User forks: github.com/jgiox/goodvibes-template
-                 |
-                 v
-         GitHub copies all files to new repo
-         (no CLI involved — pure static copy)
-         |-- CLAUDE.md
-         |-- .claude/skills/
-         |-- .github/
-         |-- docs/
-         |-- ...
+**TS change — `configure-mcp.ts`:**
 
+```typescript
+export type McpResult =
+  | { status: 'registered' }
+  | { status: 'already-registered' }
+  | { status: 'skipped'; reason: string }
+  | { status: 'failed'; reason: string }
 
-User runs: pip install goodvibes && goodvibes init
-                 |
-                 v
-         [ goodvibes pip package ]
-         |-- goodvibes/cli.py (entry via [scripts] in pyproject.toml)
-         |-- goodvibes/init.py
-         |     |-- detect existing CLAUDE.md
-         |     |-- copy templates/ via importlib.resources
-         |     |-- merge_claude_md()
-         |     |-- setup_headroom()
-         |
-         |-- goodvibes/templates/   <-- bundled via package_data
-               |-- (same files as npm templates/)
+export async function configureMcp(log: (msg: string) => void): Promise<McpResult>
 ```
+
+**TS change — `init.ts`:** consume the return values and emit them in the post-init summary:
+
+```typescript
+let headroomResult: HeadroomResult | undefined
+let mcpResult: McpResult | undefined
+
+// inside task:
+{ title: 'Installing headroom', task: async () => {
+    headroomResult = await installHeadroom(message)
+    return headroomResult.status
+}},
+{ title: 'Configuring headroom MCP', task: async () => {
+    mcpResult = await configureMcp(message)
+    return mcpResult.status
+}},
+
+// after tasks():
+note(formatHeadroomStatus(headroomResult, mcpResult), 'Headroom')
+```
+
+`formatHeadroomStatus` is a small inline helper in `init.ts` — no new file.
+
+**Python changes mirror TS exactly:**
+- `install_headroom.py`: return a `dict` or `TypedDict` with `status` key (string literal)
+- `configure_mcp.py`: same
+- `init_cmd.py`: capture return values, print a Rich Panel with the headroom status after other panels
+
+**Modified files (Feature 1):**
+
+| File | Change |
+|------|--------|
+| `packages/npm/src/steps/install-headroom.ts` | Change return type `void → HeadroomResult`; add return values at each exit point |
+| `packages/npm/src/steps/configure-mcp.ts` | Change return type `void → McpResult`; add return values at each exit point |
+| `packages/npm/src/commands/init.ts` | Capture return values; emit headroom status note after summary |
+| `packages/npm/src/steps/install-headroom.test.ts` | Update test assertions for new return type |
+| `packages/npm/src/steps/configure-mcp.test.ts` | Update test assertions for new return type |
+| `packages/pip/src/goodvibes_cli/steps/install_headroom.py` | Change return `None → dict`; add returns at each exit point |
+| `packages/pip/src/goodvibes_cli/steps/configure_mcp.py` | Change return `None → dict`; add returns at each exit point |
+| `packages/pip/src/goodvibes_cli/commands/init_cmd.py` | Capture return values; emit headroom status panel |
+
+**New files (Feature 1): Zero.**
 
 ---
 
-## Template File Strategy
+## Feature 2: Anonymous Install Telemetry
 
-### Where templates live
+### Decision: Utility function, called fire-and-forget from init action handler
 
-**Canonical location:** `goodvibes-template` repo (or `template/` directory if single-repo).
+**Not a step.** Steps appear in the `tasks()` list, are user-visible, and block the init flow on error. Telemetry must be invisible and must never block init.
 
-**Bundled locations at publish time:**
-- npm package: `templates/` directory (included via `files` field in package.json)
-- pip package: `goodvibes/templates/` directory (included via `[tool.setuptools.package-data]` in pyproject.toml)
+**Not inline in `init.ts`.** A named utility function in `utils/` is testable in isolation, matches the existing `detect-python.ts` / `sentinel-merge.ts` pattern, and keeps `init.ts` clean.
 
-Both CLIs operate identically: locate bundled templates, copy to cwd, then post-process.
+**TS — new file `packages/npm/src/utils/telemetry.ts`:**
 
-### npm bundling
-
-```json
-// package.json
-{
-  "files": ["bin/", "templates/", "dist/"]
+```typescript
+// Single exported function: fire-and-forget, never throws, never logs on success.
+// Called without await from init.ts action handler, after tasks() completes.
+export function sendTelemetry(): void {
+  // Implementation: one HTTP request to a counter endpoint.
+  // No PII. No await at call site. Process exits naturally after init.
 }
 ```
 
-Runtime access in Node:
-```js
-const templateDir = path.join(__dirname, '../templates');
-fs.cpSync(templateDir, targetDir, { recursive: true });
+Call site in `init.ts` (after the `note(nextSteps, 'Next steps')` and before `outro()`):
+
+```typescript
+sendTelemetry()  // fire-and-forget; no await
+outro("You're all set!")
 ```
 
-This is the exact pattern used by create-next-app (confirmed via GitHub), create-hono, and all major scaffold CLIs. It is the established industry standard. HIGH confidence.
+**Python — new file `packages/pip/src/goodvibes_cli/utils/telemetry.py`:**
 
-### pip bundling
-
-```toml
-# pyproject.toml
-[tool.setuptools.package-data]
-goodvibes = ["templates/**/*"]
-```
-
-Runtime access in Python (requires Python 3.9+, which aligns with headroom's Python 3.10+ requirement):
 ```python
-from importlib.resources import files
-template_path = files('goodvibes').joinpath('templates')
-shutil.copytree(template_path, target_dir, dirs_exist_ok=True)
+def send_telemetry() -> None:
+    """Fire-and-forget counter increment. Never raises. No PII."""
+    ...
 ```
 
-### Keeping npm and pip templates in sync
+Call site in `init_cmd.py` after `console.rule(...)`:
 
-Both CLIs ship the same static files. At publish time, a build step copies `templates/` into `goodvibes/templates/` before publishing the pip wheel. A Makefile target or GitHub Actions publish workflow handles this. There is no runtime sync needed — both CLIs are published snapshots.
+```python
+send_telemetry()  # fire-and-forget; synchronous with short timeout
+```
 
-```
-templates/          <- source of truth (npm)
-goodvibes/templates/ <- auto-copied at pip publish time (gitignored or committed)
-```
+**Telemetry implementation constraints:**
+- No PII: no IP logging beyond what the endpoint's host logs by default, no user agent with version strings, no project name
+- A simple GET request to a counter URL is sufficient (e.g., a Cloudflare Worker, a Plausible custom event endpoint, or a self-hosted tally)
+- Timeout: 2 seconds max. Never retry. Swallow all exceptions.
+- The endpoint URL must be a constant in the utility file, not user-configurable
+
+**Modified files (Feature 2):**
+
+| File | Change |
+|------|--------|
+| `packages/npm/src/commands/init.ts` | Add `sendTelemetry()` call after tasks complete |
+| `packages/pip/src/goodvibes_cli/commands/init_cmd.py` | Add `send_telemetry()` call after tasks complete |
+
+**New files (Feature 2):**
+
+| File | Purpose |
+|------|---------|
+| `packages/npm/src/utils/telemetry.ts` | Fire-and-forget HTTP counter for npm package |
+| `packages/pip/src/goodvibes_cli/utils/telemetry.py` | Mirror for pip package |
 
 ---
 
-## CLAUDE.md Generation Approach
+## Feature 3: `goodvibes update` Command
 
-### Three scenarios the CLI must handle
+### Finding: Already implemented in both packages — the alias exists today
 
-| Scenario | What to do |
-|---|---|
-| Empty project (no CLAUDE.md) | Copy bundled CLAUDE.md as-is |
-| Existing CLAUDE.md (user or other tool created it) | Merge: prepend goodvibes header block, append goodvibes footer block, leave user content in middle |
-| Existing CLAUDE.md from a prior goodvibes run | Detect goodvibes sentinel markers, replace only the goodvibes sections, leave user content untouched |
-
-### Recommended approach: sentinel-based merge
-
-The bundled CLAUDE.md contains sections delimited by machine-readable markers:
-
-```markdown
-<!-- goodvibes:start -->
-[karpathy rules + Code Directions content]
-<!-- goodvibes:end -->
+**npm (`upgrade.ts` line 138–139):**
+```typescript
+program
+  .command('upgrade')
+  .alias('update')
 ```
 
-The merge logic:
-1. If no CLAUDE.md exists: copy bundled file directly.
-2. If CLAUDE.md exists without sentinels: prepend the goodvibes block (between sentinels) and keep the existing content below it.
-3. If CLAUDE.md exists with sentinels: replace the sentinel-delimited block with fresh content; preserve everything outside.
+Running `goodvibes update` already invokes the full upgrade flow: self-update check against npm registry, template file sync, CLAUDE.md sentinel merge.
 
-This is the same pattern used by tools like `husky`, `lint-staged` config injectors, and `.npmrc` mergers. It is simple, deterministic, and reversible. HIGH confidence this is the right approach.
+**pip (`main.py` line 28):**
+```python
+app.command("update")(upgrade_cmd)
+```
 
-### Static file, not a template with variables
+The pip package registers `update` as an independent command (not an alias in Typer's model, but the same function). `goodvibes update` and `goodvibes upgrade` are equivalent today.
 
-The CLAUDE.md content itself should be static text, not a Jinja/Handlebars template with variable substitution. The rules from karpathy and Code Directions.md are universal; there is nothing project-specific to inject. Keep it simple.
+### What "Active (v1.2.0)" actually means
 
-The `goodvibes-hygiene` skill and `caveman` skill are separate files dropped into `.claude/skills/` — they do not need to merge with anything.
+The PROJECT.md marks `goodvibes update` as Active, but the alias already exists. The remaining work is:
 
----
+1. **Documentation**: README and `goodvibes --help` should clarify that `update` and `upgrade` are equivalent. Currently neither is mentioned explicitly in the docs as the "canonical" command.
 
-## Headroom Integration Pattern
+2. **Validation under v1.2.0 changes**: If Feature 1 (headroom status) is added to `init.ts`, the `update` command might also want to re-run `installHeadroom()` to surface headroom status during update. That would be a new task in `upgrade.ts`. This is optional and should be decided at implementation time based on user-facing requirements.
 
-### What headroom is
+**New command file: Not needed.** `upgrade.ts` / `upgrade_cmd.py` are the implementation. The alias routes to them.
 
-headroom-ai is a Python/Rust package (`pip install "headroom-ai[mcp]"`) that compresses LLM context 60–95%. It installs as a CLI tool and registers itself with Claude Code via `headroom mcp install`, which writes an MCP server entry to Claude Code's config. It requires Python 3.10+.
+**If headroom re-run during update is desired:**
 
-### Integration options
-
-| Option | UX | Risk | Recommendation |
-|---|---|---|---|
-| Require user to run pip separately | User must know pip exists | Breaks zero-config promise | No |
-| npm CLI shells out to `pip install headroom-ai[mcp]` | One step, but requires Python 3.10+ on PATH | Fails silently if Python not available | Yes, with fallback |
-| pip CLI takes headroom as a dependency | Automatic for pip users | No risk; pip resolves it | Yes, always |
-| Async/background install | Complex error handling | Poor debuggability | No |
-
-### Recommended pattern
-
-**For pip CLI:** Add `headroom-ai[mcp]` to `[project.dependencies]` in pyproject.toml. It installs automatically. After file copy, run `headroom mcp install` via subprocess.
-
-**For npm CLI:** After copying files, attempt:
-```js
-const { execSync } = require('child_process');
-try {
-  execSync('pip install "headroom-ai[mcp]" --quiet', { stdio: 'pipe' });
-  execSync('headroom mcp install', { stdio: 'pipe' });
-  console.log('headroom configured');
-} catch (e) {
-  console.log('headroom skipped (Python 3.10+ not found — install manually: pip install headroom-ai[mcp])');
+```typescript
+// In upgrade.ts registerUpgradeCommand(), add after template sync tasks:
+if (!process.env[_GV_UPGRADING]) {  // skip during self-re-exec
+  taskList.push({
+    title: 'Validating headroom',
+    task: async () => {
+      const result = await installHeadroom(message)
+      return result.status
+    }
+  })
 }
 ```
 
-This is a soft dependency: the CLI does not fail if Python is absent; it prints a one-line manual step. The CLAUDE.md injected into the project also documents this step in its Setup section.
+This depends on Feature 1 landing first (for the return type).
 
-**`headroom mcp install` behavior:** This command modifies Claude Code's MCP configuration to register headroom as an MCP server (writes to `~/.claude/` config or `.claude/` project config). This is a one-time user-level operation, not a per-project file copy. goodvibes should run it once during init and not re-run on subsequent calls.
+**Modified files (Feature 3 — minimum):**
 
-### Headroom in the GitHub template fork
+| File | Change |
+|------|--------|
+| `README.md` | Document `goodvibes update` as the canonical update command |
 
-The template repo cannot auto-install headroom — there is no init script that runs on fork. The `CLAUDE.md` injected by the template must include a "Getting Started" section that says: "Run `pip install headroom-ai[mcp] && headroom mcp install` to enable input token compression."
+**Modified files (Feature 3 — if headroom re-run during update):**
 
-This is a deliberate tradeoff: template fork path requires one manual pip step; CLI path does it automatically.
-
----
-
-## Recommended File Layout (the goodvibes repo itself)
-
-This layout assumes the two-repo model: `goodvibes` (CLI) and `goodvibes-template` (GitHub template).
-
-### `jgiox/goodvibes` (CLI repo, published to npm + pip)
-
-```
-goodvibes/                    <- repo root
-  bin/
-    goodvibes.js              <- npm bin entry (#!/usr/bin/env node)
-  src/
-    index.ts                  <- CLI entrypoint (commander/yargs parsing)
-    init.ts                   <- orchestrates the init flow
-    copy.ts                   <- copies template files to cwd
-    merge_claude_md.ts        <- sentinel-based CLAUDE.md merge
-    headroom.ts               <- pip subprocess + headroom mcp install
-    detect.ts                 <- detects existing files, prior goodvibes runs
-  templates/                  <- bundled scaffold files (npm package_data)
-    CLAUDE.md                 <- combined karpathy + Code Directions rules
-    .claude/
-      skills/
-        caveman/              <- forked from juliusbrussee/caveman
-          CLAUDE.md
-          (skill files)
-        goodvibes-hygiene/    <- ponytail wrapper + hygiene shortcuts
-          CLAUDE.md
-    .github/
-      workflows/
-        ci.yml
-        security.yml
-        dependency-review.yml
-      ISSUE_TEMPLATE/
-        bug_report.md
-        feature_request.md
-      PULL_REQUEST_TEMPLATE.md
-      dependabot.yml
-    docs/
-      getting-started.md
-      git-basics.md
-      ci-explained.md
-      releases.md
-    CONTRIBUTING.md
-    SECURITY.md
-    JOURNAL.md
-    CHANGELOG.md
-  goodvibes/                  <- Python package
-    __init__.py
-    cli.py                    <- click/typer entry point
-    init.py                   <- mirrors init.ts logic
-    copy.py
-    merge_claude_md.py
-    headroom.py
-    templates/                <- copy of ../templates/ (auto-synced at publish)
-  tests/
-    test_copy.py
-    test_merge_claude_md.py
-    test_headroom.py
-    init.test.ts
-  package.json                <- bin: { goodvibes: bin/goodvibes.js }
-  pyproject.toml              <- [project.scripts] goodvibes = "goodvibes.cli:main"
-  tsconfig.json
-  .github/
-    workflows/
-      publish-npm.yml
-      publish-pip.yml
-      sync-templates.yml      <- copies templates/ -> goodvibes/templates/
-  README.md
-  LICENSE                     <- Apache 2.0
-```
-
-### `jgiox/goodvibes-template` (GitHub template repo)
-
-```
-goodvibes-template/           <- repo root (THIS is what users get when they fork)
-  CLAUDE.md
-  .claude/
-    skills/
-      caveman/
-      goodvibes-hygiene/
-  .github/
-    workflows/
-    ISSUE_TEMPLATE/
-    PULL_REQUEST_TEMPLATE.md
-    dependabot.yml
-  docs/
-  CONTRIBUTING.md
-  SECURITY.md
-  JOURNAL.md
-  CHANGELOG.md
-  README.md                   <- "You forked goodvibes. Here's what to do next."
-  LICENSE
-```
-
-This repo is kept in sync with `goodvibes/templates/` via the `sync-templates.yml` workflow or manual promotion. It has zero CLI machinery — pure deliverable files.
+| File | Change |
+|------|--------|
+| `packages/npm/src/commands/upgrade.ts` | Add headroom validation task after template sync |
+| `packages/pip/src/goodvibes_cli/commands/upgrade_cmd.py` | Mirror: add headroom validation |
 
 ---
 
-## Build Order Implications (what to build first)
+## Component Boundaries
 
-### Phase 1: Template content (no CLI needed)
-
-Build the actual files that get delivered. These are the product. The CLI is just a delivery vehicle.
-
-Order:
-1. `CLAUDE.md` — combine karpathy rules + Code Directions.md source material. This is the highest-value deliverable. Build it first so it can be tested immediately.
-2. `.claude/skills/caveman/` — fork juliusbrussee/caveman, verify Apache 2.0 compatibility, copy into template.
-3. `.claude/skills/goodvibes-hygiene/` — write the ponytail wrapper skill.
-4. `.github/workflows/` — ci.yml, security.yml, dependency-review.yml. These are self-contained YAML; no code dependency.
-5. `docs/` scaffold files — CONTRIBUTING.md, SECURITY.md, JOURNAL.md, CHANGELOG.md, and the onboarding docs.
-6. `.github/ISSUE_TEMPLATE/`, `PULL_REQUEST_TEMPLATE.md`, `dependabot.yml`.
-
-**Gate:** Template files exist in `templates/` and are manually testable (copy to a fresh project, open with Claude Code, verify it works).
-
-### Phase 2: npm CLI (`npx goodvibes init`)
-
-npm CLI is the highest-reach delivery path for a vibe coder audience. Build it before pip.
-
-Order:
-1. `bin/goodvibes.js` — minimal shebang entry that delegates to `src/index.ts`.
-2. `src/copy.ts` — `fs.cpSync` from `templates/` to cwd. Test this in isolation.
-3. `src/merge_claude_md.ts` — sentinel-based merge. This is the riskiest logic; needs unit tests covering all three scenarios.
-4. `src/headroom.ts` — subprocess wrapper with graceful fallback on no-Python.
-5. `src/init.ts` — orchestration: detect → copy → merge → headroom.
-6. `package.json` `files` field — ensure `templates/` is included in the published package.
-7. Publish to npm as `goodvibes`.
-8. Test: `npx goodvibes init` in a fresh directory; verify all files land correctly.
-
-**Gate:** `npx goodvibes init` in an empty directory produces a working project. `npx goodvibes init` in a project with an existing CLAUDE.md merges without destroying content.
-
-### Phase 3: pip CLI (`goodvibes init`)
-
-Mirrors Phase 2 in Python. Builds on the same `templates/` source.
-
-Order:
-1. `goodvibes/cli.py` — click/typer entry, `goodvibes init` command.
-2. `goodvibes/copy.py` — `importlib.resources` + `shutil.copytree`.
-3. `goodvibes/merge_claude_md.py` — port of the sentinel logic from TypeScript.
-4. `goodvibes/headroom.py` — `subprocess.run(['headroom', 'mcp', 'install'])` after headroom-ai is installed as a dependency.
-5. `pyproject.toml` — `[tool.setuptools.package-data]` for templates, `headroom-ai[mcp]` in dependencies.
-6. `sync-templates.yml` GitHub Actions — auto-copies `templates/` to `goodvibes/templates/` on push.
-7. Publish to PyPI as `goodvibes`.
-8. Test: `pip install goodvibes && goodvibes init` in a fresh directory.
-
-**Gate:** pip CLI produces identical result to npm CLI.
-
-### Phase 4: GitHub template repo
-
-Set up `jgiox/goodvibes-template` with the contents of `templates/`. Enable "Template repository" in GitHub settings. Write the README with the "Use This Template" button as hero action.
-
-Maintain sync: when `templates/` changes in the CLI repo, a workflow (or manual step) updates the template repo.
-
-**Dependency:** Phases 1–3 must be complete before the template repo has validated content.
-
-### Phase ordering summary
-
-```
-Phase 1: Template content (files)
-    |
-    v
-Phase 2: npm CLI  ----+
-    |                 |
-    v                 |
-Phase 3: pip CLI  ----+
-    |
-    v
-Phase 4: GitHub template repo
-```
-
-Phases 2 and 3 can be parallelized after Phase 1 if two people are working. Phase 4 is always last — it promotes validated content.
-
-### What must exist before what
-
-| "Before" | "After" |
-|---|---|
-| CLAUDE.md content finalized | Any CLI that copies it |
-| `templates/` directory complete | npm package.json `files` field |
-| npm CLI tested and working | pip CLI (to validate the copy logic pattern before porting) |
-| Both CLIs tested | GitHub template repo published |
-| headroom subprocess pattern confirmed working | pip CLI headroom.py dependency |
-| Apache 2.0 license compatibility verified for caveman | Bundling caveman into templates/ |
+| Component | Responsibility | Communicates With |
+|-----------|---------------|-------------------|
+| `commands/init.ts` | Orchestration, UX, task list assembly | All steps, new telemetry util |
+| `steps/install-headroom.ts` | Install headroom; return status | `utils/detect-python` |
+| `steps/configure-mcp.ts` | Register headroom MCP; return status | Nothing |
+| `utils/telemetry.ts` (NEW) | Fire-and-forget HTTP counter | External endpoint only |
+| `commands/upgrade.ts` | Self-update + template sync; optionally headroom validation | Steps, npm registry |
 
 ---
 
-## Sources
+## Build Order
 
-- create-next-app templates structure: [Next.js GitHub — create-next-app/templates](https://github.com/vercel/next.js/tree/canary/packages/create-next-app/templates) (MEDIUM confidence — structure confirmed via GitHub directory listing)
-- degit architecture: [Rich-Harris/degit](https://github.com/Rich-Harris/degit) (HIGH confidence — official repo)
-- npm CLI template bundling pattern: [How to build an npx starter template — Peter Mekhaeil](https://www.petermekhaeil.com/how-to-build-an-npx-starter-template/) (HIGH confidence — verified against multiple sources)
-- Node.js CLI scaffold tools: [Building a Node.js Project Starter Template CLI Tool — Mastering Backend](https://blog.masteringbackend.com/building-a-node-js-project-starter-template-cli-tool) (MEDIUM confidence)
-- Python package_data for templates: [Setuptools data files documentation](https://setuptools.pypa.io/en/latest/userguide/datafiles.html) (HIGH confidence — official docs)
-- importlib.resources runtime access: [setuptools datafiles — official](https://setuptools.pypa.io/en/latest/userguide/datafiles.html) (HIGH confidence)
-- headroom install modes and MCP setup: [headroom README](https://github.com/chopratejas/headroom/blob/main/README.md) and [headroom MCP docs](https://headroom-docs.vercel.app/docs/mcp) (HIGH confidence — official docs)
-- copier "one template = one repo" recommendation: [copier FAQ](https://copier.readthedocs.io/en/stable/faq/) (HIGH confidence — official docs; used to inform the two-repo recommendation)
-- create-hono CLI structure: [create-hono Context7 docs](https://context7.com/honojs/create-hono/llms.txt) (HIGH confidence — official source)
-- GitHub template repository behavior: [GitHub Docs — Creating a template repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/creating-a-template-repository) (HIGH confidence — official docs)
+Dependencies between features:
+
+```
+Feature 1 (headroom status)
+  → Modify install-headroom.ts, configure-mcp.ts (return types)
+  → Modify init.ts (consume return values)
+  → Update test files for changed return types
+  → No dependency on Features 2 or 3
+
+Feature 2 (telemetry)
+  → New telemetry.ts + telemetry.py (independent of Feature 1)
+  → Modify init.ts + init_cmd.py to call send_telemetry()
+  → Can land in the same PR as Feature 1 or separately
+
+Feature 3 (update alias)
+  → No code change if docs-only
+  → If headroom re-run during update: requires Feature 1 to land first
+    (depends on HeadroomResult return type being available in upgrade.ts)
+```
+
+### Recommended phase order
+
+**Phase 1 — Headroom status (Feature 1):**
+Start with `install-headroom.ts` return type change (TS), then update `init.ts`, then port to Python. Both test files must be updated in the same commit to keep CI green. No new files.
+
+**Phase 2 — Telemetry (Feature 2):**
+New `telemetry.ts` + `telemetry.py`. Wire into `init.ts` / `init_cmd.py`. The telemetry endpoint URL decision is a product decision that must precede implementation.
+
+**Phase 3 — Update validation (Feature 3):**
+If headroom re-run during update is in scope: modify `upgrade.ts` + `upgrade_cmd.py` after Feature 1 lands. If docs-only: can be done any time.
+
+---
+
+## Pitfall: HeadroomResult in the Tasks Spinner Text
+
+`@clack/prompts` `tasks()` shows the string returned from each task callback as the completion label in the terminal. If `HeadroomResult.status` is `'skipped'`, the terminal will show "skipped" next to "Installing headroom" — which may look like a failure to a beginner user. Use a friendlier label:
+
+```typescript
+const labels: Record<HeadroomResult['status'], string> = {
+  'installed': 'headroom installed',
+  'already-installed': 'headroom already installed',
+  'skipped': 'headroom skipped (Python 3.10+ not found)',
+  'failed': 'headroom install failed — see note below',
+}
+return labels[result.status]
+```
+
+This is init.ts logic, not a change to the step itself.
+
+---
+
+## Pitfall: Telemetry in Tests
+
+`sendTelemetry()` must be mockable in unit tests for `init.ts`. The existing pattern for steps is to pass the function as a parameter (`log: (msg: string) => void`). For telemetry, the simpler approach is to mock the module in vitest:
+
+```typescript
+// init.test.ts
+vi.mock('../utils/telemetry.js', () => ({ sendTelemetry: vi.fn() }))
+```
+
+This avoids changing the call signature in `init.ts`. Verify the mock is in place before adding new tests that test post-init behavior.
+
+---
+
+## Pitfall: Fire-and-Forget in Python is Blocking
+
+Python `urllib.request.urlopen` is synchronous. A 2-second timeout in the telemetry call will block `init_cmd.py` for up to 2 seconds if the endpoint is slow. Two options:
+
+1. Use `threading.Thread(target=_send, daemon=True).start()` — truly fire-and-forget; process exit kills the thread cleanly
+2. Use `urllib.request.urlopen(..., timeout=0.5)` — 500ms max block; simpler but still blocks
+
+Recommendation: option 1 (daemon thread) for exact parity with the non-blocking JS behavior.
+
+---
+
+## Full File Change Map
+
+| File | Status | Feature | Change |
+|------|--------|---------|--------|
+| `packages/npm/src/steps/install-headroom.ts` | MODIFY | 1 | Return `HeadroomResult` instead of `void` |
+| `packages/npm/src/steps/configure-mcp.ts` | MODIFY | 1 | Return `McpResult` instead of `void` |
+| `packages/npm/src/commands/init.ts` | MODIFY | 1, 2 | Consume return values; call `sendTelemetry()` |
+| `packages/npm/src/steps/install-headroom.test.ts` | MODIFY | 1 | Update assertions for new return shape |
+| `packages/npm/src/steps/configure-mcp.test.ts` | MODIFY | 1 | Update assertions for new return shape |
+| `packages/npm/src/utils/telemetry.ts` | NEW | 2 | Fire-and-forget counter |
+| `packages/pip/src/goodvibes_cli/steps/install_headroom.py` | MODIFY | 1 | Return `dict` with status key |
+| `packages/pip/src/goodvibes_cli/steps/configure_mcp.py` | MODIFY | 1 | Return `dict` with status key |
+| `packages/pip/src/goodvibes_cli/commands/init_cmd.py` | MODIFY | 1, 2 | Consume return values; call `send_telemetry()` |
+| `packages/pip/src/goodvibes_cli/utils/telemetry.py` | NEW | 2 | Mirror of telemetry.ts |
+| `packages/npm/src/commands/upgrade.ts` | MODIFY (optional) | 3 | Add headroom validation task if re-run during update is in scope |
+| `packages/pip/src/goodvibes_cli/commands/upgrade_cmd.py` | MODIFY (optional) | 3 | Mirror of upgrade.ts change |
+| `README.md` | MODIFY | 3 | Document `goodvibes update` as canonical command |
+
+**Net new files: 2** (`telemetry.ts`, `telemetry.py`). All other changes are in-place modifications.

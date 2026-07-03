@@ -1,319 +1,327 @@
-# Features Research: goodvibes
+# Feature Landscape: goodvibes v1.2.0 Growth & Retention
 
-**Domain:** Developer bootstrapping / scaffolding CLI for AI-assisted (vibe) coding
-**Researched:** 2026-06-23
-**Overall confidence:** HIGH (tool landscape), HIGH (UX patterns), MEDIUM (AI-agent-specific setup space)
-
----
-
-## Table Stakes (Must Have)
-
-These are features users expect from any scaffolding tool. Missing one makes the product feel broken or untrustworthy.
-
-### 1. Single-command invocation that actually works
-
-**Why expected:** Every respected scaffolding tool (create-next-app, copier, degit, cookiecutter) delivers its core value from one command with no prerequisite steps beyond having the runtime installed. Beginners will not debug a two-step install.
-
-**What this means for goodvibes:**
-- `npx goodvibes init` — zero pre-install required, downloads and runs
-- `goodvibes init` — works immediately after `pip install goodvibes`
-- Both must succeed without root/admin on macOS, Linux, and Windows (WSL2 included)
-
-**Anti-failure:** Provide a clear pre-check at the top of `init`: detect Node, Python, git. Report any missing prerequisites with a plain-English fix instruction before touching the filesystem.
-
-### 2. Immediate visible progress
-
-**Why expected:** The CLI UX canon (clig.dev, Lucas Costa's patterns article) is unanimous: output something meaningful within 100ms, show a spinner for anything over 500ms, never go silent for more than 2 seconds. Beginners will Ctrl-C if nothing appears to be happening.
-
-**What this means for goodvibes:**
-- `@clack/prompts` spinner wrapping each phase: copying files, installing headroom, configuring CI
-- Named steps ("Installing headroom..." / "Writing CLAUDE.md..." / "Creating GitHub Actions...") so users know where they are
-- Step count display ("Step 2 of 4") to prevent abandonment during slower phases (headroom install can take 15-30 seconds on first run)
-
-### 3. Files actually placed where expected
-
-**Why expected:** Scaffolding tools that drop files somewhere unexpected (wrong directory, buried under extra folder) are the most common complaint. create-next-app creates its own subdirectory; degit dumps into the current directory. The user's mental model must match the tool's behavior.
-
-**What this means for goodvibes:**
-- By default, write into the current working directory (user runs `npx goodvibes init` inside their project folder)
-- No surprise subdirectories
-- List every file written at the end of init: "Created: CLAUDE.md, .claude/skills/caveman/SKILL.md, .github/workflows/ci.yml, docs/README.md"
-- Ask before overwriting any existing file — never silently clobber
-
-### 4. Clear post-install "what now" message
-
-**Why expected:** create-next-app, create-react-app, and npm init all conclude with a brief "next steps" block. Beginners have no mental model of what the tool just did; they need a map. clig.dev explicitly calls this "reduce time to value."
-
-**What this means for goodvibes:**
-```
- goodvibes init complete
-
- What was installed:
-   CLAUDE.md              — Engineering rules for Claude Code
-   .claude/skills/        — caveman (output compression) + ponytail (minimalism)
-   .github/workflows/     — CI/CD pipeline
-   docs/                  — Project documentation scaffold
-
- What to do next:
-   1. Open CLAUDE.md and read it — Claude will use this every session
-   2. Run: claude (or start your Claude Code session)
-   3. Try: /caveman to see token compression in action
-
- Docs: https://github.com/jgiox/goodvibes
-```
-
-This block must be visually distinct (color + box), brief (fits one terminal screen), and copy-pasteable.
-
-### 5. Non-destructive — ask before overwriting
-
-**Why expected:** Beginners are scared of losing their work. Any tool that silently overwrites is dead on first use in an existing project. Copier and cookiecutter both have explicit conflict-resolution strategies. degit warns about existing directories.
-
-**What this means for goodvibes:**
-- Before each file write: check if it exists
-- If it exists: ask "CLAUDE.md already exists. Overwrite? (y/N)" — default to NO
-- Offer a `--force` flag for power users running in CI or re-init scenarios
-- If the user says N for a file, skip it cleanly and list it in the "skipped" section of the summary
-
-### 6. Works in an existing project (not just greenfield)
-
-**Why expected:** The primary goodvibes use case is adding AI discipline to an already-started project. create-next-app only creates new projects; goodvibes must work in an existing directory. This is a key differentiator from most scaffolding tools that assume a blank directory.
-
-**What this means for goodvibes:**
-- `init` detects existing project type (Node/Python/other) via file sniffing (`package.json`, `pyproject.toml`, etc.)
-- Writes files into current directory, merges where appropriate (e.g., appends to `.gitignore` rather than replacing it)
-- Does NOT try to create a new project or reinitialize git
-
-### 7. Readable error messages with fixes
-
-**Why expected:** This is the single most differentiating factor in beginner-tool success, per clig.dev and npm's design philosophy. Cryptic Python tracebacks or Node stack traces tell beginners nothing actionable.
-
-**What this means for goodvibes:**
-- Wrap all subprocess calls (pip install, uv, git) in try/catch, translate failures into plain English
-- Bad: `Error: ENOENT: no such file or directory, open '/usr/local/lib/node_modules/goodvibes/templates/CLAUDE.md'`
-- Good: `Could not find goodvibes template files. Try reinstalling: npm install -g goodvibes@latest`
-- Always end error messages with a suggested action or a URL
-
-### 8. --help that actually helps
-
-**Why expected:** Users hit `--help` immediately after installation. This is the first documentation most beginners will read.
-
-**What this means for goodvibes:**
-```
-goodvibes init [options]
-
-Bootstrap your project with AI engineering discipline.
-
-Options:
-  --skip-headroom    Skip headroom (input compression) installation
-  --skip-ci          Skip GitHub Actions CI workflow generation
-  --skip-docs        Skip docs/ scaffold generation
-  --force            Overwrite existing files without prompting
-  -h, --help         Display this message
-
-Examples:
-  npx goodvibes init
-  goodvibes init --skip-headroom
-```
-
-No jargon. One-line description per option. At least two examples.
+**Domain:** Developer bootstrapping CLI for AI-assisted (vibe) coding
+**Researched:** 2026-07-03
+**Milestone:** v1.2.0 — Growth & Retention (subsequent milestone, builds on v1.6.2 published packages)
+**Overall confidence:** HIGH (telemetry UX patterns), HIGH (headroom status patterns), MEDIUM (update command — pattern variety)
 
 ---
 
-## Differentiators (What Makes goodvibes Special)
+## Context: What Already Exists
 
-These features are not expected by users of generic scaffolding tools. They are goodvibes' specific value proposition and what justifies its existence over just cloning a template.
+The v1.6.2 implementation is complete and published to npm + PyPI as `goodvibes-cli`:
+- `goodvibes init` — copies templates, installs headroom via uv/pipx/pip chain, configures MCP
+- `goodvibes upgrade` — self-updates binary via npm/PyPI
+- `goodvibes doctor` — version check + health summary
+- `installHeadroom()` — uv→pipx→pip fallback chain; returns `void`; communicates via log callback
+- `configureMcp()` — claude mcp add / headroom mcp install fallback; returns `void`; communicates via log callback
+- `init.ts` task list hardcodes `"headroom ready"` and `"MCP server registered"` as task return strings regardless of actual outcome
 
-### 1. AI-agent-aware engineering rules (CLAUDE.md)
+Critical observation: both `installHeadroom` and `configureMcp` already have all the branching for installed/skipped/failed — they just return `void` instead of a discriminated status. The headroom validation feature is almost entirely surfacing what already exists.
 
-**What it is:** A pre-written CLAUDE.md that encodes LLM session discipline: preventing context drift, requiring plan-before-code, specifying token-efficient communication patterns, defining commit conventions, and setting code quality expectations.
-
-**Why it differentiates:** No other one-command tool in the ecosystem (as of June 2026) ships a thoughtfully authored CLAUDE.md as the primary artifact. ClaudeForge generates CLAUDE.md from existing code analysis, but requires Claude Code already be installed and running. goodvibes ships a battle-tested baseline before the user's first session.
-
-**Design principle:** The CLAUDE.md must be minimal and readable. The ClaudeForge hard cap of 150 lines is evidence-backed — bloated CLAUDE.md files cause Claude to ignore them. Ship ~80-100 lines covering only: project conventions, token rules, commit format, and the plan-first mandate.
-
-### 2. Output token compression bundled at install (caveman)
-
-**What it is:** The caveman skill (fork of juliusbrussee/caveman) auto-activates in Claude Code sessions and reduces output tokens by ~65% by making Claude respond in compressed, caveman-style prose — full technical accuracy, stripped of filler.
-
-**Why it differentiates:** This is the unique combination. No other scaffolding tool addresses the cost problem of AI-assisted development. Beginners don't know they're burning tokens; they find out when their bill arrives. goodvibes installs the fix before the first session.
-
-**Implementation note:** caveman activates automatically in Claude Code — no per-session invocation needed. This is a zero-friction addition that works invisibly.
-
-### 3. Input token compression (headroom) installed and configured
-
-**What it is:** headroom compresses tool outputs, logs, and RAG chunks before they reach the LLM — 60-95% fewer input tokens, same answer quality. goodvibes runs `uv tool install headroom-ai` and configures Claude Code to route through headroom's local proxy.
-
-**Why it differentiates:** Combined with caveman (output) + headroom (input), goodvibes delivers what no other bootstrap tool offers: both sides of the token economy solved in one init command. The practical effect is 50-80% cost reduction on a typical vibe coding session.
-
-**Interaction with Table Stakes:** headroom installation may fail (Python not found, network error). goodvibes MUST handle this gracefully — install what succeeds, report what failed, and update CLAUDE.md with a note about manual headroom setup if the automated install didn't work.
-
-### 4. Code minimalism enforcement (ponytail)
-
-**What it is:** The ponytail Claude Code plugin installs a "lazy senior dev" decision ladder — before generating code, Claude is forced to consider YAGNI, stdlib use, and minimal solutions. Reduces generated code by 54% on average (up to 94% where over-building would otherwise occur).
-
-**Why it differentiates:** Beginners with LLMs consistently get over-engineered code. They don't know how to prompt for minimalism. ponytail encodes this as a default behavior, not a skill the user must develop.
-
-**Evidence base:** ponytail has 48K+ GitHub stars and is actively maintained (DietrichGebert). Its `/ponytail-debt` command for tracking technical debt is a unique feature no other tool bundles.
-
-### 5. GitHub Actions CI from day one
-
-**What it is:** goodvibes generates `.github/workflows/ci.yml` covering: lint, test, and build on push/PR. Beginner-safe — the workflow runs without any configuration beyond what the user's package.json or pyproject.toml already provides.
-
-**Why it differentiates:** CI is the first thing expert developers set up and the last thing beginners think about. A vibe coder pushing broken code to main repeatedly is the most common "vibe coding goes wrong" story. goodvibes installs the guard rails automatically.
-
-**Design principle:** The generated workflow must work out of the box for the detected project type (Node or Python). It should NOT generate a workflow that immediately fails — the scaffold should detect what test/lint commands exist before writing them in.
-
-### 6. Docs scaffold that Claude will actually use
-
-**What it is:** A `docs/` directory with stub files: `ARCHITECTURE.md`, `DECISIONS.md`, `ONBOARDING.md`. These are CLAUDE.md-referenced so Claude Code knows to update them as the project grows.
-
-**Why it differentiates:** Context decay ("the session amnesia problem") is the #1 reported pain point for LLM-assisted development. Providing and wiring Claude to use a living docs structure is a unique solve. Most scaffolding tools generate a blank README — goodvibes generates a structured knowledge base.
-
-**Evidence base:** The CLAUDE.md → docs/ link is the pattern Anthropic itself recommends in their best practices guide. goodvibes ships this pre-configured.
-
-### 7. GitHub template repo as zero-install entry point
-
-**What it is:** github.com/jgiox/goodvibes is itself a "Use this template" GitHub template repo. Beginners who don't have npm or pip can get 80% of the value by clicking one button and getting a repository with all files pre-placed.
-
-**Why it differentiates:** Creates two acquisition paths: code-path (npx/pip) and click-path (GitHub template). The click-path meets the complete beginner where they are — they may not even know what npm is.
-
-**Important caveat:** The template repo path does not run headroom install or project-type detection. CLAUDE.md in the template should note this and link to `npx goodvibes init` for the full experience.
+This research covers only the three v1.2.0 features. Do not re-derive v1.0.0–v1.6.2 scope.
 
 ---
 
-## Anti-Features (Deliberately NOT Building)
+## Feature 1: Headroom Integration Validation
 
-These are features that would frustrate beginners, create maintenance burden, or undermine goodvibes' core value. The evidence comes from studying where other scaffolding tools lost users.
+### What problem this solves
 
-### 1. Interactive questionnaire with more than 3 questions
+`goodvibes init` currently shows a spinner with text messages streaming from the log callback, then always shows `"headroom ready"` as the task completion string — even when headroom was skipped (no Python) or failed (C++ build error). The user has no way to distinguish: fresh install, already installed, skipped, or failed.
 
-**Why not:** create-next-app's 9-question wizard is cited as overwhelming for beginners unfamiliar with TypeScript/ESLint/App Router concepts. A vibe coder doesn't know what "ponytail minimalism enforcement" means — asking them is pointless. goodvibes should make good decisions by default and let users override with flags.
+### Table-stakes behavior (users expect this)
 
-**What to do instead:** Zero questions by default. Run with intelligent defaults. Provide `--skip-X` flags for every bundled component for power users who want control.
+| Behavior | Why Expected | Complexity | Notes |
+|----------|--------------|------------|-------|
+| Final status shows `installed / already installed / skipped / failed` for headroom | Users need to know if the main value-add actually worked | LOW | Both functions already have branching; need to return a status instead of void |
+| Final status shows `configured / already configured / skipped / failed` for MCP | MCP config is separate from install; both can independently fail | LOW | Same pattern as above |
+| Failure case includes one-line fix instruction | CLIG standard: every error needs a "what to do next" | LOW | Already generating actionable log messages; persist them into the outro |
+| Status persists in the outro, not just spinner scroll | Beginners miss spinner messages (they scroll past) | LOW | Move status summary to outro note block |
+| `goodvibes doctor` also shows headroom status | Users who want to check without re-running init need this | MEDIUM | Requires doctor command to run headroom probe + mcp status check |
 
-**Maximum acceptable interaction:** One confirmation prompt ("This will create files in /path/to/your/project. Continue? (Y/n)") — that's it.
+### Differentiators (above expected)
 
-### 2. Template variable interpolation / project name prompts
+| Feature | Value Proposition | Complexity | Notes |
+|---------|-------------------|------------|-------|
+| Aggregate summary: "Headroom: ready" vs "Headroom: action needed" | Beginners don't need to parse two separate status lines; they need one outcome | LOW | Combine install + MCP status into a single result |
+| In failure: show exactly which step failed (install vs MCP) with distinct instructions | Distinguishes "install worked but MCP not configured" from "couldn't install at all" | LOW | The two functions already produce distinct messages |
 
-**Why not:** goodvibes is not a project creator — it's a project enhancer. Asking for a project name or author email implies generating parameterized files, which is cookiecutter/copier territory. goodvibes copies static files and detects context automatically (from package.json, pyproject.toml, git config). Every template variable prompt increases cognitive load and time to value.
+### Anti-features
 
-**What to do instead:** Detect the project name from the existing `package.json` / `pyproject.toml`. Use it silently where needed (e.g., in generated CI workflow names). Never prompt for it.
+| Anti-Feature | Why Avoid | What to Do Instead |
+|--------------|-----------|-------------------|
+| Exit code 1 on headroom failure | Headroom is additive; its failure should not break init | Keep current soft-fail behavior; surface in status block |
+| Retrying headroom install silently | Silent retries confuse users | Current behavior (try 3 installers in sequence, log each attempt) is correct |
+| Checking `headroom mcp status` as a post-install probe | `headroom mcp status` is unreliable immediately after registration; Claude must restart | Use the exit code of `configureMcp` directly as the status |
 
-### 3. Requiring authentication or account creation
+### Implementation approach
 
-**Why not:** The most successful init tools (degit, create-next-app, create-react-app) work completely without accounts. Any gate before the value moment is a drop-off point. Complete beginners interpret "log in" as "this is not for me."
+Change both `installHeadroom` and `configureMcp` return types from `void` to a status:
 
-**What to do instead:** Everything ships and runs locally. No telemetry, no accounts, no API keys required at init time. If future features require GitHub auth (e.g., auto-creating a repo), make them opt-in and post-init.
-
-### 4. Opinionated language / framework scaffolding
-
-**Why not:** goodvibes is language-agnostic engineering discipline. It should not generate `tsconfig.json`, `eslintrc`, or `pytest.ini`. Those choices belong to the project. Adding them would make goodvibes conflict with create-next-app, create-react-app, etc. — the tools users are already using.
-
-**What to do instead:** goodvibes sits above the framework layer. It adds AI-specific files (CLAUDE.md, skills) and CI scaffolding. It explicitly does NOT touch the build system, test framework, or linter config.
-
-### 5. Auto-updating / post-install modification hooks
-
-**Why not:** npm postinstall hooks are actively being blocked by npm v12 as a security measure. Any hook that runs automatically after `npm install goodvibes` creates a confusing experience (silent failures, unexpected filesystem changes) and a supply-chain attack surface. The broader problem: beginners don't understand hooks, so when they fail, there's no path to recovery.
-
-**What to do instead:** `goodvibes init` is the explicit, intentional trigger. Nothing should happen without user intent. Every file written is announced.
-
-### 6. Verbose wall-of-text output
-
-**Why not:** Beginners scan — they don't read. A 50-line output after init is not documentation; it's noise. clig.dev: "nudge them towards the commands they're more likely to use" not "explain everything upfront."
-
-**What to do instead:** Init output must fit in one terminal screen (< 24 lines). Every line earns its place. Use a "what to do next" block with maximum 3 items. Link to docs for everything else.
-
-### 7. Silent failure or partial success without clear status
-
-**Why not:** The second-worst thing a scaffolding tool can do (after destroying files) is complete "successfully" while quietly skipping components. If headroom install fails because Python is absent, the user must know that headroom is not installed — not just see a green checkmark.
-
-**What to do instead:** Explicit status summary at the end of init:
-```
-  CLAUDE.md             installed
-  caveman skill         installed
-  ponytail skill        installed
-  headroom              SKIPPED (Python 3.10+ not found — see docs/SETUP.md)
-  GitHub Actions CI     installed
-  docs/ scaffold        installed
+```typescript
+type HeadroomInstallStatus = 'installed' | 'already_installed' | 'skipped' | 'failed'
+type McpConfigStatus = 'configured' | 'already_configured' | 'skipped' | 'failed'
 ```
 
-### 8. "Kitchen sink" mode that installs everything including optional tools
+Return the appropriate value from each branch that currently just calls `log(...)` and returns.
 
-**Why not:** The Yeoman failure mode: an ambitious ecosystem of composable generators that became a monolithic everything-bundler. Users didn't know which generators to trust, and the cognitive overhead of composition exceeded the value. goodvibes must stay focused: the exact set of tools described in the project brief, nothing more.
+In `init.ts`, collect both statuses and add a `note()` block in the outro:
 
-**What to do instead:** No plugin system, no marketplace, no extension points in v1. Curated defaults only. The skip flags exist for people who don't want something, not for adding third-party tools.
+```
+Headroom: installed  — token compression active
+MCP: configured      — Claude Code will use headroom automatically
+```
 
----
+Or on failure:
 
-## Comparable Tools Analysis
+```
+Headroom: skipped    — Python 3.10+ not found
+                       Install Python then run: goodvibes init
+MCP: skipped         — headroom not installed
+```
 
-| Tool | Category | What it Does Well | Goodvibes Difference |
-|------|----------|-------------------|----------------------|
-| **create-next-app** | Framework scaffolding | Zero-config Next.js setup, AGENTS.md generation as of 2025 | goodvibes is framework-agnostic; adds AI discipline layer, not app skeleton |
-| **degit** | Template downloader | Lightweight git repo cloning without history; fast, zero-config | goodvibes does active configuration (headroom install, CI generation); degit just copies files |
-| **cookiecutter** | Template engine | Huge community template library, cross-platform | goodvibes is one-purpose (AI discipline), not a general template engine |
-| **copier** | Template engine | Template update flow (copier update merges changes) | goodvibes is simpler — no template sync needed; files are owned by user after init |
-| **ClaudeForge** | CLAUDE.md generator | Generates CLAUDE.md from existing codebase analysis | ClaudeForge requires Claude Code running; goodvibes works before first session; ClaudeForge analyzes your code, goodvibes ships a baseline |
-| **caveman** (standalone) | Output compression skill | 65% output token reduction | goodvibes bundles caveman alongside the CLAUDE.md and CI that make it useful |
-| **ponytail** (standalone) | Code minimalism skill | 54-94% less generated code | goodvibes bundles ponytail as part of a coherent, pre-wired system |
-| **headroom** (standalone) | Input compression | 60-95% fewer input tokens | goodvibes runs the headroom install that users would otherwise need to figure out themselves |
-| **vibe-engineering (ash1794)** | Skills collection | 38 engineering discipline skills for Claude Code | goodvibes is a complete init tool, not a skills library; narrower scope, lower cognitive overhead; targets complete beginners |
-| **feiskyer/claude-code-settings** | Settings/skills repo | Provider configurations, specialized agents | goodvibes is beginner-first (single command), not a settings repo requiring manual configuration |
-| **GitHub template repos (pattern)** | Click-to-use template | Zero-install, GitHub-native | goodvibes provides this as secondary path; primary path is smarter (runs installs, detects project) |
-| **scaffdog** | Document-driven scaffolding | Markdown-defined templates, interactive file generation | scaffdog is for generating code/component files repeatedly; goodvibes is for one-time project-level bootstrap |
+Both npm (`installHeadroom.ts`, `configureMcp.ts`, `init.ts`) and pip (`install_headroom.py`, `configure_mcp.py`, `init_cmd.py`) need the same change.
 
-**Key gap goodvibes fills:** The intersection of (a) works in one command, (b) targets complete beginners, (c) is specifically AI-agent aware, and (d) bundles both compression tools + engineering rules does not exist as of June 2026. The closest competitors require multiple steps and assume baseline developer knowledge.
+### Complexity: LOW
+
+The logic already exists. This is returning a discriminated union instead of void, plus surfacing it in the outro. No new dependencies, no new subprocess calls, no new files.
 
 ---
 
-## Key Insight for v1 Scope
+## Feature 2: Anonymous Install Telemetry
 
-**The core insight from research: goodvibes is not a scaffolding tool that happens to add AI files — it is an AI cost and discipline optimization tool that happens to use scaffolding delivery.**
+### Industry standard patterns (HIGH confidence)
 
-This matters for scoping v1:
+All major developer CLIs (Next.js, Astro, GitHub CLI, .NET CLI, Sanity, Gatsby) use the same pattern:
 
-**What v1 must be:** A bootstrap experience so fast and so clearly valuable that a complete beginner runs it, sees what it did, and opens their first Claude Code session with measurably better defaults. Time-to-value target: under 60 seconds from `npx goodvibes init` to Claude Code session with caveman + ponytail + headroom active.
+- **Opt-out default** — telemetry is on by default. Opt-in rates fall below 3%, making data statistically useless. Industry consensus is opt-out.
+- **First-run notice** — one-time message during first `goodvibes init`, not a blocking interactive prompt. Tells the user what's collected and how to opt out.
+- **Fire-and-forget transport** — HTTP ping, never awaited, 2s timeout max. If it fails, it fails silently. CLI responsiveness is never affected.
+- **Env var opt-out** — `DO_NOT_TRACK=1` (the donottrack.sh standard) and a tool-specific `GOODVIBES_NO_TELEMETRY=1`. Environment variable takes precedence over everything.
+- **No PII** — no IP address, no username, no file paths, no OS, no arch. Counter only.
 
-**What v1 must NOT be:** A general scaffolding platform, a template engine, a CLAUDE.md generator (from analysis), or a skills marketplace.
+### What "counter only" means
 
-**The MVP experience (evidence-based):**
-1. One command (`npx goodvibes init` or `goodvibes init`)
-2. One confirmation prompt (current directory check)
-3. Zero questions beyond that
-4. Files placed: CLAUDE.md + skill files + CI workflow + docs stub
-5. headroom install attempted, status clearly reported
-6. Post-install summary: what was installed, what to do next (3 items max)
-7. Link to docs for everything else
+For goodvibes, the right data posture is a simple increment per `goodvibes init` run. No version, no OS, no arch. This is consistent with goodvibes' own values (minimalism, zero-config) and eliminates any GDPR complexity.
 
-**Features to explicitly defer from v1:**
-- `goodvibes update` (re-sync with latest goodvibes templates) — valuable but not MVP
-- Project-type detection that customizes CI workflow beyond Node/Python detection
-- CLAUDE.md customization wizard
-- Any telemetry or usage analytics
-- Windows native (non-WSL) support — test and support WSL2 first; native Windows PowerShell is a separate workstream
+> "Counter only" = one HTTP request to a server endpoint that increments a number. The request body or path can include a random event UUID (to deduplicate retries), but nothing identifying the user or machine.
 
-**Ordering rationale:**
-The first phase must deliver the file injection + caveman + CLAUDE.md core — this is the minimum meaningful artifact. Headroom installation comes second (it's slower, failure-prone, and Python-dependent). CI workflows and docs scaffold come third — they require project-type detection logic but add clear value once the core is stable.
+This is simpler than what Next.js or Astro collect (they track command flags, integrations, OS). Simpler is correct for goodvibes.
+
+### Table-stakes behavior
+
+| Behavior | Why Expected | Complexity | Notes |
+|----------|--------------|------------|-------|
+| Opt-out via `DO_NOT_TRACK=1` | Standard per donottrack.sh; respecting this is a baseline expectation | LOW | Env var check at call site |
+| Opt-out via `GOODVIBES_NO_TELEMETRY=1` | Tool-specific override for users who need to be explicit | LOW | Same as above |
+| First-run notice shown exactly once | Users must be told telemetry exists; not showing = trust violation | LOW | Store "notice_shown: true" in `~/.config/goodvibes/telemetry.json` |
+| Non-blocking — never delays or crashes init | CLI speed is table stakes | LOW | Fire-and-forget with void and catch-all |
+| No PII collected ever | Legal baseline (GDPR, CCPA) and ethical baseline | LOW | Counter-only request with no user data |
+
+### Differentiators
+
+| Feature | Value Proposition | Complexity | Notes |
+|---------|-------------------|------------|-------|
+| First-run notice in plain English, inline in outro | Users of a "beginner-first" tool need plain language, not a banner linking to a privacy policy | LOW | One line in the outro block; only on first run |
+| Telemetry status visible in `goodvibes doctor` | Power users want to know what the tool is doing without reading docs | LOW | Add telemetry: enabled/disabled to doctor output |
+
+### Anti-features
+
+| Anti-Feature | Why Avoid | What to Do Instead |
+|--------------|-----------|-------------------|
+| Interactive opt-in prompt ("Would you like to help?") | Kills zero-config; blocks init for everyone; opt-in rates are < 3% | Opt-out with first-run notice |
+| Collecting OS, arch, Node/Python version, package version | Violates goodvibes' own minimalism values; creates unnecessary data retention obligation | Counter only |
+| Unique persistent machine ID (UUID stored in config) | Creates a pseudonymous identifier that complicates GDPR posture | No ID at all; counter only |
+| Using a third-party analytics service (PostHog, Amplitude, Segment) | Adds a dependency, creates data processor relationship, overkill for a count | Self-hosted simple counter endpoint |
+| Batching events locally and flushing later | Unnecessary complexity for a counter | Fire-and-forget per init run |
+| Showing telemetry notice on every run | Annoying; notice should show once | Persist "shown" flag in `~/.config/goodvibes/telemetry.json` |
+
+### Implementation approach
+
+**Client side (both npm and pip packages):**
+
+```typescript
+// utils/telemetry.ts
+export async function sendTelemetryPing(): Promise<void> {
+  if (process.env['DO_NOT_TRACK'] === '1' || process.env['GOODVIBES_NO_TELEMETRY'] === '1') return
+  // fire-and-forget: void the promise, never await at call site
+  fetch('https://goodvibes-telemetry.vercel.app/ping', { method: 'POST', signal: AbortSignal.timeout(2000) })
+    .catch(() => {}) // ponytail: swallowing intentional — telemetry must never crash init
+}
+```
+
+**First-run notice storage:** `~/.config/goodvibes/telemetry.json` with `{ "notice_shown": true }`.
+On first init where `notice_shown` is not set:
+- Write the file
+- Add to the outro: `Tip: goodvibes counts anonymous installs (no data about you). Opt out: export GOODVIBES_NO_TELEMETRY=1`
+
+**Server side:** A Vercel edge function (1 route, 10 lines) incrementing a counter in KV storage. This is infra, not package code.
+
+**Parity:** Python package uses `urllib.request` from stdlib — no new dependencies.
+
+### Complexity: LOW (client) + MEDIUM (server infra)
+
+Client code is trivial. The server endpoint is a one-time setup but introduces infra dependency (Vercel KV or similar). The MEDIUM rating is for the server-side work, not the client.
+
+---
+
+## Feature 3: `goodvibes update` Command
+
+### What problem this solves
+
+Users who ran `goodvibes init` with v1.0.0 may have outdated CI workflows, stale IDE rule files, or older skill files. Currently there is no way to pull in updates without re-running `goodvibes init` (which skips existing files) or manually checking what changed. `goodvibes upgrade` updates the binary but not the project files.
+
+### How comparable tools handle template updates
+
+| Tool | Strategy | Conflict handling | Notes |
+|------|----------|-------------------|-------|
+| Copier | 3-way merge, `--pretend` for dry-run | inline conflict markers or `.rej` files | Best-in-class but requires git history; too complex for beginners |
+| Meltano EDK | `init --update` flag; overwrite specified files | Force overwrite, no merge | Simple but destructive without preview |
+| Angular `ng update` | Migration scripts per version | Applies transforms programmatically | Language-specific, not applicable |
+| dotnet new update | Updates template package, re-scaffolds | Interactive per-file | Too verbose for beginners |
+| Drupal scaffold composer plugin | Hash comparison; overwrites managed files | Warns on user modifications | Closest to the right model for goodvibes |
+| Terraform init | Fully idempotent re-run; no merge needed | Not applicable (declarative) | Wrong model |
+
+**Evidence-backed recommendation for goodvibes:** Hash-comparison strategy (SHA256), not 3-way merge. Three-way merge requires git history context that goodvibes does not own and conflict markers that beginners cannot resolve.
+
+### Three categories of files for update
+
+| Category | Files | Strategy |
+|----------|-------|----------|
+| Managed (safe to update) | `.github/workflows/`, `.claude/skills/`, IDE rule files (`.cursorrules`, `GEMINI.md`, etc.) | Hash compare; overwrite if different and user confirms |
+| Merge-safe | `CLAUDE.md` | Re-run sentinel merge; append new rule sections, never remove user content |
+| Never touch | `JOURNAL.md`, `CHANGELOG.md`, user code files | Explicitly excluded; not part of templates ownership |
+
+### Table-stakes behavior
+
+| Behavior | Why Expected | Complexity | Notes |
+|----------|--------------|------------|-------|
+| `--dry-run` preview shows what would change before anything is written | Users expect to see the impact before committing | MEDIUM | Must compare all managed file hashes, report changed count and which files |
+| Confirmation step (or `--force` flag) before any overwrites | Files the user may have edited are at risk; silent overwrite is destructive | LOW | `@clack/prompts` `confirm()` before writing, or skip with `--force` |
+| CLAUDE.md uses sentinel merge, not overwrite | CLAUDE.md is the only template file users are expected to edit | LOW | Re-use existing `sentinelMerge` utility already in codebase |
+| Files not from goodvibes templates are never touched | Users must be able to trust that `update` has a defined scope | LOW | Only iterate the template file list; never walk the project directory |
+| Summary shows: X files updated, Y up-to-date, Z skipped (user-modified) | Users need to understand what happened | LOW | Depends on hash comparison result |
+
+### Differentiators
+
+| Feature | Value Proposition | Complexity | Notes |
+|---------|-------------------|------------|-------|
+| "User-modified" detection: if local file differs from both old and new template versions, flag it as "you've edited this — skipped" | Protects user work without 3-way merge complexity | HIGH | Requires storing the original template hash at init time (manifest file) |
+| Per-category `--skip-ci`, `--skip-ide-rules` flags | Power users may want to update only some categories | LOW | Add after the core update flow works |
+
+### Anti-features
+
+| Anti-Feature | Why Avoid | What to Do Instead |
+|--------------|-----------|-------------------|
+| 3-way merge with inline conflict markers | Beginners cannot resolve `<<<<<<< OURS` markers; creates broken files | Hash comparison + confirmation |
+| Interactive per-file confirmation for all files | 15+ files × Y/N = unusable; beginners will panic | Show summary, confirm once, then apply all |
+| Silently overwriting files the user has edited | Destructive; destroys user work | Confirmation step + `--force` flag for CI |
+| `goodvibes update` also updating the binary | Conflates two concerns; `goodvibes upgrade` already does binary updates | Clearly distinct from `goodvibes upgrade` in UX and docs |
+| Storing a manifest of which files goodvibes wrote (for user-modified detection) | Adds complexity and a lockfile to track; v1.2.0 scope should be simpler | Ship without user-modified detection; detect by hash only |
+
+### Implementation approach
+
+**Simpler v1.2.0 approach (no manifest):**
+
+1. Iterate all files in the bundled templates directory (same `resolveTemplatesDir()` already used by init)
+2. For each file, compute SHA256 of the bundled version and the on-disk version
+3. If hashes differ: candidate for update
+4. If file does not exist on disk: new file (just write it)
+5. Show summary: "N files have newer versions, M new files"
+6. If `--dry-run`: stop here
+7. Otherwise: confirm once ("Update these files? (y/N)") or skip with `--force`
+8. Write updated files, re-run sentinel merge for CLAUDE.md
+
+**Deferred (v1.3.0):** user-modified detection via stored manifest of original-install hashes.
+
+### Complexity: MEDIUM
+
+The hash-comparison loop and `--dry-run` output are new logic. Re-using `copyTemplates`, `resolveTemplatesDir`, and `sentinelMerge` keeps it from being HIGH. The confirmation flow requires a new `@clack/prompts` `confirm()` call. Both npm and pip packages need the new command registered.
+
+---
+
+## Feature Dependencies
+
+```
+Feature 1 (headroom validation)
+    └── depends on ──> existing installHeadroom + configureMcp (already built)
+    └── surfaces in ──> init.ts outro block (minor change)
+
+Feature 2 (telemetry)
+    └── depends on ──> server-side counter endpoint (infra, not package code)
+    └── client code is independent of Feature 1 and Feature 3
+
+Feature 3 (update command)
+    └── depends on ──> resolveTemplatesDir() — already built
+    └── reuses ──> sentinelMerge — already built
+    └── independent of ──> Feature 1 and Feature 2
+```
+
+**Recommended build order within the milestone:** 1 → 2 → 3
+
+- Feature 1 is the fastest win (small return-type change, big UX improvement)
+- Feature 2 requires server-side infra to be set up first, then client is trivial
+- Feature 3 is the most complex and benefits from the milestone being otherwise stable
+
+---
+
+## MVP Definition
+
+### Ship (v1.2.0 — all three features)
+
+- [ ] `installHeadroom` returns `HeadroomInstallStatus` — closes the void→status gap
+- [ ] `configureMcp` returns `McpConfigStatus` — closes the void→status gap
+- [ ] `init` outro shows headroom + MCP status in a structured note block
+- [ ] `goodvibes doctor` reports headroom installed/not-installed
+- [ ] Telemetry HTTP ping, fire-and-forget, 2s timeout, no PII
+- [ ] `GOODVIBES_NO_TELEMETRY=1` and `DO_NOT_TRACK=1` both skip telemetry
+- [ ] First-run notice shown once in outro; state stored in `~/.config/goodvibes/telemetry.json`
+- [ ] Server-side counter endpoint deployed (Vercel edge function)
+- [ ] `goodvibes update` command registered in both npm and pip packages
+- [ ] `goodvibes update --dry-run` shows count and list of changed files
+- [ ] `goodvibes update` prompts confirmation (or accepts `--force`)
+- [ ] CLAUDE.md updated via sentinel merge, not overwrite
+- [ ] npm and pip parity throughout (all three features in both packages)
+
+### Defer (v1.3.0)
+
+- [ ] User-modified detection via stored hash manifest — requires designing a lockfile format
+- [ ] `goodvibes update --skip-ci` / `--skip-ide-rules` granular flags
+- [ ] `goodvibes telemetry disable` command (env var is sufficient for v1.2.0)
+- [ ] Telemetry in `goodvibes update` and `goodvibes doctor` runs (start with init only)
+
+---
+
+## Feature Prioritization Matrix
+
+| Feature | User Value | Implementation Cost | Priority |
+|---------|------------|---------------------|----------|
+| Headroom install status in outro | HIGH — most users run goodvibes init and have no idea if headroom worked | LOW — return type change + outro update | P1 |
+| MCP config status in outro | HIGH — same reason as above | LOW | P1 |
+| `goodvibes update --dry-run` | HIGH — users want to see what changed before committing | MEDIUM — hash comparison loop | P1 |
+| `goodvibes update` (apply) | HIGH — core value of the milestone | MEDIUM — confirmation flow + writes | P1 |
+| Telemetry ping | MEDIUM — value is author insight, not user value | LOW (client) / MEDIUM (server infra) | P2 |
+| First-run telemetry notice | MEDIUM — required for trust, not for functionality | LOW | P2 |
+| `goodvibes doctor` telemetry status | LOW — power-user feature | LOW | P3 |
+| User-modified detection in update | HIGH — prevents accidental user work loss | HIGH — requires manifest design | Defer to v1.3 |
 
 ---
 
 ## Sources
 
-- [clig.dev — Command Line Interface Guidelines](https://clig.dev/)
-- [UX patterns for CLI tools — Lucas Fernandes Costa](https://lucasfcosta.com/2022/06/01/ux-patterns-cli-tools.html)
-- [GitHub — JuliusBrussee/caveman](https://github.com/juliusbrussee/caveman)
-- [GitHub — DietrichGebert/ponytail](https://github.com/DietrichGebert/ponytail)
-- [GitHub — headroomlabs-ai/headroom](https://github.com/chopratejas/headroom)
-- [GitHub — alirezarezvani/ClaudeForge](https://github.com/alirezarezvani/claudeforge)
-- [GitHub — ash1794/vibe-engineering](https://github.com/ash1794/vibe-engineering)
-- [GitHub — feiskyer/claude-code-settings](https://github.com/feiskyer/claude-code-settings)
-- [structkit vs cookiecutter vs copier — DEV Community](https://dev.to/structkit/structkit-vs-cookiecutter-vs-copier-which-project-scaffolding-tool-is-right-for-you-5gag)
-- [Copier comparisons — official docs](https://copier.readthedocs.io/en/stable/comparisons/)
-- [Why is it so hard to write a scaffolding tool? — John Freeman](https://jfreeman.dev/blog/2019/05/02/why-is-it-so-hard-to-write-a-scaffolding-tool/)
-- [CLI: create-next-app — Next.js official docs](https://nextjs.org/docs/app/api-reference/cli/create-next-app)
-- [Building with LLMs at Scale: The Pain Points — Laurent Charignon via DEV Community](https://dev.to/laurent_charignon/building-with-llms-at-scale-part-1-the-pain-points-3c0o)
-- [Best practices for Claude Code — Anthropic](https://code.claude.com/docs/en/best-practices)
-- [Headroom — Cut Claude Code costs ~50%](https://extraheadroom.com/)
-- [GitHub — Rich-Harris/degit](https://github.com/Rich-Harris/degit)
-- [Ponytail — Minimalism Plugin for AI Agents](https://www.everydev.ai/tools/ponytail)
-- [Writing a good CLAUDE.md — HumanLayer Blog](https://www.humanlayer.dev/blog/writing-a-good-claude-md)
+- [GitHub CLI telemetry documentation — docs.github.com](https://docs.github.com/en/github-cli/github-cli/github-cli-telemetry)
+- [GitHub CLI: Opt-out usage telemetry — GitHub Changelog (2026-04-22)](https://github.blog/changelog/2026-04-22-github-cli-opt-out-usage-telemetry/)
+- [DO_NOT_TRACK standard — donottrack.sh](https://donottrack.sh/)
+- [Astro telemetry — astro.build/telemetry](https://astro.build/telemetry/)
+- [Next.js telemetry — nextjs.org/telemetry](https://nextjs.org/telemetry)
+- [Why Your Open Source Project Needs Telemetry — 1984 Ventures](https://1984.vc/docs/founders-handbook/eng/open-source-telemetry)
+- [Copier CLI reference — deepwiki.com/copier-org/copier](https://deepwiki.com/copier-org/copier/5.2-cli-reference)
+- [Scaffold file update paradigm — meltano/edk issue #65](https://github.com/meltano/edk/issues/65)
+- [UX patterns for CLI tools — lucasfcosta.com](https://lucasfcosta.com/2022/06/01/ux-patterns-cli-tools.html)
+- [CLI UX best practices: progress displays — Evil Martians](https://evilmartians.com/chronicles/cli-ux-best-practices-3-patterns-for-improving-progress-displays)
+- [Headroom MCP documentation — headroom-docs.vercel.app/docs/mcp](https://headroom-docs.vercel.app/docs/mcp)
+- [Headroom CLI commands — headroomlabs-ai.github.io/headroom/cli](https://headroomlabs-ai.github.io/headroom/cli/)
+
+---
+*Feature research for: goodvibes v1.2.0 Growth & Retention*
+*Researched: 2026-07-03*
