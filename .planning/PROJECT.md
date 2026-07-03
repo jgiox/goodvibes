@@ -1,15 +1,13 @@
 # goodvibes
 
-## Current Milestone: v1.1.0 Polish & Discoverability — Phase 10 Complete (All Phases Complete, v1.6.0)
+## Current Milestone: v1.2.0 Growth & Retention
 
-**Goal:** Make goodvibes findable, understandable, and frictionless for real vibe coders encountering it for the first time.
+**Goal:** Wire headroom properly into init, measure real usage with anonymous telemetry, and let existing users pull in new template versions.
 
 **Target features:**
-- Hero README with one-command quickstart, badges, animated demo GIF
-- npm + PyPI package page polish (descriptions, keywords, homepage links)
-- Actionable beginner-friendly error messages for common failure modes
-- `goodvibes init` hardened for existing non-empty projects
-- `--minimal` flag (CLAUDE.md + skills only, skips headroom and CI)
+- Headroom integration — validate install + MCP config in `goodvibes init`, surface clear status (installed / skipped / failed)
+- Anonymous install telemetry — lightweight counter on `goodvibes init`, no PII collected
+- `goodvibes update` — pull latest template versions into projects initialized with older goodvibes versions
 
 ## What This Is
 
@@ -66,12 +64,20 @@ Both paths inject:
 - [x] `goodvibes upgrade` keeps existing projects current (npm + pip) — Validated in Phase 05
 - [x] Click-to-fork GitHub template repo (`jgiox/goodvibes-template`) — Validated in Phase 05
 
-### Active
+### Validated in Phase 11
+- [x] npm package published as `goodvibes-cli` — Validated in Phase 11
+- [x] pip package published as `goodvibes-cli` — Validated in Phase 11
+- [x] README with one-command quickstart as the hero action — Validated in Phase 11
+- [x] CI smoke-test gates (npm + pip publish workflows) — Validated in Phase 11
+- [x] `goodvibes doctor` version header (POL-01) — Validated in Phase 11
+- [x] PyPI OIDC trusted publisher configured — Validated in Phase 11
 
-- [ ] Publish npm package as `goodvibes` (or `@jgiox/goodvibes`)
-- [ ] Publish pip package as `goodvibes`
-- [ ] README with one-command quickstart as the hero action
-- [ ] Headroom bundled/configured via installer (MCP + proxy option)
+### Active (v1.2.0)
+
+- [ ] Headroom install validated in `goodvibes init` — status shown to user (installed / skipped / failed)
+- [ ] MCP config written correctly and verified idempotent
+- [ ] Anonymous install telemetry counter (no PII)
+- [ ] `goodvibes update` command — pull latest template versions into existing projects
 
 ### Validated in Phase 06
 - [x] `goodvibes init` shows "Non-empty project detected" note before tasks — Validated in Phase 06
@@ -155,4 +161,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-07-02 after Phase 11 completion — v1.6.1 publish quality & discoverability: npm/pip packages renamed to goodvibes-cli, CI smoke-test gates (PUB-01/PUB-02), doctor version header (POL-01), upgrade English labels (POL-02), PyPI OIDC trusted publisher configured, tombstone stubs for old package names*
+*Last updated: 2026-07-03 — Milestone v1.2.0 Growth & Retention started: headroom integration, anonymous telemetry, goodvibes update command*
