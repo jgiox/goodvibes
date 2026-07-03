@@ -23,6 +23,10 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 8: Multi-IDE Expansion** - Extend goodvibes to write rule files for 10 AI coding IDEs and tools: Cursor, GitHub Copilot, Windsurf/Devin Desktop, Kiro, Antigravity, AGENTS.md (cross-tool), Cline, Amazon Q Developer, Continue.dev. Includes Cursor alwaysApply troubleshooting note. (completed 2026-06-30)
 - [x] **Phase 9: OpenAI/Codex & Vibe-coding Platform Expansion** - Extend goodvibes to serve users of OpenAI Codex CLI, Replit Agent, Bolt.new, Lovable, ChatGPT Projects, and Base44. (completed 2026-07-01)
 - [x] **Phase 10: Vibe Coder Completeness** - Ship the commands and guides that turn a successful `goodvibes init` into a complete, confident vibe-coding setup: `goodvibes update`, `goodvibes doctor`, `goodvibes --version`, headroom install transparency, newbie flow guide, and ponytail discipline guidance for non-Claude Code IDE users. (completed 2026-07-01)
+- [x] **Phase 11: Publish Quality & Discoverability** - Make goodvibes trustworthy to install and easy to find — post-publish smoke tests, CI stamp guard, proper package names, polished registry pages, and two day-one UX improvements. (completed 2026-07-02)
+- [ ] **Phase 12: Headroom Status Surfacing** - Replace hardcoded "headroom ready" with truthful install and MCP config outcomes in the init outro (v1.2.0)
+- [ ] **Phase 13: Anonymous Telemetry** - Add GDPR-compliant anonymous install counter to `goodvibes init` with first-run disclosure and opt-out (v1.2.0)
+- [ ] **Phase 14: goodvibes update with Manifest** - Ship manifest-based template update with dry-run preview, confirmation prompt, and sentinel data-loss guard (v1.2.0)
 
 ## Phase Details
 
@@ -317,14 +321,62 @@ Plans:
 
 **UI hint**: no
 
+### Phase 12: Headroom Status Surfacing
+
+**Goal**: Users see the actual headroom install and MCP config outcome in the `goodvibes init` outro — installed, already-installed, skipped, or failed — instead of a hardcoded "headroom ready" line
+**Depends on**: Nothing (lowest risk, independent of other v1.2.0 features)
+**Requirements**: HDR2-01, HDR2-02, HDR2-03, HDR2-04, HDR2-05
+**Success Criteria** (what must be TRUE):
+
+  1. After `goodvibes init`, the completion outro shows the exact headroom install outcome — one of "installed", "already installed", "skipped — Python not found", or "failed — [reason]" — never a hardcoded "headroom ready" line regardless of what actually happened
+  2. After `goodvibes init`, the completion outro shows a separate MCP config status line distinct from the headroom install line — one of "MCP: written", "MCP: already configured", or "MCP: failed — [reason]"
+  3. `goodvibes doctor` reports headroom as non-functional when `headroom compress --help` exits non-zero or does not respond — it does not report a passing status just because headroom is on PATH
+  4. `goodvibes init` completes the headroom step within 10 seconds on any platform — when headroom hangs (e.g. Windows + Python 3.13), the subprocess times out and the outro shows "failed — timeout" rather than blocking indefinitely
+
+**Plans**: TBD
+**UI hint**: no
+
+### Phase 13: Anonymous Telemetry
+
+**Goal**: `goodvibes init` sends a privacy-safe anonymous install count event with a first-run disclosure line and full opt-out support, without adding any delay to the init experience
+**Depends on**: Phase 12 (stable init flow before adding telemetry call)
+**Requirements**: TEL-01, TEL-02, TEL-03, TEL-04, TEL-05
+**Note**: Telemetry endpoint must be selected during planning (Plausible Analytics or Cloudflare Worker) — both contractually guarantee no IP logging. PostHog EU is excluded (receives IP before anonymization).
+**Success Criteria** (what must be TRUE):
+
+  1. The first visible output of `goodvibes init` is a one-line disclosure that anonymous usage data is collected and how to opt out — it appears before any file operations begin
+  2. Running `GOODVIBES_NO_TELEMETRY=1 goodvibes init` or `DO_NOT_TRACK=1 goodvibes init` or `CI=true goodvibes init` shows no disclosure line and makes no outbound network call
+  3. `goodvibes init` total runtime is not noticeably affected whether the telemetry endpoint is reachable or unreachable — a slow or offline endpoint adds at most 1 second after all files are written, never before or during file operations
+
+**Plans**: TBD
+**UI hint**: no
+
+### Phase 14: goodvibes update with Manifest
+
+**Goal**: `goodvibes init` writes a `.goodvibes.json` manifest so that `goodvibes update` can safely distinguish managed files from user-modified ones, with dry-run preview, confirmation prompt, and a sentinel data-loss guard
+**Depends on**: Phase 12 (HeadroomResult type available for optional use in upgrade.ts)
+**Requirements**: UPD-01, UPD-02, UPD-03, UPD-04, UPD-05, UPD-06
+**Success Criteria** (what must be TRUE):
+
+  1. After `goodvibes init`, `.goodvibes.json` exists in the project root listing each managed template file with its SHA-256 hash and the goodvibes version that wrote it
+  2. `goodvibes update --dry-run` prints three labelled categories — files to overwrite (managed, user-unmodified), files to skip (user-modified), net-new files to add — without writing anything to disk
+  3. `goodvibes update` shows a summary of pending overwrites and prompts confirmation before applying; `goodvibes update --force` skips the prompt and applies all changes without interaction
+  4. Running `goodvibes update` in a project initialized before v1.2.0 (no `.goodvibes.json`) prints a clear, actionable message explaining what to do next and exits without crashing or silently overwriting any files
+  5. `goodvibes init` and `goodvibes update` never produce a CLAUDE.md with a SENTINEL_START marker that has no matching SENTINEL_END — the sentinel guard detects this edge case and recovers safely (treating it as an append)
+
+**Plans**: TBD
+**UI hint**: no
+
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9 → 10 → 11
+Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9 → 10 → 11 → 12 → 13 → 14
 
 Note: Phase 3 (pip CLI) and Phase 4 (CI scaffolding) have no dependency on each other and can be parallelized if two implementers are available. Both depend only on Phase 2.
 
 Phase 6 must complete before Phase 7 — the demo GIF must record the hardened CLI output (written/skipped summary, correct --minimal scope). Recording before Phase 6 would produce a GIF that does not match what users see after Phase 6 ships.
+
+v1.2.0 build order: 12 → 13 → 14. Phase 12 (headroom status) and Phase 14 (update manifest) are independent; Phase 13 (telemetry) depends on Phase 12 for a stable init flow. Phase 14 optionally uses the HeadroomResult type introduced in Phase 12.
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
@@ -339,3 +391,6 @@ Phase 6 must complete before Phase 7 — the demo GIF must record the hardened C
 | 9. OpenAI/Codex & Vibe-coding Platform Expansion | 3/3 | Complete    | 2026-07-01 |
 | 10. Vibe Coder Completeness | 3/3 | Complete    | 2026-07-01 |
 | 11. Publish Quality & Discoverability | 4/4 | Complete    | 2026-07-02 |
+| 12. Headroom Status Surfacing | 0/TBD | Not started | - |
+| 13. Anonymous Telemetry | 0/TBD | Not started | - |
+| 14. goodvibes update with Manifest | 0/TBD | Not started | - |

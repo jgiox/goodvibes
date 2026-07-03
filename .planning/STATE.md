@@ -2,11 +2,11 @@
 gsd_state_version: 1.0
 milestone: v1.2.0
 milestone_name: Growth & Retention
-status: planning
-last_updated: "2026-07-03T06:24:42.433Z"
+status: roadmap_ready
+last_updated: "2026-07-03T00:00:00.000Z"
 last_activity: 2026-07-03
 progress:
-  total_phases: 0
+  total_phases: 3
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -17,25 +17,29 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-06-25)
+See: .planning/PROJECT.md (updated 2026-07-03)
 
 **Core value:** One command gives a vibe coder a fully configured project — token efficiency and engineering discipline happen automatically in the background.
-**Current focus:** Milestone complete
+**Current focus:** Milestone v1.2.0 Growth & Retention — Phase 12 next
 
 ## Current Position
 
-Phase: Not started (defining requirements)
+Phase: 12 — Headroom Status Surfacing
 Plan: —
-Status: Defining requirements
-Last activity: 2026-07-03 — Milestone v1.2.0 started
+Status: Roadmap defined, ready for planning
+Last activity: 2026-07-03 — v1.2.0 roadmap written (phases 12-14)
+
+```
+v1.2.0 Progress: [                    ] 0% (0/3 phases)
+```
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 22
+- Total plans completed: 22 (v1.0–v1.1.0)
 - Average duration: -
-- Total execution time: 0 hours
+- Total execution time: 0 hours (v1.2.0)
 
 **By Phase:**
 
@@ -51,7 +55,7 @@ Last activity: 2026-07-03 — Milestone v1.2.0 started
 
 **Recent Trend:**
 
-- Last 5 plans: none yet
+- Last 5 plans: none yet (v1.2.0)
 - Trend: -
 
 *Updated after each plan completion*
@@ -100,10 +104,20 @@ Recent decisions affecting current work:
 - [Phase 07]: Demo must use --minimal --dry-run for deterministic timing — avoids headroom download latency in CI
 - [Phase 07]: Shields.io badge URLs confirmed for @jgiox/goodvibes (npm) and jgiox-goodvibes (PyPI); limit to 4 badges max
 - [Phase 07]: Phase 7 is blocked on Phase 6 completing — GIF must record hardened output (written/skipped counts visible)
+- [Phase 12 open]: headroom probe must use `headroom compress --help` (not --version) — catches broken installs on Windows + Python 3.13 (upstream issue #845)
+- [Phase 12 open]: installHeadroom() and configureMcp() return types change from void to discriminated union; init.ts + init_cmd.py consume results
+- [Phase 12 open]: All headroom subprocess calls hard timeout at 10 seconds
+- [Phase 13 open]: Telemetry endpoint not yet selected — Plausible Analytics or Cloudflare Worker; PostHog EU excluded (receives IP before anonymization). Must resolve during Phase 13 planning.
+- [Phase 13 open]: Telemetry is counter-only (no OS, no version, no properties) to minimize GDPR surface
+- [Phase 13 open]: Promise.race pattern — start telemetry before task list; await race([telemetryDone, 1s timeout]) after tasks complete (Node.js exit race fix)
+- [Phase 14 open]: .goodvibes.json manifest written on init; SHA-256 per managed file + goodvibes version
+- [Phase 14 open]: goodvibes update scope boundary — only managed template files, never walk project directory
+- [Phase 14 open]: sentinel guard for SENTINEL_START without SENTINEL_END — treat as Case B (append) and warn
 
 ### Pending Todos
 
-None.
+- Resolve telemetry endpoint before Phase 13 planning (Plausible vs Cloudflare Worker)
+- Set headroom minimum version at Phase 12 implementation time
 
 ### Quick Tasks Completed
 
@@ -119,7 +133,7 @@ None.
 
 ### Blockers/Concerns
 
-None outstanding. Previous blockers (headroom latency, Windows Python detection, MCP idempotency) were resolved in Phase 2/3 execution.
+- Telemetry endpoint decision required before Phase 13 can be planned (Plausible Analytics account or Cloudflare Worker deployment needed)
 
 ## Deferred Items
 
@@ -128,9 +142,12 @@ None outstanding. Previous blockers (headroom latency, Windows Python detection,
 | --force flag | Power-user flag to overwrite existing files on re-run | Deferred to v1.2 | v1.1.0 planning |
 | .gitignore append-merge | Line-by-line dedup merge for existing .gitignore | Deferred to v1.2 | v1.1.0 planning |
 | --debug flag | Stack trace output behind a flag for power users | Deferred to v1.2 | v1.1.0 planning |
+| 3-way merge | User-modified file detection beyond manifest hashing | Deferred to v1.3 | v1.2.0 planning |
+| Telemetry in update/doctor | Telemetry for non-init commands | Deferred to v1.3 | v1.2.0 planning |
+| goodvibes telemetry disable | Dedicated command to persist opt-out | Deferred to v1.3 | v1.2.0 planning |
 
 ## Session Continuity
 
-Last session: 2026-07-01T11:55:24.424Z
-Stopped at: Phase 8 extension complete — v1.4.0 ready to publish
+Last session: 2026-07-03
+Stopped at: v1.2.0 roadmap defined — phases 12-14 written; ready to plan Phase 12
 Resume file: None
