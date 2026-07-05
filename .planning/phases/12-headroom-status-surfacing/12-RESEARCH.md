@@ -658,17 +658,17 @@ No new security risks introduced. The timeout (HDR2-04) is itself a security/rel
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **McpResult 'registered' label in fallback path**
    - What we know: `configureMcp` can reach the `headroom mcp install` fallback and succeed. Currently no return path after the fallback succeeds.
    - What's unclear: Should the fallback success label be `'registered'` or a distinct `'registered-via-fallback'`?
-   - Recommendation: Use `'registered'` — the user doesn't need to know which strategy succeeded. Simpler label table.
+   - RESOLVED: Use `'registered'` — the user doesn't need to know which strategy succeeded. Simpler label table.
 
 2. **`formatHeadroomStatus` in Python — Panel or string?**
    - What we know: `init_cmd.py` uses Rich Panel for all post-task output.
    - What's unclear: Should the headroom status be one Panel with both install and MCP lines, or two separate Panels?
-   - Recommendation: One Panel titled "Headroom" with install status on line 1 and MCP status on line 2 — matches the `note()` pattern in TS which groups both into one call.
+   - RESOLVED: One Panel titled "Headroom" with install status on line 1 and MCP status on line 2 — matches the `note()` pattern in TS which groups both into one call.
 
 ---
 

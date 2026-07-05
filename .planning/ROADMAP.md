@@ -333,11 +333,11 @@ Plans:
   3. `goodvibes doctor` reports headroom as non-functional when `headroom compress --help` exits non-zero or does not respond — it does not report a passing status just because headroom is on PATH
   4. `goodvibes init` completes the headroom step within 10 seconds on any platform — when headroom hangs (e.g. Windows + Python 3.13), the subprocess times out and the outro shows "failed — timeout" rather than blocking indefinitely
 
-**Plans**: 3 plans
+**Plans**: 3 plans (2 waves)
 Plans:
-- [ ] 12-01-PLAN.md — TypeScript step layer: HeadroomResult/McpResult types, compress --help probe, timeout
-- [ ] 12-02-PLAN.md — TypeScript commands layer: result capture in init.ts, Headroom note, doctor.ts functional probe
-- [ ] 12-03-PLAN.md — Python parity: discriminated return dicts, compress --help probe, timeout=10, Headroom Panel
+- [ ] 12-01-PLAN.md — [Wave 1] TypeScript step layer: HeadroomResult/McpResult types, compress --help probe, timeout
+- [ ] 12-02-PLAN.md — [Wave 2, depends: 12-01] TypeScript commands layer: result capture in init.ts, Headroom note, doctor.ts functional probe
+- [ ] 12-03-PLAN.md — [Wave 2, depends: 12-01, parallel with 12-02] Python parity: discriminated return dicts, compress --help probe, timeout=10, Headroom Panel
 **UI hint**: no
 
 ### Phase 13: Anonymous Telemetry

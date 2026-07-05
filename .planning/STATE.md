@@ -2,13 +2,13 @@
 gsd_state_version: 1.0
 milestone: v1.2.0
 milestone_name: Growth & Retention
-status: roadmap_ready
-last_updated: "2026-07-03T00:00:00.000Z"
-last_activity: 2026-07-03
+status: planned
+last_updated: "2026-07-05T00:00:00.000Z"
+last_activity: 2026-07-05
 progress:
   total_phases: 3
   completed_phases: 0
-  total_plans: 0
+  total_plans: 3
   completed_plans: 0
   percent: 0
 ---
@@ -26,8 +26,8 @@ See: .planning/PROJECT.md (updated 2026-07-03)
 
 Phase: 12 — Headroom Status Surfacing
 Plan: —
-Status: Roadmap defined, ready for planning
-Last activity: 2026-07-03 — v1.2.0 roadmap written (phases 12-14)
+Status: Planned — 3 plans in 2 waves, ready for /gsd-execute-phase 12
+Last activity: 2026-07-05 — Phase 12 planned (12-01, 12-02, 12-03)
 
 ```
 v1.2.0 Progress: [                    ] 0% (0/3 phases)
@@ -104,9 +104,9 @@ Recent decisions affecting current work:
 - [Phase 07]: Demo must use --minimal --dry-run for deterministic timing — avoids headroom download latency in CI
 - [Phase 07]: Shields.io badge URLs confirmed for @jgiox/goodvibes (npm) and jgiox-goodvibes (PyPI); limit to 4 badges max
 - [Phase 07]: Phase 7 is blocked on Phase 6 completing — GIF must record hardened output (written/skipped counts visible)
-- [Phase 12 open]: headroom probe must use `headroom compress --help` (not --version) — catches broken installs on Windows + Python 3.13 (upstream issue #845)
-- [Phase 12 open]: installHeadroom() and configureMcp() return types change from void to discriminated union; init.ts + init_cmd.py consume results
-- [Phase 12 open]: All headroom subprocess calls hard timeout at 10 seconds
+- [Phase 12 planned]: headroom probe uses `headroom compress --help` — Plan 12-01 + 12-03
+- [Phase 12 planned]: installHeadroom()/configureMcp() return HeadroomResult/McpResult — Plan 12-01; consumed in 12-02/12-03
+- [Phase 12 planned]: All headroom subprocess calls hard timeout at 10 seconds — Plan 12-01 + 12-03
 - [Phase 13 open]: Telemetry endpoint not yet selected — Plausible Analytics or Cloudflare Worker; PostHog EU excluded (receives IP before anonymization). Must resolve during Phase 13 planning.
 - [Phase 13 open]: Telemetry is counter-only (no OS, no version, no properties) to minimize GDPR surface
 - [Phase 13 open]: Promise.race pattern — start telemetry before task list; await race([telemetryDone, 1s timeout]) after tasks complete (Node.js exit race fix)
@@ -116,8 +116,8 @@ Recent decisions affecting current work:
 
 ### Pending Todos
 
-- Resolve telemetry endpoint before Phase 13 planning (Plausible vs Cloudflare Worker)
 - Set headroom minimum version at Phase 12 implementation time
+- Deploy Cloudflare Worker + KV endpoint before Phase 13 can execute
 
 ### Quick Tasks Completed
 
@@ -133,7 +133,7 @@ Recent decisions affecting current work:
 
 ### Blockers/Concerns
 
-- Telemetry endpoint decision required before Phase 13 can be planned (Plausible Analytics account or Cloudflare Worker deployment needed)
+- Cloudflare Worker + KV deployment required before Phase 13 can execute (endpoint decided; deployment pending)
 
 ## Deferred Items
 
