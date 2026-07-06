@@ -13,6 +13,28 @@ from goodvibes_cli.utils.detect_project_type import detect_project_type
 
 console = Console()
 
+
+# ponytail: inline helper — too small to justify a separate module
+def _format_headroom_status(hr: dict[str, str], mr: dict[str, str]) -> str:
+    install_labels = {
+        "installed":         "headroom: installed",
+        "already-installed": "headroom: already installed",
+        "skipped":           f"headroom: skipped ({hr.get('reason', '')})",
+        "failed":            f"headroom: install failed ({hr.get('reason', '')})",
+    }
+    mcp_labels = {
+        "registered":         "MCP: registered",
+        "already-registered": "MCP: already configured",
+        "skipped":            f"MCP: skipped ({mr.get('reason', '')})",
+        "failed":             f"MCP: failed ({mr.get('reason', '')})",
+    }
+    lines = [
+        install_labels.get(hr.get("status", ""), f"headroom: {hr.get('status', 'unknown')}"),
+        mcp_labels.get(mr.get("status", ""), f"MCP: {mr.get('status', 'unknown')}"),
+    ]
+    return "\n".join(lines)
+
+
 _NEXT_STEPS = (
     "1. Open this project in your AI coding tool\n"
     "2. Claude Code users: /plugin marketplace add DietrichGebert/ponytail\n"
@@ -67,18 +89,22 @@ def init_cmd(
             created_files.extend(written)
             skipped_files_list.extend(skipped)
 
+        # ponytail: default to skipped — minimal path never enters the block
+        headroom_result: dict[str, str] = {"status": "skipped", "reason": ""}
+        mcp_result: dict[str, str] = {"status": "skipped", "reason": ""}
+
         if not minimal:
             with console.status("Installing headroom") as status:
                 def log_install(msg: str) -> None:
                     status.update(msg)
 
-                install_headroom(log_install)
+                headroom_result = install_headroom(log_install)
 
             with console.status("Configuring headroom MCP") as status:
                 def log_mcp(msg: str) -> None:
                     status.update(msg)
 
-                configure_mcp(log_mcp)
+                mcp_result = configure_mcp(log_mcp)
     except PermissionError as e:
         console.print(f"[red]Error:[/red] {e}")
         console.print("[yellow]Fix:[/yellow] Make sure you are inside your project directory before running this command.")
@@ -93,6 +119,8 @@ def init_cmd(
     if skipped_files_list:
         skipped_str = "\n".join(skipped_files_list)
         console.print(Panel(skipped_str, title=f"Files skipped ({len(skipped_files_list)})"))
+    if not minimal:
+        console.print(Panel(_format_headroom_status(headroom_result, mcp_result), title="Headroom"))
     console.print(Panel(_NEXT_STEPS, title="Next steps"))
     if minimal:
         console.print(Panel(

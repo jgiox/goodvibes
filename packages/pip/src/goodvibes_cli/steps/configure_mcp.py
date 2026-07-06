@@ -4,7 +4,7 @@ import subprocess
 from typing import Callable
 
 
-def configure_mcp(log: Callable[[str], None]) -> None:
+def configure_mcp(log: Callable[[str], None]) -> dict[str, str]:
     """Register headroom as a global MCP server via claude mcp add (primary) or headroom mcp install (fallback).
 
     Strategy:
@@ -21,10 +21,11 @@ def configure_mcp(log: Callable[[str], None]) -> None:
             capture_output=True,
             text=True,
             check=True,
+            timeout=10,
         )
         log("headroom MCP already configured — skipping")
-        return
-    except (FileNotFoundError, subprocess.CalledProcessError):
+        return {"status": "already-registered", "reason": ""}
+    except (FileNotFoundError, subprocess.CalledProcessError, subprocess.TimeoutExpired):
         pass
 
     # Step 2: primary — claude mcp add -s user (handles CLAUDE_CONFIG_DIR correctly)
@@ -34,10 +35,11 @@ def configure_mcp(log: Callable[[str], None]) -> None:
             capture_output=True,
             text=True,
             check=True,
+            timeout=10,
         )
         if "headroom" in list_result.stdout:
             log("headroom already registered in claude MCP — skipping")
-            return
+            return {"status": "already-registered", "reason": ""}
 
         absolute_path = shutil.which("headroom")
         if not absolute_path:
@@ -45,16 +47,17 @@ def configure_mcp(log: Callable[[str], None]) -> None:
                 "headroom binary not found on PATH — MCP registration skipped. "
                 'Run `uv tool install "headroom-ai[all]"` then re-run `goodvibes init`.'
             )
-            return
+            return {"status": "skipped", "reason": "headroom binary not found on PATH"}
 
         subprocess.run(
             ["claude", "mcp", "add", "-s", "user", "headroom", absolute_path],
             capture_output=True,
             text=True,
             check=True,
+            timeout=10,
         )
         log("headroom registered as global MCP server")
-        return
+        return {"status": "registered", "reason": ""}
     except FileNotFoundError:
         # claude CLI not on PATH — fall back to headroom mcp install
         log("claude CLI not found — falling back to headroom mcp install")
@@ -65,8 +68,7 @@ def configure_mcp(log: Callable[[str], None]) -> None:
     except subprocess.CalledProcessError as e:
         lines = (e.stderr or "").splitlines()
         log(f"claude mcp add failed: {lines[0] if lines else 'unknown error'}")
-        log("Run `headroom mcp install` manually.")
-        return
+        return {"status": "failed", "reason": lines[0] if lines else "unknown error"}
 
     # Step 3: fallback — headroom mcp install
     try:
@@ -75,17 +77,20 @@ def configure_mcp(log: Callable[[str], None]) -> None:
             capture_output=True,
             text=True,
             check=True,
+            timeout=10,
         )
+        return {"status": "registered", "reason": ""}
     except FileNotFoundError:
         log(
             "headroom binary not found — MCP registration skipped. "
             "Install headroom and run `headroom mcp install` manually."
         )
-    except subprocess.CalledProcessError as e:
-        lines = (e.stderr or "").splitlines()
+        return {"status": "skipped", "reason": "headroom binary not found"}
+    except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as e:
+        lines = (getattr(e, 'stderr', '') or "").splitlines()
         first_line = lines[0] if lines else "unknown error"
         log(
             f"headroom MCP install failed: {first_line}. "
             "Run `headroom mcp install` manually to complete MCP setup."
         )
-        return
+        return {"status": "failed", "reason": first_line}

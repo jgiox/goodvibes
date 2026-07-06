@@ -670,6 +670,18 @@ Docs updated: README.md (IDE table + count), CHANGELOG.md, JOURNAL.md
 
 ---
 
+## 2026-07-06 — Phase 12-03: Python parity for headroom status surfacing (HDR2-01 through HDR2-05)
+
+**What I did:** Mirrored all Phase 12 TypeScript changes in the Python pip package. Changed `install_headroom()` and `configure_mcp()` from `None`-returning functions to `dict[str, str]` discriminated returns with a `status` key (installed/already-installed/skipped/failed/registered/already-registered). Replaced the `shutil.which("headroom")` idempotency probe in `install_headroom.py` with a functional `subprocess.run(["headroom", "compress", "--help"], timeout=10)` probe (HDR2-03 — catches broken installs). Added `timeout=10` to all subprocess.run calls in both step files (HDR2-04 — prevents hangs). Added `subprocess.TimeoutExpired` to all except clauses alongside `CalledProcessError`. Added `_format_headroom_status` helper and Headroom Panel to `init_cmd.py` (HDR2-01/02 — truthful init outro). Replaced `shutil.which`-based `_check_headroom()` in `doctor_cmd.py` with functional compress --help probe catching FileNotFoundError, CalledProcessError, and TimeoutExpired; label updated to "headroom installed and working" (HDR2-05). Removed unused `shutil` imports from `install_headroom.py` and `doctor_cmd.py`. TDD: RED commit first (8dd5875), GREEN commit after.
+
+**Files changed:** packages/pip/src/goodvibes_cli/steps/install_headroom.py, packages/pip/src/goodvibes_cli/steps/configure_mcp.py, packages/pip/src/goodvibes_cli/commands/init_cmd.py, packages/pip/src/goodvibes_cli/commands/doctor_cmd.py, packages/pip/tests/test_install_headroom.py, packages/pip/tests/test_configure_mcp.py, packages/pip/tests/test_init_cmd.py, packages/pip/tests/test_doctor_cmd.py, JOURNAL.md.
+
+**Why:** HDR2-01 through HDR2-05 apply to both npm and pip packages (D-03 Python parity). Python users deserve the same truthful init outro (actual install status) and functional doctor probe (compress --help) as TypeScript users.
+
+**Tests run:** uv run pytest (39 passed) from packages/pip/.
+
+**Docs updated:** JOURNAL.md.
+
 ## 2026-07-06 — Phase 12-01: HeadroomResult/McpResult types, compress --help probe, 10s timeout
 
 **What I did:** Refactored `install-headroom.ts` and `configure-mcp.ts` to return discriminated union result types instead of `void`. Changed the headroom idempotency probe from `--version` to the functional `compress --help` (HDR2-03 — catches broken installs where binary exists but fails). Added `{ timeout: 10_000 }` to every execa call in both files (HDR2-04 — prevents subprocess hangs). Converted both `throw` sites in `configure-mcp.ts` to `return { status: 'failed', reason }` so steps never throw. Added 4 new tests for missing coverage paths (headroom-not-on-path, fallback-ENOENT, headroom-mcp-install-CalledProcessError, claude-mcp-add-CalledProcessError). TDD discipline: RED commit (f4a8bd2) first, GREEN commit after.

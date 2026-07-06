@@ -1,12 +1,11 @@
 """Install headroom-ai via uv → pipx → pip fallback chain."""
-import shutil
 import subprocess
 from typing import Callable
 
 from goodvibes_cli.utils.detect_python import detect_python
 
 
-def install_headroom(log: Callable[[str], None]) -> None:
+def install_headroom(log: Callable[[str], None]) -> dict[str, str]:
     """Install headroom-ai[all] using the first available installer.
 
     Order: uv tool install → pipx install → pip install --user.
@@ -19,16 +18,22 @@ def install_headroom(log: Callable[[str], None]) -> None:
             "Python 3.10+ not found — skipping headroom install. "
             "Install Python 3.10+ and run `goodvibes init` again."
         )
-        return
+        return {"status": "skipped", "reason": "Python 3.10+ not found"}
 
     log("headroom compresses AI context to save tokens — this keeps your costs down and sessions faster.")
 
-    # Idempotency probe: skip installer if headroom is already on PATH
-    if shutil.which("headroom") is not None:
+    # HDR2-03: functional probe — catches broken installs where binary exists but fails
+    try:
+        subprocess.run(
+            ["headroom", "compress", "--help"],
+            capture_output=True, text=True, check=True, timeout=10
+        )
         log("headroom already installed — skipping")
-        return
+        return {"status": "already-installed", "reason": ""}
+    except (FileNotFoundError, subprocess.CalledProcessError, subprocess.TimeoutExpired):
+        pass  # not installed or broken — proceed to installer loop
 
-    # HDR-03: ONNX warning BEFORE any subprocess call — shows even if installer is slow
+    # HDR-03: ONNX warning BEFORE any installer subprocess call — shows even if installer is slow
     log(
         "Note: headroom will download its compression model on first use"
         " — this may take 1–3 minutes on a slow connection."
@@ -42,12 +47,12 @@ def install_headroom(log: Callable[[str], None]) -> None:
 
     for cmd_list in installers:
         try:
-            subprocess.run(cmd_list, capture_output=True, text=True, check=True)
-            return
+            subprocess.run(cmd_list, capture_output=True, text=True, check=True, timeout=10)
+            return {"status": "installed", "reason": ""}
         except FileNotFoundError:
             continue
-        except subprocess.CalledProcessError as e:
-            lines = (e.stderr or "").splitlines()
+        except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as e:
+            lines = (getattr(e, 'stderr', '') or "").splitlines()
             first_line = lines[0] if lines else "unknown error"
             log(f"{cmd_list[0]} install failed: {first_line} — trying next installer")
             continue  # advance to pipx / pip fallback
@@ -56,3 +61,4 @@ def install_headroom(log: Callable[[str], None]) -> None:
     log(
         'headroom could not be installed. Run manually: uv tool install "headroom-ai[all]"'
     )
+    return {"status": "failed", "reason": "all installers exhausted"}
