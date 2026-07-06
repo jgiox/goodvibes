@@ -72,6 +72,13 @@ Both paths inject:
 - [x] `goodvibes doctor` version header (POL-01) — Validated in Phase 11
 - [x] PyPI OIDC trusted publisher configured — Validated in Phase 11
 
+### Validated in Phase 12
+- [x] Discriminated union result types (HeadroomResult/McpResult in TS, dict returns in Python) — Validated in Phase 12
+- [x] Functional `compress --help` probe replaces PATH-only `--version`/`shutil.which` in all 4 files — Validated in Phase 12
+- [x] 10-second timeout on all subprocess/execa calls (install, probe, mcp add/list) — Validated in Phase 12
+- [x] Headroom status surfaced in `goodvibes init` output (Headroom note/Panel) — Validated in Phase 12
+- [x] `goodvibes doctor` functional probe with updated label — Validated in Phase 12
+
 ### Active (v1.2.0)
 
 - [ ] Headroom install validated in `goodvibes init` — status shown to user (installed / skipped / failed)
@@ -162,4 +169,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-07-03 — Milestone v1.2.0 Growth & Retention started: headroom integration, anonymous telemetry, goodvibes update command*
+*Last updated: 2026-07-06 — Phase 12 complete: headroom status surfacing (discriminated types, functional probe, timeouts, init/doctor wiring for npm + pip)*
