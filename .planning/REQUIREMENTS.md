@@ -8,11 +8,11 @@
 
 ### Headroom Integration
 
-- [ ] **HDR2-01**: `goodvibes init` reports actual headroom install outcome — installed, already-installed, skipped (no Python), or failed — in the init outro
-- [ ] **HDR2-02**: `goodvibes init` reports MCP config outcome separately — written, already-configured, or failed
-- [ ] **HDR2-03**: Headroom probe uses `headroom compress --help` (not just `--version`) to catch broken installs
-- [ ] **HDR2-04**: All headroom subprocess calls have a hard 10-second timeout
-- [ ] **HDR2-05**: `goodvibes doctor` headroom check reflects real functional status (installed + working vs just on PATH)
+- [x] **HDR2-01**: `goodvibes init` reports actual headroom install outcome — installed, already-installed, skipped (no Python), or failed — in the init outro
+- [x] **HDR2-02**: `goodvibes init` reports MCP config outcome separately — written, already-configured, or failed
+- [x] **HDR2-03**: Headroom probe uses `headroom compress --help` (not just `--version`) to catch broken installs
+- [x] **HDR2-04**: All headroom subprocess calls have a hard 10-second timeout
+- [x] **HDR2-05**: `goodvibes doctor` headroom check reflects real functional status (installed + working vs just on PATH)
 
 ### Telemetry
 
@@ -57,11 +57,11 @@ All prior requirements from v1.0–v1.1.0 are validated. See ROADMAP.md phases 0
 
 | REQ-ID | Phase | Status |
 |--------|-------|--------|
-| HDR2-01 | Phase 12 | Pending |
-| HDR2-02 | Phase 12 | Pending |
-| HDR2-03 | Phase 12 | Pending |
-| HDR2-04 | Phase 12 | Pending |
-| HDR2-05 | Phase 12 | Pending |
+| HDR2-01 | Phase 12 | Complete |
+| HDR2-02 | Phase 12 | Complete |
+| HDR2-03 | Phase 12 | Complete |
+| HDR2-04 | Phase 12 | Complete |
+| HDR2-05 | Phase 12 | Complete |
 | TEL-01 | Phase 13 | Pending |
 | TEL-02 | Phase 13 | Pending |
 | TEL-03 | Phase 13 | Pending |

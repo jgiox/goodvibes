@@ -395,6 +395,6 @@ v1.2.0 build order: 12 → 13 → 14. Phase 12 (headroom status) and Phase 14 (u
 | 9. OpenAI/Codex & Vibe-coding Platform Expansion | 3/3 | Complete    | 2026-07-01 |
 | 10. Vibe Coder Completeness | 3/3 | Complete    | 2026-07-01 |
 | 11. Publish Quality & Discoverability | 4/4 | Complete    | 2026-07-02 |
-| 12. Headroom Status Surfacing | 3/3 | Complete   | 2026-07-06 |
+| 12. Headroom Status Surfacing | 3/3 | Complete    | 2026-07-06 |
 | 13. Anonymous Telemetry | 0/TBD | Not started | - |
 | 14. goodvibes update with Manifest | 0/TBD | Not started | - |
