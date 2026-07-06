@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import importlib.metadata
 import pathlib
-import shutil
 import subprocess
 from dataclasses import dataclass, field
 
@@ -33,12 +32,18 @@ class CheckResult:
 
 
 def _check_headroom() -> CheckResult:
-    present = shutil.which("headroom") is not None
-    return CheckResult(
-        label="headroom on PATH",
-        passed=present,
-        remedy="" if present else 'Run: uv tool install "headroom-ai[all]"  (or re-run goodvibes init)',
-    )
+    try:
+        subprocess.run(
+            ["headroom", "compress", "--help"],
+            capture_output=True, text=True, check=True, timeout=10
+        )
+        return CheckResult(label="headroom installed and working", passed=True)
+    except (FileNotFoundError, subprocess.CalledProcessError, subprocess.TimeoutExpired):
+        return CheckResult(
+            label="headroom installed and working",
+            passed=False,
+            remedy='Run: uv tool install "headroom-ai[all]"  (or re-run goodvibes init)',
+        )
 
 
 def _check_git_config(key: str) -> CheckResult:
