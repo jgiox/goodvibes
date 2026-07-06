@@ -1,0 +1,7 @@
+{
+  "name": "goodvibes-telemetry",
+  "private": true,
+  "devDependencies": {
+    "wrangler": "^4"
+  }
+}
