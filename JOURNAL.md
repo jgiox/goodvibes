@@ -681,3 +681,17 @@ Docs updated: README.md (IDE table + count), CHANGELOG.md, JOURNAL.md
 **Tests run:** npm run test (123 passed, 1 skipped) from packages/npm/.
 
 **Docs updated:** JOURNAL.md. Phase 11 complete — goodvibes is published as goodvibes-cli on both npm and PyPI, with CI smoke tests gating every future publish.
+
+---
+
+## 2026-07-06 — Phase 12-02: wire HeadroomResult/McpResult into init.ts commands layer; functional probe in doctor.ts
+
+**What I did:** Wired the `HeadroomResult` and `McpResult` types (from Plan 12-01) into the commands layer. `init.ts` now captures return values from `installHeadroom` and `configureMcp`, and emits a `'Headroom'` note after the file list showing actual install and MCP outcomes. Added `formatHeadroomStatus` inline helper and dynamic label tables (no hardcoded 'headroom ready' strings). `doctor.ts` checkHeadroom function changed from PATH-only `--version` probe to functional `compress --help` with 10-second timeout; label changed to 'headroom installed and working'; catches all errors with empty catch (HDR2-05). TDD discipline: RED commit (808f24d) first, GREEN commit after.
+
+**Files changed:** packages/npm/src/commands/init.ts, packages/npm/src/commands/doctor.ts, packages/npm/src/commands/init.test.ts, packages/npm/src/commands/doctor.test.ts, JOURNAL.md.
+
+**Why:** HDR2-01/02 — truthful init outro showing actual headroom/MCP outcomes. HDR2-05 — functional doctor probe that catches broken installs. Commands layer only; step layer done in Plan 12-01.
+
+**Tests run:** npm run test (123 passed, 1 skipped) from packages/npm/.
+
+**Docs updated:** JOURNAL.md.

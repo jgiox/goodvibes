@@ -2,9 +2,33 @@ import type { Command } from 'commander'
 import { readdirSync } from 'node:fs'
 import { intro, outro, note, tasks, cancel } from '@clack/prompts'
 import { copyTemplates, listTemplateFiles, resolveTemplatesDir } from '../steps/copy-templates.js'
-import { installHeadroom } from '../steps/install-headroom.js'
-import { configureMcp } from '../steps/configure-mcp.js'
+import { installHeadroom, type HeadroomResult } from '../steps/install-headroom.js'
+import { configureMcp, type McpResult } from '../steps/configure-mcp.js'
 import { detectProjectType } from '../utils/detect-project-type.js'
+
+// ponytail: inline helper — too small to justify a separate module
+function formatHeadroomStatus(hr: HeadroomResult | undefined, mr: McpResult | undefined): string {
+  const lines: string[] = []
+  if (hr) {
+    const install = ({
+      'installed':         'headroom: installed',
+      'already-installed': 'headroom: already installed',
+      'skipped':           `headroom: skipped (${hr.status === 'skipped' ? hr.reason : ''})`,
+      'failed':            `headroom: install failed (${hr.status === 'failed' ? hr.reason : ''})`,
+    } as Record<HeadroomResult['status'], string>)[hr.status]
+    lines.push(install)
+  }
+  if (mr) {
+    const mcp = ({
+      'registered':         'MCP: registered',
+      'already-registered': 'MCP: already configured',
+      'skipped':            `MCP: skipped (${mr.status === 'skipped' ? mr.reason : ''})`,
+      'failed':             `MCP: failed (${mr.status === 'failed' ? mr.reason : ''})`,
+    } as Record<McpResult['status'], string>)[mr.status]
+    lines.push(mcp)
+  }
+  return lines.join('\n')
+}
 
 export function registerInitCommand(program: Command): void {
   program
@@ -52,6 +76,8 @@ export function registerInitCommand(program: Command): void {
 
       const createdFiles: string[] = []
       const skippedFiles: string[] = []
+      let headroomResult: HeadroomResult | undefined
+      let mcpResult: McpResult | undefined
 
       const taskList: Array<{ title: string; task: (message: (msg: string) => void) => Promise<string> }> = [
         {
@@ -66,19 +92,32 @@ export function registerInitCommand(program: Command): void {
       ]
 
       if (!minimal) {
+        // ponytail: inline label tables — too small to justify a separate module
+        const headroomLabels: Record<HeadroomResult['status'], string> = {
+          'installed':         'headroom installed',
+          'already-installed': 'headroom already installed',
+          'skipped':           'headroom skipped (Python 3.10+ not found)',
+          'failed':            'headroom install failed — see note below',
+        }
+        const mcpLabels: Record<McpResult['status'], string> = {
+          'registered':         'MCP server registered',
+          'already-registered': 'MCP server already configured',
+          'skipped':            'MCP registration skipped',
+          'failed':             'MCP registration failed — see note below',
+        }
         taskList.push(
           {
             title: 'Installing headroom',
             task: async (message) => {
-              await installHeadroom((msg) => message(msg))
-              return 'headroom ready'
+              headroomResult = await installHeadroom((msg) => message(msg))
+              return headroomLabels[headroomResult.status]
             },
           },
           {
             title: 'Configuring headroom MCP',
             task: async (message) => {
-              await configureMcp((msg) => message(msg))
-              return 'MCP server registered'
+              mcpResult = await configureMcp((msg) => message(msg))
+              return mcpLabels[mcpResult.status]
             },
           }
         )
@@ -98,6 +137,10 @@ export function registerInitCommand(program: Command): void {
       note(createdFiles.join('\n') || '(none)', `Files written (${createdFiles.length})`)
       if (skippedFiles.length > 0) {
         note(skippedFiles.join('\n'), `Files skipped (${skippedFiles.length})`)
+      }
+
+      if (!minimal && headroomResult) {
+        note(formatHeadroomStatus(headroomResult, mcpResult), 'Headroom')
       }
 
       const nextSteps = [

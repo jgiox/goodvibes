@@ -21,17 +21,14 @@ type CheckResult = { label: string; pass: boolean; remedy?: string }
 
 async function checkHeadroom(): Promise<CheckResult> {
   try {
-    await execa('headroom', ['--version'])
-    return { label: 'headroom on PATH', pass: true }
-  } catch (e: unknown) {
-    if ((e as NodeJS.ErrnoException).code === 'ENOENT') {
-      return {
-        label: 'headroom on PATH',
-        pass: false,
-        remedy: 'Run: uv tool install "headroom-ai[all]"  (or re-run goodvibes init)',
-      }
+    await execa('headroom', ['compress', '--help'], { timeout: 10_000 })
+    return { label: 'headroom installed and working', pass: true }
+  } catch {
+    return {
+      label: 'headroom installed and working',
+      pass: false,
+      remedy: 'Run: uv tool install "headroom-ai[all]"  (or re-run goodvibes init)',
     }
-    throw e
   }
 }
 
