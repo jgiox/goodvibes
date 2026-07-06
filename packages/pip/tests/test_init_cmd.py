@@ -18,6 +18,11 @@ def app():
     return _app
 
 
+@pytest.fixture(autouse=True)
+def mock_telemetry(mocker):
+    mocker.patch("goodvibes_cli.commands.init_cmd.start_telemetry_thread", return_value=None)
+
+
 def test_non_empty_dir_prints_notice_before_tasks(runner, app, mocker, tmp_path):
     mocker.patch("goodvibes_cli.commands.init_cmd.resolve_templates_dir", return_value=tmp_path)
     mocker.patch("goodvibes_cli.commands.init_cmd.detect_project_type", return_value="both")
@@ -101,3 +106,46 @@ def test_dry_run_minimal_excludes_github_and_docs(runner, app, mocker, tmp_path)
     assert "CLAUDE.md" in result.output
     assert ".github" not in result.output
     assert "docs/onboarding.md" not in result.output
+
+
+def test_shows_privacy_panel_with_disclosure_text_when_not_opted_out(runner, app, mocker, tmp_path):
+    mocker.patch.dict("os.environ", {"DO_NOT_TRACK": "", "GOODVIBES_NO_TELEMETRY": "", "CI": ""})
+    mocker.patch("goodvibes_cli.commands.init_cmd.resolve_templates_dir", return_value=tmp_path)
+    mocker.patch("goodvibes_cli.commands.init_cmd.detect_project_type", return_value="both")
+    mocker.patch("goodvibes_cli.commands.init_cmd.copy_templates", return_value=(["CLAUDE.md"], []))
+    mocker.patch("goodvibes_cli.commands.init_cmd.install_headroom", return_value={"status": "installed", "reason": ""})
+    mocker.patch("goodvibes_cli.commands.init_cmd.configure_mcp", return_value={"status": "registered", "reason": ""})
+    mocker.patch("pathlib.Path.iterdir", return_value=iter([]))
+    result = runner.invoke(app, ["--minimal"])
+    assert result.exit_code == 0
+    assert "Anonymous usage stats are collected" in result.output
+    assert "DO_NOT_TRACK=1" in result.output
+    assert "Privacy" in result.output
+
+
+def test_does_not_call_start_telemetry_thread_during_dry_run(runner, app, mocker, tmp_path):
+    mocker.patch("goodvibes_cli.commands.init_cmd.resolve_templates_dir", return_value=tmp_path)
+    mocker.patch("goodvibes_cli.commands.init_cmd.detect_project_type", return_value="both")
+    mocker.patch(
+        "goodvibes_cli.commands.init_cmd.list_template_files",
+        return_value=["CLAUDE.md"],
+    )
+    mocker.patch("pathlib.Path.iterdir", return_value=iter([]))
+    # mock_telemetry autouse fixture patches start_telemetry_thread — grab the spy
+    tel_mock = mocker.patch("goodvibes_cli.commands.init_cmd.start_telemetry_thread", return_value=None)
+    result = runner.invoke(app, ["--dry-run"])
+    assert result.exit_code == 0
+    tel_mock.assert_not_called()
+
+
+def test_does_not_show_privacy_panel_when_do_not_track_is_1(runner, app, mocker, tmp_path):
+    mocker.patch.dict("os.environ", {"DO_NOT_TRACK": "1"})
+    mocker.patch("goodvibes_cli.commands.init_cmd.resolve_templates_dir", return_value=tmp_path)
+    mocker.patch("goodvibes_cli.commands.init_cmd.detect_project_type", return_value="both")
+    mocker.patch("goodvibes_cli.commands.init_cmd.copy_templates", return_value=(["CLAUDE.md"], []))
+    mocker.patch("goodvibes_cli.commands.init_cmd.install_headroom", return_value={"status": "installed", "reason": ""})
+    mocker.patch("goodvibes_cli.commands.init_cmd.configure_mcp", return_value={"status": "registered", "reason": ""})
+    mocker.patch("pathlib.Path.iterdir", return_value=iter([]))
+    result = runner.invoke(app, ["--minimal"])
+    assert result.exit_code == 0
+    assert "Anonymous usage stats are collected" not in result.output

@@ -1,4 +1,5 @@
 """goodvibes init command — port of init.ts."""
+import os
 import pathlib
 from typing import Annotated
 
@@ -9,6 +10,7 @@ from rich.panel import Panel
 from goodvibes_cli.steps.configure_mcp import configure_mcp
 from goodvibes_cli.steps.copy_templates import copy_templates, list_template_files, resolve_templates_dir
 from goodvibes_cli.steps.install_headroom import install_headroom
+from goodvibes_cli.steps.telemetry import start_telemetry_thread
 from goodvibes_cli.utils.detect_project_type import detect_project_type
 
 console = Console()
@@ -54,6 +56,17 @@ def init_cmd(
 
     console.rule("[bold]goodvibes init[/bold]")
 
+    _opted_out = (
+        os.environ.get("DO_NOT_TRACK") == "1"
+        or os.environ.get("GOODVIBES_NO_TELEMETRY") == "1"
+        or os.environ.get("CI") == "true"
+    )
+    if not _opted_out:
+        console.print(Panel(
+            "Anonymous usage stats are collected. Set DO_NOT_TRACK=1 to opt out.",
+            title="Privacy",
+        ))
+
     if dry_run:
         if minimal:
             all_files = list_template_files(template_dir)
@@ -71,6 +84,8 @@ def init_cmd(
         console.print(Panel(_NEXT_STEPS, title="Next steps"))
         console.rule("Run without --dry-run to apply these changes.")
         return
+
+    tel_thread = start_telemetry_thread()
 
     # Non-empty directory notice (UX-01)
     existing = [e for e in cwd.iterdir() if e.name not in (".git", ".DS_Store")]
@@ -113,6 +128,9 @@ def init_cmd(
     except (OSError, Exception) as e:
         console.print(f"[red]Unexpected error:[/red] {e}")
         raise typer.Exit(1)
+
+    if tel_thread:
+        tel_thread.join(timeout=1.0)
 
     written_str = "\n".join(created_files) if created_files else "(none)"
     console.print(Panel(written_str, title=f"Files written ({len(created_files)})"))
