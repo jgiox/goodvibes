@@ -24,7 +24,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 9: OpenAI/Codex & Vibe-coding Platform Expansion** - Extend goodvibes to serve users of OpenAI Codex CLI, Replit Agent, Bolt.new, Lovable, ChatGPT Projects, and Base44. (completed 2026-07-01)
 - [x] **Phase 10: Vibe Coder Completeness** - Ship the commands and guides that turn a successful `goodvibes init` into a complete, confident vibe-coding setup: `goodvibes update`, `goodvibes doctor`, `goodvibes --version`, headroom install transparency, newbie flow guide, and ponytail discipline guidance for non-Claude Code IDE users. (completed 2026-07-01)
 - [x] **Phase 11: Publish Quality & Discoverability** - Make goodvibes trustworthy to install and easy to find — post-publish smoke tests, CI stamp guard, proper package names, polished registry pages, and two day-one UX improvements. (completed 2026-07-02)
-- [ ] **Phase 12: Headroom Status Surfacing** - Replace hardcoded "headroom ready" with truthful install and MCP config outcomes in the init outro (v1.2.0)
+- [x] **Phase 12: Headroom Status Surfacing** - Replace hardcoded "headroom ready" with truthful install and MCP config outcomes in the init outro (v1.2.0) (completed 2026-07-06)
 - [ ] **Phase 13: Anonymous Telemetry** - Add GDPR-compliant anonymous install counter to `goodvibes init` with first-run disclosure and opt-out (v1.2.0)
 - [ ] **Phase 14: goodvibes update with Manifest** - Ship manifest-based template update with dry-run preview, confirmation prompt, and sentinel data-loss guard (v1.2.0)
 
@@ -335,9 +335,9 @@ Plans:
 
 **Plans**: 3 plans (2 waves)
 Plans:
-- [ ] 12-01-PLAN.md — [Wave 1] TypeScript step layer: HeadroomResult/McpResult types, compress --help probe, timeout
-- [ ] 12-02-PLAN.md — [Wave 2, depends: 12-01] TypeScript commands layer: result capture in init.ts, Headroom note, doctor.ts functional probe
-- [ ] 12-03-PLAN.md — [Wave 2, depends: 12-01, parallel with 12-02] Python parity: discriminated return dicts, compress --help probe, timeout=10, Headroom Panel
+- [x] 12-01-PLAN.md — [Wave 1] TypeScript step layer: HeadroomResult/McpResult types, compress --help probe, timeout
+- [x] 12-02-PLAN.md — [Wave 2, depends: 12-01] TypeScript commands layer: result capture in init.ts, Headroom note, doctor.ts functional probe
+- [x] 12-03-PLAN.md — [Wave 2, depends: 12-01, parallel with 12-02] Python parity: discriminated return dicts, compress --help probe, timeout=10, Headroom Panel
 **UI hint**: no
 
 ### Phase 13: Anonymous Telemetry
@@ -395,6 +395,6 @@ v1.2.0 build order: 12 → 13 → 14. Phase 12 (headroom status) and Phase 14 (u
 | 9. OpenAI/Codex & Vibe-coding Platform Expansion | 3/3 | Complete    | 2026-07-01 |
 | 10. Vibe Coder Completeness | 3/3 | Complete    | 2026-07-01 |
 | 11. Publish Quality & Discoverability | 4/4 | Complete    | 2026-07-02 |
-| 12. Headroom Status Surfacing | 0/TBD | Not started | - |
+| 12. Headroom Status Surfacing | 3/3 | Complete   | 2026-07-06 |
 | 13. Anonymous Telemetry | 0/TBD | Not started | - |
 | 14. goodvibes update with Manifest | 0/TBD | Not started | - |
