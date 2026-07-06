@@ -22,17 +22,44 @@ from goodvibes_cli.commands.doctor_cmd import (
 runner = CliRunner()
 
 
-def test_check_headroom_returns_pass_when_headroom_on_path(mocker):
-    mocker.patch("goodvibes_cli.commands.doctor_cmd.shutil.which", return_value="/usr/bin/headroom")
+def test_check_headroom_returns_pass_when_headroom_working(mocker):
+    mocker.patch(
+        "goodvibes_cli.commands.doctor_cmd.subprocess.run",
+        return_value=subprocess.CompletedProcess(
+            args=["headroom", "compress", "--help"], returncode=0, stdout="", stderr=""
+        ),
+    )
     result = _check_headroom()
     assert result.passed is True
+    assert result.label == "headroom installed and working"
 
 
-def test_check_headroom_returns_fail_with_remedy_when_not_on_path(mocker):
-    mocker.patch("goodvibes_cli.commands.doctor_cmd.shutil.which", return_value=None)
+def test_check_headroom_returns_fail_when_headroom_not_found(mocker):
+    mocker.patch(
+        "goodvibes_cli.commands.doctor_cmd.subprocess.run",
+        side_effect=FileNotFoundError("headroom not found"),
+    )
     result = _check_headroom()
     assert result.passed is False
     assert "uv tool install" in result.remedy
+
+
+def test_check_headroom_returns_fail_when_headroom_broken(mocker):
+    mocker.patch(
+        "goodvibes_cli.commands.doctor_cmd.subprocess.run",
+        side_effect=subprocess.CalledProcessError(1, ["headroom", "compress", "--help"]),
+    )
+    result = _check_headroom()
+    assert result.passed is False
+
+
+def test_check_headroom_returns_fail_when_headroom_times_out(mocker):
+    mocker.patch(
+        "goodvibes_cli.commands.doctor_cmd.subprocess.run",
+        side_effect=subprocess.TimeoutExpired(cmd=["headroom", "compress", "--help"], timeout=10),
+    )
+    result = _check_headroom()
+    assert result.passed is False
 
 
 def test_check_git_config_returns_pass_when_name_set(mocker):
@@ -74,7 +101,7 @@ def test_check_sentinel_returns_fail_when_sentinel_missing(tmp_path):
 
 
 def test_doctor_cmd_raises_exit_1_when_any_check_fails(mocker, tmp_path):
-    mocker.patch("goodvibes_cli.commands.doctor_cmd._check_headroom", return_value=CheckResult(label="headroom on PATH", passed=False, remedy="Run: uv tool install"))
+    mocker.patch("goodvibes_cli.commands.doctor_cmd._check_headroom", return_value=CheckResult(label="headroom installed and working", passed=False, remedy="Run: uv tool install"))
     # _check_git_config is called twice (user.name, user.email); return pass for both
     mocker.patch("goodvibes_cli.commands.doctor_cmd._check_git_config", return_value=CheckResult(label="git user.name", passed=True))
     mocker.patch("goodvibes_cli.commands.doctor_cmd._check_claude_md", return_value=CheckResult(label="CLAUDE.md present", passed=True))
@@ -86,7 +113,7 @@ def test_doctor_cmd_raises_exit_1_when_any_check_fails(mocker, tmp_path):
 
 
 def test_doctor_cmd_does_not_raise_when_all_checks_pass(mocker, tmp_path):
-    mocker.patch("goodvibes_cli.commands.doctor_cmd._check_headroom", return_value=CheckResult(label="headroom on PATH", passed=True))
+    mocker.patch("goodvibes_cli.commands.doctor_cmd._check_headroom", return_value=CheckResult(label="headroom installed and working", passed=True))
     mocker.patch("goodvibes_cli.commands.doctor_cmd._check_git_config", return_value=CheckResult(label="git user.name", passed=True))
     mocker.patch("goodvibes_cli.commands.doctor_cmd._check_claude_md", return_value=CheckResult(label="CLAUDE.md present", passed=True))
     mocker.patch("goodvibes_cli.commands.doctor_cmd._check_sentinel", return_value=CheckResult(label="goodvibes sentinel block", passed=True))
@@ -98,7 +125,7 @@ def test_doctor_cmd_does_not_raise_when_all_checks_pass(mocker, tmp_path):
 def test_doctor_cmd_collects_all_failures_before_exiting(mocker, tmp_path):
     from goodvibes_cli.main import app
 
-    mocker.patch("goodvibes_cli.commands.doctor_cmd._check_headroom", return_value=CheckResult(label="headroom on PATH", passed=False, remedy="Run: uv tool install"))
+    mocker.patch("goodvibes_cli.commands.doctor_cmd._check_headroom", return_value=CheckResult(label="headroom installed and working", passed=False, remedy="Run: uv tool install"))
     mocker.patch("goodvibes_cli.commands.doctor_cmd._check_git_config", side_effect=[
         CheckResult(label="git user.name", passed=False, remedy='Run: git config --global user.name "Your Value"'),
         CheckResult(label="git user.email", passed=True),
@@ -117,7 +144,7 @@ def test_doctor_cmd_collects_all_failures_before_exiting(mocker, tmp_path):
 
 def test_doctor_output_starts_with_version_line(mocker, tmp_path):
     mocker.patch("goodvibes_cli.commands.doctor_cmd.importlib.metadata.version", return_value="1.6.2")
-    mocker.patch("goodvibes_cli.commands.doctor_cmd._check_headroom", return_value=CheckResult(label="headroom on PATH", passed=True))
+    mocker.patch("goodvibes_cli.commands.doctor_cmd._check_headroom", return_value=CheckResult(label="headroom installed and working", passed=True))
     mocker.patch("goodvibes_cli.commands.doctor_cmd._check_git_config", return_value=CheckResult(label="git user.name", passed=True))
     mocker.patch("goodvibes_cli.commands.doctor_cmd._check_claude_md", return_value=CheckResult(label="CLAUDE.md present", passed=True))
     mocker.patch("goodvibes_cli.commands.doctor_cmd._check_sentinel", return_value=CheckResult(label="goodvibes sentinel block", passed=True))

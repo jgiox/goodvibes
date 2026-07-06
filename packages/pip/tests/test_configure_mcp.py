@@ -18,11 +18,12 @@ def test_already_registered_via_mcp_status(mocker):
     from goodvibes_cli.steps.configure_mcp import configure_mcp
 
     log_calls: list[str] = []
-    configure_mcp(log_calls.append)
+    result = configure_mcp(log_calls.append)
 
     assert any("already" in m for m in log_calls)
     # Must not proceed past idempotency check — only one subprocess call
     assert run.call_count == 1
+    assert result == {"status": "already-registered", "reason": ""}
 
 
 def test_already_in_claude_mcp_list(mocker):
@@ -44,12 +45,13 @@ def test_already_in_claude_mcp_list(mocker):
     from goodvibes_cli.steps.configure_mcp import configure_mcp
 
     log_calls: list[str] = []
-    configure_mcp(log_calls.append)
+    result = configure_mcp(log_calls.append)
 
     assert any("already registered" in m for m in log_calls)
     # Must not call claude mcp add
     called_cmds = [c[0][0] for c in run.call_args_list]
     assert not any(c[:3] == ["claude", "mcp", "add"] for c in called_cmds)
+    assert result == {"status": "already-registered", "reason": ""}
 
 
 def test_claude_mcp_add_primary(mocker):
@@ -73,7 +75,7 @@ def test_claude_mcp_add_primary(mocker):
     from goodvibes_cli.steps.configure_mcp import configure_mcp
 
     log_calls: list[str] = []
-    configure_mcp(log_calls.append)
+    result = configure_mcp(log_calls.append)
 
     # claude mcp add must have been called with correct args
     called_cmds = [c[0][0] for c in run.call_args_list]
@@ -81,6 +83,7 @@ def test_claude_mcp_add_primary(mocker):
     assert mcp_add_calls, "Expected 'claude mcp add' call"
     assert mcp_add_calls[0] == ["claude", "mcp", "add", "-s", "user", "headroom", "/usr/local/bin/headroom"]
     assert any("registered" in m for m in log_calls)
+    assert result["status"] == "registered"
 
 
 def test_headroom_not_on_path(mocker):
@@ -104,9 +107,10 @@ def test_headroom_not_on_path(mocker):
     from goodvibes_cli.steps.configure_mcp import configure_mcp
 
     log_calls: list[str] = []
-    configure_mcp(log_calls.append)
+    result = configure_mcp(log_calls.append)
 
     assert any("not found on PATH" in m or "not found" in m for m in log_calls)
+    assert result["status"] == "skipped"
 
 
 def test_claude_not_found_fallback(mocker):
@@ -130,13 +134,14 @@ def test_claude_not_found_fallback(mocker):
     from goodvibes_cli.steps.configure_mcp import configure_mcp
 
     log_calls: list[str] = []
-    configure_mcp(log_calls.append)
+    result = configure_mcp(log_calls.append)
 
     # CLAUDE_CONFIG_DIR warning must be logged
     assert any("CLAUDE_CONFIG_DIR" in m for m in log_calls)
     # headroom mcp install must have been called
     called_cmds = [c[0][0] for c in run.call_args_list]
     assert any(c == ["headroom", "mcp", "install"] for c in called_cmds)
+    assert result["status"] == "registered"
 
 
 def test_headroom_enoent_in_fallback(mocker):
@@ -162,10 +167,11 @@ def test_headroom_enoent_in_fallback(mocker):
     from goodvibes_cli.steps.configure_mcp import configure_mcp
 
     log_calls: list[str] = []
-    configure_mcp(log_calls.append)
+    result = configure_mcp(log_calls.append)
 
     # Must not raise; must log that headroom is not found
     assert any("not found" in m for m in log_calls)
+    assert result["status"] == "skipped"
 
 
 def test_headroom_mcp_install_called_process_error_soft_fails(mocker):
@@ -187,9 +193,10 @@ def test_headroom_mcp_install_called_process_error_soft_fails(mocker):
     from goodvibes_cli.steps.configure_mcp import configure_mcp
 
     log_calls: list[str] = []
-    configure_mcp(log_calls.append)  # must not raise
+    result = configure_mcp(log_calls.append)  # must not raise
 
     assert any("failed" in m or "manually" in m for m in log_calls)
+    assert result["status"] == "failed"
 
 
 def test_claude_mcp_add_called_process_error_soft_fails(mocker):
@@ -215,6 +222,7 @@ def test_claude_mcp_add_called_process_error_soft_fails(mocker):
     from goodvibes_cli.steps.configure_mcp import configure_mcp
 
     log_calls: list[str] = []
-    configure_mcp(log_calls.append)  # must not raise
+    result = configure_mcp(log_calls.append)  # must not raise
 
     assert len(log_calls) > 0
+    assert result["status"] == "failed"
