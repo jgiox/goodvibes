@@ -1,0 +1,9 @@
+name = "goodvibes-telemetry"
+main = "worker.js"
+compatibility_date = "2025-01-01"
+workers_dev = true
+
+[[kv_namespaces]]
+binding = "INSTALLS"
+# replace with output of: wrangler kv:namespace create INSTALLS
+id = "PLACEHOLDER_KV_NAMESPACE_ID"
