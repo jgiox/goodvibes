@@ -542,22 +542,25 @@ id = "<KV_NAMESPACE_ID>"
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **TEL-02 UUID transmission**
+1. **TEL-02 UUID transmission** (RESOLVED — Plans 13-02/13-03)
    - What we know: D-06 says empty POST body. D-02 says worker ignores the request body. TEL-02 requires a per-invocation randomUUID never stored on disk.
    - What's unclear: Is the UUID transmitted at all (as `X-Request-Id` header), or just generated locally and discarded?
    - Recommendation: Send as `X-Request-Id` header. Cost: zero. Benefit: request is traceable for debugging if needed. Worker ignores it; GDPR clean.
+   - **Resolution:** UUID transmitted as `X-Request-Id` header in both `sendTelemetry()` (Plan 13-02) and `_fire()` (Plan 13-03). Worker does not log or store the header (D-02).
 
-2. **KV Namespace ID bootstrapping**
+2. **KV Namespace ID bootstrapping** (RESOLVED — Plan 13-01)
    - What we know: `wrangler.toml` requires the KV namespace ID, which is created by running `wrangler kv:namespace create INSTALLS`.
    - What's unclear: Should the plan include a wave-zero step for the user to create the namespace and paste the ID into wrangler.toml?
    - Recommendation: Yes — Wave 0 or a dedicated "deploy-worker" plan step should document `wrangler kv:namespace create INSTALLS` and the wrangler.toml ID update. STATE.md already notes this blocker.
+   - **Resolution:** Plan 13-01 includes a `checkpoint:human-action` task for `wrangler kv:namespace create INSTALLS` and the wrangler.toml ID update before first deploy.
 
-3. **`workers/telemetry/package.json` scope**
+3. **`workers/telemetry/package.json` scope** (RESOLVED — Plan 13-01)
    - What we know: wrangler-action v4 auto-installs wrangler; no local install needed for CI.
    - What's unclear: Should contributors be able to run `wrangler dev` locally without a global install?
    - Recommendation: Add minimal `package.json` with `"devDependencies": {"wrangler": "^4"}` so `npm install` + `npx wrangler dev` works in the `workers/telemetry/` directory. No hoisting needed.
+   - **Resolution:** Plan 13-01 creates `workers/telemetry/package.json` with `{"devDependencies": {"wrangler": "^4"}}`. CI deploy uses `wrangler-action@v4` which auto-installs wrangler; local dev uses `npx wrangler`.
 
 ---
 
