@@ -65,8 +65,8 @@ def configure_mcp(log: Callable[[str], None]) -> dict[str, str]:
             "Warning: if you use CLAUDE_CONFIG_DIR, you may need to run "
             "`headroom mcp install` manually"
         )
-    except subprocess.CalledProcessError as e:
-        lines = (e.stderr or "").splitlines()
+    except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as e:
+        lines = (getattr(e, "stderr", "") or "").splitlines()
         log(f"claude mcp add failed: {lines[0] if lines else 'unknown error'}")
         return {"status": "failed", "reason": lines[0] if lines else "unknown error"}
 
