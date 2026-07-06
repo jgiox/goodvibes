@@ -5,6 +5,7 @@ import { copyTemplates, listTemplateFiles, resolveTemplatesDir } from '../steps/
 import { installHeadroom, type HeadroomResult } from '../steps/install-headroom.js'
 import { configureMcp, type McpResult } from '../steps/configure-mcp.js'
 import { detectProjectType } from '../utils/detect-project-type.js'
+import { sendTelemetry } from '../steps/telemetry.js'
 
 // ponytail: inline helper — too small to justify a separate module
 function formatHeadroomStatus(hr: HeadroomResult | undefined, mr: McpResult | undefined): string {
@@ -49,6 +50,9 @@ export function registerInitCommand(program: Command): void {
 
       intro('goodvibes init')
 
+      const telemetryOptOut = process.env.DO_NOT_TRACK === '1' || process.env.GOODVIBES_NO_TELEMETRY === '1' || process.env.CI === 'true'
+      if (!telemetryOptOut) { note('Anonymous usage stats are collected. Set DO_NOT_TRACK=1 to opt out.', 'Privacy') }
+
       const existingEntries = readdirSync(cwd).filter(e => e !== '.git' && e !== '.DS_Store')
       if (existingEntries.length > 0) {
         note('Existing files will not be overwritten.', 'Non-empty project detected')
@@ -73,6 +77,8 @@ export function registerInitCommand(program: Command): void {
         outro('Run without --dry-run to apply these changes.')
         return
       }
+
+      const telemetryPromise = sendTelemetry()
 
       const createdFiles: string[] = []
       const skippedFiles: string[] = []
@@ -134,6 +140,8 @@ export function registerInitCommand(program: Command): void {
         process.exit(1)
       }
 
+      await Promise.race([telemetryPromise, sleep(1_000)])
+
       note(createdFiles.join('\n') || '(none)', `Files written (${createdFiles.length})`)
       if (skippedFiles.length > 0) {
         note(skippedFiles.join('\n'), `Files skipped (${skippedFiles.length})`)
@@ -161,3 +169,6 @@ export function registerInitCommand(program: Command): void {
       outro("You're all set!")
     })
 }
+
+// ponytail: inline helper — keeps Promise.race readable
+function sleep(ms: number): Promise<void> { return new Promise(resolve => setTimeout(resolve, ms)) }

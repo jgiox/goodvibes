@@ -38,6 +38,11 @@ vi.mock('../steps/configure-mcp.js', () => ({
   configureMcp: vi.fn(),
 }))
 
+// Mock telemetry — prevents real HTTP in all tests
+vi.mock('../steps/telemetry.js', () => ({
+  sendTelemetry: vi.fn().mockResolvedValue(undefined),
+}))
+
 describe('init command', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -245,6 +250,93 @@ describe('init command', () => {
     const content = nextStepsCall![0] as string
     const matches = content.match(/^\d+\./gm)
     expect(matches).toHaveLength(3)
+  })
+
+  it('shows disclosure note with Privacy title before file operations', async () => {
+    vi.stubEnv('DO_NOT_TRACK', '')
+    vi.stubEnv('GOODVIBES_NO_TELEMETRY', '')
+    vi.stubEnv('CI', '')
+    try {
+      const { note, tasks } = await import('@clack/prompts')
+      const { copyTemplates, resolveTemplatesDir } = await import('../steps/copy-templates.js')
+      const { installHeadroom } = await import('../steps/install-headroom.js')
+      const { configureMcp } = await import('../steps/configure-mcp.js')
+      const { sendTelemetry } = await import('../steps/telemetry.js')
+
+      vi.mocked(resolveTemplatesDir).mockReturnValue('/fake/templates')
+      vi.mocked(copyTemplates).mockResolvedValue({ written: ['CLAUDE.md'], skipped: [] })
+      vi.mocked(installHeadroom).mockResolvedValue({ status: 'installed' })
+      vi.mocked(configureMcp).mockResolvedValue({ status: 'registered' })
+      vi.mocked(tasks).mockImplementation(async (taskList: any[]) => {
+        for (const t of taskList) { await t.task(vi.fn()) }
+      })
+
+      const { registerInitCommand } = await import('./init.js')
+      const { Command } = await import('commander')
+      const program = new Command()
+      program.exitOverride()
+      registerInitCommand(program)
+
+      await program.parseAsync(['node', 'goodvibes', 'init'])
+
+      expect(vi.mocked(note)).toHaveBeenCalledWith(
+        'Anonymous usage stats are collected. Set DO_NOT_TRACK=1 to opt out.',
+        'Privacy'
+      )
+    } finally {
+      vi.unstubAllEnvs()
+    }
+  })
+
+  it('does not call sendTelemetry during --dry-run', async () => {
+    const { listTemplateFiles, resolveTemplatesDir } = await import('../steps/copy-templates.js')
+    const { sendTelemetry } = await import('../steps/telemetry.js')
+
+    vi.mocked(resolveTemplatesDir).mockReturnValue('/fake/templates')
+    vi.mocked(listTemplateFiles).mockResolvedValue(['CLAUDE.md'])
+
+    const { registerInitCommand } = await import('./init.js')
+    const { Command } = await import('commander')
+    const program = new Command()
+    program.exitOverride()
+    registerInitCommand(program)
+
+    await program.parseAsync(['node', 'goodvibes', 'init', '--dry-run'])
+
+    expect(vi.mocked(sendTelemetry)).not.toHaveBeenCalled()
+  })
+
+  it('does not show disclosure note when DO_NOT_TRACK is set to 1', async () => {
+    vi.stubEnv('DO_NOT_TRACK', '1')
+    try {
+      const { note, tasks } = await import('@clack/prompts')
+      const { copyTemplates, resolveTemplatesDir } = await import('../steps/copy-templates.js')
+      const { installHeadroom } = await import('../steps/install-headroom.js')
+      const { configureMcp } = await import('../steps/configure-mcp.js')
+
+      vi.mocked(resolveTemplatesDir).mockReturnValue('/fake/templates')
+      vi.mocked(copyTemplates).mockResolvedValue({ written: ['CLAUDE.md'], skipped: [] })
+      vi.mocked(installHeadroom).mockResolvedValue({ status: 'installed' })
+      vi.mocked(configureMcp).mockResolvedValue({ status: 'registered' })
+      vi.mocked(tasks).mockImplementation(async (taskList: any[]) => {
+        for (const t of taskList) { await t.task(vi.fn()) }
+      })
+
+      const { registerInitCommand } = await import('./init.js')
+      const { Command } = await import('commander')
+      const program = new Command()
+      program.exitOverride()
+      registerInitCommand(program)
+
+      await program.parseAsync(['node', 'goodvibes', 'init'])
+
+      expect(vi.mocked(note)).not.toHaveBeenCalledWith(
+        'Anonymous usage stats are collected. Set DO_NOT_TRACK=1 to opt out.',
+        'Privacy'
+      )
+    } finally {
+      vi.unstubAllEnvs()
+    }
   })
 })
 
