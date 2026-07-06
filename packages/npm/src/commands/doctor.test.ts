@@ -45,7 +45,7 @@ describe('doctor command', () => {
       const { note, outro } = await import('@clack/prompts')
       // git config calls will throw ENOENT — allow headroom pass
       vi.mocked(execa)
-        .mockResolvedValueOnce({ stdout: '1.0.0' } as any) // headroom --version
+        .mockResolvedValueOnce({ stdout: '' } as any) // headroom compress --help → exit 0
         .mockRejectedValue(Object.assign(new Error('ENOENT'), { code: 'ENOENT' })) // git calls
 
       const { registerDoctorCommand } = await import('./doctor.js')
@@ -58,11 +58,18 @@ describe('doctor command', () => {
       registerDoctorCommand(program as any)
       await capturedAction()
 
+      // verify probe used functional compress --help with timeout
+      const execaCalls = vi.mocked(execa).mock.calls
+      const headroomProbe = execaCalls[0]
+      expect(headroomProbe[0]).toBe('headroom')
+      expect(headroomProbe[1]).toEqual(['compress', '--help'])
+      expect(headroomProbe[2]).toMatchObject({ timeout: 10_000 })
+
       // note is called with check results — headroom should appear as pass (checkmark)
       const noteArgs = vi.mocked(note).mock.calls
       expect(noteArgs.length).toBeGreaterThan(0)
       const firstNote = noteArgs[0][0] as string
-      expect(firstNote).toMatch(/headroom/i)
+      expect(firstNote).toMatch(/headroom installed and working/i)
 
       exitSpy.mockRestore()
     })
@@ -90,6 +97,7 @@ describe('doctor command', () => {
 
       const allNoteText = vi.mocked(note).mock.calls.map(c => String(c[0])).join('\n')
       expect(allNoteText).toMatch(/uv tool install/i)
+      expect(allNoteText).not.toMatch(/headroom on PATH/i)
       expect(exitSpy).toHaveBeenCalledWith(1)
 
       exitSpy.mockRestore()
@@ -101,7 +109,7 @@ describe('doctor command', () => {
       const { execa } = await import('execa')
       // headroom passes, git user.name fails
       vi.mocked(execa)
-        .mockResolvedValueOnce({ stdout: '1.0.0' } as any) // headroom --version
+        .mockResolvedValueOnce({ stdout: '' } as any) // headroom compress --help → exit 0
         .mockRejectedValueOnce(Object.assign(new Error('exit 1'), { code: 1 })) // git user.name fail
         .mockRejectedValueOnce(Object.assign(new Error('exit 1'), { code: 1 })) // git user.email fail
 

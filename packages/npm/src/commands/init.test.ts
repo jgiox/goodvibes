@@ -130,8 +130,8 @@ describe('init command', () => {
 
     vi.mocked(resolveTemplatesDir).mockReturnValue('/fake/templates')
     vi.mocked(copyTemplates).mockResolvedValue({ written: ['CLAUDE.md', '.github/workflows/ci.yml', 'README.md'], skipped: [] })
-    vi.mocked(installHeadroom).mockResolvedValue(undefined)
-    vi.mocked(configureMcp).mockResolvedValue(undefined)
+    vi.mocked(installHeadroom).mockResolvedValue({ status: 'installed' })
+    vi.mocked(configureMcp).mockResolvedValue({ status: 'registered' })
 
     // Execute all tasks
     vi.mocked(tasks).mockImplementation(async (taskList: any[]) => {
@@ -175,6 +175,11 @@ describe('init command', () => {
 
     // outro called
     expect(vi.mocked(outro)).toHaveBeenCalledWith(expect.stringContaining("You're all set"))
+
+    // note() called for headroom status
+    const headroomNoteCall = noteCalls.find(c => String(c[1]).toLowerCase().includes('headroom'))
+    expect(headroomNoteCall).toBeDefined()
+    expect(String(headroomNoteCall![0])).toMatch(/headroom.*installed|MCP.*registered/i)
   })
 
   it('prints file list completion note with "written" title', async () => {
@@ -185,8 +190,8 @@ describe('init command', () => {
 
     vi.mocked(resolveTemplatesDir).mockReturnValue('/fake/templates')
     vi.mocked(copyTemplates).mockResolvedValue({ written: ['CLAUDE.md', 'README.md'], skipped: [] })
-    vi.mocked(installHeadroom).mockResolvedValue(undefined)
-    vi.mocked(configureMcp).mockResolvedValue(undefined)
+    vi.mocked(installHeadroom).mockResolvedValue({ status: 'installed' })
+    vi.mocked(configureMcp).mockResolvedValue({ status: 'registered' })
 
     vi.mocked(tasks).mockImplementation(async (taskList: any[]) => {
       for (const t of taskList) {
@@ -216,8 +221,8 @@ describe('init command', () => {
 
     vi.mocked(resolveTemplatesDir).mockReturnValue('/fake/templates')
     vi.mocked(copyTemplates).mockResolvedValue({ written: ['CLAUDE.md'], skipped: [] })
-    vi.mocked(installHeadroom).mockResolvedValue(undefined)
-    vi.mocked(configureMcp).mockResolvedValue(undefined)
+    vi.mocked(installHeadroom).mockResolvedValue({ status: 'installed' })
+    vi.mocked(configureMcp).mockResolvedValue({ status: 'registered' })
 
     vi.mocked(tasks).mockImplementation(async (taskList: any[]) => {
       for (const t of taskList) {
@@ -260,8 +265,8 @@ describe('UX-01: non-empty directory notice', () => {
 
     vi.mocked(resolveTemplatesDir).mockReturnValue('/fake/templates')
     vi.mocked(copyTemplates).mockResolvedValue({ written: ['CLAUDE.md'], skipped: [] })
-    vi.mocked(installHeadroom).mockResolvedValue(undefined)
-    vi.mocked(configureMcp).mockResolvedValue(undefined)
+    vi.mocked(installHeadroom).mockResolvedValue({ status: 'installed' })
+    vi.mocked(configureMcp).mockResolvedValue({ status: 'registered' })
 
     vi.mocked(tasks).mockImplementation(async (taskList: any[]) => {
       for (const t of taskList) {
@@ -301,8 +306,8 @@ describe('UX-02: written/skipped split in completion', () => {
 
     vi.mocked(resolveTemplatesDir).mockReturnValue('/fake/templates')
     vi.mocked(copyTemplates).mockResolvedValue({ written: ['CLAUDE.md', 'README.md'], skipped: [] })
-    vi.mocked(installHeadroom).mockResolvedValue(undefined)
-    vi.mocked(configureMcp).mockResolvedValue(undefined)
+    vi.mocked(installHeadroom).mockResolvedValue({ status: 'installed' })
+    vi.mocked(configureMcp).mockResolvedValue({ status: 'registered' })
 
     vi.mocked(tasks).mockImplementation(async (taskList: any[]) => {
       for (const t of taskList) {
@@ -333,8 +338,8 @@ describe('UX-02: written/skipped split in completion', () => {
 
     vi.mocked(resolveTemplatesDir).mockReturnValue('/fake/templates')
     vi.mocked(copyTemplates).mockResolvedValue({ written: ['CLAUDE.md'], skipped: ['JOURNAL.md'] })
-    vi.mocked(installHeadroom).mockResolvedValue(undefined)
-    vi.mocked(configureMcp).mockResolvedValue(undefined)
+    vi.mocked(installHeadroom).mockResolvedValue({ status: 'installed' })
+    vi.mocked(configureMcp).mockResolvedValue({ status: 'registered' })
 
     vi.mocked(tasks).mockImplementation(async (taskList: any[]) => {
       for (const t of taskList) {
