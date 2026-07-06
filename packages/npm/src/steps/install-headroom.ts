@@ -1,33 +1,39 @@
 import { execa } from 'execa'
 import { detectPython } from '../utils/detect-python.js'
 
+export type HeadroomResult =
+  | { status: 'installed' }
+  | { status: 'already-installed' }
+  | { status: 'skipped'; reason: string }
+  | { status: 'failed'; reason: string }
+
 /**
  * Install headroom-ai[all] via uv → pipx → pip fallback chain.
  *
  * @param log - Function to emit status messages (enables testing without console side effects)
  *
  * Behaviour:
- * - If Python 3.10+ is absent: logs skip message and returns (never throws, never exits 1)
+ * - If Python 3.10+ is absent: returns { status: 'skipped' } (never throws, never exits 1)
  * - Prints ONNX model download warning BEFORE starting the install subprocess
  * - Tries uv first, then pipx, then pip --user
  * - All execa calls pass args as arrays — no shell:true, no string interpolation
- * - If all three installers are ENOENT: logs a warning and returns gracefully (HDR-02 spirit)
+ * - If all three installers are ENOENT: returns { status: 'failed' } gracefully (HDR-02 spirit)
  */
-export async function installHeadroom(log: (msg: string) => void): Promise<void> {
+export async function installHeadroom(log: (msg: string) => void): Promise<HeadroomResult> {
   const pythonCmd = await detectPython()
 
   if (pythonCmd === null) {
     log('Python 3.10+ not found — skipping headroom install. Install Python 3.10+ and run `goodvibes init` again.')
-    return
+    return { status: 'skipped', reason: 'Python 3.10+ not found' }
   }
 
   log('headroom compresses AI context to save tokens — this keeps your costs down and sessions faster.')
 
-  // Idempotency probe: skip installer if headroom is already on PATH
+  // HDR2-03: functional probe catches broken installs where binary exists but compress fails
   try {
-    await execa('headroom', ['--version'])
+    await execa('headroom', ['compress', '--help'], { timeout: 10_000 })
     log('headroom already installed — skipping')
-    return
+    return { status: 'already-installed' }
   } catch (e: unknown) {
     if ((e as NodeJS.ErrnoException).code !== 'ENOENT') {
       // Non-ENOENT probe failure: log and fall through to installer
@@ -47,8 +53,8 @@ export async function installHeadroom(log: (msg: string) => void): Promise<void>
 
   for (const installer of installers) {
     try {
-      await execa(installer.cmd, installer.args)
-      return
+      await execa(installer.cmd, installer.args, { timeout: 10_000 })
+      return { status: 'installed' }
     } catch (e: unknown) {
       if ((e as NodeJS.ErrnoException).code === 'ENOENT') {
         // Installer not found — try next
@@ -59,10 +65,11 @@ export async function installHeadroom(log: (msg: string) => void): Promise<void>
       const summary = (e as Error).message?.split('\n')[0] ?? 'unknown error'
       log(`headroom install failed: ${summary}`)
       log('You can install headroom manually later: uv tool install "headroom-ai[all]"')
-      return
+      return { status: 'failed', reason: summary }
     }
   }
 
   // All three installers were ENOENT — log warning and return gracefully
   log('No package installer found (uv, pipx, pip). Install Python 3.10+ with uv or pipx and run `goodvibes init` again.')
+  return { status: 'failed', reason: 'No package installer found' }
 }

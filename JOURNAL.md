@@ -668,4 +668,16 @@ Docs updated: README.md (IDE table + count), CHANGELOG.md, JOURNAL.md
 
 **Tests run:** npm test (119 passed), uv run pytest tests/ (126 passed) — no new tests needed for static stub files.
 
+---
+
+## 2026-07-06 — Phase 12-01: HeadroomResult/McpResult types, compress --help probe, 10s timeout
+
+**What I did:** Refactored `install-headroom.ts` and `configure-mcp.ts` to return discriminated union result types instead of `void`. Changed the headroom idempotency probe from `--version` to the functional `compress --help` (HDR2-03 — catches broken installs where binary exists but fails). Added `{ timeout: 10_000 }` to every execa call in both files (HDR2-04 — prevents subprocess hangs). Converted both `throw` sites in `configure-mcp.ts` to `return { status: 'failed', reason }` so steps never throw. Added 4 new tests for missing coverage paths (headroom-not-on-path, fallback-ENOENT, headroom-mcp-install-CalledProcessError, claude-mcp-add-CalledProcessError). TDD discipline: RED commit (f4a8bd2) first, GREEN commit after.
+
+**Files changed:** packages/npm/src/steps/install-headroom.ts, packages/npm/src/steps/configure-mcp.ts, packages/npm/src/steps/install-headroom.test.ts, packages/npm/src/steps/configure-mcp.test.ts, JOURNAL.md.
+
+**Why:** HDR2-03 + HDR2-04 — root cause fixes for broken headroom installs passing the --version probe and subprocesses hanging indefinitely. Steps layer only; commands layer updated in Plan 12-02.
+
+**Tests run:** npm run test (123 passed, 1 skipped) from packages/npm/.
+
 **Docs updated:** JOURNAL.md. Phase 11 complete — goodvibes is published as goodvibes-cli on both npm and PyPI, with CI smoke tests gating every future publish.
