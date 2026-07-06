@@ -352,7 +352,24 @@ Plans:
   2. Running `GOODVIBES_NO_TELEMETRY=1 goodvibes init` or `DO_NOT_TRACK=1 goodvibes init` or `CI=true goodvibes init` shows no disclosure line and makes no outbound network call
   3. `goodvibes init` total runtime is not noticeably affected whether the telemetry endpoint is reachable or unreachable — a slow or offline endpoint adds at most 1 second after all files are written, never before or during file operations
 
-**Plans**: TBD
+**Plans**: 6 plans
+Plans:
+
+**Wave 1** *(parallel — no file conflicts)*
+
+- [ ] 13-01-PLAN.md — CF Worker counter endpoint (worker.js, wrangler.toml) + deploy-worker.yml
+- [ ] 13-02-PLAN.md — npm telemetry module: sendTelemetry() + unit tests
+- [ ] 13-03-PLAN.md — pip telemetry module: start_telemetry_thread() + unit tests
+
+**Wave 2** *(parallel — no file conflicts)*
+
+- [ ] 13-04-PLAN.md — npm init.ts wiring: disclosure note + Promise.race + init.test.ts
+- [ ] 13-05-PLAN.md — pip init_cmd.py wiring: disclosure Panel + thread join + test_init_cmd.py
+
+**Wave 3** *(blocked on all prior waves)*
+
+- [ ] 13-06-PLAN.md — Deploy Worker checkpoint + update TELEMETRY_URL constants
+
 **UI hint**: no
 
 ### Phase 14: goodvibes update with Manifest
@@ -396,5 +413,5 @@ v1.2.0 build order: 12 → 13 → 14. Phase 12 (headroom status) and Phase 14 (u
 | 10. Vibe Coder Completeness | 3/3 | Complete    | 2026-07-01 |
 | 11. Publish Quality & Discoverability | 4/4 | Complete    | 2026-07-02 |
 | 12. Headroom Status Surfacing | 3/3 | Complete    | 2026-07-06 |
-| 13. Anonymous Telemetry | 0/TBD | Not started | - |
+| 13. Anonymous Telemetry | 0/6 | Planning complete | - |
 | 14. goodvibes update with Manifest | 0/TBD | Not started | - |
