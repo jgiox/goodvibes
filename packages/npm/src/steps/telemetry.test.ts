@@ -12,6 +12,10 @@ describe('sendTelemetry', () => {
   })
 
   it('calls fetch with POST method when no opt-out env var is set', async () => {
+    // Clear CI env var — GitHub Actions sets CI=true which triggers opt-out
+    vi.stubEnv('DO_NOT_TRACK', '')
+    vi.stubEnv('GOODVIBES_NO_TELEMETRY', '')
+    vi.stubEnv('CI', '')
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, status: 200 }))
     const { sendTelemetry } = await import('./telemetry.js')
     await sendTelemetry()
@@ -23,6 +27,10 @@ describe('sendTelemetry', () => {
   })
 
   it('calls fetch with an X-Request-Id header matching UUID format', async () => {
+    // Clear CI env var — GitHub Actions sets CI=true which triggers opt-out
+    vi.stubEnv('DO_NOT_TRACK', '')
+    vi.stubEnv('GOODVIBES_NO_TELEMETRY', '')
+    vi.stubEnv('CI', '')
     const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200 })
     vi.stubGlobal('fetch', mockFetch)
     const { sendTelemetry } = await import('./telemetry.js')
