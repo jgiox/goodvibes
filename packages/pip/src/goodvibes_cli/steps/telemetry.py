@@ -6,7 +6,7 @@ import uuid as _uuid
 
 TELEMETRY_URL = os.environ.get(
     "GOODVIBES_TELEMETRY_URL",
-    "https://goodvibes-telemetry.PLACEHOLDER.workers.dev/",
+    "https://goodvibes-telemetry.igiokas.workers.dev/",
 )
 
 

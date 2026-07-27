@@ -1,5 +1,5 @@
 const TELEMETRY_URL =
-  process.env.GOODVIBES_TELEMETRY_URL ?? 'https://goodvibes-telemetry.PLACEHOLDER.workers.dev/'
+  process.env.GOODVIBES_TELEMETRY_URL ?? 'https://goodvibes-telemetry.igiokas.workers.dev/'
 
 export async function sendTelemetry(): Promise<void> {
   if (
