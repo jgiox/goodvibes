@@ -429,4 +429,4 @@ v1.2.0 build order: 12 → 13 → 14. Phase 12 (headroom status) and Phase 14 (u
 | 11. Publish Quality & Discoverability | 4/4 | Complete    | 2026-07-02 |
 | 12. Headroom Status Surfacing | 3/3 | Complete    | 2026-07-06 |
 | 13. Anonymous Telemetry | 6/6 | Complete    | 2026-07-27 |
-| 14. goodvibes update with Manifest | 5/5 | Complete   | 2026-07-27 |
+| 14. goodvibes update with Manifest | 5/5 | Complete    | 2026-07-27 |

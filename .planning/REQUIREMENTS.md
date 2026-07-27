@@ -24,12 +24,12 @@
 
 ### Update Command
 
-- [ ] **UPD-01**: `goodvibes init` writes `.goodvibes.json` manifest (SHA-256 hash per managed file + goodvibes version)
-- [ ] **UPD-02**: `goodvibes update` reads manifest and categorises files: managed (safe to overwrite), user-modified (skip), net-new (write)
-- [ ] **UPD-03**: `goodvibes update --dry-run` shows what would change before writing anything
-- [ ] **UPD-04**: `goodvibes update` prompts confirmation before overwrites; `--force` skips prompt for CI use
-- [ ] **UPD-05**: Projects initialized before v1.2.0 (no manifest) receive a clear actionable message — no silent failure
-- [ ] **UPD-06**: `sentinel-merge` guards against SENTINEL_START without SENTINEL_END (prevents CLAUDE.md data-loss)
+- [x] **UPD-01**: `goodvibes init` writes `.goodvibes.json` manifest (SHA-256 hash per managed file + goodvibes version)
+- [x] **UPD-02**: `goodvibes update` reads manifest and categorises files: managed (safe to overwrite), user-modified (skip), net-new (write)
+- [x] **UPD-03**: `goodvibes update --dry-run` shows what would change before writing anything
+- [x] **UPD-04**: `goodvibes update` prompts confirmation before overwrites; `--force` skips prompt for CI use
+- [x] **UPD-05**: Projects initialized before v1.2.0 (no manifest) receive a clear actionable message — no silent failure
+- [x] **UPD-06**: `sentinel-merge` guards against SENTINEL_START without SENTINEL_END (prevents CLAUDE.md data-loss)
 
 ## Deferred to v1.3.0
 
@@ -67,9 +67,9 @@ All prior requirements from v1.0–v1.1.0 are validated. See ROADMAP.md phases 0
 | TEL-03 | Phase 13 | Complete |
 | TEL-04 | Phase 13 | Complete |
 | TEL-05 | Phase 13 | Complete |
-| UPD-01 | Phase 14 | Pending |
-| UPD-02 | Phase 14 | Pending |
-| UPD-03 | Phase 14 | Pending |
-| UPD-04 | Phase 14 | Pending |
-| UPD-05 | Phase 14 | Pending |
-| UPD-06 | Phase 14 | Pending |
+| UPD-01 | Phase 14 | Complete |
+| UPD-02 | Phase 14 | Complete |
+| UPD-03 | Phase 14 | Complete |
+| UPD-04 | Phase 14 | Complete |
+| UPD-05 | Phase 14 | Complete |
+| UPD-06 | Phase 14 | Complete |
