@@ -70,12 +70,13 @@ def init_cmd(
         ))
 
     if dry_run:
+        all_files = list_template_files(template_dir)
+        ci_variants = ["ci-node.yml", "ci-python.yml", "ci-both.yml"]
+        selected = f"ci-{project_type}.yml"
         if minimal:
-            all_files = list_template_files(template_dir)
             files = [f for f in all_files if not f.startswith(".github") and not f.startswith("docs")]
         else:
-            files_tuple = copy_templates(template_dir, cwd, dry_run=True, minimal=False, project_type=project_type)
-            files = files_tuple[0]
+            files = [f for f in all_files if not any(f.endswith(v) and not f.endswith(selected) for v in ci_variants)]
         file_list = "\n".join(f"  Would write: {f}" for f in files)
         console.print(Panel(file_list, title="Dry run — no files written"))
         if minimal:
