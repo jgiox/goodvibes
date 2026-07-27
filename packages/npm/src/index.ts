@@ -12,6 +12,7 @@ import { Command } from 'commander'
 import { registerInitCommand } from './commands/init.js'
 import { registerUpgradeCommand } from './commands/upgrade.js'
 import { registerDoctorCommand } from './commands/doctor.js'
+import { registerUpdateCommand } from './commands/update.js'
 
 const _require = createRequire(import.meta.url)
 const _pkg = _require('../package.json') as { version: string }
@@ -25,6 +26,7 @@ program
 
 registerInitCommand(program)
 registerUpgradeCommand(program)
+registerUpdateCommand(program)
 registerDoctorCommand(program)
 
 await program.parseAsync(process.argv)

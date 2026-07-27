@@ -218,17 +218,17 @@ describe('upgrade command', () => {
     else process.env['_GV_UPGRADING'] = prevEnv
   })
 
-  it('registers update as an alias for upgrade', async () => {
+  it('registers upgrade command without update alias (update is now a separate command)', async () => {
     const { registerUpgradeCommand } = await import('./upgrade.js')
     const { Command } = await import('commander')
     const program = new Command()
     program.exitOverride()
     registerUpgradeCommand(program)
 
-    // Commander stores registered aliases; .alias() is retrieved via .aliases()
     const upgradeCmd = program.commands.find(c => c.name() === 'upgrade')
     expect(upgradeCmd).toBeDefined()
-    expect(upgradeCmd!.aliases()).toContain('update')
+    // update is now its own command (14-04); upgrade no longer accepts it as alias
+    expect(upgradeCmd!.aliases()).not.toContain('update')
   })
 
   it('preserves user content outside sentinel blocks after upgrade', async () => {
