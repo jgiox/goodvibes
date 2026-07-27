@@ -44,6 +44,8 @@ def test_update_force_skips_confirm_prompt(mocker):
     mocker.patch("goodvibes_cli.commands.update_cmd.list_template_files", return_value=[])
     mocker.patch("pathlib.Path.exists", return_value=False)
     mock_confirm = mocker.patch("goodvibes_cli.commands.update_cmd.typer.confirm")
+    # template_dir is a MagicMock so template_src.exists() is truthy; mock merge_claude to avoid real I/O
+    mocker.patch("goodvibes_cli.commands.update_cmd.merge_claude")
     mocker.patch("goodvibes_cli.commands.update_cmd.write_manifest")
     result = runner.invoke(app, ["update", "--force"])
     assert result.exit_code == 0
@@ -58,6 +60,8 @@ def test_update_prompts_confirm_before_overwriting_without_force(mocker):
     mocker.patch("goodvibes_cli.commands.update_cmd.list_template_files", return_value=[])
     mocker.patch("pathlib.Path.exists", return_value=False)
     mock_confirm = mocker.patch("goodvibes_cli.commands.update_cmd.typer.confirm", return_value=True)
+    # template_dir is a MagicMock so template_src.exists() is truthy; mock merge_claude to avoid real I/O
+    mocker.patch("goodvibes_cli.commands.update_cmd.merge_claude")
     mocker.patch("goodvibes_cli.commands.update_cmd.write_manifest")
     result = runner.invoke(app, ["update"])
     mock_confirm.assert_called_once()
@@ -70,6 +74,8 @@ def test_update_calls_write_manifest_after_applying_changes(mocker):
     mocker.patch("goodvibes_cli.commands.update_cmd.detect_project_type", return_value="both")
     mocker.patch("goodvibes_cli.commands.update_cmd.list_template_files", return_value=[])
     mocker.patch("pathlib.Path.exists", return_value=False)
+    # template_dir is a MagicMock so template_src.exists() is truthy; mock copy2 to avoid real I/O
+    mocker.patch("goodvibes_cli.commands.update_cmd.shutil.copy2")
     mock_write = mocker.patch("goodvibes_cli.commands.update_cmd.write_manifest")
     result = runner.invoke(app, ["update", "--force"])
     assert result.exit_code == 0
