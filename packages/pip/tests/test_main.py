@@ -40,9 +40,10 @@ def test_dry_run_no_files_written(tmp_path, mocker):
         "goodvibes_cli.commands.init_cmd.resolve_templates_dir",
         return_value=tmp_path,
     )
+    # dry-run now uses list_template_files directly (WR-05 fix aligns with TS behaviour)
     mocker.patch(
-        "goodvibes_cli.commands.init_cmd.copy_templates",
-        return_value=(["CONTRIBUTING.md", "CLAUDE.md"], []),
+        "goodvibes_cli.commands.init_cmd.list_template_files",
+        return_value=["CONTRIBUTING.md", "CLAUDE.md"],
     )
     result = runner.invoke(app, ["init", "--dry-run"])
     assert result.exit_code == 0
