@@ -146,7 +146,7 @@ export function registerInitCommand(program: Command): void {
       const _ver = (_req('../../package.json') as { version: string }).version
       await writeManifest(cwd, createdFiles.filter(f => f !== '.goodvibes.json'), _ver)
 
-      await Promise.race([telemetryPromise, sleep(1_000)])
+      await Promise.race([telemetryPromise.catch(() => {}), sleep(1_000)])
 
       note(createdFiles.join('\n') || '(none)', `Files written (${createdFiles.length})`)
       if (skippedFiles.length > 0) {
