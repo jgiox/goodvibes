@@ -23,6 +23,12 @@ def mock_telemetry(mocker):
     mocker.patch("goodvibes_cli.commands.init_cmd.start_telemetry_thread", return_value=None)
 
 
+@pytest.fixture(autouse=True)
+def mock_write_manifest(mocker):
+    mocker.patch("goodvibes_cli.commands.init_cmd.write_manifest")
+    mocker.patch("importlib.metadata.version", return_value="1.2.0")
+
+
 def test_non_empty_dir_prints_notice_before_tasks(runner, app, mocker, tmp_path):
     mocker.patch("goodvibes_cli.commands.init_cmd.resolve_templates_dir", return_value=tmp_path)
     mocker.patch("goodvibes_cli.commands.init_cmd.detect_project_type", return_value="both")
@@ -149,3 +155,29 @@ def test_does_not_show_privacy_panel_when_do_not_track_is_1(runner, app, mocker,
     result = runner.invoke(app, ["--minimal"])
     assert result.exit_code == 0
     assert "Anonymous usage stats are collected" not in result.output
+
+
+def test_init_calls_write_manifest_once_on_normal_run(runner, app, mocker, tmp_path):
+    mocker.patch("goodvibes_cli.commands.init_cmd.resolve_templates_dir", return_value=tmp_path)
+    mocker.patch("goodvibes_cli.commands.init_cmd.detect_project_type", return_value="both")
+    mocker.patch("goodvibes_cli.commands.init_cmd.copy_templates", return_value=(["CLAUDE.md"], []))
+    mocker.patch("goodvibes_cli.commands.init_cmd.install_headroom", return_value={"status": "skipped", "reason": ""})
+    mocker.patch("goodvibes_cli.commands.init_cmd.configure_mcp", return_value={"status": "skipped", "reason": ""})
+    mocker.patch("pathlib.Path.iterdir", return_value=iter([]))
+    mock_wm = mocker.patch("goodvibes_cli.commands.init_cmd.write_manifest")
+    result = runner.invoke(app, ["--minimal"])
+    assert result.exit_code == 0
+    assert mock_wm.call_count == 1
+
+
+def test_init_dry_run_does_not_call_write_manifest(runner, app, mocker, tmp_path):
+    mocker.patch("goodvibes_cli.commands.init_cmd.resolve_templates_dir", return_value=tmp_path)
+    mocker.patch(
+        "goodvibes_cli.commands.init_cmd.list_template_files",
+        return_value=["CLAUDE.md"],
+    )
+    mocker.patch("pathlib.Path.iterdir", return_value=iter([]))
+    mock_wm = mocker.patch("goodvibes_cli.commands.init_cmd.write_manifest")
+    result = runner.invoke(app, ["--dry-run"])
+    assert result.exit_code == 0
+    assert mock_wm.call_count == 0

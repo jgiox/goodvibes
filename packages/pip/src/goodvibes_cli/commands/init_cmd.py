@@ -1,4 +1,5 @@
 """goodvibes init command — port of init.ts."""
+import importlib.metadata
 import os
 import pathlib
 from typing import Annotated
@@ -11,6 +12,7 @@ from goodvibes_cli.steps.configure_mcp import configure_mcp
 from goodvibes_cli.steps.copy_templates import copy_templates, list_template_files, resolve_templates_dir
 from goodvibes_cli.steps.install_headroom import install_headroom
 from goodvibes_cli.steps.telemetry import start_telemetry_thread
+from goodvibes_cli.steps.write_manifest import write_manifest
 from goodvibes_cli.utils.detect_project_type import detect_project_type
 
 console = Console()
@@ -125,6 +127,9 @@ def init_cmd(
     except OSError as e:
         console.print(f"[red]Unexpected error:[/red] {e}")
         raise typer.Exit(1)
+
+    _version = importlib.metadata.version("goodvibes-cli")
+    write_manifest(cwd, [f for f in created_files if f != ".goodvibes.json"], _version)
 
     if tel_thread:
         tel_thread.join(timeout=1.0)
