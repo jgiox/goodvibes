@@ -15,6 +15,11 @@ vi.mock('../steps/copy-templates.js', () => ({
   resolveTemplatesDir: vi.fn(),
 }))
 
+// Mock write-manifest — upgrade calls writeManifest after upgradeTemplates (WR-01 fix)
+vi.mock('../steps/write-manifest.js', () => ({
+  writeManifest: vi.fn().mockResolvedValue(undefined),
+}))
+
 // Mock sentinel-merge
 vi.mock('../utils/sentinel-merge.js', () => ({
   extractVersion: vi.fn(),
