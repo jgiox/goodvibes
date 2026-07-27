@@ -1,3 +1,6 @@
+# NOTE: No rate limiting configured — the endpoint is open to the public internet.
+# Counter values are for directional guidance only and cannot be relied upon for precise numbers.
+# Add Cloudflare Rate Limiting via the dashboard or wrangler.toml [[unsafe.bindings]] if accuracy matters.
 name = "goodvibes-telemetry"
 main = "worker.js"
 compatibility_date = "2025-01-01"
