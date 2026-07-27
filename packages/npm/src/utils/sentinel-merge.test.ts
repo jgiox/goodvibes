@@ -134,4 +134,15 @@ describe('mergeClaude', () => {
     expect(content).toBe(existingContent)
     expect(content).toContain('v2.0.0')
   })
+
+  it('SENTINEL_START without SENTINEL_END does not corrupt file', async () => {
+    const destPath = join(tmpDir, 'CLAUDE.md')
+    writeFileSync(destPath, '# User content\n\n' + SENTINEL_START + '\norphaned start')
+    await mergeClaude(destPath, TEMPLATE_CONTENT)
+    const content = readFileSync(destPath, 'utf-8')
+    expect(content.includes('# User content')).toBe(true)
+    expect(content.includes(SENTINEL_END)).toBe(true)
+    expect((content.match(/<!-- goodvibes:start -->/g) ?? []).length).toBe(1)
+    expect(content.split(SENTINEL_END).at(-1)?.trim()).toBe('')
+  })
 })
