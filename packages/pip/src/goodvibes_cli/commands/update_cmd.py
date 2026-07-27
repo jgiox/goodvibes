@@ -64,10 +64,11 @@ def update_cmd(
     for tf in all_template_files:
         if tf == ".goodvibes.json":
             continue
-        if tf in ci_variants:
-            if tf != selected_variant_src:
-                continue
-            dest_rel = ".github/workflows/ci.yml"
+        is_variant = any(tf.endswith(v) for v in ci_variants)
+        if is_variant:
+            if not tf.endswith(selected_variant_src):
+                continue  # skip unselected variants
+            dest_rel = ".github/workflows/ci.yml"  # map selected variant to dest name
         else:
             dest_rel = tf
         if dest_rel not in managed_keys:
