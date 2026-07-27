@@ -385,7 +385,22 @@ Plans:
   4. Running `goodvibes update` in a project initialized before v1.2.0 (no `.goodvibes.json`) prints a clear, actionable message explaining what to do next and exits without crashing or silently overwriting any files
   5. `goodvibes init` and `goodvibes update` never produce a CLAUDE.md with a SENTINEL_START marker that has no matching SENTINEL_END — the sentinel guard detects this edge case and recovers safely (treating it as an append)
 
-**Plans**: TBD
+**Plans**: 5 plans
+
+**Wave 0**
+
+- [ ] 14-01-PLAN.md — Wave 0: TypeScript sentinel guard fix (UPD-06) + UPD-06 test case
+
+**Wave 1** *(parallel — no file conflicts)*
+
+- [ ] 14-02-PLAN.md — Wave 1a: npm write-manifest.ts step + wire into init.ts (UPD-01)
+- [ ] 14-03-PLAN.md — Wave 1b: pip write_manifest.py step + wire into init_cmd.py (UPD-01)
+
+**Wave 2** *(parallel — no file conflicts)*
+
+- [ ] 14-04-PLAN.md — Wave 2a: npm update command + remove upgrade alias + index.ts wiring (UPD-02–UPD-05)
+- [ ] 14-05-PLAN.md — Wave 2b: pip update_cmd + main.py wiring (UPD-02–UPD-05)
+
 **UI hint**: no
 
 ## Progress
