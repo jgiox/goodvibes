@@ -96,10 +96,7 @@ def init_cmd(
     skipped_files_list: list[str] = []
 
     try:
-        with console.status("Copying template files") as status:
-            def log_copy(msg: str) -> None:
-                status.update(msg)
-
+        with console.status("Copying template files"):
             written, skipped = copy_templates(template_dir, cwd, dry_run=False, minimal=minimal, project_type=project_type)
             created_files.extend(written)
             skipped_files_list.extend(skipped)
