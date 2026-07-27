@@ -393,8 +393,8 @@ Plans:
 
 **Wave 1** *(parallel — no file conflicts)*
 
-- [ ] 14-02-PLAN.md — Wave 1a: npm write-manifest.ts step + wire into init.ts (UPD-01)
-- [ ] 14-03-PLAN.md — Wave 1b: pip write_manifest.py step + wire into init_cmd.py (UPD-01)
+- [x] 14-02-PLAN.md — Wave 1a: npm write-manifest.ts step + wire into init.ts (UPD-01)
+- [x] 14-03-PLAN.md — Wave 1b: pip write_manifest.py step + wire into init_cmd.py (UPD-01)
 
 **Wave 2** *(parallel — no file conflicts)*
 
@@ -429,4 +429,4 @@ v1.2.0 build order: 12 → 13 → 14. Phase 12 (headroom status) and Phase 14 (u
 | 11. Publish Quality & Discoverability | 4/4 | Complete    | 2026-07-02 |
 | 12. Headroom Status Surfacing | 3/3 | Complete    | 2026-07-06 |
 | 13. Anonymous Telemetry | 6/6 | Complete    | 2026-07-27 |
-| 14. goodvibes update with Manifest | 1/5 | In Progress|  |
+| 14. goodvibes update with Manifest | 3/5 | In Progress|  |
