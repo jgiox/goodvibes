@@ -5,5 +5,5 @@ workers_dev = true
 
 [[kv_namespaces]]
 binding = "INSTALLS"
-# replace with output of: wrangler kv:namespace create INSTALLS
-id = "PLACEHOLDER_KV_NAMESPACE_ID"
+# created via: wrangler kv namespace create INSTALLS
+id = "b8a19ad579f343a794771d7809486f7a"
