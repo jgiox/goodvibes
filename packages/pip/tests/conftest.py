@@ -5,6 +5,14 @@ import pytest
 from .fixtures import SENTINEL_START, SENTINEL_END, TEMPLATE_CONTENT, TEMPLATE_CONTENT_V130
 
 
+@pytest.fixture(autouse=True)
+def _auto_mock_write_manifest(request, mocker):
+    """Prevent write_manifest from touching disk in all init_cmd / main tests."""
+    # Only mock when the test exercises init_cmd (not test_write_manifest.py itself)
+    if "test_write_manifest" not in request.module.__name__:
+        mocker.patch("goodvibes_cli.commands.init_cmd.write_manifest")
+
+
 @pytest.fixture
 def tmp_dir(tmp_path):
     """Temporary directory for file operation tests."""
