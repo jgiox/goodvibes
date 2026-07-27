@@ -3,6 +3,7 @@ export default {
     // ponytail: reads only request.method — no IP, no body, no headers stored (D-02, T-13-01-IP)
     if (request.method !== 'POST') return new Response(null, { status: 204 });
 
+    // ponytail: KV is eventually consistent — concurrent increments can be lost; counter is approximate
     const today = new Date().toISOString().slice(0, 10);
     const rawTotal = await env.INSTALLS.get('total');
     const total = parseInt(rawTotal ?? '0', 10);
