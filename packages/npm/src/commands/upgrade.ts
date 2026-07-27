@@ -1,6 +1,7 @@
 import type { Command } from 'commander'
 import { intro, outro, note, tasks } from '@clack/prompts'
 import { listTemplateFiles, resolveTemplatesDir } from '../steps/copy-templates.js'
+import { writeManifest } from '../steps/write-manifest.js'
 import { detectProjectType } from '../utils/detect-project-type.js'
 import { extractVersion, versionGte, mergeClaude } from '../utils/sentinel-merge.js'
 import { copy, pathExists } from 'fs-extra'
@@ -189,6 +190,8 @@ export function registerUpgradeCommand(program: Command): void {
           task: async () => {
             const files = await upgradeTemplates(templateDir, cwd, projectType)
             updated.push(...files)
+            const version = getInstalledVersion() ?? 'unknown'
+            await writeManifest(cwd, files, version)
             return `Updated ${files.length} files`
           },
         },
