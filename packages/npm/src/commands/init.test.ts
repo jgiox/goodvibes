@@ -132,6 +132,7 @@ describe('init command', () => {
     const { copyTemplates, listTemplateFiles, resolveTemplatesDir } = await import('../steps/copy-templates.js')
     const { installHeadroom } = await import('../steps/install-headroom.js')
     const { configureMcp } = await import('../steps/configure-mcp.js')
+    const { sendTelemetry } = await import('../steps/telemetry.js')
 
     vi.mocked(resolveTemplatesDir).mockReturnValue('/fake/templates')
     vi.mocked(copyTemplates).mockResolvedValue({ written: ['CLAUDE.md', '.github/workflows/ci.yml', 'README.md'], skipped: [] })
@@ -185,6 +186,9 @@ describe('init command', () => {
     const headroomNoteCall = noteCalls.find(c => String(c[1]).toLowerCase().includes('headroom'))
     expect(headroomNoteCall).toBeDefined()
     expect(String(headroomNoteCall![0])).toMatch(/headroom.*installed|MCP.*registered/i)
+
+    // sendTelemetry must be called exactly once in the normal (non-dry-run) flow
+    expect(vi.mocked(sendTelemetry)).toHaveBeenCalledTimes(1)
   })
 
   it('prints file list completion note with "written" title', async () => {
