@@ -11,7 +11,8 @@ export async function sendTelemetry(): Promise<void> {
   const { randomUUID } = await import('node:crypto')
   const id = randomUUID() // per-invocation, never stored to disk (TEL-02)
   const ac = new AbortController()
-  const timer = setTimeout(() => ac.abort(), 5_000)
+  const timer = setTimeout(() => ac.abort(), 1_000)
+  timer.unref()   // won't prevent process exit if fetch somehow lingers
   try {
     await fetch(TELEMETRY_URL, {
       method: 'POST',
