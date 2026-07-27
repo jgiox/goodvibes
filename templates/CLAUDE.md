@@ -1,7 +1,7 @@
 # CLAUDE.md
 
 <!-- goodvibes:start -->
-# goodvibes: v1.6.2
+# goodvibes: v1.7.0
 
 ## Engineering Rules
 
@@ -16,11 +16,12 @@ For every task, define: the exact request, success criteria, files you expect to
 - If the assumption is security-sensitive, data-sensitive, or schema-sensitive, do not proceed silently.
 
 ### Simplicity first
-**Use the minimum code that solves the problem.**
+**Make the smallest complete change.**
 - Prefer a direct implementation over a generalized one.
 - Prefer one clear function over a new framework layer.
 - Avoid optional flags, plugin hooks, factories, and strategy objects unless the task actually requires them.
 - If 200 lines can be 50 without losing clarity, reduce it.
+- Check for all instances: a fix that closes one of three identical bugs is not complete.
 
 ### Surgical changes
 **Touch only what the task requires.**
@@ -43,6 +44,24 @@ For every task, define: the exact request, success criteria, files you expect to
 - Apply least privilege for tokens, roles, and permissions.
 
 Must flag immediately: SQL injection, XSS, command injection, path traversal, broken auth, leaked secrets, unsafe dependency additions.
+
+### Proof of work
+**Show evidence, not intent.**
+- Before marking a task done, run the relevant tests and paste the passing output.
+- Name the files you changed and the specific tests that cover each one.
+- If no automated test covers a change, say so explicitly — do not assume the change is correct.
+- "I ran the tests" is not proof. Paste the output.
+
+### Action tiers
+**Each type of action requires a different level of authorization.**
+
+| Tier | Examples | Rule |
+|------|----------|------|
+| Read | View files, grep, search | Automatic — no confirmation needed |
+| Local edit | Create/modify/delete files in the working tree | Do it; state what you changed and why |
+| Commit | `git commit` | Show the diff summary first; commit in atomic units |
+| Push | `git push` | Confirm with the human before every push |
+| Deploy / publish | npm publish, pip publish, production deploy | Explicit human approval required — never autonomous |
 
 ### Journal
 **Update `JOURNAL.md` at the end of every task.**
@@ -80,7 +99,7 @@ Stop at the first rung that holds:
 4. **Native platform feature covers it?** Use it.
 5. **Already-installed dependency solves it?** Use it. Never add a new one for what a few lines can do.
 6. **Can it be one line?** One line.
-7. **Only then:** the minimum code that works.
+7. **Only then:** the minimum code that completely solves the problem — all instances, not just the one you noticed.
 
 ## Rules
 - No unrequested abstractions: no interface with one implementation, no factory for one product.

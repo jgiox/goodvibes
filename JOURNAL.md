@@ -707,3 +707,31 @@ Docs updated: README.md (IDE table + count), CHANGELOG.md, JOURNAL.md
 **Tests run:** npm run test (123 passed, 1 skipped) from packages/npm/.
 
 **Docs updated:** JOURNAL.md.
+
+---
+
+## 2026-07-27 — Phase 13: Anonymous telemetry (npm + pip wiring, CI fix)
+
+**What I did:** Implemented anonymous telemetry across all three layers. Steps layer: `sendTelemetry` (TS) fires a fire-and-forget POST with a per-invocation UUID; `start_telemetry_thread` (Python) is the equivalent. Commands layer: npm `init.ts` and pip `init_cmd.py` show a Privacy disclosure note, fire the telemetry promise/thread after dry-run guard, and join with a 1-second timeout so init never blocks on network. Opt-out: `DO_NOT_TRACK=1`, `GOODVIBES_NO_TELEMETRY=1`, or `CI=true`. Fixed a CI failure where GitHub Actions' `CI=true` triggered the opt-out guard in positive telemetry tests — added `vi.stubEnv('CI', '')` to the two affected vitest tests.
+
+**Files changed:** packages/npm/src/steps/telemetry.ts, packages/npm/src/steps/telemetry.test.ts, packages/npm/src/commands/init.ts, packages/npm/src/commands/init.test.ts, packages/pip/src/goodvibes_cli/steps/telemetry.py, packages/pip/tests/test_telemetry.py, packages/pip/src/goodvibes_cli/commands/init_cmd.py, packages/pip/tests/test_init_cmd.py, JOURNAL.md.
+
+**Why:** Phase 13 goal — anonymous usage signals so we know if the tool is being used in the wild. Privacy-first: no PII, per-invocation ID, CI/DNT opt-out, 1-second timeout cap.
+
+**Tests run:** npm run test (132 passed) from packages/npm/; uv run pytest (139 passed) from packages/pip/.
+
+**Docs updated:** JOURNAL.md.
+
+---
+
+## 2026-07-27 — v1.7.0: enforce completeness, proof of work, action tiers
+
+**What I did:** Applied three product changes based on user feedback to all 11 IDE rule files (CLAUDE.md, .cursor, copilot, .windsurfrules, .clinerules, .continue, .kiro, .devin, .amazonq, AGENTS.md, GEMINI.md) plus the repo's own CLAUDE.md. Changes: (1) "Simplicity first" renamed to "Make the smallest complete change" — added "Check for all instances" bullet to prevent partial fixes; (2) Added "Proof of work" section requiring test output paste before marking done; (3) Added "Action tiers" table separating read/edit/commit/push/deploy authorization levels; (4) Ponytail rung 7 updated to emphasize completeness. Added `templates/.claude/settings.json` as a new template file with Claude Code permission tiers: read/edit/test/commit auto-approved, push prompts, force-push/hard-reset denied. Bumped version to 1.7.0 in npm package.json, pip pyproject.toml, templates/CLAUDE.md, and repo CLAUDE.md.
+
+**Files changed:** templates/CLAUDE.md, templates/.claude/settings.json (new), templates/.cursor/rules/goodvibes.mdc, templates/.github/copilot-instructions.md, templates/.windsurfrules, templates/.clinerules/goodvibes.md, templates/.continue/rules/goodvibes.md, templates/.kiro/steering/goodvibes.md, templates/.devin/rules/goodvibes.md, templates/.amazonq/rules/goodvibes.md, templates/AGENTS.md, templates/GEMINI.md, CLAUDE.md, packages/npm/package.json, packages/pip/pyproject.toml, JOURNAL.md.
+
+**Why:** User feedback: "coding tools shouldn't be allowed to solve for lazy." Partial fixes, implicit test claims, and undifferentiated push/edit permissions were the specific gaps called out.
+
+**Tests run:** No test changes needed — template/doc content only.
+
+**Docs updated:** JOURNAL.md, all template IDE rule files.
