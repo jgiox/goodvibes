@@ -98,6 +98,7 @@ def update_cmd(
             return
 
     # Apply: overwrite managed files and copy net-new files
+    applied: list[str] = []
     for rel in overwrite + net_new:
         _assert_safe(cwd, rel)
         if rel == "CLAUDE.md":
@@ -119,9 +120,10 @@ def update_cmd(
             dest.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(str(template_src), str(dest))
 
-    applied = [r for r in overwrite + net_new if (cwd / r).exists()]
+        applied.append(rel)
+
     _version = importlib.metadata.version("goodvibes-cli")
     write_manifest(cwd, applied, _version)
 
-    console.print(Panel("\n".join(overwrite + net_new) or "(none)", title="Updated"))
+    console.print(Panel("\n".join(applied) or "(none)", title="Updated"))
     console.rule("[green]Update complete![/green]")
