@@ -389,7 +389,7 @@ Plans:
 
 **Wave 0**
 
-- [ ] 14-01-PLAN.md — Wave 0: TypeScript sentinel guard fix (UPD-06) + UPD-06 test case
+- [x] 14-01-PLAN.md — Wave 0: TypeScript sentinel guard fix (UPD-06) + UPD-06 test case
 
 **Wave 1** *(parallel — no file conflicts)*
 
@@ -429,4 +429,4 @@ v1.2.0 build order: 12 → 13 → 14. Phase 12 (headroom status) and Phase 14 (u
 | 11. Publish Quality & Discoverability | 4/4 | Complete    | 2026-07-02 |
 | 12. Headroom Status Surfacing | 3/3 | Complete    | 2026-07-06 |
 | 13. Anonymous Telemetry | 6/6 | Complete    | 2026-07-27 |
-| 14. goodvibes update with Manifest | 0/TBD | Not started | - |
+| 14. goodvibes update with Manifest | 1/5 | In Progress|  |
