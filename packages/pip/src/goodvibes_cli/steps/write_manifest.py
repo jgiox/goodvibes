@@ -24,5 +24,6 @@ def read_manifest(dest_dir: pathlib.Path) -> dict | None:
         return None
     try:
         return json.loads(p.read_text(encoding="utf-8"))
-    except Exception:
-        return None  # ponytail: malformed JSON must not crash the CLI
+    except (json.JSONDecodeError, ValueError):
+        return None  # malformed JSON must not crash the CLI
+    # PermissionError, OSError, etc. propagate — fail loud per project rules

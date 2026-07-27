@@ -27,8 +27,10 @@ export async function readManifest(destDir: string): Promise<Manifest | null> {
   try {
     const raw = await readFile(join(destDir, MANIFEST_PATH), 'utf-8')
     return JSON.parse(raw) as Manifest
-  } catch {
-    // ponytail: null signals missing or corrupt manifest; caller shows UPD-05 message
-    return null
+  } catch (e) {
+    const err = e as NodeJS.ErrnoException
+    if (err.code === 'ENOENT') return null
+    if (e instanceof SyntaxError) return null // JSON.parse failure
+    throw e
   }
 }
