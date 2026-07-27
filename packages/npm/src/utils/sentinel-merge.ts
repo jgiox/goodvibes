@@ -47,6 +47,11 @@ export async function mergeClaude(destPath: string, templateContent: string): Pr
   }
 
   const endIdx = existing.indexOf(SENTINEL_END)
+  if (endIdx === -1) {
+    // Malformed: SENTINEL_START without SENTINEL_END — treat as Case B (append)
+    await writeFile(destPath, existing.slice(0, startIdx).trimEnd() + '\n\n' + templateBlock + '\n')
+    return
+  }
   const existingBlock = existing.slice(startIdx, endIdx + SENTINEL_END.length)
   const existingVersion = extractVersion(existingBlock)
   const templateVersion = extractVersion(templateBlock)
