@@ -26,8 +26,8 @@ def _fire(request_id: str) -> None:
     )
     try:
         urllib.request.urlopen(req, timeout=5)
-    except Exception:
-        pass  # ponytail: silent on error — network must not affect init
+    except OSError:
+        pass  # ponytail: silent on network error — must not affect init
 
 
 def start_telemetry_thread() -> threading.Thread | None:
