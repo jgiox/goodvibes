@@ -26,7 +26,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 11: Publish Quality & Discoverability** - Make goodvibes trustworthy to install and easy to find — post-publish smoke tests, CI stamp guard, proper package names, polished registry pages, and two day-one UX improvements. (completed 2026-07-02)
 - [x] **Phase 12: Headroom Status Surfacing** - Replace hardcoded "headroom ready" with truthful install and MCP config outcomes in the init outro (v1.2.0) (completed 2026-07-06)
 - [x] **Phase 13: Anonymous Telemetry** - Add GDPR-compliant anonymous install counter to `goodvibes init` with first-run disclosure and opt-out (v1.2.0) (completed 2026-07-27)
-- [ ] **Phase 14: goodvibes update with Manifest** - Ship manifest-based template update with dry-run preview, confirmation prompt, and sentinel data-loss guard (v1.2.0)
+- [x] **Phase 14: goodvibes update with Manifest** - Ship manifest-based template update with dry-run preview, confirmation prompt, and sentinel data-loss guard (v1.2.0) (completed 2026-07-27)
 
 ## Phase Details
 
@@ -398,8 +398,8 @@ Plans:
 
 **Wave 2** *(parallel — no file conflicts)*
 
-- [ ] 14-04-PLAN.md — Wave 2a: npm update command + remove upgrade alias + index.ts wiring (UPD-02–UPD-05)
-- [ ] 14-05-PLAN.md — Wave 2b: pip update_cmd + main.py wiring (UPD-02–UPD-05)
+- [x] 14-04-PLAN.md — Wave 2a: npm update command + remove upgrade alias + index.ts wiring (UPD-02–UPD-05)
+- [x] 14-05-PLAN.md — Wave 2b: pip update_cmd + main.py wiring (UPD-02–UPD-05)
 
 **UI hint**: no
 
@@ -429,4 +429,4 @@ v1.2.0 build order: 12 → 13 → 14. Phase 12 (headroom status) and Phase 14 (u
 | 11. Publish Quality & Discoverability | 4/4 | Complete    | 2026-07-02 |
 | 12. Headroom Status Surfacing | 3/3 | Complete    | 2026-07-06 |
 | 13. Anonymous Telemetry | 6/6 | Complete    | 2026-07-27 |
-| 14. goodvibes update with Manifest | 3/5 | In Progress|  |
+| 14. goodvibes update with Manifest | 5/5 | Complete   | 2026-07-27 |
