@@ -127,11 +127,22 @@ async function upgradeTemplates(templateDir: string, destDir: string, projectTyp
   const templateContent = await readFile(claudeSrc, 'utf-8')
   await mergeClaude(claudeDest, templateContent)
 
-  // Return paths written — walk only the managed prefixes to avoid touching user files
-  const allDest = (await listTemplateFiles(destDir)) ?? []
-  return allDest
-    .filter(f => f.startsWith('.claude/skills/') || f.startsWith('.github/workflows/') || f === 'CLAUDE.md')
-    .sort()
+  // Return paths written — derive from template source to avoid including pre-existing user files
+  const allSrc = (await listTemplateFiles(templateDir)) ?? []
+  const written: string[] = ['CLAUDE.md'] // always merged via mergeClaude above
+  for (const f of allSrc) {
+    if (f === 'CLAUDE.md') continue
+    const basename = f.split('/').pop() ?? ''
+    if (ciVariants.includes(basename)) {
+      if (basename !== selectedVariant) continue
+      written.push('.github/workflows/ci.yml')
+      continue
+    }
+    if (f.startsWith('.claude/skills/') || f.startsWith('.github/workflows/')) {
+      written.push(f)
+    }
+  }
+  return written.sort()
 }
 
 export function registerUpgradeCommand(program: Command): void {
