@@ -16,11 +16,11 @@
 
 ### Telemetry
 
-- [ ] **TEL-01**: `goodvibes init` sends an anonymous fire-and-forget event to a GDPR-compliant endpoint (no PII, no persistent user ID)
-- [ ] **TEL-02**: Telemetry uses a per-invocation `randomUUID()` — never stored on disk
-- [ ] **TEL-03**: Opt-out via `DO_NOT_TRACK=1` or `GOODVIBES_NO_TELEMETRY=1`; auto-suppressed when `CI=true`
-- [ ] **TEL-04**: One-line disclosure shown in init intro before tasks run
-- [ ] **TEL-05**: Telemetry never blocks or slows init — `Promise.race` with 1-second grace after tasks complete
+- [x] **TEL-01**: `goodvibes init` sends an anonymous fire-and-forget event to a GDPR-compliant endpoint (no PII, no persistent user ID)
+- [x] **TEL-02**: Telemetry uses a per-invocation `randomUUID()` — never stored on disk
+- [x] **TEL-03**: Opt-out via `DO_NOT_TRACK=1` or `GOODVIBES_NO_TELEMETRY=1`; auto-suppressed when `CI=true`
+- [x] **TEL-04**: One-line disclosure shown in init intro before tasks run
+- [x] **TEL-05**: Telemetry never blocks or slows init — `Promise.race` with 1-second grace after tasks complete
 
 ### Update Command
 
@@ -62,11 +62,11 @@ All prior requirements from v1.0–v1.1.0 are validated. See ROADMAP.md phases 0
 | HDR2-03 | Phase 12 | Complete |
 | HDR2-04 | Phase 12 | Complete |
 | HDR2-05 | Phase 12 | Complete |
-| TEL-01 | Phase 13 | Pending |
-| TEL-02 | Phase 13 | Pending |
-| TEL-03 | Phase 13 | Pending |
-| TEL-04 | Phase 13 | Pending |
-| TEL-05 | Phase 13 | Pending |
+| TEL-01 | Phase 13 | Complete |
+| TEL-02 | Phase 13 | Complete |
+| TEL-03 | Phase 13 | Complete |
+| TEL-04 | Phase 13 | Complete |
+| TEL-05 | Phase 13 | Complete |
 | UPD-01 | Phase 14 | Pending |
 | UPD-02 | Phase 14 | Pending |
 | UPD-03 | Phase 14 | Pending |
