@@ -43,6 +43,12 @@ vi.mock('../steps/telemetry.js', () => ({
   sendTelemetry: vi.fn().mockResolvedValue(undefined),
 }))
 
+// Mock write-manifest — prevents real file I/O in command-level unit tests
+vi.mock('../steps/write-manifest.js', () => ({
+  writeManifest: vi.fn().mockResolvedValue(undefined),
+  readManifest: vi.fn().mockResolvedValue(null),
+}))
+
 describe('init command', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -84,6 +90,10 @@ describe('init command', () => {
     )
     // outro called
     expect(vi.mocked(outro)).toHaveBeenCalled()
+
+    // writeManifest must NOT be called during dry-run
+    const { writeManifest } = await import('../steps/write-manifest.js')
+    expect(vi.mocked(writeManifest)).not.toHaveBeenCalled()
   })
 
   it('--minimal: calls tasks() but installHeadroom and configureMcp are NOT called', async () => {
@@ -189,6 +199,15 @@ describe('init command', () => {
 
     // sendTelemetry must be called exactly once in the normal (non-dry-run) flow
     expect(vi.mocked(sendTelemetry)).toHaveBeenCalledTimes(1)
+
+    // writeManifest must be called once after tasks() complete
+    const { writeManifest } = await import('../steps/write-manifest.js')
+    expect(vi.mocked(writeManifest)).toHaveBeenCalledTimes(1)
+    expect(vi.mocked(writeManifest)).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.any(Array),
+      expect.any(String),
+    )
   })
 
   it('prints file list completion note with "written" title', async () => {
