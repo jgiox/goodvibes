@@ -19,6 +19,12 @@ from goodvibes_cli.utils.sentinel_merge import merge_claude
 console = Console()
 
 
+def _assert_safe(base: pathlib.Path, rel: str) -> None:
+    resolved = (base / rel).resolve()
+    if not str(resolved).startswith(str(base.resolve()) + "/"):
+        raise ValueError(f"Unsafe manifest key rejected: {rel}")
+
+
 def update_cmd(
     dry_run: Annotated[bool, typer.Option("--dry-run", help="Preview changes without writing")] = False,
     force: Annotated[bool, typer.Option("--force", help="Skip confirmation and overwrite")] = False,
@@ -48,6 +54,7 @@ def update_cmd(
 
     # First pass: manifest files → overwrite (SHA unchanged or absent) / skip (user-modified)
     for rel, manifest_sha in manifest["files"].items():
+        _assert_safe(cwd, rel)
         dest_path = cwd / rel
         if not dest_path.exists():
             overwrite.append(rel)
@@ -92,6 +99,7 @@ def update_cmd(
 
     # Apply: overwrite managed files and copy net-new files
     for rel in overwrite + net_new:
+        _assert_safe(cwd, rel)
         if rel == "CLAUDE.md":
             template_src = template_dir / "CLAUDE.md"
         elif rel == ".github/workflows/ci.yml":

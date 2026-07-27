@@ -6,12 +6,19 @@ import { mergeClaude } from '../utils/sentinel-merge.js'
 import { detectProjectType } from '../utils/detect-project-type.js'
 import { readFile } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
-import { join } from 'node:path'
+import { join, resolve, sep } from 'node:path'
 import { createHash } from 'node:crypto'
 import { createRequire } from 'node:module'
 import { copy } from 'fs-extra'
 
 const _require = createRequire(import.meta.url)
+
+function assertSafe(base: string, rel: string): void {
+  const resolved = resolve(base, rel)
+  if (!resolved.startsWith(resolve(base) + sep)) {
+    throw new Error(`Unsafe manifest key rejected: ${rel}`)
+  }
+}
 
 function getVersion(): string {
   try {
@@ -36,6 +43,7 @@ async function categorise(
 
   // First pass: check manifest-tracked files — unmodified → overwrite, user-modified → skip
   for (const [rel, manifestSha] of Object.entries(manifest.files)) {
+    assertSafe(cwd, rel)
     const destPath = join(cwd, rel)
     if (!existsSync(destPath)) {
       overwrite.push(rel) // dest gone, re-create
@@ -125,6 +133,7 @@ export function registerUpdateCommand(program: Command): void {
       // Apply overwrite + net-new; skip user-modified files
       const selectedVariantSrc = `.github/workflows/ci-${projectType}.yml`
       for (const rel of [...overwrite, ...netNew]) {
+        assertSafe(cwd, rel)
         let templateSrc: string
         if (rel === 'CLAUDE.md') {
           templateSrc = join(templateDir, 'CLAUDE.md')
