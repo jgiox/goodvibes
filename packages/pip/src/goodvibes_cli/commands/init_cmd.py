@@ -122,7 +122,7 @@ def init_cmd(
         console.print("[yellow]Fix:[/yellow] Make sure you are inside your project directory before running this command.")
         console.print("      If permissions are the issue: [bold]chmod u+w .[/bold]  (macOS/Linux)")
         raise typer.Exit(1)
-    except (OSError, Exception) as e:
+    except OSError as e:
         console.print(f"[red]Unexpected error:[/red] {e}")
         raise typer.Exit(1)
 
