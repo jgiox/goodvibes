@@ -724,6 +724,27 @@ Docs updated: README.md (IDE table + count), CHANGELOG.md, JOURNAL.md
 
 ---
 
+## 2026-07-28 — FAQ.md: package name migration self-serve guide
+
+**What I did:** Created FAQ.md at the repo root with five Q&A sections covering the most common
+goodvibes install and update questions, with primary focus on the jgiox-goodvibes -> goodvibes-cli
+package name migration that leaves users stuck on v1.6.1. Sections: version mismatch diagnosis,
+two-command migration fix (uv + pip fallback), update vs upgrade alias difference, "Already up to
+date" hash comparison explanation, and package detection via `uv tool list`.
+
+**Why:** Users who installed under the old package name hit confusing symptoms (wrong version,
+upgrade fails) with no obvious self-serve path. A beginner-first FAQ at the repo root resolves
+the most common support question without requiring a GitHub issue.
+
+**Files changed:** FAQ.md (new, 105 lines).
+
+**Tests run:** No automated tests — documentation-only change. Verified section count (6),
+line count (105 < 120), and migration command presence with grep.
+
+**Docs updated:** JOURNAL.md, FAQ.md.
+
+---
+
 ## 2026-07-27 — v1.7.0: enforce completeness, proof of work, action tiers
 
 **What I did:** Applied three product changes based on user feedback to all 11 IDE rule files (CLAUDE.md, .cursor, copilot, .windsurfrules, .clinerules, .continue, .kiro, .devin, .amazonq, AGENTS.md, GEMINI.md) plus the repo's own CLAUDE.md. Changes: (1) "Simplicity first" renamed to "Make the smallest complete change" — added "Check for all instances" bullet to prevent partial fixes; (2) Added "Proof of work" section requiring test output paste before marking done; (3) Added "Action tiers" table separating read/edit/commit/push/deploy authorization levels; (4) Ponytail rung 7 updated to emphasize completeness. Added `templates/.claude/settings.json` as a new template file with Claude Code permission tiers: read/edit/test/commit auto-approved, push prompts, force-push/hard-reset denied. Bumped version to 1.7.0 in npm package.json, pip pyproject.toml, templates/CLAUDE.md, and repo CLAUDE.md.
