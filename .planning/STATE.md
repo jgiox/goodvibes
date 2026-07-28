@@ -134,6 +134,7 @@ Recent decisions affecting current work:
 | 2026-06-30 | session-learnings | Added developer gotchas to CLAUDE.md; IDE scoping rule to templates/CLAUDE.md; AGENTS.md note to onboarding |
 | 2026-06-30 | eacces-fix | EACCES error now leads with "check your project directory"; Next Steps panel distinguishes Claude Code vs other IDEs |
 | 2026-06-30 | v1.4.0-publish | Tagged npm-v1.4.0 + pip-v1.4.0; published to npm and PyPI; dogfooded IDE files to repo root |
+| 2026-07-28 | 260728-a1b | Added FAQ.md covering jgiox-goodvibes → goodvibes-cli migration and common update command issues |
 
 ### Blockers/Concerns
 
