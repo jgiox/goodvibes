@@ -91,6 +91,7 @@ goodvibes init --minimal    # Skip headroom install, all .github/ files, and doc
 
 ## Docs
 
+- [FAQ.md](FAQ.md) — common issues: package name migration, update command, upgrading from older versions
 - [docs/getting-started.md](docs/getting-started.md) — first steps after `goodvibes init`
 - [docs/onboarding.md](docs/onboarding.md) — git and GitHub basics for complete beginners
 - [docs/platform-setup/cursor.md](docs/platform-setup/cursor.md) — Cursor ponytail setup
