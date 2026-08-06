@@ -12,6 +12,46 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/2.0.0/),
 
 - `goodvibes doctor` headroom check now uses `headroom --version` instead of `headroom compress --help`; the previous probe exited non-zero on installed headroom versions, always reporting a false failure
 
+## [1.7.0] — 2026-07-27
+
+### Added
+
+- `goodvibes update` command — compares each template file against a `.goodvibes.json` SHA-256 manifest to distinguish managed-unmodified files (safe to overwrite) from user-modified files (skip by default); supports `--dry-run` and `--force`
+- `.goodvibes.json` manifest — written by `goodvibes init` after every successful run; records the SHA-256 digest and goodvibes version for each managed template file
+- `goodvibes update --dry-run` — previews three labelled categories without writing: files to overwrite, files to skip (user-modified), and net-new files not yet in the manifest
+- `templates/.claude/settings.json` — Claude Code permission file; auto-approves read/edit/test/commit, prompts for push, denies force-push and hard-reset
+
+### Changed
+
+- `goodvibes update` replaces the `goodvibes upgrade` alias; the upgrade command still exists but `update` now uses manifest-aware logic instead of blind overwrite
+- CLAUDE.md engineering rules updated across all 14 supported IDEs: "Simplicity first" renamed to "Make the smallest complete change" with an explicit completeness requirement; "Proof of work" section added; "Action tiers" table added differentiating read/edit/commit/push/deploy authorization levels
+- Anonymous telemetry: `goodvibes init` sends a single counter ping to a Cloudflare Worker on first run; no personal data collected; respects `DO_NOT_TRACK`, `GOODVIBES_NO_TELEMETRY`, and `CI` environment variables
+
+### Fixed
+
+- CLAUDE.md sentinel guard: `<!-- goodvibes:start -->` without a matching `<!-- goodvibes:end -->` no longer corrupts the file; the block is now treated as an append target
+
+## [1.6.2] — 2026-07-02
+
+### Added
+
+- Package rename: npm package is now `goodvibes-cli` (was `@jgiox/goodvibes`); pip package is now `goodvibes-cli` (was `jgiox-goodvibes`); old names are deprecated/tombstoned with redirect messages
+- CI `check-stamps` job: fails CI when `packages/npm/package.json`, `packages/pip/pyproject.toml`, and `templates/CLAUDE.md` version stamps diverge
+- Publish smoke-test jobs: after each npm/pip publish, CI installs from the public registry and runs `goodvibes init --dry-run` to confirm the release is working before users hit it
+- `goodvibes doctor` now shows `goodvibes vX.Y.Z` as the first line of its output panel
+- Dedicated README.md pages for the npm and PyPI package listings
+- Tombstone stub: `jgiox-goodvibes` v2.0.0 on PyPI depends on `goodvibes-cli`, so `pip install jgiox-goodvibes` auto-upgrades to the new name
+
+### Changed
+
+- `goodvibes upgrade --dry-run` diff labels changed from symbols (`~`, `+`, `=`) to plain English (`updated`, `new`, `unchanged`)
+
+## [1.6.1] — 2026-07-02
+
+### Fixed
+
+- `goodvibes upgrade` incorrectly reported "already up to date" when a newer version was available — version comparison now reads the installed package version instead of the template package version
+
 ## [1.6.0] — 2026-07-01
 
 ### Added
@@ -103,9 +143,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/2.0.0/),
 - `Apache-2.0` LICENSE and NOTICE file
 - `goodvibes upgrade` command and GitHub template repo (`jgiox/goodvibes-template`)
 
-[1.5.0]: https://github.com/jgiox/goodvibes/compare/v1.4.0...v1.5.0
-[1.4.0]: https://github.com/jgiox/goodvibes/compare/v1.3.0...v1.4.0
-[1.3.0]: https://github.com/jgiox/goodvibes/compare/v1.2.0...v1.3.0
-[1.2.0]: https://github.com/jgiox/goodvibes/compare/v1.1.0...v1.2.0
-[1.1.0]: https://github.com/jgiox/goodvibes/compare/v1.0.0...v1.1.0
-[1.0.0]: https://github.com/jgiox/goodvibes/releases/tag/v1.0.0
+[1.7.1]: https://github.com/jgiox/goodvibes/compare/npm-v1.7.0...npm-v1.7.1
+[1.7.0]: https://github.com/jgiox/goodvibes/compare/npm-v1.6.2...npm-v1.7.0
+[1.6.2]: https://github.com/jgiox/goodvibes/compare/v1.6.1...npm-v1.6.2
+[1.6.1]: https://github.com/jgiox/goodvibes/compare/npm-v1.4.0...v1.6.1
+[1.4.0]: https://github.com/jgiox/goodvibes/compare/pip-v1.0.0...npm-v1.4.0
+[1.0.0]: https://github.com/jgiox/goodvibes/releases/tag/pip-v1.0.0
