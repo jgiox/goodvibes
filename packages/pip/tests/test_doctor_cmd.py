@@ -26,7 +26,7 @@ def test_check_headroom_returns_pass_when_headroom_working(mocker):
     mocker.patch(
         "goodvibes_cli.commands.doctor_cmd.subprocess.run",
         return_value=subprocess.CompletedProcess(
-            args=["headroom", "compress", "--help"], returncode=0, stdout="", stderr=""
+            args=["headroom", "--version"], returncode=0, stdout="", stderr=""
         ),
     )
     result = _check_headroom()
@@ -47,7 +47,7 @@ def test_check_headroom_returns_fail_when_headroom_not_found(mocker):
 def test_check_headroom_returns_fail_when_headroom_broken(mocker):
     mocker.patch(
         "goodvibes_cli.commands.doctor_cmd.subprocess.run",
-        side_effect=subprocess.CalledProcessError(1, ["headroom", "compress", "--help"]),
+        side_effect=subprocess.CalledProcessError(1, ["headroom", "--version"]),
     )
     result = _check_headroom()
     assert result.passed is False
@@ -56,7 +56,7 @@ def test_check_headroom_returns_fail_when_headroom_broken(mocker):
 def test_check_headroom_returns_fail_when_headroom_times_out(mocker):
     mocker.patch(
         "goodvibes_cli.commands.doctor_cmd.subprocess.run",
-        side_effect=subprocess.TimeoutExpired(cmd=["headroom", "compress", "--help"], timeout=10),
+        side_effect=subprocess.TimeoutExpired(cmd=["headroom", "--version"], timeout=10),
     )
     result = _check_headroom()
     assert result.passed is False

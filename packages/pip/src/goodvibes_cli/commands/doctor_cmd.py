@@ -34,7 +34,7 @@ class CheckResult:
 def _check_headroom() -> CheckResult:
     try:
         subprocess.run(
-            ["headroom", "compress", "--help"],
+            ["headroom", "--version"],
             capture_output=True, text=True, check=True, timeout=10
         )
         return CheckResult(label="headroom installed and working", passed=True)

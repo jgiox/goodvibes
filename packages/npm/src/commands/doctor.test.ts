@@ -62,7 +62,7 @@ describe('doctor command', () => {
       const execaCalls = vi.mocked(execa).mock.calls
       const headroomProbe = execaCalls[0]
       expect(headroomProbe[0]).toBe('headroom')
-      expect(headroomProbe[1]).toEqual(['compress', '--help'])
+      expect(headroomProbe[1]).toEqual(['--version'])
       expect(headroomProbe[2]).toMatchObject({ timeout: 10_000 })
 
       // note is called with check results — headroom should appear as pass (checkmark)

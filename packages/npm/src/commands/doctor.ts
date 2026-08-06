@@ -21,7 +21,7 @@ type CheckResult = { label: string; pass: boolean; remedy?: string }
 
 async function checkHeadroom(): Promise<CheckResult> {
   try {
-    await execa('headroom', ['compress', '--help'], { timeout: 10_000 })
+    await execa('headroom', ['--version'], { timeout: 10_000 })
     return { label: 'headroom installed and working', pass: true }
   } catch {
     return {
