@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/2.0.0/),
 
 ## [Unreleased]
 
+## [1.7.1] — 2026-08-06
+
+### Fixed
+
+- `goodvibes doctor` headroom check now uses `headroom --version` instead of `headroom compress --help`; the previous probe exited non-zero on installed headroom versions, always reporting a false failure
+
 ## [1.6.0] — 2026-07-01
 
 ### Added
