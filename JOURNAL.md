@@ -756,3 +756,17 @@ line count (105 < 120), and migration command presence with grep.
 **Tests run:** No test changes needed — template/doc content only.
 
 **Docs updated:** JOURNAL.md, all template IDE rule files.
+
+---
+
+## 2026-08-06 — v1.7.1: fix goodvibes doctor false headroom failure
+
+**What I did:** Changed the headroom probe in `goodvibes doctor` from `headroom compress --help` to `headroom --version`. The old probe exited non-zero on installed versions of headroom-ai (the `compress` subcommand structure doesn't match, or `--help` returns non-zero), causing doctor to always report headroom as missing even when it was correctly installed and working. `headroom --version` exits 0 universally on any working install. Updated tests in both packages to match the new probe. Bumped npm and pip to v1.7.1.
+
+**Files changed:** packages/npm/src/commands/doctor.ts, packages/npm/src/commands/doctor.test.ts, packages/pip/src/goodvibes_cli/commands/doctor_cmd.py, packages/pip/tests/test_doctor_cmd.py, packages/npm/package.json, packages/pip/pyproject.toml, CHANGELOG.md.
+
+**Why:** User ran `goodvibes init` (headroom installed correctly), then `goodvibes doctor` reported headroom as missing. `uv tool install headroom-ai` confirmed it was already installed. Root cause: probe command mismatch.
+
+**Tests run:** npm: 145 passed, 1 skipped. pip: 153 passed.
+
+**Docs updated:** CHANGELOG.md, JOURNAL.md.
