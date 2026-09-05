@@ -1,384 +1,171 @@
-# Technology Stack
+# Stack Research
 
-**Project:** goodvibes
-**Researched:** 2026-07-03 (v1.0 original: 2026-06-23; v1.1.0: 2026-06-26; updated for v1.2.0 Growth & Retention milestone)
+**Domain:** Claude Code enforcement hooks + context7 MCP wiring (goodvibes v1.8.0)
+**Researched:** 2026-09-05
+**Confidence:** HIGH (hooks schema, MCP schema, context7 config all verified against current official docs; MEDIUM on the Windows shell-availability assumption, flagged below)
 
----
+## Recommended Stack
 
-## Existing Stack (v1.0 — Do Not Re-research)
+### Core Technologies
 
-Already validated and in production. Not changing for v1.2.0.
+No new runtime technology is required. This milestone is **two static template files plus the existing copy/manifest pipeline** — not a new dependency.
 
-| Package | Version | Purpose | License |
-|---|---|---|---|
-| `commander` | ^15 | Argument parsing, subcommands | MIT |
-| `@clack/prompts` | ^1 | Interactive wizard UX | MIT |
-| `fs-extra` | ^11 | Cross-platform file copy/write | MIT |
-| `execa` | ^9 | Subprocess calls (uv, git) | MIT |
-| `tsup` | ^8 | Build / bundle | MIT |
-| `typescript` | ^6 | Language | Apache 2.0 |
-| `typer` | ^0.15 | pip CLI framework | MIT |
-| `rich` | ^14 | Terminal output | MIT |
+| Technology | Version | Purpose | Why Recommended |
+|------------|---------|---------|-----------------|
+| Claude Code `settings.json` hooks (`PreToolUse` event) | Current schema, verified against code.claude.com/docs/en/hooks (2026) | Blocks `git commit` unless `JOURNAL.md` is staged | It is the only enforcement primitive Claude Code exposes; `exit 2` is a hard block Claude cannot talk its way past, unlike an advisory CLAUDE.md instruction |
+| `.mcp.json` project-scope file | Current schema, verified against code.claude.com/docs/en/mcp (2026) | Registers context7 MCP server for the project | Project-scoped `.mcp.json` is version-controlled and auto-picked-up by any teammate/agent that opens the repo — matches goodvibes' "copy a file, get the behavior" model used everywhere else in the template |
+| context7 remote MCP endpoint (`https://mcp.context7.com/mcp`, `type: "http"`) | N/A (hosted service, MIT-licensed server, Upstash) | Gives Claude Code (and any MCP-compatible tool) live, version-aware library docs instead of stale training data | Zero-signup, zero-API-key, zero local process — no `npx` download, no Python/Node subprocess to manage. Directly satisfies the "stay zero-dependency" constraint |
 
-Note: package.json actually shows `commander ^15`, `@clack/prompts ^1`, `typescript ^6`, `@types/node ^26`, `vitest ^4` — the v1.1.0 STACK.md listed older versions, the above reflects actual current versions.
+### Supporting Libraries
 
----
+None. Do not add any npm or pip package for this milestone.
 
-## New Tooling for v1.1.0
+| Library | Version | Purpose | When to Use |
+|---------|---------|---------|-------------|
+| — | — | — | Not needed: the hook is a `git` one-liner, not a script requiring a parser/runtime |
 
-See prior STACK.md entry (VHS, shields.io, --minimal flag). No changes for v1.2.0.
+### Development Tools
 
----
+| Tool | Purpose | Notes |
+|------|---------|-------|
+| `git` (already a hard prerequisite of goodvibes) | Runs the actual staged-file check inside the hook | `git diff --cached --name-only` / `git diff --cached --quiet -- JOURNAL.md` — no `jq`, no `grep` required, keeps the hook shell-agnostic |
+| Existing `copy-templates.ts` / `copy_templates.py` recursive walk | Ships the two new files with zero code changes | Confirmed (`packages/npm/src/steps/copy-templates.ts`): `listTemplateFiles`/`walkDir` recursively enumerate every file under `templates/`, so dropping `templates/.mcp.json` and `templates/.claude/hooks/check-journal.sh` (or equivalent) in place is sufficient — no new entries to register anywhere |
+| Existing `write-manifest.ts` / `write_manifest.py` | Tracks the new files in `.goodvibes.json` for `goodvibes update` | Manifest is built from `writtenFiles` (the same recursive list), so new files are automatically SHA-256-tracked; no manifest schema change needed |
 
-## New Tooling for v1.2.0
+## Installation
 
-Three features, zero new dependencies across all three. Detailed below.
+No install step. This is template content, not a package dependency.
 
----
+```bash
+# 1. Add the two new files under the repo-root templates/ directory (source of truth)
+#    templates/.claude/settings.json   — add a "hooks" block (edit existing file)
+#    templates/.mcp.json               — new file
+#    templates/.claude/hooks/check-journal.sh  — new file (hook script)
 
-### 1. Headroom Integration Validation
+# 2. Sync into packages/npm/templates/ before building/testing the npm package
+cd packages/npm && npm run prebuild
 
-**Decision: No new dependencies. Refactor return types only.**
-
-**What the problem is now:**
-
-`installHeadroom()` and `configureMcp()` both return `Promise<void>`. The `@clack/prompts` `tasks()` array in `init.ts` hard-codes the task return value as `'headroom ready'` and `'MCP server registered'` regardless of whether the install succeeded, was skipped (Python absent), or failed (C++ build error).
-
-The user sees "headroom ready" even when headroom was not installed, because the return value is a fixed string, not derived from the function's outcome.
-
-**What to change:**
-
-Change both functions to return a structured result instead of void:
-
-```typescript
-// In install-headroom.ts
-export type HeadroomInstallResult =
-  | { status: 'installed' }
-  | { status: 'already-installed' }
-  | { status: 'skipped'; reason: string }
-  | { status: 'failed'; reason: string }
-
-export async function installHeadroom(
-  log: (msg: string) => void
-): Promise<HeadroomInstallResult>
+# 3. pip package reads templates from repo-root templates/ directly (verify path in
+#    packages/pip/src/goodvibes_cli — no separate prebuild step there per existing pattern)
 ```
 
-```typescript
-// In configure-mcp.ts
-export type McpConfigResult =
-  | { status: 'registered' }
-  | { status: 'already-registered' }
-  | { status: 'skipped'; reason: string }
-  | { status: 'failed'; reason: string }
+### `templates/.claude/settings.json` — hooks addition
 
-export async function configureMcp(
-  log: (msg: string) => void
-): Promise<McpConfigResult>
-```
-
-The `init.ts` task then returns the human-readable string from the result:
-
-```typescript
-{
-  title: 'Installing headroom',
-  task: async (message) => {
-    const result = await installHeadroom(msg => message(msg))
-    switch (result.status) {
-      case 'installed': return 'headroom installed'
-      case 'already-installed': return 'headroom already installed'
-      case 'skipped': return `headroom skipped — ${result.reason}`
-      case 'failed': return `headroom install failed — ${result.reason}`
-    }
-  },
-}
-```
-
-**Post-install validation:**
-
-After the installer loop succeeds in `installHeadroom`, run `headroom --version` to confirm the binary is on PATH and usable. If this probe fails after a fresh install, return `{ status: 'failed', reason: 'headroom binary not found on PATH after install (check shell PATH)' }`. This uses the already-imported `execa` — no new dependency.
-
-**Post-MCP validation:**
-
-After `claude mcp add` or `headroom mcp install` succeeds in `configureMcp`, run `headroom mcp status` as a final probe and include whether it returned exit 0 in the result. Again, already uses `execa`.
-
-**Final status display:**
-
-Add a note after the task list in `init.ts` that summarizes the headroom state:
-
-```
-headroom: installed | MCP: registered
-```
-
-or
-
-```
-headroom: skipped (Python 3.10+ not found) | MCP: not configured
-```
-
-This is a single `note()` call using already-installed `@clack/prompts`.
-
-**Confidence:** HIGH — confirmed by reading current source. The root cause is clear (fixed return strings). The fix is a type change and switch statement.
-
----
-
-### 2. Anonymous Install Telemetry
-
-**Decision: Native `fetch()` (Node 20 built-in) + PostHog EU Cloud. Zero new npm dependencies. Zero new pip dependencies.**
-
-**Why this approach:**
-
-| Criterion | posthog-node SDK | Raw fetch() to PostHog | Plausible Events API | Custom serverless counter |
-|---|---|---|---|---|
-| New npm dependencies | Yes (~500KB) | None | None | None |
-| GDPR compliance | Yes (EU Cloud) | Yes (EU Cloud) | Yes (privacy-first, cookies-free) | Depends on impl |
-| Infrastructure needed | No | No | $9/mo or self-host | Cloudflare Worker (free) |
-| Dashboard / analytics | Yes | Yes (via PostHog UI) | Yes | No |
-| Person profile creation | Opt-in | Opt-out via $process_person_profile: false | N/A | N/A |
-| Free tier | 1M events/month | 1M events/month | Paid only (no free tier) | 100K req/day free |
-| Offline handling | Built-in (fire & forget) | Manual (AbortSignal.timeout) | Manual | Manual |
-
-PostHog Cloud EU (`https://eu.posthog.com`) with a raw `fetch()` call is the right pick. It gives a real analytics dashboard at zero new dependencies and handles the GDPR requirement by:
-- Using `$process_person_profile: false` so no person record is created in PostHog
-- Not sending IP in the request body (only the source IP reaches PostHog's server, which they hash and discard per their GDPR policy)
-- Using a random per-invocation UUID as `distinct_id` — never stored on disk, never reused
-
-**Why not posthog-node:** It would add ~500KB to the CLI bundle, contradicting the zero-dep philosophy. The raw `fetch()` call for a single event is 15 lines.
-
-**Why not Plausible:** No free tier. Requires paying $9/month or self-hosting Docker infrastructure for a simple counter.
-
-**Why not a custom Cloudflare Worker:** Requires maintaining separate infrastructure. PostHog free tier is simpler and gives a proper analytics dashboard.
-
-**Node.js version dependency:** `fetch()` is stable and built-in since Node 18. goodvibes requires `>=20.12.0`, so no polyfill is needed.
-
-**Implementation skeleton (npm, TypeScript):**
-
-```typescript
-// src/telemetry.ts
-import { randomUUID } from 'node:crypto'
-
-const POSTHOG_KEY = 'phc_...'   // PostHog project API key (not secret, safe to ship in CLI)
-const POSTHOG_HOST = 'https://eu.posthog.com'
-
-export async function trackInit(props: {
-  version: string
-  os: string
-  headroomStatus: string
-}): Promise<void> {
-  if (process.env.GOODVIBES_TELEMETRY_DISABLED === '1') return
-
-  try {
-    await fetch(`${POSTHOG_HOST}/capture/`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        api_key: POSTHOG_KEY,
-        event: 'init',
-        distinct_id: `anon-${randomUUID()}`,   // fresh UUID each run, never stored
-        properties: {
-          version: props.version,
-          os: props.os,
-          headroom_status: props.headroomStatus,
-          $process_person_profile: false,       // GDPR: no person record created
-        },
-      }),
-      signal: AbortSignal.timeout(3000),        // never block the CLI
-    })
-  } catch {
-    // Swallow silently — telemetry must never fail the CLI
-  }
-}
-```
-
-**Python equivalent (pip package):**
-
-```python
-# src/goodvibes_cli/telemetry.py
-import json
-import os
-import uuid
-from urllib.request import Request, urlopen
-
-POSTHOG_KEY = "phc_..."
-POSTHOG_HOST = "https://eu.posthog.com"
-
-def track_init(version: str, os_name: str, headroom_status: str) -> None:
-    if os.environ.get("GOODVIBES_TELEMETRY_DISABLED") == "1":
-        return
-    payload = json.dumps({
-        "api_key": POSTHOG_KEY,
-        "event": "init",
-        "distinct_id": f"anon-{uuid.uuid4()}",
-        "properties": {
-            "version": version,
-            "os": os_name,
-            "headroom_status": headroom_status,
-            "$process_person_profile": False,
-        },
-    }).encode()
-    try:
-        req = Request(f"{POSTHOG_HOST}/capture/", data=payload,
-                      headers={"Content-Type": "application/json"}, method="POST")
-        urlopen(req, timeout=3)
-    except Exception:
-        pass  # Never fail the CLI for telemetry
-```
-
-**Opt-out mechanism:**
-
-Primary: `GOODVIBES_TELEMETRY_DISABLED=1` environment variable. This covers CI environments (set in GitHub Actions secrets), Docker containers, and users who want permanent opt-out via their shell profile.
-
-No persistent config file for opt-out. The env var is the simplest mechanism that works everywhere without creating a `~/.goodvibes/` directory that users would be confused by. This matches the pattern used by Next.js (`NEXT_TELEMETRY_DISABLED=1`) and most CLI tools.
-
-**GDPR compliance checklist:**
-- [x] No PII collected (no email, username, IP stored, no persistent ID)
-- [x] Opt-out via env var, documented in README
-- [x] `$process_person_profile: false` prevents PostHog from creating person records
-- [x] Per-invocation UUID — not persisted, no fingerprinting across sessions
-- [x] EU Cloud endpoint — data stays in EU
-- [x] Telemetry mention in README and init output (first run notice)
-
-**First-run notice:** On the very first `goodvibes init`, emit a one-line note via `@clack/prompts` `note()`:
-
-```
-Anonymous usage data is collected to improve goodvibes.
-Set GOODVIBES_TELEMETRY_DISABLED=1 to opt out.
-```
-
-This appears in the task output, not as a blocking prompt. It does not gate the install.
-
-**Confidence:** HIGH — PostHog Node.js docs verified, `$process_person_profile` property confirmed, EU endpoint confirmed. `fetch()` built-in stability in Node 20 confirmed. urllib.request is stdlib, no verification needed.
-
----
-
-### 3. `goodvibes update` Command
-
-**Decision: SHA-256 manifest file (`.goodvibes.json`). Zero new dependencies.**
-
-**The core problem:**
-
-`goodvibes update` needs to pull new template versions into an existing project without overwriting files the user has edited. A naïve "overwrite everything" approach breaks user customizations. A naïve "skip everything existing" approach means users never get template improvements.
-
-The right signal is: "was this file changed since goodvibes wrote it?" Not "does this file exist?" The SHA-256 of the file goodvibes originally wrote is the ground truth.
-
-**The manifest approach:**
-
-On `goodvibes init`, after all files are written, create `.goodvibes.json`:
+Merge into the existing `permissions` object (do not replace it):
 
 ```json
 {
-  "version": "1.6.2",
-  "init_date": "2026-07-03",
-  "files": {
-    "CLAUDE.md": "sha256:e3b0c44298fc1c149afbf4c8996fb924...",
-    ".github/workflows/ci-node.yml": "sha256:d82c3f5b1a7...",
-    ".claude/skills/caveman/SKILL.md": "sha256:b94f6f125c7..."
+  "permissions": {
+    "allow": ["Read(**)", "Edit(**)", "Write(**)", "Bash(git add *)", "Bash(git commit*)"],
+    "deny": ["Bash(git push --force*)", "Bash(git reset --hard*)"]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "if": "Bash(git commit *)",
+            "shell": "bash",
+            "command": "git diff --cached --quiet -- JOURNAL.md && { echo 'Blocked: stage JOURNAL.md before committing (see CLAUDE.md \"Journal\" rule).' >&2; exit 2; }; exit 0"
+          }
+        ]
+      }
+    ]
   }
 }
 ```
 
-On `goodvibes update`:
+**Why this exact shape:**
+- `matcher: "Bash"` scopes the hook to the Bash tool only (cheap — no per-Read/Write overhead).
+- `if: "Bash(git commit *)"` is a permission-rule filter evaluated on the actual command text, so the hook only runs on real commit attempts, not every `git` invocation (`git diff`, `git add`, `git status` all pass through untouched).
+- `git diff --cached --quiet -- JOURNAL.md` exits `1` if `JOURNAL.md` has staged changes, `0` if it does not — so the shell logic is a single git plumbing command, no `jq`/`grep`/JSON-stdin parsing needed even though `PreToolUse` hooks always receive a JSON stdin payload (the hook simply never reads stdin, which is valid).
+- `exit 2` is a **hard block**: per official docs, exit 2 blocks the tool call "regardless of any JSON printed," and the message on stderr is shown back to the model as the reason. `exit 0` (no JSON, no stderr) falls through to normal permission handling, i.e., the commit proceeds.
+- `"shell": "bash"` pins the interpreter explicitly rather than relying on Claude Code's platform default, so the same `command` string behaves identically on macOS/Linux (native bash) and Windows (Git Bash) — see the Windows caveat below.
 
-1. Read `.goodvibes.json` — if absent, exit with: "This project was not initialized with goodvibes init, or .goodvibes.json was deleted. Run goodvibes init to set up the project."
-2. Load new templates from the installed goodvibes package (same `resolveTemplatesDir()` used by init)
-3. For each template file in the new package:
-   - **File not in manifest** (added in a newer goodvibes version): write it; add to manifest
-   - **File in manifest, not on disk** (user deleted): write it; update manifest hash
-   - **File in manifest, on disk, disk hash == manifest hash**: user hasn't modified it → overwrite with new template; update manifest hash
-   - **File in manifest, on disk, disk hash != manifest hash**: user modified it → skip; report as "kept (user-modified)"
-4. Write updated `.goodvibes.json`
-5. Show summary: "Updated N files, kept M (user-modified), added K (new files)"
+### `templates/.mcp.json` — context7 wiring
 
-**Implementation uses only existing tools:**
-- `node:crypto` (`createHash('sha256')`) — built-in
-- `fs-extra` (`readFile`, `outputFile`) — already installed
-- `fs-extra` `pathExists()` — already installed
-
-No three-way merge needed. Goodvibes writes static files, not parameterized templates — if the template file and the project file are identical (same SHA), the update is safe. If the user has edited the file, goodvibes defers to the user.
-
-**Edge case: CLAUDE.md**
-
-CLAUDE.md is always modified by users (goodvibes merges rules into it, then users add their own). Its SHA will always differ from the original template. The update command skips it and shows "CLAUDE.md — kept (user-modified)". This is correct behavior: CLAUDE.md is a living document, not a static template.
-
-**Edge case: `.goodvibes.json` missing**
-
-Introduced in v1.2.0 — projects initialized with v1.1.x or earlier do not have a manifest. `goodvibes update` should detect this and print:
-
-```
-.goodvibes.json not found — this project was initialized with an older version of goodvibes.
-Run goodvibes init to re-initialize and create the manifest, then goodvibes update will work going forward.
+```json
+{
+  "mcpServers": {
+    "context7": {
+      "type": "http",
+      "url": "https://mcp.context7.com/mcp"
+    }
+  }
+}
 ```
 
-Do not attempt a "best-effort update without manifest" — the risk of overwriting user-modified files is too high.
+That is the entire free-tier default — no API key, no signup, no local process. Document the opt-in upgrade path in `docs/` (not in the shipped file) as an env-var override:
 
-**`.goodvibes.json` should be committed** — it's not secret, it's small, and committing it means the whole team benefits from `goodvibes update` working correctly.
+```json
+{
+  "mcpServers": {
+    "context7": {
+      "type": "http",
+      "url": "https://mcp.context7.com/mcp",
+      "headers": {
+        "Authorization": "Bearer ${CONTEXT7_API_KEY}"
+      }
+    }
+  }
+}
+```
 
-**No new dependencies:**
-- npm: `node:crypto` (built-in since Node 10) + `fs-extra` (already installed) + `node:fs/promises` (built-in)
-- pip: `hashlib` (stdlib) + `pathlib` (stdlib) + `shutil` (stdlib)
+Document, do not ship, this variant — instruct users who want higher rate limits to get a free key at context7.com/dashboard, export `CONTEXT7_API_KEY`, and either hand-edit `.mcp.json` or add the `headers` block themselves. `${VAR}` expansion in `.mcp.json` is a native Claude Code feature (confirmed in official docs) — if `CONTEXT7_API_KEY` is unset, Claude Code loads the config anyway and just leaves the literal `${CONTEXT7_API_KEY}` unexpanded with a warning in `claude mcp list`/`/mcp`, it does not hard-fail. This means it is technically safe to ship the header variant by default with an unset var — but goodvibes should still default to the keyless URL-only form, since an unresolved `${VAR}` in a fresh clone is a confusing first-run signal for a beginner audience.
 
-**Confidence:** HIGH — SHA-256 file integrity is a solved problem in every runtime. The manifest pattern is used by package managers, Docker layer caching, and npm's `package-lock.json`. No external validation needed.
+## Alternatives Considered
 
----
+| Recommended | Alternative | When to Use Alternative |
+|-------------|-------------|--------------------------|
+| `.mcp.json` type `"http"` pointing at `https://mcp.context7.com/mcp` | `type: "stdio"`, `command: "npx"`, `args: ["-y", "@upstash/context7-mcp"]` | Only if a user's environment blocks outbound MCP-over-HTTP (corporate proxy) but allows npx; costs a network fetch of the npm package on every fresh `npx` invocation and requires Node on PATH, which goodvibes cannot assume (see Windows note below) |
+| Static `.mcp.json` template file (project scope, checked into repo) | `claude mcp add --scope user context7 https://mcp.context7.com/mcp` invoked via `execa` at `init` time (the pattern goodvibes already uses for headroom in `configure-mcp.ts`) | Use the `execa`/`claude mcp add` pattern only if the config needs to be **user-scope** (machine-wide, not repo-shared) or needs runtime conditionals; context7 has no such need, so a plain checked-in file is strictly simpler and matches the "fork the repo, get everything" delivery path (execa-based registration only works for the `npx goodvibes init` path, not the git-fork path) |
+| Shell-form `command` string in the hook (`"command": "git diff ... && ..."`) | Exec-form (`"command": "node", "args": ["hook.js"]`) or a dedicated `.sh` file invoked via `bash "${CLAUDE_PROJECT_DIR}/.claude/hooks/check-journal.sh"` | Use a separate `.sh` file (still invoked via explicit `bash` in exec form) once the check logic grows past one line — e.g., if a future milestone wants to also validate JOURNAL.md's diff isn't a no-op edit. For a single git-plumbing command, inlining in `settings.json` avoids shipping/tracking an extra file |
+| `if: "Bash(git commit *)"` permission-rule filter | Parsing `tool_input.command` from stdin JSON with a script (`jq -r '.tool_input.command'`) | Only needed if the block condition depends on the *content* of the commit (e.g., commit message text), not just "is this a commit command" — `if` already handles the latter natively and needs no JSON parser dependency |
 
-## What NOT to Add for v1.2.0
+## What NOT to Use
 
-| Tool | Why Not |
-|---|---|
-| `posthog-node` | Adds ~500KB bundle; raw `fetch()` achieves the same single-event capture in 15 lines |
-| `plausible-telemetry` (npm) | Published 5 years ago, 0.1.0, effectively unmaintained; Plausible's HTTP API works directly via fetch |
-| `diff` / `diff3` npm package | Three-way merge is overkill for static file templates; SHA hash comparison is sufficient |
-| `copier` (Python) | Template engine approach for parametrized templates; goodvibes uses static files — shutil.copytree is enough |
-| `@sindresorhus/conf` | Persistent config store for opt-out preference; env var (GOODVIBES_TELEMETRY_DISABLED=1) is simpler and CI-friendly |
-| `uuid` npm package | `node:crypto` `randomUUID()` is built-in since Node 14.17 and covers the per-invocation UUID need |
-| Cloudflare Worker / custom backend | Additional infrastructure to maintain; PostHog free tier (1M events/month) covers the counter need with a real dashboard |
-| `semver` npm package | Not needed; version comparison for update command just reads the manifest version string — no range logic required |
+| Avoid | Why | Use Instead |
+|-------|-----|--------------|
+| A native `git` `pre-commit` hook (`.git/hooks/pre-commit`) instead of/in addition to the Claude Code hook | `.git/hooks/` is **not version-controlled** by default (lives outside the tracked tree), so `goodvibes init`/`goodvibes update` copying a file there would silently do nothing for anyone who already has a `.git` dir with hooks configured via `core.hooksPath`, and it does nothing for non-git-CLI commit paths (e.g., GUI clients, other agents' tool calls) — it also does not integrate with Claude Code's block-and-explain-to-the-model flow | Claude Code `PreToolUse` hook in `.claude/settings.json`, which is both trackable via the existing template/manifest system and gives the model an explanit stderr reason it can act on immediately |
+| `jq` inside the hook command | Adds an implicit dependency goodvibes cannot verify is installed (esp. on Windows, where `jq` is not preinstalled); also unnecessary since the `if` matcher already filters to `git commit` calls, so the hook body never needs to inspect `tool_input.command` at all | Plain `git diff --cached --quiet -- JOURNAL.md` (git is already assumed present) |
+| `npx @upstash/context7-mcp` (stdio/local process) as the shipped default | Requires Node.js on PATH at MCP-connection time, which is **no longer guaranteed** — Claude Code shipped a Node-free native installer in Oct 2025 and it is the recommended install path as of 2026, so a beginner running Claude Code natively may have no `node`/`npx` at all; it also triggers an npm registry fetch on first connect, which fails silently offline | The keyless remote `type: "http"` endpoint, which needs nothing but network access Claude Code already requires |
+| Baking a hard-coded `CONTEXT7_API_KEY` value into the shipped `.mcp.json` | Secret-in-template is exactly the kind of leaked-credential pattern the project's own CLAUDE.md security rules forbid ("Keep secrets out of code, commits, and logs") | Ship the keyless URL-only config; document the `${CONTEXT7_API_KEY}` env-var upgrade path as an opt-in doc, never a committed value |
+| Assuming the hook's default shell (bash on POSIX, silent PowerShell fallback on Windows) without pinning it | Claude Code silently falls back to PowerShell if Git Bash isn't found, and a bash one-liner (`&&`, `-q`, stderr redirect) is not valid PowerShell syntax — an un-pinned hook would work on the author's machine and silently misbehave (either erroring or no-op'ing) for a Windows user without Git Bash | Explicit `"shell": "bash"` in the hook definition, **plus** a documented (not silently swallowed) prerequisite: "Git for Windows" installs Git Bash by default, which is what makes this safe to assume given goodvibes already requires `git` |
 
----
+## Stack Patterns by Variant
 
-## Summary of New Additions for v1.2.0
+**If a user is on Windows without Git Bash on PATH (rare, but possible with minimal git installs via `winget`/`scoop --no-bash` style setups):**
+- The `"shell": "bash"` hook will fail to spawn (no interpreter found) rather than silently doing the wrong thing — Claude Code surfaces a hook-execution error to the user, which is loud, not silent, satisfying the project's "fail loud" rule.
+- Document this explicitly in the goodvibes onboarding doc as a known limitation of the hook layer (already flagged as a project-level constraint: "hooks have no equivalent in Codex, Cursor, Copilot, Windsurf, etc.").
+- Do not attempt to auto-detect and dual-ship a PowerShell variant of the same hook in this milestone — Claude Code has no OS-conditional hook dispatch, so shipping both would mean both fire and one always errors; scope this to a follow-up if Windows-without-Git-Bash reports come in.
 
-| Addition | Type | Where | New runtime dep? |
-|---|---|---|---|
-| `HeadroomInstallResult` / `McpConfigResult` types | Code change | `install-headroom.ts`, `configure-mcp.ts` | No |
-| Structured return from headroom steps | Code change | `install-headroom.ts`, `configure-mcp.ts`, `init.ts` | No |
-| Post-install `headroom --version` probe | Code change | `install-headroom.ts` | No |
-| Headroom status `note()` in init output | Code change | `init.ts` | No |
-| `src/telemetry.ts` | New file | `packages/npm/src/` | No (uses node:crypto + fetch) |
-| `goodvibes_cli/telemetry.py` | New file | `packages/pip/src/` | No (uses urllib.request + hashlib) |
-| `.goodvibes.json` manifest writer | Code change | `init.ts` / `init_cmd.py` | No |
-| `goodvibes update` command | New command | `packages/npm/src/commands/update.ts` + pip equivalent | No |
-| PostHog project (external setup) | External | PostHog EU Cloud dashboard | N/A |
+**If a user forks the repo (template path) vs. runs `npx goodvibes init` (installer path):**
+- Both paths get identical files, because both source from `templates/.mcp.json` and `templates/.claude/settings.json` — the fork path needs nothing extra since it's a plain git clone; the installer path needs nothing extra either, since this is a static copy, not an `execa`-driven `claude mcp add` call (unlike headroom's MCP registration, which does need the installer's execa step because it registers a local absolute path that only exists post-install).
 
-Zero new runtime dependencies for either package.
+**If a project wants higher context7 rate limits:**
+- Point users to `context7.com/dashboard` for a free API key, then either hand-edit `.mcp.json`'s `headers` block or export `CONTEXT7_API_KEY` and add the `${CONTEXT7_API_KEY}`-templated `headers` block themselves per the documented upgrade snippet above. goodvibes does not prompt for this at `init` time — it stays a docs-only opt-in, consistent with the zero-config default.
 
----
+## Version Compatibility
 
-## Confidence Levels
-
-| Area | Confidence | Rationale |
-|---|---|---|
-| Headroom return-type refactor | HIGH | Source code read directly; root cause confirmed; fix is mechanical |
-| `fetch()` available in Node 20 | HIGH | Node.js docs confirm stable since Node 18, unflagged since Node 21; project requires >=20.12.0 |
-| PostHog `$process_person_profile: false` | HIGH | PostHog docs confirmed this property prevents person record creation; EU Cloud endpoint confirmed |
-| `urllib.request` for Python telemetry | HIGH | Python stdlib since 3.0; no research needed |
-| SHA-256 manifest update strategy | HIGH | Standard pattern used by package managers; `node:crypto` and Python `hashlib` both provide sha256 |
-| GDPR compliance of per-invocation UUID | HIGH | No persistence = no tracking = no GDPR concern; `$process_person_profile: false` prevents PostHog profiling |
-| `.goodvibes.json` not-in-manifest behavior | MEDIUM | The "older project" edge case is well-understood but the specific UX error message needs user testing |
-| PostHog free tier limits | MEDIUM | "1M events/month free" confirmed on PostHog pricing page; actual rate limit enforcement not tested |
-
----
+| Package A | Compatible With | Notes |
+|-----------|-----------------|-------|
+| Claude Code hooks `"hooks"` schema (this doc) | Claude Code CLI supporting `PreToolUse` + `if` permission-rule filters + `hookSpecificOutput` | This is a relatively recent schema shape (the `if` field and `shell` field are newer additions layered onto the original matcher-only hooks system) — goodvibes should document a minimum Claude Code version in its onboarding doc and note graceful degradation: an older Claude Code that doesn't understand `if`/`shell` will likely ignore those fields or the whole hook block rather than error, but this was not independently verified against an old version and should be spot-checked before ship (flag for phase-specific research) |
+| `.mcp.json` `type: "http"` | Claude Code versions supporting Streamable HTTP MCP transport (current as of 2026; SSE is deprecated/being removed) | Do not ship `type: "sse"` for context7 — SSE is explicitly called out as deprecated in favor of `http` in both Claude Code's own MCP docs and context7's client docs |
+| context7 remote endpoint (`mcp.context7.com/mcp`) | Any MCP client speaking Streamable HTTP (Claude Code, Cursor, Windsurf, etc.) | Not Claude-Code-specific — the same `.mcp.json`-shaped config (mutatis mutandis for each tool's own MCP config file/format) could theoretically be reused for other IDE templates in a later milestone, but that is out of scope for v1.8.0 per PROJECT.md (hooks are explicitly Claude-Code-only; this milestone's `.mcp.json` scope is Claude Code only too) |
 
 ## Sources
 
-- [PostHog Node.js library — posthog.com/docs](https://posthog.com/docs/libraries/node)
-- [Next.js Telemetry — nextjs.org/telemetry](https://nextjs.org/telemetry) — reference pattern for opt-out via env var
-- [Plausible Events API — plausible.io/docs/events-api](https://plausible.io/docs/events-api) — considered and rejected (no free tier)
-- [Copier update mechanism — copier.readthedocs.io](https://copier.readthedocs.io/en/stable/updating/) — three-way merge approach; too heavy for static files
-- [posthog-node — npm](https://www.npmjs.com/package/posthog-node?activeTab=dependents) — 518 dependents, v5.28.5 current as of July 2026
-- [Archon telemetry issue — github.com/coleam00/Archon](https://github.com/coleam00/Archon/issues/1261) — reference pattern for anonymous CLI telemetry with PostHog
-- [headroom MCP commands — headroom-docs.vercel.app](https://headroom-docs.vercel.app/docs/installation) — `headroom mcp status`, `headroom doctor` confirmed
-- Codebase read directly: `packages/npm/src/steps/install-headroom.ts`, `configure-mcp.ts`, `commands/init.ts`, `packages/pip/src/goodvibes_cli/steps/`
+- Context7 library search — `/websites/code_claude` (Claude Code, 6911 snippets, high reputation) — confirmed hook/MCP schema exists in indexed docs; used as a pointer, primary verification done via official docs fetch below
+- [Hooks reference — Claude Code Docs](https://code.claude.com/docs/en/hooks) — fetched directly; verified `hooks` JSON schema, `PreToolUse` event, matcher vs. `if` permission-rule syntax, exit-code 0/1/2 semantics, stdin JSON shape, shell-vs-exec form, and the Windows Git-Bash/PowerShell fallback + `.cmd`/`.bat` exec-form caveat — HIGH confidence
+- [MCP documentation — Claude Code Docs](https://code.claude.com/docs/en/mcp) — fetched directly; verified `.mcp.json` project-scope file location, `mcpServers` schema, `type: "http"`/`"stdio"`/`"sse"`/`"ws"` transports, `headers`/`headersHelper` auth, and `${VAR}`/`${VAR:-default}` env expansion — HIGH confidence
+- [MCP Clients — Context7 Docs](https://context7.com/docs/resources/all-clients) — fetched directly; confirmed Claude Code CLI snippets for both keyless-remote and API-key variants — HIGH confidence
+- WebSearch (multiple sources incl. mcp.directory, augmentcode.com, deepwiki.com/upstash/context7) — cross-confirmed context7 is free/no-signup by default, MIT-licensed, API key only raises rate limits, SSE deprecated in favor of HTTP — MEDIUM-HIGH confidence (verified against 3+ independent sources plus official docs)
+- WebSearch (morphllm.com, claudefast.com, nxcode.io, thepromptshelf.dev, vanja.io) — cross-confirmed Claude Code's Node-free native installer became the recommended install path as of ~May 2026, meaning Node.js/npx cannot be assumed present on a user's machine — MEDIUM confidence (multiple independent sources agree, no single canonical Anthropic blog post fetched directly, flagged for spot-check before final ship copy)
+- Direct repo inspection — `/home/ygiokas/GoodVibes/packages/npm/src/steps/copy-templates.ts`, `write-manifest.ts`, `packages/npm/package.json` (`prebuild` script) — confirmed the existing recursive-walk copy + hash-manifest pipeline requires zero code changes to pick up new template files, and that `templates/` at repo root is the single source of truth synced via `npm run prebuild` — HIGH confidence (read directly, not inferred)
+- Direct repo inspection — `/home/ygiokas/GoodVibes/packages/npm/src/steps/configure-mcp.ts` — confirmed the existing headroom MCP registration pattern (`execa` + `claude mcp add -s user`) is deliberately **not** the right pattern to reuse for context7, since it's user-scope/runtime-registered for a path that only exists post-install, whereas context7 needs no such indirection — HIGH confidence
 
 ---
-*Stack research for: goodvibes v1.2.0 Growth & Retention (headroom validation, telemetry, update command)*
-*Researched: 2026-07-03*
+*Stack research for: Claude Code enforcement hooks + context7 MCP config (goodvibes v1.8.0)*
+*Researched: 2026-09-05*

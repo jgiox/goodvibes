@@ -1,378 +1,183 @@
-# Architecture Research: goodvibes v1.2.0 Growth & Retention
+# Architecture Research: v1.8.0 Agent Governance & Cross-Tool Enforcement
 
-**Milestone:** v1.2.0 — Growth & Retention (headroom validation, telemetry, update command)
-**Researched:** 2026-07-03
-**Confidence:** HIGH — all findings from direct source-code reading, no inference required
+**Domain:** Adding a new hooks/MCP config surface to an existing generic template-copy pipeline (goodvibes CLI, npm + pip)
+**Researched:** 2026-09-05
+**Confidence:** HIGH (all claims verified against the actual source in this repo, plus official Claude Code hooks docs and Context7 setup docs)
 
----
+## Central Finding
 
-## Existing Architecture — Canonical Map
+**The existing copy/manifest/update pipeline is already fully generic and file-tree-driven — it has zero hardcoded file lists.** `copyTemplates`/`copy_templates` walk the whole `templates/` directory with `fs-extra copy()` / `shutil.copytree()` and a filter/ignore callback that special-cases exactly three things: `CLAUDE.md` (sentinel merge), `.github/`+`docs/` (`--minimal` exclusion), and the three `ci-*.yml` variants (project-type selection). `write-manifest.ts`/`write_manifest.py` hash whatever file list they're handed. `update.ts`/`update_cmd.py`'s `categorise()` diffs `listTemplateFiles(templateDir)` against the manifest generically.
 
-The codebase is a two-package monorepo. TypeScript is canonical; Python is a port. Every feature lands in both simultaneously.
+This means **`.mcp.json` and a new `.claude/hooks/<script>` file require zero pipeline code changes** — dropping them into `templates/` is sufficient for them to be copied, no-clobbered, dry-run-listed, manifest-hashed, and update-diffed correctly, exactly like every other template file (`.windsurfrules`, `.kiro/steering/goodvibes.md`, etc.) already is.
+
+The one file that is **not** wholly new is `.claude/settings.json` — it already exists in `templates/.claude/settings.json` today (permissions-only, no `hooks` key) and already flows through this same generic pipeline with no special-casing. Adding a `hooks` block to it is a **content edit to an existing file**, not a new pipeline component.
 
 ```
-packages/npm/src/
-  index.ts                         <- entry; registers all three commands
-  commands/
-    init.ts                        <- action handler; orchestrates steps via tasks()
-    upgrade.ts                     <- action handler; self-update + template sync; exposes .alias('update')
-    doctor.ts                      <- health-check command; checkHeadroom(), checkGit(), etc.
-  steps/
-    copy-templates.ts              <- copyTemplates(), listTemplateFiles(), resolveTemplatesDir()
-    install-headroom.ts            <- installHeadroom(log) → Promise<void>
-    configure-mcp.ts               <- configureMcp(log) → Promise<void>
-  utils/
-    detect-project-type.ts
-    detect-python.ts
-    sentinel-merge.ts
-
-packages/pip/src/goodvibes_cli/
-  main.py                          <- Typer app; registers init, upgrade, update, doctor
-  commands/
-    init_cmd.py                    <- mirrors init.ts; orchestrates steps via console.status()
-    upgrade_cmd.py                 <- mirrors upgrade.ts; self-update + template sync
-    doctor_cmd.py
-  steps/
-    copy_templates.py
-    install_headroom.py            <- install_headroom(log) → None
-    configure_mcp.py               <- configure_mcp(log) → None
-  utils/
-    detect_project_type.py
-    detect_python.py
-    sentinel_merge.py
+templates/.claude/settings.json   → EXISTS today, permissions-only → content edit (add "hooks" key)
+templates/.claude/hooks/<script>  → NEW file → zero pipeline code needed, flows through generic copy
+templates/.mcp.json               → NEW file → zero pipeline code needed, flows through generic copy
 ```
 
-Two architectural invariants to preserve:
-1. Steps accept a `log: (msg: string) => void` / `log: Callable[[str], None]` — never write to console directly.
-2. Steps never throw on soft failures (installer not found, headroom binary absent). They log and return.
+## System Overview
 
----
-
-## Feature 1: Headroom Integration Validation
-
-### Finding: Validation already happens — it is just not returned
-
-`installHeadroom()` already runs an idempotency probe (`headroom --version` in TS, `shutil.which("headroom")` in Python) and has three distinct internal outcomes:
-
-| Outcome | Current behavior | What user sees |
-|---------|-----------------|----------------|
-| Python not found | logs skip message, returns | spinner updates, then disappears |
-| Already installed | logs "already installed — skipping", returns | spinner updates, then disappears |
-| Install succeeded | returns after successful execa call | task completes silently |
-| Install soft-failed | logs failure message, returns | spinner updates, then disappears |
-
-The `log` messages reach the `@clack/prompts` spinner only while the task is active. After `tasks()` resolves, all log output is gone. `init.ts` always shows `'headroom ready'` in the task list regardless of outcome (line 73 of init.ts: the task callback returns a hardcoded string).
-
-**Root problem:** the outcome is not surfaced in the post-init summary.
-
-### Decision: Extend return types, not a new file
-
-A new `validate-headroom.ts` step would re-run `headroom --version`, which `installHeadroom()` already ran. That is wasteful and violates Ponytail. The fix is returning the outcome.
-
-**TS change — `install-headroom.ts`:**
-
-```typescript
-// Export a discriminated union instead of void
-export type HeadroomResult =
-  | { status: 'installed' }
-  | { status: 'already-installed' }
-  | { status: 'skipped'; reason: string }
-  | { status: 'failed'; reason: string }
-
-export async function installHeadroom(log: (msg: string) => void): Promise<HeadroomResult>
+```
+┌──────────────────────────────────────────────────────────────────────┐
+│  templates/  (single source of truth, repo root)                     │
+│  ┌────────────┐ ┌──────────────────┐ ┌───────────┐ ┌──────────────┐  │
+│  │ CLAUDE.md  │ │.claude/settings  │ │ .mcp.json │ │.claude/hooks/│  │
+│  │ (sentinel- │ │.json (EXISTS —   │ │  (NEW)    │ │journal-gate  │  │
+│  │  merged)   │ │ add hooks key)   │ │           │ │.sh (NEW)     │  │
+│  └─────┬──────┘ └────────┬─────────┘ └─────┬─────┘ └──────┬───────┘  │
+└────────┼─────────────────┼─────────────────┼──────────────┼──────────┘
+         │                 │  generic fs-extra copy()/shutil.copytree()  │
+         │                 │  (no per-file special-casing beyond the 3   │
+         │                 │   filters: CLAUDE.md, --minimal, ci variant)│
+         ▼                 ▼                 ▼              ▼
+┌──────────────────────────────────────────────────────────────────────┐
+│  copy-templates.ts / copy_templates.py                                │
+│  filter/ignore callback: CLAUDE.md → skip (sentinel merge handles it) │
+│                          minimal && (.github|docs) → skip             │
+│                          ci-*.yml non-selected variant → skip         │
+│                          dest file already exists → skip (no-clobber) │
+└───────────────────────────────┬────────────────────────────────────┘
+                                 ▼
+                    written[] / skipped[]  (destDir-relative paths)
+                                 ▼
+┌──────────────────────────────────────────────────────────────────────┐
+│  write-manifest.ts / write_manifest.py                                │
+│  SHA-256(content) per written file → .goodvibes.json                  │
+│  (treats every file as opaque bytes — no JSON-aware merge logic)      │
+└───────────────────────────────┬────────────────────────────────────┘
+                                 ▼
+                    .goodvibes.json { version, files: { path: sha256 } }
+                                 ▼
+┌──────────────────────────────────────────────────────────────────────┐
+│  update.ts / update_cmd.py — categorise()                             │
+│  manifest hash == current dest hash → overwrite (safe, unmodified)    │
+│  manifest hash != current dest hash → skip (user-modified, preserve)  │
+│  template file not in manifest → net-new (add it)                    │
+└──────────────────────────────────────────────────────────────────────┘
 ```
 
-Each existing `return` in `installHeadroom` maps to one of the four variants:
-- `pythonCmd === null` → `{ status: 'skipped', reason: 'Python 3.10+ not found' }`
-- probe succeeds → `{ status: 'already-installed' }`
-- `execa` install succeeds → `{ status: 'installed' }`
-- all installers exhausted or CalledProcessError → `{ status: 'failed', reason: ... }`
+### Component Responsibilities
 
-**TS change — `configure-mcp.ts`:**
+| Component | Responsibility | Change needed for v1.8.0 |
+|-----------|----------------|---------------------------|
+| `templates/.claude/settings.json` | Ships default Claude Code permissions + (new) hooks config | **Modify** — add `hooks.PreToolUse` block alongside existing `permissions` |
+| `templates/.claude/hooks/<script>` | Executable script the hook invokes to gate `git commit` on staged `JOURNAL.md` | **New file** |
+| `templates/.mcp.json` | Ships context7 MCP server config (free public endpoint) at project scope | **New file** |
+| `copy-templates.ts` / `copy_templates.py` | Generic recursive copy with no-clobber + 3 filters | **No change** — new/modified files flow through unmodified |
+| `write-manifest.ts` / `write_manifest.py` | SHA-256 hash of whatever `written[]` contains | **No change** — new files auto-included since they appear in `written[]` |
+| `update.ts` / `update_cmd.py` (`categorise`) | Diffs manifest vs. dest vs. template tree | **No change** — new/modified files are picked up generically as net-new or overwrite |
+| `init.ts` / `init_cmd.py` dry-run file list | Lists `listTemplateFiles(templateDir)` minus ci-variant/`--minimal` filters | **No change** — no hardcoded file list to update |
+| `configure-mcp.ts` / `configure_mcp.py` | Registers **headroom** as a *global, user-scope* MCP server via `claude mcp add -s user` | **No change, no conflict** — this writes to the user's global `~/.claude.json`/CLI-managed config, never to a project-level `.mcp.json`. The new `templates/.mcp.json` is a separate, project-scoped file copied like any other template. |
+| `templates/CLAUDE.md`, `AGENTS.md`, `JOURNAL.md`, per-IDE rule files, `caveman/SKILL.md` | Wording/default-intensity content | **Content-only edit** — already copied by the existing pipeline; no code touches these paths specially except CLAUDE.md's sentinel merge (which is a merge algorithm, not content-aware of *what* changed) |
 
-```typescript
-export type McpResult =
-  | { status: 'registered' }
-  | { status: 'already-registered' }
-  | { status: 'skipped'; reason: string }
-  | { status: 'failed'; reason: string }
+## Integration Points (explicit)
 
-export async function configureMcp(log: (msg: string) => void): Promise<McpResult>
-```
+### 1. `.claude/settings.json` hooks block
 
-**TS change — `init.ts`:** consume the return values and emit them in the post-init summary:
-
-```typescript
-let headroomResult: HeadroomResult | undefined
-let mcpResult: McpResult | undefined
-
-// inside task:
-{ title: 'Installing headroom', task: async () => {
-    headroomResult = await installHeadroom(message)
-    return headroomResult.status
-}},
-{ title: 'Configuring headroom MCP', task: async () => {
-    mcpResult = await configureMcp(message)
-    return mcpResult.status
-}},
-
-// after tasks():
-note(formatHeadroomStatus(headroomResult, mcpResult), 'Headroom')
-```
-
-`formatHeadroomStatus` is a small inline helper in `init.ts` — no new file.
-
-**Python changes mirror TS exactly:**
-- `install_headroom.py`: return a `dict` or `TypedDict` with `status` key (string literal)
-- `configure_mcp.py`: same
-- `init_cmd.py`: capture return values, print a Rich Panel with the headroom status after other panels
-
-**Modified files (Feature 1):**
-
-| File | Change |
-|------|--------|
-| `packages/npm/src/steps/install-headroom.ts` | Change return type `void → HeadroomResult`; add return values at each exit point |
-| `packages/npm/src/steps/configure-mcp.ts` | Change return type `void → McpResult`; add return values at each exit point |
-| `packages/npm/src/commands/init.ts` | Capture return values; emit headroom status note after summary |
-| `packages/npm/src/steps/install-headroom.test.ts` | Update test assertions for new return type |
-| `packages/npm/src/steps/configure-mcp.test.ts` | Update test assertions for new return type |
-| `packages/pip/src/goodvibes_cli/steps/install_headroom.py` | Change return `None → dict`; add returns at each exit point |
-| `packages/pip/src/goodvibes_cli/steps/configure_mcp.py` | Change return `None → dict`; add returns at each exit point |
-| `packages/pip/src/goodvibes_cli/commands/init_cmd.py` | Capture return values; emit headroom status panel |
-
-**New files (Feature 1): Zero.**
-
----
-
-## Feature 2: Anonymous Install Telemetry
-
-### Decision: Utility function, called fire-and-forget from init action handler
-
-**Not a step.** Steps appear in the `tasks()` list, are user-visible, and block the init flow on error. Telemetry must be invisible and must never block init.
-
-**Not inline in `init.ts`.** A named utility function in `utils/` is testable in isolation, matches the existing `detect-python.ts` / `sentinel-merge.ts` pattern, and keeps `init.ts` clean.
-
-**TS — new file `packages/npm/src/utils/telemetry.ts`:**
-
-```typescript
-// Single exported function: fire-and-forget, never throws, never logs on success.
-// Called without await from init.ts action handler, after tasks() completes.
-export function sendTelemetry(): void {
-  // Implementation: one HTTP request to a counter endpoint.
-  // No PII. No await at call site. Process exits naturally after init.
-}
-```
-
-Call site in `init.ts` (after the `note(nextSteps, 'Next steps')` and before `outro()`):
-
-```typescript
-sendTelemetry()  // fire-and-forget; no await
-outro("You're all set!")
-```
-
-**Python — new file `packages/pip/src/goodvibes_cli/utils/telemetry.py`:**
-
-```python
-def send_telemetry() -> None:
-    """Fire-and-forget counter increment. Never raises. No PII."""
-    ...
-```
-
-Call site in `init_cmd.py` after `console.rule(...)`:
-
-```python
-send_telemetry()  # fire-and-forget; synchronous with short timeout
-```
-
-**Telemetry implementation constraints:**
-- No PII: no IP logging beyond what the endpoint's host logs by default, no user agent with version strings, no project name
-- A simple GET request to a counter URL is sufficient (e.g., a Cloudflare Worker, a Plausible custom event endpoint, or a self-hosted tally)
-- Timeout: 2 seconds max. Never retry. Swallow all exceptions.
-- The endpoint URL must be a constant in the utility file, not user-configurable
-
-**Modified files (Feature 2):**
-
-| File | Change |
-|------|--------|
-| `packages/npm/src/commands/init.ts` | Add `sendTelemetry()` call after tasks complete |
-| `packages/pip/src/goodvibes_cli/commands/init_cmd.py` | Add `send_telemetry()` call after tasks complete |
-
-**New files (Feature 2):**
-
-| File | Purpose |
-|------|---------|
-| `packages/npm/src/utils/telemetry.ts` | Fire-and-forget HTTP counter for npm package |
-| `packages/pip/src/goodvibes_cli/utils/telemetry.py` | Mirror for pip package |
-
----
-
-## Feature 3: `goodvibes update` Command
-
-### Finding: Already implemented in both packages — the alias exists today
-
-**npm (`upgrade.ts` line 138–139):**
-```typescript
-program
-  .command('upgrade')
-  .alias('update')
-```
-
-Running `goodvibes update` already invokes the full upgrade flow: self-update check against npm registry, template file sync, CLAUDE.md sentinel merge.
-
-**pip (`main.py` line 28):**
-```python
-app.command("update")(upgrade_cmd)
-```
-
-The pip package registers `update` as an independent command (not an alias in Typer's model, but the same function). `goodvibes update` and `goodvibes upgrade` are equivalent today.
-
-### What "Active (v1.2.0)" actually means
-
-The PROJECT.md marks `goodvibes update` as Active, but the alias already exists. The remaining work is:
-
-1. **Documentation**: README and `goodvibes --help` should clarify that `update` and `upgrade` are equivalent. Currently neither is mentioned explicitly in the docs as the "canonical" command.
-
-2. **Validation under v1.2.0 changes**: If Feature 1 (headroom status) is added to `init.ts`, the `update` command might also want to re-run `installHeadroom()` to surface headroom status during update. That would be a new task in `upgrade.ts`. This is optional and should be decided at implementation time based on user-facing requirements.
-
-**New command file: Not needed.** `upgrade.ts` / `upgrade_cmd.py` are the implementation. The alias routes to them.
-
-**If headroom re-run during update is desired:**
-
-```typescript
-// In upgrade.ts registerUpgradeCommand(), add after template sync tasks:
-if (!process.env[_GV_UPGRADING]) {  // skip during self-re-exec
-  taskList.push({
-    title: 'Validating headroom',
-    task: async () => {
-      const result = await installHeadroom(message)
-      return result.status
+- **File already exists** at `templates/.claude/settings.json` today:
+  `{"permissions":{"allow":[...],"deny":[...]}}` — no `hooks` key yet.
+- **Change required:** add a `hooks` top-level key alongside the existing `permissions` key (do not replace the file). Verified schema (Claude Code official docs, code.claude.com/docs/en/hooks):
+  ```json
+  {
+    "permissions": { "...": "...(unchanged)" },
+    "hooks": {
+      "PreToolUse": [
+        {
+          "matcher": "Bash",
+          "hooks": [
+            { "type": "command", "command": "${CLAUDE_PROJECT_DIR}/.claude/hooks/journal-gate.sh" }
+          ]
+        }
+      ]
     }
-  })
-}
-```
+  }
+  ```
+- **Copy pipeline:** already flows through `copyTemplates`/`copy_templates` unmodified today (this file is not special-cased anywhere in the filter/ignore callbacks — confirmed by reading both implementations). No code change needed to add the `hooks` key.
+- **No-clobber implication (real limitation, not a bug):** on `goodvibes init` in a project that *already has* `.claude/settings.json` (e.g. a returning user, or Claude Code auto-created one), the whole file is skipped — the hook will **not** be injected. This is identical behavior to how `.cursorrules`/`.windsurfrules` are already handled (documented precedent from Phase 8, IDE-03). The only path that adds the hook to an *existing* project is `goodvibes update`.
+- **Manifest/update path is the real delivery mechanism for existing projects:** since `.claude/settings.json` is already manifest-tracked (it's already a template file, already hashed into every prior `.goodvibes.json`), `goodvibes update`'s `categorise()` will see the template hash change and classify it as:
+  - **overwrite** (safe) if the user's on-disk `settings.json` still matches the *old* manifest hash (i.e. they never touched it) → they get the hook automatically on next `update`.
+  - **skip** (preserved) if the user customized `settings.json` (e.g. added their own permission rules) → the hook is **not** added; this must be documented (README/CHANGELOG note: "if you've customized `.claude/settings.json`, add the hook block manually — see docs/...").
+  - This is the existing, already-battle-tested manifest semantics (Phase 14/UPD-01–06) — no new merge logic needed or wanted (ponytail: a JSON-aware deep-merge for settings.json would be a new abstraction for a single file; the existing hash-based overwrite/skip model already does the right thing).
+- **`--minimal` scope:** `.claude/` is never in the `--minimal` exclusion list (only `.github/` and `docs/` are, confirmed in both `copy-templates.ts` line 93 and `copy_templates.py` line 73). Consistent with the Phase 8 precedent that AI-configuration files (IDE rule files, CLAUDE.md) are never stripped by `--minimal` — only CI/docs scaffolding is. **No code change needed**; `.claude/settings.json` and `.mcp.json` should both stay outside minimal's exclusion by simply not adding them to it.
 
-This depends on Feature 1 landing first (for the return type).
+### 2. `.mcp.json`
 
-**Modified files (Feature 3 — minimum):**
+- **New file**, does not exist in `templates/` today (`find -iname "*.mcp*"` returned nothing).
+- Recommended zero-config content (verified against Context7's official remote endpoint, no API key required for the free tier):
+  ```json
+  { "mcpServers": { "context7": { "url": "https://mcp.context7.com/mcp" } } }
+  ```
+- **No conflict with existing headroom MCP registration.** `configureMcp`/`configure_mcp` registers headroom via `claude mcp add -s user` (**user/global scope**, writes to Claude's global CLI-managed config) — it explicitly never touches a project-level `.mcp.json` (confirmed by source comment: "Never writes to ~/.claude.json or ~/.claude/ directly" combined with the `-s user` flag). The new `templates/.mcp.json` is project-scoped and copied like any other template file. These are two independent mechanisms serving two different servers (headroom = global CLI registration; context7 = project file).
+- **Pipeline:** flows through the generic copy/no-clobber/manifest/update path with zero code changes, same as `.windsurfrules` or `GEMINI.md` today.
+- **Existing-project no-clobber caveat (same as above):** if a project already has `.mcp.json` (e.g. user added their own MCP servers), `init` skips it entirely; `update` will only overwrite it if unmodified since the last goodvibes-written version, otherwise skip. Document the same manual-merge fallback as for `settings.json`.
+
+### 3. Hook script executable bit (verified, not assumed)
+
+Tested directly in this environment: both `fs.copyFileSync` (which `fs-extra copy()` uses) and Python's `shutil.copytree` (default `copy2`) **preserve the Unix executable bit** across the copy. Also verified for the npm prebuild step (`cpSync({recursive:true})` preserves mode). This means:
+- The hook script just needs to be **committed to git with the executable bit set** (`chmod +x templates/.claude/hooks/journal-gate.sh` before `git add`) — git tracks the exec bit as part of the blob mode (100755), and every copy step in the pipeline (dev, npm prebuild `cpSync`, pip's hatch build hook `shutil.copytree`) preserves it through to the destination project.
+- **One unverified point (flag for phase-specific validation):** whether hatchling's wheel-zip packaging preserves the Unix mode bit through `pip install` extraction is not confirmed in this research (zip external_attr handling varies by build backend/version). Recommend a smoke test in the Phase 12-style "human verification checkpoint" pattern this project already uses: `pip install` the built wheel into a fresh venv, run `goodvibes init`, and confirm `ls -la .claude/hooks/journal-gate.sh` shows `-rwxr-xr-x`. If not preserved, the pip `init_cmd.py`/`copy_templates.py` needs one `os.chmod(dest, 0o755)` call after copy for files under `.claude/hooks/` — small, targeted fix, not a redesign.
+
+### 4. Hook script implementation constraint
+
+Verified via official Claude Code hooks docs: `PreToolUse` hooks receive JSON on stdin with `tool_input.command` containing the raw Bash command string, and block via **exit code 2** (message = stderr) or a structured `hookSpecificOutput.permissionDecision: "deny"` JSON on stdout with exit 0. Anthropic's own examples use `jq` to parse stdin — **do not follow that pattern here**: goodvibes targets complete beginners and cannot assume `jq` is installed. Use a portable approach instead:
+- Match narrowly with the hook `matcher: "Bash"` (or the optional `if` permission-rule filter, e.g. `"if": "Bash(git commit*)"`) so the script only runs for commit-shaped commands, then inside the script use `grep`/`case` on the raw stdin JSON string (or Python/Node one-liner already required by goodvibes' own stack) rather than requiring `jq` as a new runtime dependency.
+- Check-staged-JOURNAL logic itself: `git diff --cached --name-only | grep -q '^JOURNAL.md$'` — cheap, already the mechanism named in `PROJECT.md`'s Key Decisions table ("Journal-gate hook over broader static-analysis hooks").
+- Use `${CLAUDE_PROJECT_DIR}` (documented Claude Code variable) in the `command` field of `settings.json`, not a hardcoded absolute path — required because `templates/` gets copied into an arbitrary user project root at an unknown filesystem location.
+
+### 5. Content-only edits (no pipeline changes)
+
+These files already exist in `templates/` and are already copied by the generic pipeline today — the wording/default-intensity pass touches file **content** only, never the copy/manifest/update code:
 
 | File | Change |
 |------|--------|
-| `README.md` | Document `goodvibes update` as the canonical update command |
+| `templates/CLAUDE.md` | Directive-language rewrite (sentinel-merged into projects — the merge algorithm is unaffected by *what* text is inside the sentinel block) |
+| `templates/AGENTS.md` | Directive-language rewrite; strengthen "read JOURNAL.md first, treat prior entries as binding" instruction |
+| `templates/JOURNAL.md` | Strengthen cross-agent handoff instructions at top of file |
+| `templates/.claude/skills/caveman/SKILL.md` (+ README.md) | Default intensity `full` → `ultra` (confirmed current default is `full` at line 17 of SKILL.md) |
+| `templates/.cursor/rules/*`, `.github/copilot-instructions.md`, `.windsurfrules`, `.kiro/steering/*`, `.clinerules/*`, `.continue/rules/*`, `.devin/rules/*`, `.amazonq/rules/*`, `GEMINI.md`, `docs/platform-setup/*.md`, `.bolt/prompt`, `replit.md` | Directive-language rewrite (remove "should"/"consider"/"try to") |
 
-**Modified files (Feature 3 — if headroom re-run during update):**
+Because these are pre-existing manifest-tracked files, the **same update-diffing semantics apply**: users who never touched these files get the new wording on `goodvibes update`; users who customized them keep their edits (skip). This is expected and requires no new code — it's the intended behavior of the manifest system these files already participate in.
 
-| File | Change |
-|------|--------|
-| `packages/npm/src/commands/upgrade.ts` | Add headroom validation task after template sync |
-| `packages/pip/src/goodvibes_cli/commands/upgrade_cmd.py` | Mirror: add headroom validation |
+## Anti-Patterns to Avoid
 
----
+### Anti-Pattern 1: Building a JSON-aware merge for `.claude/settings.json` / `.mcp.json`
+**What people might do:** Write a special "deep-merge JSON" step (like `sentinel-merge.ts` but for JSON) so a user's customized `settings.json` still gets the new `hooks` key even if they've edited `permissions`.
+**Why it's wrong:** This is a new abstraction for two files, contradicts ponytail ("no unrequested abstractions... shortest working diff wins"), and the codebase's own precedent is that only `CLAUDE.md` gets a bespoke merge (because it's the one file every project touches most). Every other template file — including seven+ IDE rule files already — uses whole-file overwrite/skip via the manifest hash.
+**Instead:** Keep the existing hash-based overwrite/skip model. Document the manual-merge fallback for power users who've customized these two files.
 
-## Component Boundaries
+### Anti-Pattern 2: Hardcoding `.mcp.json` / hook script paths into `copyTemplates`/`copy_templates`
+**What people might do:** Add an explicit `if (rel === '.mcp.json') {...}` or `if (rel.startsWith('.claude/hooks/')) {...}` branch to the filter/ignore callback, "just to be safe."
+**Why it's wrong:** The whole point of the current design is that new template files need zero pipeline code. Adding file-specific branches for files that need no special treatment increases the diff and creates a maintenance trap (the next new template file added six months from now will look at this precedent and add its own unnecessary branch).
+**Instead:** Just add the files under `templates/`. Verify with existing tests (`copy-templates.test.ts` / `test_copy_templates.py`) that a new arbitrary file appears in `written[]` — it already will.
 
-| Component | Responsibility | Communicates With |
-|-----------|---------------|-------------------|
-| `commands/init.ts` | Orchestration, UX, task list assembly | All steps, new telemetry util |
-| `steps/install-headroom.ts` | Install headroom; return status | `utils/detect-python` |
-| `steps/configure-mcp.ts` | Register headroom MCP; return status | Nothing |
-| `utils/telemetry.ts` (NEW) | Fire-and-forget HTTP counter | External endpoint only |
-| `commands/upgrade.ts` | Self-update + template sync; optionally headroom validation | Steps, npm registry |
+### Anti-Pattern 3: Depending on `jq` inside the hook script
+**What people might do:** Copy Anthropic's own hook examples verbatim, which use `jq -r '.tool_input.command'`.
+**Why it's wrong:** goodvibes explicitly targets complete beginners with zero-config philosophy; `jq` is not guaranteed to be installed, and a missing binary would make the gate hook error out non-blockingly (exit code + malformed output = "hook error" notice, not a clean pass/fail) — confusing for a beginner.
+**Instead:** Use the `matcher`/`if` fields in `settings.json` to narrow to Bash/`git commit*` at the config level, and parse stdin with `grep`/`sed` or the shell's own string handling inside the script — no new external binary dependency.
 
----
+## Build Order Recommendation
 
-## Build Order
+Given the dependency structure above, and this project's existing wave-based phase-planning convention:
 
-Dependencies between features:
+1. **`.mcp.json` template file + `templates/.claude/settings.json` hooks key + hook script** (touch the copy pipeline in the sense that they are new/modified template *content* the pipeline must carry — though no *code* changes are required, these should land first because...)
+2. **Test coverage extension** — extend `copy-templates.test.ts`/`test_copy_templates.py` and `update.test.ts`/`test_update_cmd.py` with assertions that the new files appear in `written[]`/dry-run listing/manifest/update net-new categorisation, mirroring the Phase 8 pattern (`08-02-PLAN.md` added IDE-file assertions to the same generic suites without touching pipeline code). This should follow immediately after step 1 since it's the proof the "no code change" claim holds.
+3. **Executable-bit smoke test (pip wheel path)** — verify the one MEDIUM-confidence unverified point above before calling the hook shippable via `pip install`.
+4. **Wording/directive-language pass across CLAUDE.md, AGENTS.md, JOURNAL.md, all per-IDE rule files, caveman default intensity** — pure content edits, zero dependency on steps 1-3, can be built and merged in parallel with them (no file conflicts: different files, same generic pipeline). Do this last only in the sense of "no urgency to sequence it before the new-file work" — it could equally run in parallel as its own wave, consistent with how this project already parallelizes no-file-conflict work (see Phase 8 Wave 1a/1b, Phase 13 Wave 1).
 
-```
-Feature 1 (headroom status)
-  → Modify install-headroom.ts, configure-mcp.ts (return types)
-  → Modify init.ts (consume return values)
-  → Update test files for changed return types
-  → No dependency on Features 2 or 3
+Rationale for this order: the new-file work (`.mcp.json`, hook script, settings.json hooks key) is the only piece with a genuine unverified technical risk (wheel exec-bit preservation) and the only piece that needs new test assertions proving the "generic pipeline, zero code change" claim — so it should be validated early. The wording pass carries no technical risk and no pipeline dependency, so it can run independently and does not gate or block the new-file work.
 
-Feature 2 (telemetry)
-  → New telemetry.ts + telemetry.py (independent of Feature 1)
-  → Modify init.ts + init_cmd.py to call send_telemetry()
-  → Can land in the same PR as Feature 1 or separately
+## Sources
 
-Feature 3 (update alias)
-  → No code change if docs-only
-  → If headroom re-run during update: requires Feature 1 to land first
-    (depends on HeadroomResult return type being available in upgrade.ts)
-```
-
-### Recommended phase order
-
-**Phase 1 — Headroom status (Feature 1):**
-Start with `install-headroom.ts` return type change (TS), then update `init.ts`, then port to Python. Both test files must be updated in the same commit to keep CI green. No new files.
-
-**Phase 2 — Telemetry (Feature 2):**
-New `telemetry.ts` + `telemetry.py`. Wire into `init.ts` / `init_cmd.py`. The telemetry endpoint URL decision is a product decision that must precede implementation.
-
-**Phase 3 — Update validation (Feature 3):**
-If headroom re-run during update is in scope: modify `upgrade.ts` + `upgrade_cmd.py` after Feature 1 lands. If docs-only: can be done any time.
+- Repo source (read directly, HIGH confidence): `packages/npm/src/steps/copy-templates.ts`, `packages/pip/src/goodvibes_cli/steps/copy_templates.py`, `packages/npm/src/steps/write-manifest.ts`, `packages/pip/src/goodvibes_cli/steps/write_manifest.py`, `packages/npm/src/commands/update.ts`, `packages/npm/src/commands/init.ts`, `packages/npm/src/steps/configure-mcp.ts`, `packages/pip/hatch_build.py`, `packages/npm/package.json` (prebuild script), `templates/.claude/settings.json`, `templates/.claude/skills/caveman/SKILL.md`
+- Empirical verification in this session (HIGH confidence): `fs.copyFileSync`, `fs.cpSync({recursive:true})`, and Python `shutil.copytree` all preserve the Unix executable bit — tested directly with `chmod 755` fixtures.
+- [Claude Code Hooks reference — code.claude.com/docs/en/hooks](https://code.claude.com/docs/en/hooks) (HIGH confidence, official docs, fetched directly) — `PreToolUse` schema, `matcher`/`if` fields, stdin JSON shape, exit-code-2 blocking semantics, `${CLAUDE_PROJECT_DIR}` variable
+- Context7 MCP setup (MEDIUM confidence — WebSearch aggregation, not fetched from context7.com directly, but multiple independent sources converge on the same free public endpoint and JSON shape): `https://mcp.context7.com/mcp` remote HTTP endpoint, no API key required for basic tier
+- `.planning/PROJECT.md` — v1.8.0 milestone scope, Key Decisions table (journal-gate hook mechanism, context7 free-tier decision)
+- `.planning/ROADMAP.md` — prior phase build-order conventions (Wave-based parallelization for no-file-conflict work, e.g. Phase 8 Wave 1a/1b)
 
 ---
-
-## Pitfall: HeadroomResult in the Tasks Spinner Text
-
-`@clack/prompts` `tasks()` shows the string returned from each task callback as the completion label in the terminal. If `HeadroomResult.status` is `'skipped'`, the terminal will show "skipped" next to "Installing headroom" — which may look like a failure to a beginner user. Use a friendlier label:
-
-```typescript
-const labels: Record<HeadroomResult['status'], string> = {
-  'installed': 'headroom installed',
-  'already-installed': 'headroom already installed',
-  'skipped': 'headroom skipped (Python 3.10+ not found)',
-  'failed': 'headroom install failed — see note below',
-}
-return labels[result.status]
-```
-
-This is init.ts logic, not a change to the step itself.
-
----
-
-## Pitfall: Telemetry in Tests
-
-`sendTelemetry()` must be mockable in unit tests for `init.ts`. The existing pattern for steps is to pass the function as a parameter (`log: (msg: string) => void`). For telemetry, the simpler approach is to mock the module in vitest:
-
-```typescript
-// init.test.ts
-vi.mock('../utils/telemetry.js', () => ({ sendTelemetry: vi.fn() }))
-```
-
-This avoids changing the call signature in `init.ts`. Verify the mock is in place before adding new tests that test post-init behavior.
-
----
-
-## Pitfall: Fire-and-Forget in Python is Blocking
-
-Python `urllib.request.urlopen` is synchronous. A 2-second timeout in the telemetry call will block `init_cmd.py` for up to 2 seconds if the endpoint is slow. Two options:
-
-1. Use `threading.Thread(target=_send, daemon=True).start()` — truly fire-and-forget; process exit kills the thread cleanly
-2. Use `urllib.request.urlopen(..., timeout=0.5)` — 500ms max block; simpler but still blocks
-
-Recommendation: option 1 (daemon thread) for exact parity with the non-blocking JS behavior.
-
----
-
-## Full File Change Map
-
-| File | Status | Feature | Change |
-|------|--------|---------|--------|
-| `packages/npm/src/steps/install-headroom.ts` | MODIFY | 1 | Return `HeadroomResult` instead of `void` |
-| `packages/npm/src/steps/configure-mcp.ts` | MODIFY | 1 | Return `McpResult` instead of `void` |
-| `packages/npm/src/commands/init.ts` | MODIFY | 1, 2 | Consume return values; call `sendTelemetry()` |
-| `packages/npm/src/steps/install-headroom.test.ts` | MODIFY | 1 | Update assertions for new return shape |
-| `packages/npm/src/steps/configure-mcp.test.ts` | MODIFY | 1 | Update assertions for new return shape |
-| `packages/npm/src/utils/telemetry.ts` | NEW | 2 | Fire-and-forget counter |
-| `packages/pip/src/goodvibes_cli/steps/install_headroom.py` | MODIFY | 1 | Return `dict` with status key |
-| `packages/pip/src/goodvibes_cli/steps/configure_mcp.py` | MODIFY | 1 | Return `dict` with status key |
-| `packages/pip/src/goodvibes_cli/commands/init_cmd.py` | MODIFY | 1, 2 | Consume return values; call `send_telemetry()` |
-| `packages/pip/src/goodvibes_cli/utils/telemetry.py` | NEW | 2 | Mirror of telemetry.ts |
-| `packages/npm/src/commands/upgrade.ts` | MODIFY (optional) | 3 | Add headroom validation task if re-run during update is in scope |
-| `packages/pip/src/goodvibes_cli/commands/upgrade_cmd.py` | MODIFY (optional) | 3 | Mirror of upgrade.ts change |
-| `README.md` | MODIFY | 3 | Document `goodvibes update` as canonical command |
-
-**Net new files: 2** (`telemetry.ts`, `telemetry.py`). All other changes are in-place modifications.
+*Architecture research for: goodvibes v1.8.0 Agent Governance & Cross-Tool Enforcement*
+*Researched: 2026-09-05*
