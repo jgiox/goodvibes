@@ -29,3 +29,29 @@ Run `goodvibes doctor` to verify everything is working. It checks that headroom 
 ## What is headroom?
 
 headroom compresses the AI's memory of your project so you spend fewer tokens per session. It runs automatically in the background when Claude Code is active — you do not need to invoke it manually.
+
+## About the journal-gate hook
+
+The journal-gate hook only gates `git commit` when it runs through Claude Code's own Bash tool — it does not intercept a commit you type directly in a terminal. Other AI coding tools or IDEs (Cursor, Copilot, and others) have no equivalent hook mechanism, so this enforcement does not apply there.
+
+## What is context7?
+
+context7 is an MCP server that gives Claude Code live, up-to-date library documentation lookups, so the AI stops guessing at APIs from stale training data. It works out of the box with no signup or API key.
+
+If you hit rate limits, you can set a `CONTEXT7_API_KEY` environment variable and add a `headers` block to your `.mcp.json` for higher limits:
+
+```json
+{
+  "mcpServers": {
+    "context7": {
+      "type": "http",
+      "url": "https://mcp.context7.com/mcp",
+      "headers": {
+        "Authorization": "Bearer ${CONTEXT7_API_KEY}"
+      }
+    }
+  }
+}
+```
+
+Never commit a literal key — only the `${CONTEXT7_API_KEY}` reference. Claude Code shows a one-time "trust this project's MCP servers" prompt the first time it loads a project with an `.mcp.json`; approving it is what enables context7 tool calls.
