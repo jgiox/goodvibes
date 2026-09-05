@@ -418,13 +418,17 @@ Plans:
   3. A freshly-initialized project's `.mcp.json` has `context7` configured at the free/public HTTP endpoint (no key, no signup); Claude Code's one-time "trust this project's MCP servers" prompt is documented in onboarding, not hidden
   4. README/onboarding docs state plainly that the hook only gates commits made through Claude Code's own Bash tool — not manual `git commit`, not other agents/IDEs — and separately document the optional `${CONTEXT7_API_KEY}` upgrade path with no literal key ever committed
 
-**Plans**: 3 plans
+**Plans**: 4 plans
 
 **Wave 1** *(parallel — no file conflicts)*
 
 - [x] 15-01-PLAN.md — Journal-gate hook: settings.json PreToolUse block + dogfood root settings + 9-scenario integration tests (HOOK-01, HOOK-02, HOOK-03)
 - [x] 15-02-PLAN.md — context7 MCP: .mcp.json template + dogfood root .mcp.json + shape tests (CTX7-01)
 - [x] 15-03-PLAN.md — Docs: hook-scope caveat + "What is context7?" sections in getting-started.md (HOOK-04, CTX7-02, CTX7-03)
+
+**Gap closure**
+
+- [ ] 15-04-PLAN.md — Fix journal-gate hook quote-stripping bypass (CR-01/CR-02): strip quoted spans before --amend/commit-subcommand matching, add adversarial tests (HOOK-01, HOOK-02)
 
 **UI hint**: no
 
