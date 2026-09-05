@@ -115,3 +115,8 @@ CTX7-01 is complete. The exact key shapes (`mcpServers.context7.type`/`.url`) ar
 ---
 *Phase: 15-journal-gate-hook-context7-mcp*
 *Completed: 2026-09-05*
+
+## Self-Check: PASSED
+
+All created files verified present: `templates/.mcp.json`, `.mcp.json`, `packages/npm/src/steps/mcp-json.test.ts`, `packages/pip/tests/test_mcp_json.py`, `.planning/phases/15-journal-gate-hook-context7-mcp/15-02-SUMMARY.md`.
+All commit hashes verified present in git log: `1a751f6`, `b167105`, `5bb74bb`.
