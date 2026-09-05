@@ -6,7 +6,7 @@ status: planning
 last_updated: "2026-09-05T15:52:27.858Z"
 last_activity: 2026-09-05
 progress:
-  total_phases: 0
+  total_phases: 3
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -20,14 +20,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-07-03)
 
 **Core value:** One command gives a vibe coder a fully configured project — token efficiency and engineering discipline happen automatically in the background.
-**Current focus:** Milestone complete
+**Current focus:** v1.8.0 Agent Governance & Cross-Tool Enforcement — roadmap created, ready for phase planning
 
 ## Current Position
 
-Phase: Not started (defining requirements)
+Phase: 15 (Journal-Gate Hook & context7 MCP) — not started
 Plan: —
-Status: Defining requirements
-Last activity: 2026-09-05 — Milestone v1.8.0 started
+Status: Roadmap created — ready for `/gsd-plan-phase 15`
+Last activity: 2026-09-05 — ROADMAP.md created for v1.8.0 (Phases 15-17), REQUIREMENTS.md traceability filled in
 
 ## Performance Metrics
 
@@ -51,6 +51,9 @@ Last activity: 2026-09-05 — Milestone v1.8.0 started
 | 12 | 3 | - | - |
 | 13 | 6 | - | - |
 | 14 | 5 | - | - |
+| 15 | TBD | - | - |
+| 16 | TBD | - | - |
+| 17 | TBD | - | - |
 
 **Recent Trend:**
 
@@ -112,6 +115,8 @@ Recent decisions affecting current work:
 - [Phase 14 open]: .goodvibes.json manifest written on init; SHA-256 per managed file + goodvibes version
 - [Phase 14 open]: goodvibes update scope boundary — only managed template files, never walk project directory
 - [Phase 14 open]: sentinel guard for SENTINEL_START without SENTINEL_END — treat as Case B (append) and warn
+- [v1.8.0 roadmap]: Journal-gate hook is an inline shell command in settings.json — no separate script file, avoids jq and unverified wheel exec-bit questions (PROJECT.md Key Decisions)
+- [v1.8.0 roadmap]: Phase 15 (hook + context7) and Phase 17 (wording pass) split by risk profile, not by feature — no shared files, can run in parallel; Phase 16 (update JSON merge) depends on Phase 15's exact key shapes
 
 ### Pending Todos
 

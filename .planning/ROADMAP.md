@@ -27,6 +27,9 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 12: Headroom Status Surfacing** - Replace hardcoded "headroom ready" with truthful install and MCP config outcomes in the init outro (v1.2.0) (completed 2026-07-06)
 - [x] **Phase 13: Anonymous Telemetry** - Add GDPR-compliant anonymous install counter to `goodvibes init` with first-run disclosure and opt-out (v1.2.0) (completed 2026-07-27)
 - [x] **Phase 14: goodvibes update with Manifest** - Ship manifest-based template update with dry-run preview, confirmation prompt, and sentinel data-loss guard (v1.2.0) (completed 2026-07-27)
+- [ ] **Phase 15: Journal-Gate Hook & context7 MCP** - Ship a Claude Code PreToolUse hook that blocks `git commit` without JOURNAL.md staged, and wire context7 into `.mcp.json` at the free/public endpoint (v1.8.0)
+- [ ] **Phase 16: goodvibes update JSON-Aware Merge** - Teach `goodvibes update` to merge only goodvibes-managed keys in settings.json/.mcp.json, preserving user-added keys (v1.8.0)
+- [ ] **Phase 17: Cross-Tool Governance & Directive Wording** - Rewrite CLAUDE.md/AGENTS.md/per-IDE rule files in directive language, harden cross-agent JOURNAL.md handoff wording, and ship caveman's ultra default (v1.8.0)
 
 ## Phase Details
 
@@ -403,16 +406,67 @@ Plans:
 
 **UI hint**: no
 
+### Phase 15: Journal-Gate Hook & context7 MCP
+
+**Goal**: Claude Code users get a real commit-time guardrail that enforces the existing "update JOURNAL.md every task" rule, and every goodvibes project ships with context7 MCP wired at the free/public tier by default
+**Depends on**: Nothing new (builds on the existing generic copy/manifest pipeline from Phases 1-14)
+**Requirements**: HOOK-01, HOOK-02, HOOK-03, HOOK-04, CTX7-01, CTX7-02, CTX7-03
+**Success Criteria** (what must be TRUE):
+
+  1. In a goodvibes-initialized project, Claude Code's own Bash tool is blocked from running `git commit` when `JOURNAL.md` is not in the staged file list, with a stderr message stating exactly what's missing and how to fix it
+  2. The same hook does not block `git commit --amend`, a commit made during an in-progress merge/rebase, or the bootstrap commit that adds `JOURNAL.md` itself
+  3. A freshly-initialized project's `.mcp.json` has `context7` configured at the free/public HTTP endpoint (no key, no signup); Claude Code's one-time "trust this project's MCP servers" prompt is documented in onboarding, not hidden
+  4. README/onboarding docs state plainly that the hook only gates commits made through Claude Code's own Bash tool — not manual `git commit`, not other agents/IDEs — and separately document the optional `${CONTEXT7_API_KEY}` upgrade path with no literal key ever committed
+
+**Plans**: TBD
+
+**UI hint**: no
+
+### Phase 16: goodvibes update JSON-Aware Merge
+
+**Goal**: Existing goodvibes projects can receive the new hook and context7 config via `goodvibes update` without losing any user-added keys in `settings.json`/`.mcp.json`
+**Depends on**: Phase 15 (the exact settings.json hook block and .mcp.json context7 entry must exist before update can know which keys are goodvibes-managed)
+**Requirements**: UPD-07
+**Success Criteria** (what must be TRUE):
+
+  1. Running `goodvibes update` on a project with a hand-edited `.claude/settings.json` (extra permission rules or hooks) adds or updates only the goodvibes-managed journal-gate hook block, leaving the user's other keys untouched
+  2. Running `goodvibes update` on a project with a hand-edited `.mcp.json` (extra MCP servers configured) adds or updates only the `context7` entry, leaving other servers untouched
+  3. `goodvibes update --dry-run` previews exactly which JSON keys in `settings.json`/`.mcp.json` would be added or changed, before writing anything to disk
+  4. Projects that never touched `settings.json`/`.mcp.json` continue to receive them through the existing whole-file managed/user-modified/net-new categorization — no regression for the common case
+
+**Plans**: TBD
+
+**UI hint**: no
+
+### Phase 17: Cross-Tool Governance & Directive Wording
+
+**Goal**: Any agent or tool picking up a goodvibes project — Claude Code, Codex, Cursor, Copilot, or otherwise — reads JOURNAL.md as a binding handoff record, never re-asks the user for information already on file, and receives unambiguous, non-optional instructions from the file its tool actually prioritizes
+**Depends on**: Nothing (pure content edits to already-shipped files; can run in parallel with Phase 15/16)
+**Requirements**: AGENT-01, AGENT-02, AGENT-03, AGENT-04, CAVE-01, CAVE-02
+**Success Criteria** (what must be TRUE):
+
+  1. `JOURNAL.md`, `CLAUDE.md`, and `AGENTS.md` each instruct a new agent session to read prior `JOURNAL.md` entries before acting and treat them as binding, not optional context
+  2. `CLAUDE.md` states a rule that the agent must never ask the user for information already answered in README.md, CLAUDE.md, AGENTS.md, JOURNAL.md, or the codebase — naming that source list explicitly in the rule text
+  3. `CLAUDE.md`, `AGENTS.md`, and every per-IDE rule file use directive language throughout ("must"/"never"), with no remaining "should"/"consider"/"try to" hedges — verified by a grep-based consistency check
+  4. `.github/copilot-instructions.md` states it is the authoritative rule file for GitHub Copilot; `AGENTS.md` states it is the cross-tool fallback, not a universal guarantee
+  5. A freshly-initialized project's `caveman` skill defaults to `ultra` intensity, and onboarding docs explain what `ultra` changes and how to dial it back to `full` or `lite`
+
+**Plans**: TBD
+
+**UI hint**: no
+
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9 → 10 → 11 → 12 → 13 → 14
+Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9 → 10 → 11 → 12 → 13 → 14 → 15 → 16 → 17
 
 Note: Phase 3 (pip CLI) and Phase 4 (CI scaffolding) have no dependency on each other and can be parallelized if two implementers are available. Both depend only on Phase 2.
 
 Phase 6 must complete before Phase 7 — the demo GIF must record the hardened CLI output (written/skipped summary, correct --minimal scope). Recording before Phase 6 would produce a GIF that does not match what users see after Phase 6 ships.
 
 v1.2.0 build order: 12 → 13 → 14. Phase 12 (headroom status) and Phase 14 (update manifest) are independent; Phase 13 (telemetry) depends on Phase 12 for a stable init flow. Phase 14 optionally uses the HeadroomResult type introduced in Phase 12.
+
+v1.8.0 build order: 15 and 17 have no shared files and can run in parallel — Phase 15 is the only phase with unresolved technical risk (hook implementation shape), Phase 17 is pure content editing. Phase 16 depends on Phase 15: the JSON-aware merge needs the exact settings.json hook block and .mcp.json context7 entry shape before it can define which keys are goodvibes-managed.
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
@@ -430,3 +484,6 @@ v1.2.0 build order: 12 → 13 → 14. Phase 12 (headroom status) and Phase 14 (u
 | 12. Headroom Status Surfacing | 3/3 | Complete    | 2026-07-06 |
 | 13. Anonymous Telemetry | 6/6 | Complete    | 2026-07-27 |
 | 14. goodvibes update with Manifest | 5/5 | Complete    | 2026-07-27 |
+| 15. Journal-Gate Hook & context7 MCP | 0/TBD | Not started | - |
+| 16. goodvibes update JSON-Aware Merge | 0/TBD | Not started | - |
+| 17. Cross-Tool Governance & Directive Wording | 0/TBD | Not started | - |
