@@ -770,3 +770,17 @@ line count (105 < 120), and migration command presence with grep.
 **Tests run:** npm: 145 passed, 1 skipped. pip: 153 passed.
 
 **Docs updated:** CHANGELOG.md, JOURNAL.md.
+
+---
+
+## 2026-09-05 — Phase 15 Plan 01: journal-gate PreToolUse hook (HOOK-01/02/03)
+
+**What I did:** Shipped a `PreToolUse` hook (matcher: `Bash`) as an inline shell command in `templates/.claude/settings.json` that blocks Claude Code's Bash tool from running `git commit` unless `JOURNAL.md` is staged. Exempts `--amend`, in-progress merge/rebase, and any commit where `JOURNAL.md` is already staged. On block, stderr is the exact, copy-pasteable fix: `BLOCKED: JOURNAL.md not staged. Update JOURNAL.md, then: git add JOURNAL.md`. Generated the hook's shell string via a JSON round-trip (write → parse → embed) rather than hand-typing the escaped quotes, per RESEARCH.md's anti-pattern warning. Dogfooded the identical hook into the repo's own root `.claude/settings.json`, merged alongside its existing narrower `permissions.allow` list (D-01) — verified byte-for-byte that only the new `hooks` key was added, no reformatting of the pre-existing `permissions` block. TDD: wrote 9-scenario real-subprocess integration tests first (RED, both packages failed with missing-`hooks`-key errors), then implemented the hook (GREEN, all 18 tests across both packages pass).
+
+**Files changed:** templates/.claude/settings.json, .claude/settings.json, packages/npm/src/steps/journal-gate-hook.integration.test.ts (new), packages/pip/tests/test_journal_gate_hook.py (new). packages/npm/templates/.claude/settings.json regenerated via `npm run prebuild` (gitignored artifact, not committed).
+
+**Why:** Operationalizes the existing "update JOURNAL.md every task" CLAUDE.md rule mechanically instead of trusting the agent to remember — v1.8.0 Agent Governance milestone, Phase 15.
+
+**Tests run:** npm: 154 passed, 1 skipped, 2 todo (full suite). pip: 162 passed (full suite). Both include the new 9-scenario journal-gate-hook integration test file.
+
+**Docs updated:** JOURNAL.md.
