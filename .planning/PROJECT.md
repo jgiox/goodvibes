@@ -1,13 +1,16 @@
 # goodvibes
 
-## Current Milestone: v1.2.0 Growth & Retention
+## Current Milestone: v1.8.0 Agent Governance & Cross-Tool Enforcement
 
-**Goal:** Wire headroom properly into init, measure real usage with anonymous telemetry, and let existing users pull in new template versions.
+**Goal:** Make goodvibes' shipped rules actually binding across any coding agent/tool, not just advisory markdown a model can ignore.
 
 **Target features:**
-- Headroom integration — validate install + MCP config in `goodvibes init`, surface clear status (installed / skipped / failed)
-- Anonymous install telemetry — lightweight counter on `goodvibes init`, no PII collected
-- `goodvibes update` — pull latest template versions into projects initialized with older goodvibes versions
+- Claude Code hook blocking `git commit` unless `JOURNAL.md` is staged — operationalizes the existing "update journal every task" rule instead of trusting the agent to remember
+- `JOURNAL.md` + `CLAUDE.md`/`AGENTS.md` strengthened as the binding cross-agent handoff record — any tool (Claude, Codex, Copilot, Cursor, etc.) picking up mid-project must read it first and treat prior entries as binding
+- New CLAUDE.md rule: never ask the user for anything already answered in README/CLAUDE.md/JOURNAL.md/the codebase
+- `caveman` skill default intensity changed `full` → `ultra` (still user-overridable)
+- `.mcp.json` template shipped wired to context7's free public endpoint; docs cover the optional account/API-key upgrade
+- Directive-language rewrite of CLAUDE.md, AGENTS.md, and all per-IDE rule files (cursor, windsurf, kiro, copilot, base44, bolt, chatgpt, replit, gemini) — remove hedging ("should"/"consider"/"try to") for imperative, non-optional phrasing
 
 ## What This Is
 
@@ -79,12 +82,20 @@ Both paths inject:
 - [x] Headroom status surfaced in `goodvibes init` output (Headroom note/Panel) — Validated in Phase 12
 - [x] `goodvibes doctor` functional probe with updated label — Validated in Phase 12
 
-### Active (v1.2.0)
+### Validated in Phase 12-14 (v1.2.0 complete)
+- [x] `goodvibes init` reports actual headroom install outcome (installed / already-installed / skipped / failed) — Validated in Phase 12
+- [x] `goodvibes init` reports MCP config outcome separately (written / already-configured / failed) — Validated in Phase 12
+- [x] Anonymous install telemetry (GDPR-compliant endpoint, no PII, per-invocation UUID, `DO_NOT_TRACK`/`GOODVIBES_NO_TELEMETRY`/`CI` opt-out) — Validated in Phase 13
+- [x] `goodvibes update` — manifest-based (`.goodvibes.json` SHA-256 per file) update command distinguishing managed/user-modified/net-new files, with `--dry-run` and `--force` — Validated in Phase 14
 
-- [ ] Headroom install validated in `goodvibes init` — status shown to user (installed / skipped / failed)
-- [ ] MCP config written correctly and verified idempotent
-- [ ] Anonymous install telemetry counter (no PII)
-- [ ] `goodvibes update` command — pull latest template versions into existing projects
+### Active (v1.8.0)
+
+- [ ] Claude Code hook blocks `git commit` unless `JOURNAL.md` is staged
+- [ ] `JOURNAL.md`/`CLAUDE.md`/`AGENTS.md` explicitly instruct any agent to read and honor prior entries before acting
+- [ ] CLAUDE.md rule: never ask the user for context already available in files/memory
+- [ ] `caveman` skill ships with `ultra` as default intensity
+- [ ] `.mcp.json` template ships with context7 configured (free endpoint)
+- [ ] CLAUDE.md, AGENTS.md, and all per-IDE rule files use directive (non-optional) language throughout
 
 ### Validated in Phase 06
 - [x] `goodvibes init` shows "Non-empty project detected" note before tasks — Validated in Phase 06
@@ -131,6 +142,8 @@ Source repos being forked or referenced:
 Target repository: `github.com/jgiox/goodvibes`
 License: Apache 2.0
 
+v1.8.0 context: prior milestones proved goodvibes can ship rules (CLAUDE.md), but nothing verifies an agent actually follows them — markdown is advisory, not binding, and a user switching mid-project from Claude Code to Codex/Cursor/etc. has no guarantee the new agent picks up what the previous one agreed to. This milestone adds one real technical enforcement point (a Claude Code hook) plus a documentation/wording pass everywhere else, since hooks don't exist outside Claude Code.
+
 ## Constraints
 
 - **License**: Apache 2.0 — all bundled/forked code must be Apache 2.0 or permissive-compatible (MIT, BSD)
@@ -138,6 +151,7 @@ License: Apache 2.0
 - **Beginner-first**: Every doc, error message, and README section must assume the reader has never opened a terminal before
 - **Language-agnostic core**: CLAUDE.md rules, skills, and CI templates must work for any language/stack
 - **Headroom bundling**: headroom is Python/Rust — the pip installer can pull it as a dependency; the npm installer shells out to pip or documents the pip step clearly
+- **Hooks are Claude Code-only**: `.claude/settings.json` hooks have no equivalent in Codex, Cursor, Copilot, Windsurf, etc. — those tools get the strengthened-wording fallback only, never silent enforcement they can't actually run
 
 ## Key Decisions
 
@@ -150,6 +164,10 @@ License: Apache 2.0
 | caveman forked directly | Small skill file set, MIT-compatible, fits inside .claude/skills/ naturally | — Pending |
 | Telemetry endpoint: Cloudflare Worker + KV | PostHog excluded (logs source IPs, PII under GDPR Art 4(1)); Plausible excluded (managed service, less control); CF Worker increments KV counter and discards request — zero IP storage, full control | Phase 13 |
 | Zero-config philosophy | New coders should not have to configure anything to get the benefits | — Pending |
+| Milestone label resynced v1.2.0 → v1.8.0 | GSD milestone counter had drifted behind the real npm/pip package version (1.7.1) after out-of-band quick-task version bumps | v1.8.0 |
+| Journal-gate hook over broader static-analysis hooks | Cheapest mechanism (`git diff --cached --name-only` check) that directly operationalizes the existing "update JOURNAL.md every task" rule; detecting rule violations like empty catch blocks generically is out of scope | v1.8.0 |
+| JOURNAL.md (not a new HANDOFF.md) is the cross-agent record | Already shipped in every goodvibes project; strengthening its instructions avoids adding a duplicate file for the same purpose | v1.8.0 |
+| context7 shipped via `.mcp.json` at the free/public tier | Zero-config default consistent with the rest of goodvibes; account/API-key upgrade documented as opt-in, not required | v1.8.0 |
 
 ## Evolution
 
@@ -169,4 +187,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-07-06 — Phase 12 complete: headroom status surfacing (discriminated types, functional probe, timeouts, init/doctor wiring for npm + pip)*
+*Last updated: 2026-09-05 — v1.2.0 closed out (Phases 12-14 validated); v1.8.0 Agent Governance & Cross-Tool Enforcement started*
