@@ -821,7 +821,7 @@ line count (105 < 120), and migration command presence with grep.
 
 **Code review found 3 Critical issues, verified by executing the shipped hook command directly, not just reading the existing tests:**
 - The hook's `--amend` exemption and "is this a commit" detection are both raw substring/regex matches on the unparsed command line. A commit *message* containing the word `--amend` bypasses the JOURNAL.md gate entirely; a read-only command like `git log --grep="git commit"` is misdetected as a commit and incorrectly blocked. Both reproduced against the actual shipped `templates/.claude/settings.json` command.
-- The newly-committed repo-root `.claude/settings.json` grants unconditional `Bash(rm -rf *)` and hardcodes one developer's absolute home path — a real least-privilege violation for every future contributor, tracked in git.
+- The repo-root `.claude/settings.json` grants unconditional `Bash(rm -rf *)` and hardcodes one developer's absolute home path — a real least-privilege violation for every future contributor, tracked in git. **Correction (caught by verify_phase_goal below):** this predates Phase 15 (introduced in `a46c114`, 2026-06-24) and was not modified by this phase's tasks — the code review mischaracterized it as newly-committed.
 
 None of these were caught by the 20 existing tests (10 vitest + 10 pytest), which only exercise the scenarios the plan anticipated, not adversarial input. Filed as follow-up gap-closure work rather than fixed inline, since the review step is advisory-only per the execute-phase workflow and the fixes touch hook logic that needs its own test-first pass.
 
@@ -832,3 +832,19 @@ None of these were caught by the 20 existing tests (10 vitest + 10 pytest), whic
 **Tests run:** npm full suite (post-merge), pip full suite (post-merge) — both green. Code review is manual/adversarial, not a test run.
 
 **Docs updated:** JOURNAL.md, 15-REVIEW.md.
+
+---
+
+## 2026-09-05 — Phase 15 verify_phase_goal: gaps_found, phase NOT complete
+
+**What I did:** Ran the required `verify_phase_goal` gate (`gsd-verifier`). It independently reproduced the code review's CR-01/CR-02 hook bugs by extracting the live command from `templates/.claude/settings.json` and piping adversarial payloads through it directly (not just reading tests): a non-amend commit message containing the text "--amend" bypasses the JOURNAL.md gate (exit 0, should be exit 2), and a read-only command like `git log --grep="git commit"` is misidentified as a commit and incorrectly blocked (exit 2, should be exit 0). Score: 6/8 must-haves — CTX7-01 and all three docs truths (HOOK-04, CTX7-02, CTX7-03) verified clean; HOOK-01/HOOK-02 marked BLOCKED/PARTIAL because the hook does not reliably do what it claims under realistic input. The verifier also corrected the code review's CR-03 characterization: the `rm -rf *` grant in `.claude/settings.json` predates this phase (commit `a46c114`, 2026-06-24) and was not touched by Phase 15's tasks — downgraded from this phase's blocker list to a pre-existing warning for separate cleanup.
+
+Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` completion marks that an earlier tracking-update call in this session had set ahead of verification — Phase 15's roadmap checkbox reverted to `[ ]` with a "gaps found" note, and `STATE.md` status changed from stale `executing` to `gaps_found`, pointing at `/gsd-plan-phase 15 --gaps` as next step.
+
+**Files changed:** .planning/phases/15-journal-gate-hook-context7-mcp/15-VERIFICATION.md (new), .planning/ROADMAP.md, .planning/STATE.md, JOURNAL.md.
+
+**Why:** `verify_phase_goal` checks goal achievement against the actual codebase, not just task completion — the phase's own tests didn't cover the adversarial cases that break its core guardrail.
+
+**Tests run:** Verifier's spot-checks (see 15-VERIFICATION.md Behavioral Spot-Checks table) — 2 of 6 checked behaviors failed. Existing 20-test suite (10 vitest + 10 pytest) still green but does not cover the failing cases.
+
+**Docs updated:** 15-VERIFICATION.md, ROADMAP.md, STATE.md, JOURNAL.md. Phase 15 is NOT complete — gap closure required before advancing to Phase 16.

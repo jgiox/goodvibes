@@ -27,7 +27,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 12: Headroom Status Surfacing** - Replace hardcoded "headroom ready" with truthful install and MCP config outcomes in the init outro (v1.2.0) (completed 2026-07-06)
 - [x] **Phase 13: Anonymous Telemetry** - Add GDPR-compliant anonymous install counter to `goodvibes init` with first-run disclosure and opt-out (v1.2.0) (completed 2026-07-27)
 - [x] **Phase 14: goodvibes update with Manifest** - Ship manifest-based template update with dry-run preview, confirmation prompt, and sentinel data-loss guard (v1.2.0) (completed 2026-07-27)
-- [x] **Phase 15: Journal-Gate Hook & context7 MCP** - Ship a Claude Code PreToolUse hook that blocks `git commit` without JOURNAL.md staged, and wire context7 into `.mcp.json` at the free/public endpoint (v1.8.0) (completed 2026-09-05)
+- [ ] **Phase 15: Journal-Gate Hook & context7 MCP** - Ship a Claude Code PreToolUse hook that blocks `git commit` without JOURNAL.md staged, and wire context7 into `.mcp.json` at the free/public endpoint (v1.8.0) — gaps found 2026-09-05, hook logic bypassable, see 15-VERIFICATION.md
 - [ ] **Phase 16: goodvibes update JSON-Aware Merge** - Teach `goodvibes update` to merge only goodvibes-managed keys in settings.json/.mcp.json, preserving user-added keys (v1.8.0)
 - [ ] **Phase 17: Cross-Tool Governance & Directive Wording** - Rewrite CLAUDE.md/AGENTS.md/per-IDE rule files in directive language, harden cross-agent JOURNAL.md handoff wording, and ship caveman's ultra default (v1.8.0)
 
@@ -490,6 +490,6 @@ v1.8.0 build order: 15 and 17 have no shared files and can run in parallel — P
 | 12. Headroom Status Surfacing | 3/3 | Complete    | 2026-07-06 |
 | 13. Anonymous Telemetry | 6/6 | Complete    | 2026-07-27 |
 | 14. goodvibes update with Manifest | 5/5 | Complete    | 2026-07-27 |
-| 15. Journal-Gate Hook & context7 MCP | 3/3 | Complete   | 2026-09-05 |
+| 15. Journal-Gate Hook & context7 MCP | 3/3 | Gaps found | - |
 | 16. goodvibes update JSON-Aware Merge | 0/TBD | Not started | - |
 | 17. Cross-Tool Governance & Directive Wording | 0/TBD | Not started | - |
