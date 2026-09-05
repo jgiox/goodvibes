@@ -86,3 +86,12 @@ None - no external service configuration required.
 ---
 *Phase: 15-journal-gate-hook-context7-mcp*
 *Completed: 2026-09-05*
+
+## Self-Check: PASSED
+
+- FOUND: docs/getting-started.md
+- FOUND: templates/docs/getting-started.md
+- FOUND: packages/npm/templates/docs/getting-started.md
+- FOUND: .planning/phases/15-journal-gate-hook-context7-mcp/15-03-SUMMARY.md
+- FOUND: commit 49aa5d9
+- FOUND: commit fb687cc
