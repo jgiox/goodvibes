@@ -323,17 +323,17 @@ User sets `CONTEXT7_API_KEY` in their shell/CI environment; no literal key is ev
 | A3 | Third-party-reported context7 free-tier numeric rate limits (500-1,000 req/month) are current and accurate | State of the Art | Low — context7's own docs don't commit to a number either way, and this doesn't change CTX7-01's implementation (which only requires "no key, no signup," not a specific quota) |
 | A4 | No goodvibes user's environment lacks Git Bash on Windows (i.e., all Windows users install git via the standard Git for Windows installer) | Common Pitfalls #3 | Low — if wrong, hook silently no-ops on that one machine (PowerShell can't parse the bash script, hook exits with a shell error, which per docs "doesn't block on its own" unless combined with exit 2 — actual behavior of a shell syntax error under PowerShell is unverified) |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Exact numeric context7 free-tier rate limit**
    - What we know: context7's own docs say "low rate limits, no custom configuration" for the no-key tier, with no number.
    - What's unclear: whether it's generous enough that a typical solo dev workflow never notices, or tight enough to need the (already-deferred) friendly-429-messaging feature sooner than planned.
-   - Recommendation: Not a blocker for this phase (CTX7-01 only requires "no key, no signup" access exists, which is confirmed) — proceed, and let the already-deferred v1.8.x rate-limit-messaging backlog item pick this up if real usage data shows a problem.
+   - RESOLVED: Not a blocker for this phase (CTX7-01 only requires "no key, no signup" access exists, which is confirmed) — proceed, and let the already-deferred v1.8.x rate-limit-messaging backlog item pick this up if real usage data shows a problem.
 
 2. **Whether a PowerShell shell-syntax error inside a `PreToolUse` hook blocks or silently no-ops**
    - What we know: exit code 2 is the documented blocking signal; a script that fails to *parse* under the wrong shell would presumably exit non-zero/non-two with no valid JSON.
    - What's unclear: the exact Claude Code behavior for "hook process failed to even run the script" (distinct from "ran and exited 1").
-   - Recommendation: Low priority given Pitfall 3's reasoning (Git Bash is present wherever `git commit` works) — not worth blocking the plan on; add a one-line doc caveat instead if the planner wants extra safety.
+   - RESOLVED: Low priority given Pitfall 3's reasoning (Git Bash is present wherever `git commit` works) — not worth blocking the plan on; add a one-line doc caveat instead if the planner wants extra safety.
 
 ## Environment Availability
 
