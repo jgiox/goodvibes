@@ -784,3 +784,51 @@ line count (105 < 120), and migration command presence with grep.
 **Tests run:** npm: 154 passed, 1 skipped, 2 todo (full suite). pip: 162 passed (full suite). Both include the new 9-scenario journal-gate-hook integration test file.
 
 **Docs updated:** JOURNAL.md.
+
+---
+
+## 2026-09-05 — Phase 15 Plan 02: context7 MCP template (CTX7-01)
+
+**What I did:** Added `templates/.mcp.json` wiring the `context7` MCP server at its free/public HTTP endpoint (`https://mcp.context7.com/mcp`, `type: "http"`, no key, no headers). Dogfooded the identical file into the repo root `.mcp.json`. Wrote shape-assertion unit tests (`JSON.parse` + assert `type`/`url`/absence of `headers`) in both packages via TDD RED/GREEN.
+
+**Files changed:** templates/.mcp.json (new), .mcp.json (new), packages/npm/src/steps/mcp-json.test.ts (new), packages/pip/tests/test_mcp_json.py (new).
+
+**Why:** CTX7-01 — ship context7 with zero signup/config, matching the project's zero-config constraint.
+
+**Tests run:** New unit tests pass in both packages (folded into full-suite runs recorded for Plan 03 below).
+
+**Docs updated:** None (docs land in Plan 03).
+
+---
+
+## 2026-09-05 — Phase 15 Plan 03: getting-started.md docs (HOOK-04, CTX7-02, CTX7-03)
+
+**What I did:** Added "About the journal-gate hook" (states the hook only gates commits run through Claude Code's own Bash tool — not manual `git commit`, not other agents/IDEs) and "What is context7?" (covers the optional `${CONTEXT7_API_KEY}` upgrade path with the exact JSON snippet, and the one-time "trust this project's MCP servers" prompt) sections to `docs/getting-started.md` and `templates/docs/getting-started.md`.
+
+**Files changed:** docs/getting-started.md, templates/docs/getting-started.md, packages/npm/templates/docs/getting-started.md (regenerated via prebuild).
+
+**Why:** HOOK-04 and CTX7-02/CTX7-03 — accurate scoping claims and an escape hatch for the free-tier rate limit, without breaking the no-signup promise at `init` time.
+
+**Tests run:** npm: full suite green. pip: full suite green (post-merge gate, see below).
+
+**Docs updated:** docs/getting-started.md, templates/docs/getting-started.md.
+
+---
+
+## 2026-09-05 — Phase 15 close-out: worktree merge, post-merge gate, code review
+
+**What I did:** Merged all 3 phase-15 worktree branches into `main` (manual `git merge --no-ff`, the `worktree.cleanup-wave` SDK helper repeatedly failed on a stray untracked `15-01-SUMMARY.md` it was leaving behind mid-merge). Resolved one real merge conflict in `.planning/REQUIREMENTS.md` (union of two branches' independently-true checkbox edits, all 7 REQ-IDs marked complete). Ran the post-merge build/test gate at the package level (no root-level manifest in this monorepo): `npm test` and `uv run pytest tests/`, both green. Ran the required `code_review_gate` (`gsd-code-reviewer`, standard depth, 11 files) — see `15-REVIEW.md`.
+
+**Code review found 3 Critical issues, verified by executing the shipped hook command directly, not just reading the existing tests:**
+- The hook's `--amend` exemption and "is this a commit" detection are both raw substring/regex matches on the unparsed command line. A commit *message* containing the word `--amend` bypasses the JOURNAL.md gate entirely; a read-only command like `git log --grep="git commit"` is misdetected as a commit and incorrectly blocked. Both reproduced against the actual shipped `templates/.claude/settings.json` command.
+- The newly-committed repo-root `.claude/settings.json` grants unconditional `Bash(rm -rf *)` and hardcodes one developer's absolute home path — a real least-privilege violation for every future contributor, tracked in git.
+
+None of these were caught by the 20 existing tests (10 vitest + 10 pytest), which only exercise the scenarios the plan anticipated, not adversarial input. Filed as follow-up gap-closure work rather than fixed inline, since the review step is advisory-only per the execute-phase workflow and the fixes touch hook logic that needs its own test-first pass.
+
+**Files changed:** .planning/REQUIREMENTS.md (conflict resolution), .planning/phases/15-journal-gate-hook-context7-mcp/15-REVIEW.md (new), JOURNAL.md.
+
+**Why:** Standard phase close-out per execute-phase.md; the code review step is required and non-skippable regardless of severity found.
+
+**Tests run:** npm full suite (post-merge), pip full suite (post-merge) — both green. Code review is manual/adversarial, not a test run.
+
+**Docs updated:** JOURNAL.md, 15-REVIEW.md.
