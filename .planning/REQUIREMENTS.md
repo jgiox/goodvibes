@@ -22,7 +22,7 @@
 
 ### context7 MCP
 
-- [ ] **CTX7-01**: `.mcp.json` template ships with `context7` configured at the free/public endpoint (`type: "http"`, no key, no signup)
+- [x] **CTX7-01**: `.mcp.json` template ships with `context7` configured at the free/public endpoint (`type: "http"`, no key, no signup)
 - [ ] **CTX7-02**: Docs cover the optional `${CONTEXT7_API_KEY}` upgrade path for higher rate limits; no literal key is ever committed
 - [ ] **CTX7-03**: Onboarding docs mention the one-time "trust this project's MCP servers" prompt Claude Code shows on first use
 
