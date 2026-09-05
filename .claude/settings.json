@@ -5,5 +5,18 @@
       "Bash(node /home/ygiokas/GoodVibes/packages/npm/dist/index.js init)",
       "Bash(echo \"EXIT:$?\")"
     ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "IN=$(cat); CMD=$(printf \"%s\" \"$IN\" | sed -E \"s/.*\\\"command\\\"[[:space:]]*:[[:space:]]*\\\"((\\\\\\\\.|[^\\\"\\\\\\\\])*)\\\".*/\\\\1/\"); printf \"%s\" \"$CMD\" | grep -qE \"(^|[[:space:]])git([[:space:]]+[^[:space:]]+)*[[:space:]]+commit([[:space:]]|$)\" || exit 0; printf \"%s\" \"$CMD\" | grep -qE -- \"(^|[[:space:]])--amend([[:space:]]|$)\" && exit 0; GITDIR=$(git rev-parse --git-dir 2>/dev/null) || exit 0; { [ -f \"$GITDIR/MERGE_HEAD\" ] || [ -d \"$GITDIR/rebase-merge\" ] || [ -d \"$GITDIR/rebase-apply\" ]; } && exit 0; git diff --cached --name-only | grep -qx \"JOURNAL.md\" && exit 0; echo \"BLOCKED: JOURNAL.md not staged. Update JOURNAL.md, then: git add JOURNAL.md\" >&2; exit 2"
+          }
+        ]
+      }
+    ]
   }
 }

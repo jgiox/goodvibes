@@ -8,9 +8,9 @@
 
 ### Journal-Gate Enforcement
 
-- [ ] **HOOK-01**: `.claude/settings.json` ships a `PreToolUse` hook, implemented as an inline shell command (no separate script file), that blocks `git commit` unless `JOURNAL.md` is in the staged file list
-- [ ] **HOOK-02**: The hook exempts `--amend`, in-progress merge/rebase (`.git/MERGE_HEAD`, `.git/rebase-merge`, `.git/rebase-apply` present), and the bootstrap commit that adds `JOURNAL.md` itself
-- [ ] **HOOK-03**: On block, the hook's stderr message states exactly what's missing (`JOURNAL.md` not staged) and how to fix it
+- [x] **HOOK-01**: `.claude/settings.json` ships a `PreToolUse` hook, implemented as an inline shell command (no separate script file), that blocks `git commit` unless `JOURNAL.md` is in the staged file list
+- [x] **HOOK-02**: The hook exempts `--amend`, in-progress merge/rebase (`.git/MERGE_HEAD`, `.git/rebase-merge`, `.git/rebase-apply` present), and the bootstrap commit that adds `JOURNAL.md` itself
+- [x] **HOOK-03**: On block, the hook's stderr message states exactly what's missing (`JOURNAL.md` not staged) and how to fix it
 - [ ] **HOOK-04**: README/onboarding docs state explicitly that the hook only gates commits Claude Code's own Bash tool runs — not manual `git commit`, not other agents/IDEs
 
 ### Cross-Agent Handoff & Binding Wording
