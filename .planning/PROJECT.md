@@ -168,6 +168,9 @@ v1.8.0 context: prior milestones proved goodvibes can ship rules (CLAUDE.md), bu
 | Journal-gate hook over broader static-analysis hooks | Cheapest mechanism (`git diff --cached --name-only` check) that directly operationalizes the existing "update JOURNAL.md every task" rule; detecting rule violations like empty catch blocks generically is out of scope | v1.8.0 |
 | JOURNAL.md (not a new HANDOFF.md) is the cross-agent record | Already shipped in every goodvibes project; strengthening its instructions avoids adding a duplicate file for the same purpose | v1.8.0 |
 | context7 shipped via `.mcp.json` at the free/public tier | Zero-config default consistent with the rest of goodvibes; account/API-key upgrade documented as opt-in, not required | v1.8.0 |
+| Journal-gate hook implemented as inline shell command in settings.json | Avoids `jq`, avoids unverified wheel exec-bit question for a separate `.sh` file, avoids assuming Node is present (Claude Code ships a Node-free native installer) — edge cases (amend/merge/bootstrap) built in from day one, not deferred | v1.8.0 |
+| `goodvibes update` gains JSON-aware merge for settings.json/.mcp.json | User chose to build a scoped merge (only goodvibes-managed keys: hook block, context7 entry) over documenting the gap — existing hand-edited user config must not be lost when the hook/MCP config ships | v1.8.0 |
+| `caveman` ultra default ships with an onboarding note | Mitigates the risk flagged in research: ultra's jargon abbreviations (DB/auth/req/res) could confuse the "never opened a terminal before" audience; note explains what it does and how to dial back | v1.8.0 |
 
 ## Evolution
 

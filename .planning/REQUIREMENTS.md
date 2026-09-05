@@ -1,10 +1,46 @@
 # Requirements: goodvibes
 
 **Defined:** 2026-06-23 (v1.0 — v1.1.0)
-**Updated:** 2026-07-03 (v1.2.0 Growth & Retention)
+**Updated:** 2026-09-05 (v1.8.0 Agent Governance & Cross-Tool Enforcement)
 **Core Value:** One command gives a vibe coder a fully configured project — token efficiency and engineering discipline happen automatically in the background.
 
-## v1.2.0 Requirements (Active)
+## v1.8.0 Requirements (Active)
+
+### Journal-Gate Enforcement
+
+- [ ] **HOOK-01**: `.claude/settings.json` ships a `PreToolUse` hook, implemented as an inline shell command (no separate script file), that blocks `git commit` unless `JOURNAL.md` is in the staged file list
+- [ ] **HOOK-02**: The hook exempts `--amend`, in-progress merge/rebase (`.git/MERGE_HEAD`, `.git/rebase-merge`, `.git/rebase-apply` present), and the bootstrap commit that adds `JOURNAL.md` itself
+- [ ] **HOOK-03**: On block, the hook's stderr message states exactly what's missing (`JOURNAL.md` not staged) and how to fix it
+- [ ] **HOOK-04**: README/onboarding docs state explicitly that the hook only gates commits Claude Code's own Bash tool runs — not manual `git commit`, not other agents/IDEs
+
+### Cross-Agent Handoff & Binding Wording
+
+- [ ] **AGENT-01**: `JOURNAL.md`, `CLAUDE.md`, and `AGENTS.md` instruct any agent picking up the project to read prior `JOURNAL.md` entries before acting and treat them as binding, not advisory
+- [ ] **AGENT-02**: `CLAUDE.md` gains a rule: never ask the user for information already answered in README.md, CLAUDE.md, AGENTS.md, JOURNAL.md, or the codebase itself — with that source list enumerated in the rule text
+- [ ] **AGENT-03**: `CLAUDE.md`, `AGENTS.md`, and all per-IDE rule files use directive, non-optional language throughout (no "should"/"consider"/"try to")
+- [ ] **AGENT-04**: `.github/copilot-instructions.md` is documented as the authoritative rule file for GitHub Copilot (Copilot ranks it above `AGENTS.md`); `AGENTS.md` is documented as the cross-tool fallback, not a universal guarantee
+
+### context7 MCP
+
+- [ ] **CTX7-01**: `.mcp.json` template ships with `context7` configured at the free/public endpoint (`type: "http"`, no key, no signup)
+- [ ] **CTX7-02**: Docs cover the optional `${CONTEXT7_API_KEY}` upgrade path for higher rate limits; no literal key is ever committed
+- [ ] **CTX7-03**: Onboarding docs mention the one-time "trust this project's MCP servers" prompt Claude Code shows on first use
+
+### Caveman Default
+
+- [ ] **CAVE-01**: `caveman` skill's default intensity changes from `full` to `ultra`, still user-overridable via `/caveman lite|full|ultra`
+- [ ] **CAVE-02**: Onboarding docs add a note explaining what `ultra` does and how to dial it back if output gets too terse/jargon-heavy
+
+### Update Command
+
+- [ ] **UPD-07**: `goodvibes update` gains JSON-aware merge for `settings.json` and `.mcp.json` — preserves user-added keys while adding/updating only the specific keys goodvibes manages (hook block, context7 server entry)
+
+## Deferred to v1.8.x
+
+- Friendly rate-limit messaging if context7 calls start returning 429s — build only once real usage data shows it's needed
+- Extending hook-style enforcement to other tools if/when Codex, Cursor, etc. ship an equivalent hook API — none currently do
+
+## v1.2.0 Requirements (Complete)
 
 ### Headroom Integration
 
@@ -48,6 +84,11 @@
 - `goodvibes update` walking the project directory beyond managed template files
 - Building a new LLM or agent framework
 - Language-specific boilerplate beyond minimal CI examples
+- Broader static-analysis enforcement hooks (empty `catch`, missing tests, secret scanning, etc.) — journal-gate is the one cheap, unambiguous hook this milestone ships; generic rule-violation detection needs its own design pass
+- Requiring a context7 account/API key at `init` time — breaks the zero-config, no-signup promise
+- Auto-suppressing Claude Code's first-run MCP trust prompt — it's a legitimate security control, not a defect to work around
+- A goodvibes-operated caching/relay layer in front of context7 — premature without usage data on how often the free-tier cap is hit
+- Extending enforcement hooks to tools other than Claude Code — no other tool researched exposes an equivalent hook API to build against
 
 ## Previously Validated (v1.0–v1.1.0)
 
@@ -73,3 +114,17 @@ All prior requirements from v1.0–v1.1.0 are validated. See ROADMAP.md phases 0
 | UPD-04 | Phase 14 | Complete |
 | UPD-05 | Phase 14 | Complete |
 | UPD-06 | Phase 14 | Complete |
+| HOOK-01 | TBD | Not started |
+| HOOK-02 | TBD | Not started |
+| HOOK-03 | TBD | Not started |
+| HOOK-04 | TBD | Not started |
+| AGENT-01 | TBD | Not started |
+| AGENT-02 | TBD | Not started |
+| AGENT-03 | TBD | Not started |
+| AGENT-04 | TBD | Not started |
+| CTX7-01 | TBD | Not started |
+| CTX7-02 | TBD | Not started |
+| CTX7-03 | TBD | Not started |
+| CAVE-01 | TBD | Not started |
+| CAVE-02 | TBD | Not started |
+| UPD-07 | TBD | Not started |
