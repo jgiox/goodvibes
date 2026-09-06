@@ -876,3 +876,17 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 **Tests run:** `cd packages/npm && npx vitest run src/steps/journal-gate-hook.integration.test.ts` → 12 passed (12). `cd packages/pip && uv run pytest tests/test_journal_gate_hook.py --maxfail=0` → 12 passed (12). Manually reproduced CR-01, CR-02, and the single-quote variant against the live extracted command in a fresh temp git repo — all three now resolve to the plan-specified exit code.
 
 **Docs updated:** JOURNAL.md.
+
+---
+
+## 2026-09-06 — Phase 15-04 gap-closure plan complete
+
+**What I did:** Closed the HOOK-01/HOOK-02 verification gap (CR-01, CR-02, WR-03) with plan `15-04-PLAN.md`, executed directly (the environment's Agent-tool permission classifier blocked both worktree-isolated and plain sequential `gsd-executor` subagent spawns for this plan, so I ran its tasks myself per the user's explicit go-ahead). Wrote `15-04-SUMMARY.md` documenting both task commits, decisions, and the one out-of-scope issue encountered (`uv.lock` version drift, reverted).
+
+**Files changed:** .planning/phases/15-journal-gate-hook-context7-mcp/15-04-SUMMARY.md (new), JOURNAL.md.
+
+**Why:** Plan close-out per execute-plan.md's summary-creation step.
+
+**Tests run:** Full regression suites re-confirmed green: npm 158/158 passed (1 skipped, 2 todo, pre-existing), pip 166/166 passed.
+
+**Docs updated:** 15-04-SUMMARY.md, JOURNAL.md.
