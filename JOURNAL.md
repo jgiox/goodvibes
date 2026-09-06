@@ -983,3 +983,25 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 **Tests run:** `npx vitest run src/steps/journal-gate-hook.integration.test.ts` (15/15), `npm test` (161 passed/1 skipped/2 todo), `uv run pytest tests/test_journal_gate_hook.py` (15/15), `uv run pytest tests/` (169 passed) — all green, since none of the 3 new bypasses are covered by existing tests (that's WR-04 in the fresh review).
 
 **Docs updated:** 15-REVIEW.md, JOURNAL.md. STATE.md/ROADMAP.md deliberately NOT updated to "complete" — phase 15 is not being marked done this round.
+
+---
+
+## 2026-09-06 — Phase 15 gap-closure: plan 15-06 revised (round 3), CR-06/CR-07 fixed and shipped
+
+**What I did:** Read the round-3 revision context (checker's reproduction of two new bugs — CR-06 and CR-07 — found in round 2's own drafted-but-unshipped fix) and applied all 7 required edits to `15-06-PLAN.md` (updated Task 1's test matrix to 22 scenarios, Task 2's exact fix command, corrected T-15-19's mitigation text, added STRIDE rows T-15-20/T-15-21, added a verification note). Root cause: round 2's fix extracted a `-C` target from raw, unquoted-preserving `$CMD` unconditionally, without first confirming (via the quote-stripped `$UNQUOTED` variable) that a real `git -C` flag actually exists — so a commit message merely containing the adjacent text "git -C <token>" was misread as a real target. The round-3 fix adds `HASREALC` (confirms a real `-C` flag via `$UNQUOTED` before attempting any raw-text extraction) and `RAWCOUNT` (fails closed if the raw-text anchor pattern matches more than once, i.e., ambiguous). Executed Task 1 (RED): added CR-06/CR-07 to both test suites (22 total each), confirmed the expected 3-failing/19-passing split in both `vitest` and `pytest`, committed. Executed Task 2 (GREEN): applied the exact, pre-verified fix string to `templates/.claude/settings.json` and `.claude/settings.json` via a `node -e` `JSON.parse`/`JSON.stringify` round-trip, regenerated the gitignored `packages/npm/templates/.claude/settings.json` mirror via `npm run prebuild`, and confirmed all three files' `hooks` blocks are byte-identical (1879 chars).
+
+**Files changed:** `.planning/phases/15-journal-gate-hook-context7-mcp/15-06-PLAN.md`, `templates/.claude/settings.json`, `.claude/settings.json`, `packages/npm/templates/.claude/settings.json` (gitignored prebuild artifact, not committed), `packages/npm/src/steps/journal-gate-hook.integration.test.ts`, `packages/pip/tests/test_journal_gate_hook.py`, JOURNAL.md.
+
+**Why:** Closes the round-3 gap the checker found in round 2's own fix before it ever shipped, per CLAUDE.md's "fail loud" and security rules — a security control's own regression must not ship silently.
+
+**Tests run:**
+- `npx vitest run src/steps/journal-gate-hook.integration.test.ts` — 22/22 passed (post-fix; RED was 19/22)
+- `uv run pytest tests/test_journal_gate_hook.py -o addopts=""` — 22/22 passed (post-fix; RED was 19/22)
+- `npm test` (full suite) — 168 passed, 1 skipped, 2 todo, 0 failed
+- `uv run pytest tests/` (full suite) — 176 passed
+- Manual `sh -c` reproduction of all 7 CR directions (CR-01..CR-07) plus 15-05's baseline Test D/E/F against the live fixed hook — all 10 passed with expected exit codes
+- `diff`/Node comparison of `hooks` blocks across all three settings.json files — byte-identical
+
+**Docs updated:** JOURNAL.md, `15-06-PLAN.md`.
+
+**Known issue found, not fixed (out of scope for this plan per its explicit instruction not to re-derive the regex):** During this task, a `git add <files> && git commit -m "$(cat <<'EOF' ...)"` style compound commit (heredoc-based message via command substitution) appeared to bypass the *round-2* (pre-fix) hook's JOURNAL.md-staged check once during manual use — the commit landed without JOURNAL.md staged. An isolated `sh -c` reproduction of the same command shape against the round-2 hook string did NOT reproduce the bypass (correctly blocked), so the exact trigger is unconfirmed — possibly an artifact of the live Claude Code hook environment differing subtly from the isolated reproduction (e.g. actual heredoc body content, working directory, or a race condition), not a difference in the regex itself. Flagging for a future round rather than guessing at a fix.
