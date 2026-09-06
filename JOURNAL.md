@@ -969,3 +969,17 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 - `diff` of `hooks` blocks across `templates/.claude/settings.json`, `.claude/settings.json`, and `packages/npm/templates/.claude/settings.json` — all three identical
 
 **Docs updated:** JOURNAL.md.
+
+---
+
+## 2026-09-06 — Phase 15 execute-phase: merged plan 15-05, code review finds 3 new critical `-C` bypasses
+
+**What I did:** Ran `/gsd-execute-phase 15 --gaps-only`. The `gsd-executor` subagent's plan-15-05 work (RED test commit, GREEN fix commit, SUMMARY.md commit) was fast-forward merged from its worktree into `main`. Independently re-ran both journal-gate-hook suites (15/15 in each) and both packages' full regression suites (npm 161/1skip/2todo, pip 169/169) myself to confirm the executor's claims. Found and fixed a real gap: `packages/npm/templates/.claude/settings.json` (gitignored prebuild mirror) was stale in this checkout after the merge — worktrees have separate untracked/gitignored files, so the executor's `npm run prebuild` only updated its own worktree copy, not this one; re-ran `npm run prebuild` here to sync it. Then ran the required `code_review_gate` step (`gsd-code-reviewer`, standard depth) on the plan's changed files. The reviewer empirically confirmed the original CR-01 (`-C` cross-repo bypass/false-block) is fixed for its reported scope, but black-box probing beyond the plan's Test D/E/F found the fix itself introduces three new, more severe bypasses: (1) `-C` to any non-git-repo path fails `rev-parse` and fails OPEN, universally bypassing the gate; (2) the `TARGETDIR` regex isn't scoped to the actual `commit` clause, so an unrelated `-C` elsewhere in a chained command hijacks routing; (3) quote-stripping runs before `-C` extraction, so a quoted `-C` path (needed for paths with spaces) gets erased, silently reintroducing the original bug. All three confirmed via direct `sh -c` execution against real git repos, not just static reading.
+
+**Files changed:** `.claude/settings.json`, `templates/.claude/settings.json`, `packages/npm/src/steps/journal-gate-hook.integration.test.ts`, `packages/pip/tests/test_journal_gate_hook.py` (merged from worktree, no further edits by me), `.planning/phases/15-journal-gate-hook-context7-mcp/15-REVIEW.md` (overwritten with this round's findings), `.planning/phases/15-journal-gate-hook-context7-mcp/15-05-SUMMARY.md` (merged from worktree), JOURNAL.md.
+
+**Why:** `code_review_gate` is required and advisory-only per `execute-phase.md`, but three empirically-confirmed critical bypasses in a just-shipped security control (one of which is *worse* than the defect it replaced) is not something to push through silently — CLAUDE.md's security rule requires flagging this immediately rather than marking the phase complete or pushing.
+
+**Tests run:** `npx vitest run src/steps/journal-gate-hook.integration.test.ts` (15/15), `npm test` (161 passed/1 skipped/2 todo), `uv run pytest tests/test_journal_gate_hook.py` (15/15), `uv run pytest tests/` (169 passed) — all green, since none of the 3 new bypasses are covered by existing tests (that's WR-04 in the fresh review).
+
+**Docs updated:** 15-REVIEW.md, JOURNAL.md. STATE.md/ROADMAP.md deliberately NOT updated to "complete" — phase 15 is not being marked done this round.

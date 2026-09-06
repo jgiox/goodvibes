@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.8.0
 milestone_name: Agent Governance & Cross-Tool Enforcement
 status: executing
-last_updated: "2026-09-06T11:10:32.000Z"
-last_activity: 2026-09-06 -- Phase 15 gap-closure plan 15-05 created and verified
+last_updated: "2026-09-06T11:37:00.000Z"
+last_activity: 2026-09-06 -- 15-05 merged; code review found 3 new critical -C bypasses, phase not complete
 progress:
   total_phases: 17
   completed_phases: 3
-  total_plans: 18
-  completed_plans: 57
+  total_plans: 19
+  completed_plans: 58
   percent: 18
 ---
 
@@ -20,14 +20,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-07-03)
 
 **Core value:** One command gives a vibe coder a fully configured project — token efficiency and engineering discipline happen automatically in the background.
-**Current focus:** Phase 15 — journal-gate-hook-context7-mcp (gap-closure plan 15-05 ready to execute)
+**Current focus:** Phase 15 — journal-gate-hook-context7-mcp
 
 ## Current Position
 
-Phase: 15 (journal-gate-hook-context7-mcp) — PLANNED
-Plan: 5 of 5 planned (15-05 gap-closure, verified, not yet executed)
-Status: Ready to execute
-Last activity: 2026-09-06 -- Phase 15 gap-closure plan 15-05 created and verified
+Phase: 15 (journal-gate-hook-context7-mcp) — EXECUTING
+Plan: 5 of 5 executed; code review (15-REVIEW.md) found 3 NEW critical `-C` bypasses in 15-05's own fix
+Status: BLOCKED — needs another gap-closure round before phase 15 can be marked complete
+Last activity: 2026-09-06 -- 15-05 merged; code review found 3 new critical -C bypasses, phase not complete
 
 ## Performance Metrics
 
