@@ -1019,3 +1019,17 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 **Tests run:** `npx vitest run src/steps/journal-gate-hook.integration.test.ts` (22/22), `uv run pytest tests/test_journal_gate_hook.py -v` (22 passed), `npm test` (168 passed/1 skipped/2 todo), `uv run pytest tests/ -v` (176 passed), manual `sh -c` reproduction of CR-01 through CR-07 plus Test D/E/F against the live shipped hook (8/8 asserted PASS, 0 FAIL), standalone reverse false-block reproduction (exit 0, correct) — all independently re-run by the orchestrator, not just accepted from subagent reports.
 
 **Docs updated:** JOURNAL.md, `.planning/STATE.md`.
+
+---
+
+## 2026-09-06 — Phase 15 gap-closure: created missing 15-06-SUMMARY.md (found during /gsd-verify-work)
+
+**What I did:** Ran `/gsd-verify-work 15` to start UAT. Its `find_summaries` step found `15-01` through `15-05-SUMMARY.md` but no `15-06-SUMMARY.md` — the round-3 executing subagent applied and committed the fix correctly (see prior entries) but never created the plan's required `<output>` artifact. Wrote `15-06-SUMMARY.md` retroactively from facts already independently verified earlier this session (byte-identical settings.json fix, 22/22 tests, `gsd-plan-checker` VERIFICATION PASSED with 0 blockers) rather than trusting the subagent's report a second time.
+
+**Files changed:** `.planning/phases/15-journal-gate-hook-context7-mcp/15-06-SUMMARY.md` (created), JOURNAL.md.
+
+**Why:** UAT test extraction reads SUMMARY.md files for testable deliverables; without one for 15-06, the round-3 fix's own scope (CR-06/CR-07) would be invisible to UAT. CLAUDE.md's "fail loud" rule means flagging the missing artifact rather than silently working around it.
+
+**Tests run:** None (documentation-only change; no code touched).
+
+**Docs updated:** `15-06-SUMMARY.md`, JOURNAL.md.
