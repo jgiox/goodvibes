@@ -848,3 +848,17 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 **Tests run:** Verifier's spot-checks (see 15-VERIFICATION.md Behavioral Spot-Checks table) — 2 of 6 checked behaviors failed. Existing 20-test suite (10 vitest + 10 pytest) still green but does not cover the failing cases.
 
 **Docs updated:** 15-VERIFICATION.md, ROADMAP.md, STATE.md, JOURNAL.md. Phase 15 is NOT complete — gap closure required before advancing to Phase 16.
+
+---
+
+## 2026-09-06 — Phase 15-04 Task 1: adversarial regression tests (RED)
+
+**What I did:** Added 3 new adversarial test cases to each of `journal-gate-hook.integration.test.ts` (npm) and `test_journal_gate_hook.py` (pip), closing the gaps recorded in `15-VERIFICATION.md`/`15-REVIEW.md` (CR-01, CR-02) plus an untested single-quote variant: Test A (double-quoted commit message containing the literal text "--amend" must still be blocked), Test B (a non-commit `git log --grep="...git commit..."` must not be blocked), Test C (single-quoted variant of Test A). Confirmed RED against the current, unfixed hook: exactly 3 failing / 9 passing in both suites, matching each test's documented expected failure reason. No mocking added (verified via grep for `vi.mock`/`mocker.patch`). The fix itself (Task 2) is a separate commit.
+
+**Files changed:** packages/npm/src/steps/journal-gate-hook.integration.test.ts, packages/pip/tests/test_journal_gate_hook.py.
+
+**Why:** Executing gap-closure plan 15-04 per CLAUDE.md's regression-test discipline — failing test committed before the fix.
+
+**Tests run:** `cd packages/npm && npx vitest run src/steps/journal-gate-hook.integration.test.ts` → 3 failed, 9 passed (expected RED). `cd packages/pip && uv run pytest tests/test_journal_gate_hook.py --maxfail=0` → 3 failed, 9 passed (expected RED).
+
+**Docs updated:** JOURNAL.md.

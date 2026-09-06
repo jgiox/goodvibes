@@ -88,4 +88,21 @@ describe('journal-gate hook', () => {
     const { exitCode } = await runHook('git commit-tree abc123 -m x', repoDir)
     expect(exitCode).toBe(0)
   })
+
+  it('blocks a non-amend commit whose message contains the literal text "--amend"', async () => {
+    const { exitCode, stderr } = await runHook('git commit -am "note about --amend flag"', repoDir)
+    expect(exitCode).toBe(2)
+    expect(stderr.trim()).toBe('BLOCKED: JOURNAL.md not staged. Update JOURNAL.md, then: git add JOURNAL.md')
+  })
+
+  it('allows a non-commit git command whose arguments contain the substring "git commit"', async () => {
+    const { exitCode } = await runHook('git log --grep="please git commit later"', repoDir)
+    expect(exitCode).toBe(0)
+  })
+
+  it('blocks a non-amend commit with a single-quoted message containing the literal text "--amend"', async () => {
+    const { exitCode, stderr } = await runHook("git commit -am 'note about --amend flag'", repoDir)
+    expect(exitCode).toBe(2)
+    expect(stderr.trim()).toBe('BLOCKED: JOURNAL.md not staged. Update JOURNAL.md, then: git add JOURNAL.md')
+  })
 })

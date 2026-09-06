@@ -86,3 +86,20 @@ def test_blocks_commit_with_dash_c_variant_when_journal_unstaged(repo_dir):
 def test_does_not_false_positive_on_commit_tree_subcommand(repo_dir):
     result = _run_hook("git commit-tree abc123 -m x", repo_dir)
     assert result.returncode == 0
+
+
+def test_blocks_non_amend_commit_with_amend_text_in_message(repo_dir):
+    result = _run_hook('git commit -am "note about --amend flag"', repo_dir)
+    assert result.returncode == 2
+    assert result.stderr.strip() == "BLOCKED: JOURNAL.md not staged. Update JOURNAL.md, then: git add JOURNAL.md"
+
+
+def test_allows_non_commit_command_with_commit_substring_in_args(repo_dir):
+    result = _run_hook('git log --grep="please git commit later"', repo_dir)
+    assert result.returncode == 0
+
+
+def test_blocks_non_amend_commit_with_single_quoted_amend_text_in_message(repo_dir):
+    result = _run_hook("git commit -am 'note about --amend flag'", repo_dir)
+    assert result.returncode == 2
+    assert result.stderr.strip() == "BLOCKED: JOURNAL.md not staged. Update JOURNAL.md, then: git add JOURNAL.md"
