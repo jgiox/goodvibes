@@ -938,6 +938,20 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 
 ---
 
+## 2026-09-06 — Phase 15-05 close-out: SUMMARY.md
+
+**What I did:** Created `.planning/phases/15-journal-gate-hook-context7-mcp/15-05-SUMMARY.md` per this plan's `<output>` step, documenting both tasks' commits, decisions, deviations (worktree base correction, dependency installs), and next-phase readiness.
+
+**Files changed:** `.planning/phases/15-journal-gate-hook-context7-mcp/15-05-SUMMARY.md` (new), JOURNAL.md.
+
+**Why:** Plan-completion documentation required by the execute-plan workflow; STATE.md/ROADMAP.md are intentionally left untouched (orchestrator owns those writes after this worktree agent completes).
+
+**Tests run:** None (docs-only step).
+
+**Docs updated:** 15-05-SUMMARY.md, JOURNAL.md.
+
+---
+
 ## 2026-09-06 — Phase 15-05 Task 2: route git-state checks through -C target via absolute GITDIR (GREEN)
 
 **What I did:** Executed 15-05-PLAN.md Task 2. Replaced `hooks.PreToolUse[0].hooks[0].command` in `templates/.claude/settings.json` and `.claude/settings.json` with the plan's exact, pre-verified string: adds a `TARGETDIR` extraction (anchored `sed -nE` capture of the argument following a `-C` token), a `GIT()` wrapper function that prepends `-C "$TARGETDIR"` to every git invocation when a target is present, and switches `GITDIR` resolution from `git rev-parse --git-dir` to `git rev-parse --absolute-git-dir` so the plain `[ -f ]`/`[ -d ]` merge/rebase exemption file-tests resolve correctly regardless of the hook process's own cwd. Used a `node -e` `JSON.parse`/`JSON.stringify` round-trip (matching 15-04's precedent) to avoid hand-escaping. Regenerated the gitignored `packages/npm/templates/.claude/settings.json` mirror via `npm run prebuild`. Confirmed both files remain valid JSON, all three files' `hooks` blocks are byte-identical, and `.claude/settings.json`'s `permissions.allow` (3 original entries) is untouched.
