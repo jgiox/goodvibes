@@ -3,7 +3,9 @@ from __future__ import annotations
 
 import json
 import pathlib
+import shutil
 import subprocess
+import tempfile
 
 import pytest
 
@@ -133,4 +135,68 @@ def test_allows_dash_c_commit_targeting_different_mid_merge_repo_when_cwd_not_mi
     (other_repo / "JOURNAL.md").write_text("# journal\n")
     (other_repo / ".git" / "MERGE_HEAD").write_text("abc123\n")
     result = _run_hook(f'git -C {other_repo} commit -am "fix"', repo_dir)
+    assert result.returncode == 0
+
+
+def test_does_not_allow_commit_via_dash_c_target_that_is_not_a_git_repository(repo_dir):
+    not_a_repo = pathlib.Path(tempfile.mkdtemp(prefix="gv-not-a-repo-"))
+    try:
+        result = _run_hook(f'git -C {not_a_repo} commit -am "fix"', repo_dir)
+        assert result.returncode != 0
+        assert "BLOCKED" in result.stderr
+    finally:
+        shutil.rmtree(not_a_repo, ignore_errors=True)
+
+
+def test_does_not_let_unrelated_dash_c_invocation_in_chained_command_override_routing(repo_dir):
+    other_repo = repo_dir / "other-repo"
+    other_repo.mkdir()
+    subprocess.run(["git", "init"], cwd=other_repo, check=True, capture_output=True)
+    (other_repo / "JOURNAL.md").write_text("# journal\n")
+    subprocess.run(["git", "add", "JOURNAL.md"], cwd=other_repo, check=True, capture_output=True)
+    result = _run_hook(f'git commit -am "fix" && git -C {other_repo} status', repo_dir)
+    assert result.returncode == 2
+
+
+def test_does_not_fall_back_to_cwd_when_quoted_dash_c_path_contains_a_space(repo_dir):
+    subprocess.run(["git", "add", "JOURNAL.md"], cwd=repo_dir, check=True, capture_output=True)
+    spaced_parent = repo_dir / "path with a space"
+    repo_b = spaced_parent / "repoB"
+    repo_b.mkdir(parents=True)
+    subprocess.run(["git", "init"], cwd=repo_b, check=True, capture_output=True)
+    (repo_b / "JOURNAL.md").write_text("# journal\n")
+    result = _run_hook(f'git -C "{repo_b}" commit -am "fix"', repo_dir)
+    assert result.returncode == 2
+    assert result.stderr.strip() == "BLOCKED: JOURNAL.md not staged. Update JOURNAL.md, then: git add JOURNAL.md"
+
+
+def test_blocks_commit_whose_message_merely_resembles_dash_c_flag_when_real_target_unstaged(repo_dir):
+    other_repo = repo_dir / "other-repo"
+    other_repo.mkdir()
+    subprocess.run(["git", "init"], cwd=other_repo, check=True, capture_output=True)
+    (other_repo / "JOURNAL.md").write_text("# journal\n")
+    subprocess.run(["git", "add", "JOURNAL.md"], cwd=other_repo, check=True, capture_output=True)
+    result = _run_hook(f'git commit -am "see -C {other_repo} for details"', repo_dir)
+    assert result.returncode == 2
+
+
+def test_allows_commit_whose_message_merely_resembles_dash_c_flag_when_real_target_staged(repo_dir):
+    subprocess.run(["git", "add", "JOURNAL.md"], cwd=repo_dir, check=True, capture_output=True)
+    result = _run_hook('git commit -am "notes -C /tmp for later"', repo_dir)
+    assert result.returncode == 0
+
+
+def test_blocks_commit_from_unstaged_cwd_whose_message_merely_contains_adjacent_git_dash_c_phrase(repo_dir):
+    other_repo = repo_dir / "other-repo"
+    other_repo.mkdir()
+    subprocess.run(["git", "init"], cwd=other_repo, check=True, capture_output=True)
+    (other_repo / "JOURNAL.md").write_text("# journal\n")
+    subprocess.run(["git", "add", "JOURNAL.md"], cwd=other_repo, check=True, capture_output=True)
+    result = _run_hook(f'git commit -am "see git -C {other_repo} for the fix"', repo_dir)
+    assert result.returncode == 2
+
+
+def test_allows_commit_from_staged_cwd_whose_message_merely_contains_adjacent_git_dash_c_phrase(repo_dir):
+    subprocess.run(["git", "add", "JOURNAL.md"], cwd=repo_dir, check=True, capture_output=True)
+    result = _run_hook('git commit -am "fix: git -C anchor bypass in journal-gate hook"', repo_dir)
     assert result.returncode == 0
