@@ -105,4 +105,36 @@ describe('journal-gate hook', () => {
     expect(exitCode).toBe(2)
     expect(stderr.trim()).toBe('BLOCKED: JOURNAL.md not staged. Update JOURNAL.md, then: git add JOURNAL.md')
   })
+
+  it("blocks a git -C commit targeting a different, unstaged repo even when the hook's own cwd has JOURNAL.md staged", async () => {
+    await execa('git', ['add', 'JOURNAL.md'], { cwd: repoDir })
+    const otherRepoDir = join(repoDir, 'other-repo')
+    mkdirSync(otherRepoDir, { recursive: true })
+    await execa('git', ['init'], { cwd: otherRepoDir })
+    await execa('sh', ['-c', `printf '# journal\\n' > "${join(otherRepoDir, 'JOURNAL.md')}"`])
+    const { exitCode, stderr } = await runHook(`git -C ${otherRepoDir} commit -am "fix"`, repoDir)
+    expect(exitCode).toBe(2)
+    expect(stderr.trim()).toBe('BLOCKED: JOURNAL.md not staged. Update JOURNAL.md, then: git add JOURNAL.md')
+  })
+
+  it("allows a git -C commit targeting a different, staged repo even when the hook's own cwd has JOURNAL.md unstaged", async () => {
+    const otherRepoDir = join(repoDir, 'other-repo')
+    mkdirSync(otherRepoDir, { recursive: true })
+    await execa('git', ['init'], { cwd: otherRepoDir })
+    await execa('sh', ['-c', `printf '# journal\\n' > "${join(otherRepoDir, 'JOURNAL.md')}"`])
+    await execa('git', ['add', 'JOURNAL.md'], { cwd: otherRepoDir })
+    const { exitCode } = await runHook(`git -C ${otherRepoDir} commit -am "fix"`, repoDir)
+    expect(exitCode).toBe(0)
+  })
+
+  it("allows a git -C commit targeting a different repo that is mid-merge, even when the hook's own cwd is not mid-merge and has JOURNAL.md unstaged", async () => {
+    const otherRepoDir = join(repoDir, 'other-repo')
+    mkdirSync(otherRepoDir, { recursive: true })
+    await execa('git', ['init'], { cwd: otherRepoDir })
+    await execa('sh', ['-c', `printf '# journal\\n' > "${join(otherRepoDir, 'JOURNAL.md')}"`])
+    const otherRepoGitDir = join(otherRepoDir, '.git')
+    await execa('sh', ['-c', `printf 'abc123\\n' > "${join(otherRepoGitDir, 'MERGE_HEAD')}"`])
+    const { exitCode } = await runHook(`git -C ${otherRepoDir} commit -am "fix"`, repoDir)
+    expect(exitCode).toBe(0)
+  })
 })

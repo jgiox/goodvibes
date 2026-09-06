@@ -918,3 +918,20 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 **Tests run:** None yet against real source (plan-only task). The planner and checker each independently ran the plan's exact, JSON-escaped candidate command via `sh -c` against real hand-built temp git repos for all 15 scenarios during plan authoring/verification — not unit tests in the repo's own suites, which still reflect the unfixed hook until 15-05 executes.
 
 **Docs updated:** 15-05-PLAN.md, ROADMAP.md, STATE.md, JOURNAL.md.
+
+---
+
+## 2026-09-06 — Phase 15-05 Task 1: cross-repo -C adversarial regression tests (RED)
+
+**What I did:** Executed 15-05-PLAN.md Task 1. Appended 3 new adversarial test cases to each of the two existing journal-gate-hook integration suites, reproducing 15-REVIEW.md CR-01's cross-repo `-C` defect from three angles: Test D (bypass — cwd staged, `-C` target unstaged, must BLOCK), Test E (false-block — cwd unstaged, `-C` target staged, must ALLOW), and Test F (target merge-exemption — cwd not mid-merge/unstaged, `-C` target mid-merge, must ALLOW). Each test creates a second, independent git repo nested inside the existing fixture directory via real `git init`, matching the plan's exact scenario definitions and naming. Confirmed RED against the live, currently-shipped (unfixed) hook in `templates/.claude/settings.json` — no source files touched yet.
+
+**Files changed:** `packages/npm/src/steps/journal-gate-hook.integration.test.ts`, `packages/pip/tests/test_journal_gate_hook.py`.
+
+**Why:** TDD RED step per CLAUDE.md's regression-test convention — the failing test must be committed before the fix.
+
+**Tests run:**
+- `cd packages/npm && npx vitest run src/steps/journal-gate-hook.integration.test.ts` — 3 failed (Test D, E, F, each for the documented reason), 12 passed
+- `cd packages/pip && uv run pytest tests/test_journal_gate_hook.py --override-ini="addopts=-q"` — 3 failed (Test D, E, F, each for the documented reason), 12 passed
+- `grep -c 'vi.mock\|mocker.patch'` on both files — 0 (no subprocess mocking added)
+
+**Docs updated:** JOURNAL.md.

@@ -103,3 +103,34 @@ def test_blocks_non_amend_commit_with_single_quoted_amend_text_in_message(repo_d
     result = _run_hook("git commit -am 'note about --amend flag'", repo_dir)
     assert result.returncode == 2
     assert result.stderr.strip() == "BLOCKED: JOURNAL.md not staged. Update JOURNAL.md, then: git add JOURNAL.md"
+
+
+def test_blocks_dash_c_commit_targeting_different_unstaged_repo_when_cwd_staged(repo_dir):
+    subprocess.run(["git", "add", "JOURNAL.md"], cwd=repo_dir, check=True, capture_output=True)
+    other_repo = repo_dir / "other-repo"
+    other_repo.mkdir()
+    subprocess.run(["git", "init"], cwd=other_repo, check=True, capture_output=True)
+    (other_repo / "JOURNAL.md").write_text("# journal\n")
+    result = _run_hook(f'git -C {other_repo} commit -am "fix"', repo_dir)
+    assert result.returncode == 2
+    assert result.stderr.strip() == "BLOCKED: JOURNAL.md not staged. Update JOURNAL.md, then: git add JOURNAL.md"
+
+
+def test_allows_dash_c_commit_targeting_different_staged_repo_when_cwd_unstaged(repo_dir):
+    other_repo = repo_dir / "other-repo"
+    other_repo.mkdir()
+    subprocess.run(["git", "init"], cwd=other_repo, check=True, capture_output=True)
+    (other_repo / "JOURNAL.md").write_text("# journal\n")
+    subprocess.run(["git", "add", "JOURNAL.md"], cwd=other_repo, check=True, capture_output=True)
+    result = _run_hook(f'git -C {other_repo} commit -am "fix"', repo_dir)
+    assert result.returncode == 0
+
+
+def test_allows_dash_c_commit_targeting_different_mid_merge_repo_when_cwd_not_mid_merge(repo_dir):
+    other_repo = repo_dir / "other-repo"
+    other_repo.mkdir()
+    subprocess.run(["git", "init"], cwd=other_repo, check=True, capture_output=True)
+    (other_repo / "JOURNAL.md").write_text("# journal\n")
+    (other_repo / ".git" / "MERGE_HEAD").write_text("abc123\n")
+    result = _run_hook(f'git -C {other_repo} commit -am "fix"', repo_dir)
+    assert result.returncode == 0
