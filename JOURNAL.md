@@ -935,3 +935,23 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 - `grep -c 'vi.mock\|mocker.patch'` on both files — 0 (no subprocess mocking added)
 
 **Docs updated:** JOURNAL.md.
+
+---
+
+## 2026-09-06 — Phase 15-05 Task 2: route git-state checks through -C target via absolute GITDIR (GREEN)
+
+**What I did:** Executed 15-05-PLAN.md Task 2. Replaced `hooks.PreToolUse[0].hooks[0].command` in `templates/.claude/settings.json` and `.claude/settings.json` with the plan's exact, pre-verified string: adds a `TARGETDIR` extraction (anchored `sed -nE` capture of the argument following a `-C` token), a `GIT()` wrapper function that prepends `-C "$TARGETDIR"` to every git invocation when a target is present, and switches `GITDIR` resolution from `git rev-parse --git-dir` to `git rev-parse --absolute-git-dir` so the plain `[ -f ]`/`[ -d ]` merge/rebase exemption file-tests resolve correctly regardless of the hook process's own cwd. Used a `node -e` `JSON.parse`/`JSON.stringify` round-trip (matching 15-04's precedent) to avoid hand-escaping. Regenerated the gitignored `packages/npm/templates/.claude/settings.json` mirror via `npm run prebuild`. Confirmed both files remain valid JSON, all three files' `hooks` blocks are byte-identical, and `.claude/settings.json`'s `permissions.allow` (3 original entries) is untouched.
+
+**Files changed:** `templates/.claude/settings.json`, `.claude/settings.json`, `packages/npm/templates/.claude/settings.json` (gitignored prebuild artifact, not committed), JOURNAL.md.
+
+**Why:** Closes 15-VERIFICATION.md's sole BLOCKER gap (15-REVIEW.md CR-01) — the hook's git-state checks ignored a `-C <path>` target, producing both a bypass and a false block.
+
+**Tests run:**
+- `cd packages/npm && npx vitest run src/steps/journal-gate-hook.integration.test.ts` — 15/15 passed
+- `cd packages/pip && uv run pytest tests/test_journal_gate_hook.py --override-ini="addopts=-q"` — 15/15 passed
+- `cd packages/npm && npm test` (full suite) — 161 passed, 1 skipped, 2 todo, 0 failed
+- `cd packages/pip && uv run pytest tests/` (full suite) — 169 passed
+- `node -e "JSON.parse(...)"` on both settings.json files — both valid JSON
+- `diff` of `hooks` blocks across `templates/.claude/settings.json`, `.claude/settings.json`, and `packages/npm/templates/.claude/settings.json` — all three identical
+
+**Docs updated:** JOURNAL.md.
