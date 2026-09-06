@@ -890,3 +890,17 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 **Tests run:** Full regression suites re-confirmed green: npm 158/158 passed (1 skipped, 2 todo, pre-existing), pip 166/166 passed.
 
 **Docs updated:** 15-04-SUMMARY.md, JOURNAL.md.
+
+---
+
+## 2026-09-06 — Phase 15 code review (subagent)
+
+**What I did:** Ran `execute-phase.md`'s `code_review_gate` step per the user's "let the subagent do the job" instruction. `gsd-sdk query config-get workflow.code_review` confirmed the gate is enabled. Computed file scope via the SUMMARY.md tier across all 4 phase plans (10 files: journal-gate hook + tests, context7 `.mcp.json` + tests, `docs/getting-started.md` and its two template copies). Spawned `gsd-code-reviewer` (real subagent, no classifier block this time) at standard depth. It found 1 Critical (CR-01: the hook's `git rev-parse --git-dir`/`git diff --cached` checks always run against the hook's own cwd, ignoring `-C <path>` in the intercepted command — confirmed exploitable as both a bypass and a false-block via live reproduction against two temp repos), 5 Warnings (no parity check between the 3 duplicated hook-string copies, the hook being an unreadable triple-escaped one-liner, `.claude/settings.json`'s unrestricted `Bash(rm -rf *)` allow plus a hardcoded personal path, `getting-started.md` conflating `update`/`upgrade` subcommands, a stale RED-phase comment in the npm test file), and 1 Info (text-pattern commit matching is inherently spoofable by aliases).
+
+**Files changed:** .planning/phases/15-journal-gate-hook-context7-mcp/15-REVIEW.md (regenerated, superseding the prior plans-02/03 review), JOURNAL.md.
+
+**Why:** `code_review_gate` is a required, advisory-only step in `execute-phase.md` — runs regardless of prior verification status, never blocks phase completion.
+
+**Tests run:** None run by me this step; the reviewer subagent independently re-executed both integration suites (13/13 npm, 13/13 pip) and manually reproduced the CR-01 bypass/false-block against the live extracted hook command in fresh temp repos.
+
+**Docs updated:** 15-REVIEW.md, JOURNAL.md.
