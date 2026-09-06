@@ -904,3 +904,17 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 **Tests run:** None run by me this step; the reviewer subagent independently re-executed both integration suites (13/13 npm, 13/13 pip) and manually reproduced the CR-01 bypass/false-block against the live extracted hook command in fresh temp repos.
 
 **Docs updated:** 15-REVIEW.md, JOURNAL.md.
+
+---
+
+## 2026-09-06 — Phase 15 gap-closure plan 15-05: fix `-C` cross-repo hook bypass
+
+**What I did:** Ran `/gsd-plan-phase 15 --gaps` to close 15-VERIFICATION.md's sole BLOCKER gap (independently confirmed by 15-REVIEW.md CR-01): the journal-gate hook's `GITDIR`/merge-rebase/staged-file checks ignore a `-C <path>` argument in the intercepted command, causing both a bypass (unstaged target repo wrongly allowed) and a false block (staged target repo wrongly blocked). Spawned `gsd-planner`, which produced 15-05-PLAN.md choosing full `-C` support (a `TARGETDIR` extraction + `GIT()` wrapper) over the fail-closed alternative, since the mandated ALLOW scenario can't be satisfied by fail-closed alone. `gsd-plan-checker` then caught a real defect the planner missed: `git rev-parse --git-dir` returns a path relative to `-C`'s target, so the merge/rebase-in-progress exemption checks (plain `[ -f ... ]` tests, not routed through the `GIT()` wrapper) still silently read the hook's own cwd — reproduced empirically as a false block on a cross-repo merge-in-progress commit. Re-spawned `gsd-planner` with that feedback; it switched to `git rev-parse --absolute-git-dir` and added a third adversarial test (Test F) covering the cross-repo merge exemption, re-verifying all 15 scenarios (12 original + Test D/E/F) against real hand-built git repos before re-submitting. `gsd-plan-checker` re-verified independently (own execution, not trusting the planner's claim) and passed. Corrected `STATE.md`, which carried a stale, uncommitted "Phase 15 execution started, Plan 1 of 4" snapshot left over from an earlier, unrelated session.
+
+**Files changed:** `.planning/phases/15-journal-gate-hook-context7-mcp/15-05-PLAN.md` (new, then revised in place), `.planning/ROADMAP.md`, `.planning/STATE.md`, JOURNAL.md. No source files touched yet — this task only produced and verified the plan; execution (editing `templates/.claude/settings.json`, `.claude/settings.json`, the test suites) is the next step.
+
+**Why:** `-C` handling was an explicit named goal during Phase 15's original planning (15-CONTEXT.md, 15-01-PLAN.md Test 8) and its incomplete implementation is a BLOCKER per 15-VERIFICATION.md, not deferrable scope.
+
+**Tests run:** None yet against real source (plan-only task). The planner and checker each independently ran the plan's exact, JSON-escaped candidate command via `sh -c` against real hand-built temp git repos for all 15 scenarios during plan authoring/verification — not unit tests in the repo's own suites, which still reflect the unfixed hook until 15-05 executes.
+
+**Docs updated:** 15-05-PLAN.md, ROADMAP.md, STATE.md, JOURNAL.md.
