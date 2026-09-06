@@ -418,7 +418,7 @@ Plans:
   3. A freshly-initialized project's `.mcp.json` has `context7` configured at the free/public HTTP endpoint (no key, no signup); Claude Code's one-time "trust this project's MCP servers" prompt is documented in onboarding, not hidden
   4. README/onboarding docs state plainly that the hook only gates commits made through Claude Code's own Bash tool — not manual `git commit`, not other agents/IDEs — and separately document the optional `${CONTEXT7_API_KEY}` upgrade path with no literal key ever committed
 
-**Plans**: 5 plans
+**Plans**: 6 plans
 
 **Wave 1** *(parallel — no file conflicts)*
 
@@ -429,7 +429,8 @@ Plans:
 **Gap closure**
 
 - [x] 15-04-PLAN.md — Fix journal-gate hook quote-stripping bypass (CR-01/CR-02): strip quoted spans before --amend/commit-subcommand matching, add adversarial tests (HOOK-01, HOOK-02)
-- [ ] 15-05-PLAN.md — Fix journal-gate hook -C cross-repo bypass/false-block (CR-01): route GITDIR/MERGE_HEAD/rebase/staged-file checks through the -C target directory, add cross-repo adversarial tests (HOOK-01, HOOK-02)
+- [x] 15-05-PLAN.md — Fix journal-gate hook -C cross-repo bypass/false-block (CR-01): route GITDIR/MERGE_HEAD/rebase/staged-file checks through the -C target directory, add cross-repo adversarial tests (HOOK-01, HOOK-02)
+- [ ] 15-06-PLAN.md — Fix 3 new -C bypasses (CR-01/CR-02/CR-03) introduced by 15-05's own fix: fail-closed on unresolvable -C target, fail-closed on compound-command-plus--C, extract quoted-or-unquoted -C from raw command text (HOOK-01, HOOK-02)
 
 **UI hint**: no
 
