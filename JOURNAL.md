@@ -1005,3 +1005,17 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 **Docs updated:** JOURNAL.md, `15-06-PLAN.md`.
 
 **Known issue found, not fixed (out of scope for this plan per its explicit instruction not to re-derive the regex):** During this task, a `git add <files> && git commit -m "$(cat <<'EOF' ...)"` style compound commit (heredoc-based message via command substitution) appeared to bypass the *round-2* (pre-fix) hook's JOURNAL.md-staged check once during manual use — the commit landed without JOURNAL.md staged. An isolated `sh -c` reproduction of the same command shape against the round-2 hook string did NOT reproduce the bypass (correctly blocked), so the exact trigger is unconfirmed — possibly an artifact of the live Claude Code hook environment differing subtly from the isolated reproduction (e.g. actual heredoc body content, working directory, or a race condition), not a difference in the regex itself. Flagging for a future round rather than guessing at a fix.
+
+---
+
+## 2026-09-06 — Phase 15 gap-closure: round-3 fix independently re-verified, 0 blockers
+
+**What I did:** Independently re-verified (as orchestrator, not trusting the executing subagent's self-report) the round-3 GREEN commit (`4e0fe3a`) by: diffing all three `settings.json` files' `hooks` blocks for byte-identity (confirmed, 1879 chars each) against the exact fix string I had pre-derived and locally tested earlier in this session; re-running both journal-gate-hook suites myself (22/22 in each) plus both packages' full regression suites (npm 168/1skip/2todo, pip 176 passed); and re-running the full adversarial `sh -c` harness (CR-01 through CR-07, Test D/E/F) directly against the actual shipped `templates/.claude/settings.json` hook command, plus a standalone reproduction of the round-2 false-block case. All passed. Then spawned `gsd-plan-checker` for round-3 verification per the user's explicit "re-verify with the checker after" choice; it independently reproduced all 7 CR scenarios plus Test D/E/F against the live shipped hook, probed adversarially for a new bypass from the `HASREALC`/`RAWCOUNT` change (found none — only a narrow, safe-direction false-block edge case for `-C` value text containing a lookalike phrase, and one pre-existing tab-escape defect from phase 15-01 unrelated to this defect class), and returned `## VERIFICATION PASSED` with 0 blockers and 2 non-blocking warnings. Updated `.planning/STATE.md`'s Current Position to reflect the verified gap closure (not a full phase-complete marking, since phase-level `gsd-verifier` sign-off hasn't run).
+
+**Files changed:** `.planning/STATE.md`, JOURNAL.md.
+
+**Why:** CLAUDE.md's "Proof of work" rule requires pasting actual test output and independently confirming a subagent's claims rather than trusting its self-report at face value, especially given this defect class recurred across 3 prior rounds; STATE.md must reflect verified reality, not stale BLOCKED status.
+
+**Tests run:** `npx vitest run src/steps/journal-gate-hook.integration.test.ts` (22/22), `uv run pytest tests/test_journal_gate_hook.py -v` (22 passed), `npm test` (168 passed/1 skipped/2 todo), `uv run pytest tests/ -v` (176 passed), manual `sh -c` reproduction of CR-01 through CR-07 plus Test D/E/F against the live shipped hook (8/8 asserted PASS, 0 FAIL), standalone reverse false-block reproduction (exit 0, correct) — all independently re-run by the orchestrator, not just accepted from subagent reports.
+
+**Docs updated:** JOURNAL.md, `.planning/STATE.md`.

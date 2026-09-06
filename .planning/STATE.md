@@ -4,7 +4,7 @@ milestone: v1.8.0
 milestone_name: Agent Governance & Cross-Tool Enforcement
 status: executing
 last_updated: "2026-09-06T11:37:00.000Z"
-last_activity: 2026-09-06 -- 15-05 merged; code review found 3 new critical -C bypasses, phase not complete
+last_activity: 2026-09-06 -- gap-closure plan 15-06 (round 3) executed and verified, 0 blockers
 progress:
   total_phases: 17
   completed_phases: 3
@@ -25,9 +25,9 @@ See: .planning/PROJECT.md (updated 2026-07-03)
 ## Current Position
 
 Phase: 15 (journal-gate-hook-context7-mcp) — EXECUTING
-Plan: 5 of 5 executed; code review (15-REVIEW.md) found 3 NEW critical `-C` bypasses in 15-05's own fix
-Status: BLOCKED — needs another gap-closure round before phase 15 can be marked complete
-Last activity: 2026-09-06 -- 15-05 merged; code review found 3 new critical -C bypasses, phase not complete
+Plan: 15-06 gap-closure round 3 (CR-01 through CR-07) executed and verified: `gsd-plan-checker` returned VERIFICATION PASSED, 0 blockers, 2 non-blocking warnings (an accepted narrow false-positive edge case and a pre-existing, out-of-scope tab-escape defect from phase 15-01, both filed for future tracking, neither reopens CR-01–07 or 15-05's Test D/E/F)
+Status: Gap closure verified — full phase-level completion sign-off (goal-backward `gsd-verifier` pass + STATE.md phase-complete marking) not yet run
+Last activity: 2026-09-06 -- gap-closure plan 15-06 (round 3) executed and verified, 0 blockers
 
 ## Performance Metrics
 
