@@ -862,3 +862,17 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 **Tests run:** `cd packages/npm && npx vitest run src/steps/journal-gate-hook.integration.test.ts` → 3 failed, 9 passed (expected RED). `cd packages/pip && uv run pytest tests/test_journal_gate_hook.py --maxfail=0` → 3 failed, 9 passed (expected RED).
 
 **Docs updated:** JOURNAL.md.
+
+---
+
+## 2026-09-06 — Phase 15-04 Task 2: strip quoted spans before matching (GREEN)
+
+**What I did:** Applied the pre-verified fix to `hooks.PreToolUse[0].hooks[0].command` in both `templates/.claude/settings.json` and `.claude/settings.json` via a `node -e` JSON parse/stringify round-trip (no hand-editing of the escaped string). The fix inserts an `UNQUOTED` variable that strips backslash-escaped double-quoted spans and plain single-quoted spans out of the extracted command text before the `--amend` and `git ... commit` regex checks run. Regenerated the gitignored npm prebuild mirror (`packages/npm/templates/.claude/settings.json`). Confirmed both settings.json files parse as valid JSON, `hooks` blocks remain byte-identical between `templates/` and repo-root, and `.claude/settings.json`'s `permissions.allow` 3 entries are untouched.
+
+**Files changed:** templates/.claude/settings.json, .claude/settings.json, packages/npm/templates/.claude/settings.json (prebuild-generated), JOURNAL.md.
+
+**Why:** Closes HOOK-01/HOOK-02 per gap-closure plan 15-04-PLAN.md Task 2 — makes the RED tests from Task 1 pass without touching any other line of the hook logic.
+
+**Tests run:** `cd packages/npm && npx vitest run src/steps/journal-gate-hook.integration.test.ts` → 12 passed (12). `cd packages/pip && uv run pytest tests/test_journal_gate_hook.py --maxfail=0` → 12 passed (12). Manually reproduced CR-01, CR-02, and the single-quote variant against the live extracted command in a fresh temp git repo — all three now resolve to the plan-specified exit code.
+
+**Docs updated:** JOURNAL.md.
