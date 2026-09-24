@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto'
-import { readFile, writeFile } from 'node:fs/promises'
+import { readFile } from 'node:fs/promises'
+import { writeFileAtomic } from '../utils/fs-safe.js'
 import { join } from 'node:path'
 
 export interface Manifest {
@@ -32,7 +33,7 @@ export async function writeManifest(
     files[posixKey(rel)] = createHash('sha256').update(content, 'utf8').digest('hex')
   }
   const manifest: Manifest = { version, files, ...(managed ? { managed: posixKeys(managed) } : {}), ...(scope ? { scope } : {}) }
-  await writeFile(join(destDir, MANIFEST_PATH), JSON.stringify(manifest, null, 2) + '\n', 'utf-8')
+  await writeFileAtomic(join(destDir, MANIFEST_PATH), JSON.stringify(manifest, null, 2) + '\n')
 }
 
 // Throws an actionable error for a manifest that exists but cannot be used; guessing would lose tracking.

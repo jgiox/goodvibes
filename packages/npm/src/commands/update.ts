@@ -3,11 +3,12 @@ import { intro, outro, note, confirm, isCancel, cancel } from '@clack/prompts'
 import { listTemplateFiles, resolveTemplatesDir } from '../steps/copy-templates.js'
 import { readManifest, writeManifest, posixKey, type Manifest } from '../steps/write-manifest.js'
 import { mergeClaude } from '../utils/sentinel-merge.js'
-import { MANAGED_JSON, mergeManagedJson, managedRecord } from '../utils/json-merge.js'
+import { MANAGED_JSON, mergeManagedJson, managedRecord, isJsonObject } from '../utils/json-merge.js'
+import { writeFileAtomic } from '../utils/fs-safe.js'
 import { applyGlobalConfig, claudeConfigDir, formatGlobal } from '../steps/global-setup.js'
 import { GLOBAL_OWNED, type Scope } from '../utils/scope.js'
 import { detectProjectType } from '../utils/detect-project-type.js'
-import { readFile, writeFile } from 'node:fs/promises'
+import { readFile } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
 import { join, resolve, sep } from 'node:path'
 import { createHash } from 'node:crypto'
@@ -137,11 +138,15 @@ export async function runUpdate(dryRun: boolean, force: boolean): Promise<void> 
   for (const rel of [...skip, ...kept].filter(r => MANAGED_JSON.includes(r))) {
     const tplPath = join(templateDir, rel)
     if (!existsSync(tplPath)) continue
-    let user: Record<string, unknown>
+    let user: unknown
     try {
       user = JSON.parse(await readFile(join(cwd, rel), 'utf-8'))
     } catch (e) {
       mergeErrors.push(`${rel}: not valid JSON (${(e as Error).message}); left unchanged, fix it and re-run update`)
+      continue
+    }
+    if (!isJsonObject(user)) {
+      mergeErrors.push(`${rel}: not a JSON object; left unchanged, fix it and re-run update`)
       continue
     }
     const tpl = JSON.parse(await readFile(tplPath, 'utf-8'))
@@ -209,7 +214,7 @@ export async function runUpdate(dryRun: boolean, force: boolean): Promise<void> 
   }
 
   for (const m of merges) {
-    await writeFile(join(cwd, m.rel), JSON.stringify(m.merged, null, 2) + '\n', 'utf-8')
+    await writeFileAtomic(join(cwd, m.rel), JSON.stringify(m.merged, null, 2) + '\n')
   }
 
   // Preserve skipped (user-modified) files' prior hashes so they stay

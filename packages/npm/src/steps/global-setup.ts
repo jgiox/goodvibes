@@ -6,7 +6,8 @@ import { dirname, join } from 'node:path'
 import { execa } from 'execa'
 import { listTemplateFiles } from './copy-templates.js'
 import { readManifest, type Manifest, MANIFEST_PATH } from './write-manifest.js'
-import { mergeManagedJson, presentIds } from '../utils/json-merge.js'
+import { mergeManagedJson, presentIds, isJsonObject } from '../utils/json-merge.js'
+import { writeFileAtomic } from '../utils/fs-safe.js'
 import { goodvibesBlock } from '../utils/scope.js'
 import { versionGte } from '../utils/sentinel-merge.js'
 
@@ -93,22 +94,26 @@ export async function applyGlobalConfig(templateDir: string, version: string, dr
   const tpl = JSON.parse(await readFile(join(templateDir, '.claude', 'settings.json'), 'utf-8'))
   const settingsPath = join(cfg, 'settings.json')
   let managed = prev?.managed ?? {}
+  let user: unknown
   try {
-    const user = existsSync(settingsPath) ? JSON.parse(await readFile(settingsPath, 'utf-8')) : {}
+    user = existsSync(settingsPath) ? JSON.parse(await readFile(settingsPath, 'utf-8')) : {}
+    if (!isJsonObject(user)) result.settingsError = `${settingsPath}: not a JSON object; left unchanged, fix it and re-run`
+  } catch (e) {
+    result.settingsError = `${settingsPath}: not valid JSON (${(e as Error).message}); left unchanged, fix it and re-run`
+  }
+  if (isJsonObject(user)) {
     const { merged, changes } = mergeManagedJson('.claude/settings.json', tpl, user, managed['settings.json'])
     result.settingsChanges = changes
     if (!dryRun && changes.length > 0) {
       await mkdir(cfg, { recursive: true })
-      await writeFile(settingsPath, JSON.stringify(merged, null, 2) + '\n', 'utf-8')
+      await writeFileAtomic(settingsPath, JSON.stringify(merged, null, 2) + '\n')
     }
     managed = { ...managed, 'settings.json': [...new Set([...(managed['settings.json'] ?? []), ...presentIds('.claude/settings.json', tpl, merged)])] }
-  } catch (e) {
-    result.settingsError = `${settingsPath}: not valid JSON (${(e as Error).message}); left unchanged, fix it and re-run`
   }
 
   if (!dryRun) {
     await mkdir(cfg, { recursive: true })
-    await writeFile(join(cfg, MANIFEST_PATH), JSON.stringify({ version, scope: 'global', files, managed }, null, 2) + '\n', 'utf-8')
+    await writeFileAtomic(join(cfg, MANIFEST_PATH), JSON.stringify({ version, scope: 'global', files, managed }, null, 2) + '\n')
   }
   return result
 }

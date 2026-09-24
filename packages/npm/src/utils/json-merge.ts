@@ -18,6 +18,8 @@ function hookId(group: Json): string | null {
   return null
 }
 
+export const isJsonObject = (v: unknown): v is Json => typeof v === 'object' && v !== null && !Array.isArray(v)
+
 const same = (a: unknown, b: unknown): boolean => JSON.stringify(a) === JSON.stringify(b)
 
 // Ids of every goodvibes-managed key the template defines for this file.
@@ -128,12 +130,13 @@ export async function managedRecord(
     const tplPath = join(templateDir, rel)
     const destPath = join(cwd, rel)
     if (!existsSync(tplPath) || !existsSync(destPath)) continue
-    let content: Json
+    let content: unknown
     try {
       content = JSON.parse(await readFile(destPath, 'utf-8'))
     } catch {
       continue // unparseable user file: keep the previous record rather than guess
     }
+    if (!isJsonObject(content)) continue
     const tpl = JSON.parse(await readFile(tplPath, 'utf-8'))
     record[rel] = [...new Set([...(prev[rel] ?? []), ...presentIds(rel, tpl, content)])]
   }
