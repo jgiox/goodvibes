@@ -17,6 +17,7 @@ from goodvibes_cli.steps.write_manifest import ManifestError, read_manifest, wri
 from goodvibes_cli.utils.detect_project_type import detect_project_type
 from goodvibes_cli.utils.json_merge import MANAGED_JSON, managed_record, merge_managed_json, write_json
 from goodvibes_cli.steps.global_setup import apply_global_config, claude_config_dir, format_global
+from goodvibes_cli.utils.safe_path import SymlinkError, check_writable
 from goodvibes_cli.utils.scope import global_owned
 from goodvibes_cli.utils.sentinel_merge import ClaudeMdError, merge_claude
 
@@ -27,8 +28,9 @@ USER_OWNED = "user-owned"
 
 
 def _assert_safe(base: pathlib.Path, rel: str) -> None:
+    root = base.resolve()
     resolved = (base / rel).resolve()
-    if not str(resolved).startswith(str(base.resolve()) + "/"):
+    if resolved == root or not resolved.is_relative_to(root):
         raise ValueError(f"Unsafe manifest key rejected: {rel}")
 
 
@@ -75,10 +77,23 @@ def update_cmd(
     kept: list[str] = []
     ci_variants = {"ci-node.yml", "ci-python.yml", "ci-both.yml"}
     selected_variant_src = f"ci-{project_type}.yml"
+    not_written: list[str] = []
+    blocked: list[str] = []
+
+    def symlinked(rel: str) -> bool:
+        try:
+            check_writable(cwd, cwd / rel)
+            return False
+        except SymlinkError as e:
+            not_written.append(str(e))
+            return True
 
     # First pass: manifest files → overwrite (SHA unchanged or absent) / skip (user-modified)
     for rel, manifest_sha in manifest["files"].items():
         if excluded(rel):
+            continue
+        if symlinked(rel):
+            blocked.append(rel)
             continue
         _assert_safe(cwd, rel)
         dest_path = cwd / rel
@@ -109,7 +124,7 @@ def update_cmd(
             dest_rel = ".github/workflows/ci.yml"  # map selected variant to dest name
         else:
             dest_rel = tf
-        if dest_rel in managed_keys or excluded(dest_rel):
+        if dest_rel in managed_keys or excluded(dest_rel) or symlinked(dest_rel):
             continue
         # init only records files it wrote; a file already on disk is the user's own.
         if dest_rel != "CLAUDE.md" and (cwd / dest_rel).exists():
@@ -148,6 +163,7 @@ def update_cmd(
         if kept:
             lines.append(f"Will keep — already yours, not written by goodvibes ({len(kept)}): {', '.join(kept)}")
         lines += merge_lines
+        lines += not_written
         console.print(Panel("\n".join(lines), title="Dry run — no files written"))
         console.rule("Run without --dry-run to apply.")
         return
@@ -180,6 +196,11 @@ def update_cmd(
             template_content = template_src.read_text(encoding="utf-8")
             try:
                 merge_claude(cwd / rel, template_content)
+            except SymlinkError as e:
+                not_written.append(str(e))
+                if rel in manifest["files"]:
+                    skip.append(rel)
+                continue
             except ClaudeMdError as e:
                 problems.append(str(e))
                 if rel in manifest["files"]:
@@ -197,19 +218,24 @@ def update_cmd(
 
     # Preserve skipped (user-modified) files' prior hashes so they stay
     # protected on every later run instead of dropping out of the manifest.
-    preserved = {rel: manifest["files"][rel] for rel in skip}
+    preserved = {rel: manifest["files"][rel] for rel in skip + blocked}
     preserved.update({rel: USER_OWNED for rel in kept})
 
     _version = importlib.metadata.version("goodvibes-cli")
-    write_manifest(
-        cwd, applied, _version, preserved=preserved,
-        managed=managed_record(cwd, template_dir, manifest.get("managed")),
-        scope=scope,
-    )
+    try:
+        write_manifest(
+            cwd, applied, _version, preserved=preserved,
+            managed=managed_record(cwd, template_dir, manifest.get("managed")),
+            scope=scope,
+        )
+    except SymlinkError as e:
+        not_written.append(str(e))
 
     summary = applied + [f"{rel} (merged {len(ch)} goodvibes key(s))" for rel, _, ch in merges]
     summary += [f"Not merged: {e}" for e in merge_errors]
     console.print(Panel("\n".join(summary) or "(none)", title="Updated"))
+    if not_written:
+        console.print(Panel("\n".join(not_written), title="Not written (symlinks are never followed)"))
     if problems:
         console.print(Panel("\n".join(problems), title="Not updated — needs your attention"))
         console.rule("[red]Update finished with problems.[/red]")

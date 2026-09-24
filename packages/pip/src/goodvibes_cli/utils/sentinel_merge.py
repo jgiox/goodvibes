@@ -4,6 +4,8 @@ from __future__ import annotations
 import re
 import pathlib
 
+from goodvibes_cli.utils.safe_path import check_writable
+
 SENTINEL_START = "<!-- goodvibes:start -->"
 SENTINEL_END = "<!-- goodvibes:end -->"
 
@@ -94,6 +96,7 @@ def merge_claude(dest_path: pathlib.Path, template_content: str) -> None:
     Any other marker layout raises ClaudeMdError without writing.
     """
     template_block = _extract_sentinel_block(template_content)
+    check_writable(dest_path.parent, dest_path)
 
     if not dest_path.exists():
         # Case A

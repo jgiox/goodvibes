@@ -5,6 +5,7 @@ import importlib.resources
 import pathlib
 import shutil
 
+from goodvibes_cli.utils.safe_path import SymlinkError, check_writable
 from goodvibes_cli.utils.scope import global_owned, project_stub
 from goodvibes_cli.utils.sentinel_merge import ClaudeMdError, merge_claude
 
@@ -91,8 +92,15 @@ def copy_templates(
             if name == selected_variant and (dest_dir / ".github" / "workflows" / "ci.yml").is_file():
                 ignored.add(name)
                 skipped_files.append(".github/workflows/ci.yml")
-            # No-clobber: skip files (not dirs) that already exist at dest (T-03-02-03)
             dest_candidate = dest_dir / rel
+            if name not in ignored:
+                try:
+                    check_writable(dest_dir, dest_candidate)
+                except SymlinkError as e:
+                    ignored.add(name)
+                    skipped_files.append(str(e))
+                    continue
+            # No-clobber: skip files (not dirs) that already exist at dest (T-03-02-03)
             if dest_candidate.is_file():
                 ignored.add(name)
                 skipped_files.append(dest_candidate.relative_to(dest_dir).as_posix())
@@ -120,7 +128,7 @@ def copy_templates(
     variant_rel = f".github/workflows/{selected_variant}"
     if variant_rel in copied:
         ci_path = dest_dir / ".github" / "workflows" / "ci.yml"
-        if ci_path.exists():
+        if ci_path.exists() or ci_path.is_symlink():
             skipped_files.append(".github/workflows/ci.yml")  # ponytail: UX-04
         else:
             (dest_dir / variant_rel).rename(ci_path)
@@ -136,8 +144,10 @@ def copy_templates(
             try:
                 merge_claude(claude_dest, template_content)
                 claude_merged = True
-            except ClaudeMdError as e:
+            except (ClaudeMdError, SymlinkError) as e:
                 skipped_files.append(str(e))
+        elif claude_dest.is_symlink():
+            skipped_files.append("CLAUDE.md: symlink, not written")
         elif not claude_dest.exists():
             claude_dest.write_text(project_stub(template_content), encoding="utf-8")
             claude_merged = True

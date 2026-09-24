@@ -14,6 +14,7 @@ from goodvibes_cli.steps.telemetry import opted_out, start_telemetry_thread
 from goodvibes_cli.steps.write_manifest import ManifestError, read_manifest, write_manifest
 from goodvibes_cli.utils.detect_project_type import detect_project_type
 from goodvibes_cli.utils.json_merge import managed_record
+from goodvibes_cli.utils.safe_path import SymlinkError
 from goodvibes_cli.steps.global_setup import apply_global_config, ensure_global_cli, format_global, register_context7
 from goodvibes_cli.utils.scope import global_owned
 
@@ -153,14 +154,17 @@ def init_cmd(
     if in_project:
         written = [f for f in created_files if f != ".goodvibes.json"]
         # A re-run writes only missing files; everything recorded earlier keeps its entry and managed ids.
-        write_manifest(
-            cwd,
-            written,
-            _version,
-            preserved={k: v for k, v in (prev.get("files") or {}).items() if k not in written},
-            managed=managed_record(cwd, template_dir, prev.get("managed")),
-            scope=scope,
-        )
+        try:
+            write_manifest(
+                cwd,
+                written,
+                _version,
+                preserved={k: v for k, v in (prev.get("files") or {}).items() if k not in written},
+                managed=managed_record(cwd, template_dir, prev.get("managed")),
+                scope=scope,
+            )
+        except SymlinkError as e:
+            skipped_files_list.append(str(e))
 
     if tel_thread:
         tel_thread.join(timeout=1.0)
