@@ -1647,3 +1647,4 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 - item 14 GREEN: resolve_templates_dir walks up from the package to the first templates/CLAUDE.md when no bundled copy exists (260 passed).
 - item 13 RED: ensure_global_cli must tell the user to run uv tool update-shell when goodvibes is still not on PATH after installing (1 failed).
 - item 13 GREEN: after uv tool install, ensure_global_cli reports installed with a 'run uv tool update-shell, then open a new terminal' reason when goodvibes is still not on PATH; format_global prints it (261 passed).
+- item 7 RED: headroom installers need a 900 s timeout (probe stays 10 s), a several-minutes warning first, and bytes stderr from TimeoutExpired decoded (3 failed).
