@@ -26,7 +26,7 @@ def resolve_templates_dir() -> pathlib.Path:
 def list_template_files(template_dir: pathlib.Path) -> list[str]:
     """Return sorted list of relative file paths under template_dir."""
     return sorted(
-        str(f.relative_to(template_dir))
+        f.relative_to(template_dir).as_posix()
         for f in template_dir.rglob("*")
         if f.is_file()
     )
@@ -90,12 +90,12 @@ def copy_templates(
             # Skip selected CI variant on re-runs where ci.yml already exists (prevents orphaned variant file)
             if name == selected_variant and (dest_dir / ".github" / "workflows" / "ci.yml").is_file():
                 ignored.add(name)
-                skipped_files.append(str(pathlib.Path(".github") / "workflows" / "ci.yml"))
+                skipped_files.append(".github/workflows/ci.yml")
             # No-clobber: skip files (not dirs) that already exist at dest (T-03-02-03)
             dest_candidate = dest_dir / rel
             if dest_candidate.is_file():
                 ignored.add(name)
-                skipped_files.append(str(dest_candidate.relative_to(dest_dir)))
+                skipped_files.append(dest_candidate.relative_to(dest_dir).as_posix())
         return ignored
 
     try:
@@ -132,7 +132,7 @@ def copy_templates(
             claude_dest.write_text(project_stub(template_content), encoding="utf-8")
 
     # Walk destDir so return shows ci.yml (not ci-node.yml) — per RESEARCH.md Pitfall 6
-    all_dest = sorted(str(f.relative_to(dest_dir)) for f in dest_dir.rglob("*") if f.is_file())
+    all_dest = sorted(f.relative_to(dest_dir).as_posix() for f in dest_dir.rglob("*") if f.is_file())
     written = [f for f in all_dest if f not in skipped_files]
     # Only inject CLAUDE.md into written if sentinel merge actually ran
     if claude_merged and "CLAUDE.md" not in written:

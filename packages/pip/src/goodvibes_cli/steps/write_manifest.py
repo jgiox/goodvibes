@@ -7,6 +7,11 @@ import pathlib
 MANIFEST_PATH = ".goodvibes.json"
 
 
+def posix_key(rel: str) -> str:
+    # Windows runs used to write backslash keys; one spelling keeps every comparison exact.
+    return rel.replace("\\", "/")
+
+
 def write_manifest(
     dest_dir: pathlib.Path,
     written_files: list[str],
@@ -17,10 +22,10 @@ def write_manifest(
 ) -> None:
     # Preserved hashes come only from the prior manifest, never re-read from dest,
     # so a skipped (user-modified) file can't be silently reclassified as unmodified.
-    files: dict[str, str] = dict(preserved or {})
+    files: dict[str, str] = {posix_key(k): v for k, v in (preserved or {}).items()}
     for rel in written_files:
         content = (dest_dir / rel).read_bytes()
-        files[rel] = hashlib.sha256(content).hexdigest()
+        files[posix_key(rel)] = hashlib.sha256(content).hexdigest()
     manifest: dict = {"version": version, "files": files}
     if managed is not None:
         manifest["managed"] = managed
@@ -46,4 +51,6 @@ def read_manifest(dest_dir: pathlib.Path) -> dict | None:
         raise ManifestError(f"{p} is not valid JSON ({e}); {fix}") from e
     if not isinstance(data, dict):
         raise ManifestError(f"{p} is not valid JSON (expected an object, found {type(data).__name__}); {fix}")
+    if isinstance(data.get("files"), dict):
+        data["files"] = {posix_key(k): v for k, v in data["files"].items()}
     return data
