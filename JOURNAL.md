@@ -1640,3 +1640,4 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 
 **Commits:**
 - RED: version comparison with pre-releases and strict CLAUDE.md marker lines (items 3, 10).
+- GREEN: parse pre-release/post versions (never throws); markers only count alone on their line, ambiguous markers throw MarkerError without writing, CRLF kept (items 3, 10).
