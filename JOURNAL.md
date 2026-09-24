@@ -1395,3 +1395,17 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 **What I learned:** fs-extra's copy filter also sees directories, so `.claude/skills` without a trailing slash created an empty folder until the check matched the directory itself. The npm re-publish with the new token failed with `EOTP`: the token requires a 2FA code, so CI needs a 2FA-bypass granular/automation token or trusted publishing.
 
 **Docs updated:** README (quick start note, "Global or one project" section, `--scope` flag), FAQ, CHANGELOG `[Unreleased]`, getting-started (both copies; also stops teaching `git add .`), JOURNAL.md.
+
+---
+
+## 2026-09-24 · npm publish via trusted publishing (OIDC)
+
+**What I did:** `publish-npm.yml` no longer uses `NPM_TOKEN`: the publish job gets `id-token: write`, runs on Node 24, upgrades npm to `^11.5.1`, and publishes with `--provenance`. Dropped `registry-url` from setup-node, because it writes an `_authToken=${NODE_AUTH_TOKEN}` line to `.npmrc` that makes npm skip the OIDC exchange and fail with ENEEDAUTH/E404 (actions/setup-node#1551, npm/documentation#1960). The smoke test now takes the version from the publish job's output instead of `${GITHUB_REF_NAME#npm-v}`, which resolved to `main` on manual runs, and runs `init --dry-run --scope project` so it never touches the runner's global config.
+
+**Files changed:** .github/workflows/publish-npm.yml, JOURNAL.md.
+
+**Why:** The re-run with the user's new token failed with `EOTP` (token requires a 2FA code). The user is enabling npm Trusted Publishing for this workflow instead, which needs no secret. Requirements (npm >= 11.5.1, Node >= 22.14, `id-token: write`) confirmed across the npm docs listing, the GitHub changelog, and setup-node issues; docs.npmjs.com itself is blocked from this sandbox.
+
+**Tests run:** YAML parses; verify-phase3/4/5 PASS; no other file references NPM_TOKEN. The workflow itself can only be proven by a real run after the trusted publisher is configured on npmjs.com.
+
+**Docs updated:** JOURNAL.md.
