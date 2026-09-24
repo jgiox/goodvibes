@@ -29,6 +29,10 @@ jobs:
         working-directory: packages/npm
         run: npm ci
 
+      - name: Typecheck
+        working-directory: packages/npm
+        run: npm run typecheck
+
       - name: Build
         working-directory: packages/npm
         run: npm run build

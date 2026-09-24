@@ -103,7 +103,7 @@ describe('installHeadroom', () => {
     const enoentError = new Error('ENOENT')
     ;(enoentError as any).code = 'ENOENT'
 
-    vi.mocked(execa)
+    vi.mocked(execa as (...args: unknown[]) => Promise<unknown>)
       .mockRejectedValueOnce(enoentError) // compress --help ENOENT
       .mockImplementationOnce(async (..._args: any[]) => {
         // Verify ONNX warning was logged before uv install runs
@@ -151,7 +151,7 @@ describe('installHeadroom', () => {
     ;(enoentError as any).code = 'ENOENT'
 
     // First call is the idempotency probe — ENOENT means not installed yet
-    vi.mocked(execa)
+    vi.mocked(execa as (...args: unknown[]) => Promise<unknown>)
       .mockRejectedValueOnce(enoentError) // probe ENOENT → fall through
       .mockImplementationOnce(async (..._args: any[]) => {
         // Description must have been logged BEFORE this install call

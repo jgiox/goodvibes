@@ -1523,3 +1523,17 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 **Tests run:** verify-phase1 through phase5: all PASS.
 
 **Docs updated:** JOURNAL.md.
+
+---
+
+## 2026-09-24 · npm package typechecks clean, and CI keeps it that way
+
+**What I did:** `tsc --noEmit` reported 191 errors. 180 came from TypeScript 7 no longer loading `@types/node` by default; `"types": ["node"]` in `tsconfig.json` fixed them. Three came from `fs-extra` having no types; added `@types/fs-extra` as a dev dependency (MIT, types only, for a package already in use; installed with npm 11 so the lockfile diff is just that package). Three were test mocks of execa's overloaded signature, fixed with narrow casts in the tests. The rest resolved with the Node types. Added `npm run typecheck` and a Typecheck step in the CI npm job so errors cannot pile up again. No runtime code changed.
+
+**Files changed:** packages/npm/tsconfig.json, packages/npm/package.json, packages/npm/package-lock.json, packages/npm/src/commands/doctor.test.ts, packages/npm/src/steps/install-headroom.test.ts, .github/workflows/ci.yml, JOURNAL.md.
+
+**Why:** Type errors were invisible (tsup does not typecheck) and hid real mistakes among 191 false alarms.
+
+**Tests run:** `npm run typecheck` 0 errors; vitest 274 passed, 1 skipped, 2 todo; build OK; `npm ci` (npm 11) accepts the lockfile.
+
+**Docs updated:** JOURNAL.md.
