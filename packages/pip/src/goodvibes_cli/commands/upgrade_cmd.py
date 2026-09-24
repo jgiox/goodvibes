@@ -4,6 +4,7 @@ from __future__ import annotations
 import importlib.metadata
 import json
 import os
+import pathlib
 import subprocess
 import sys
 import urllib.request
@@ -37,14 +38,23 @@ def _check_pypi_version() -> str | None:
 
 
 def _self_update_pip(latest: str) -> None:
-    # `uv tool upgrade` keeps a pinned requirement (init pinned ==version before 1.9.2); install replaces it.
-    try:
-        subprocess.run(["uv", "tool", "install", f"goodvibes-cli>={latest}"], check=True)
-    except (subprocess.CalledProcessError, FileNotFoundError):
-        subprocess.run(
-            [sys.executable, "-m", "pip", "install", "--upgrade", f"goodvibes-cli>={latest}"],
-            check=True,
-        )
+    """Upgrade the installation that is running, not some other copy."""
+    req = f"goodvibes-cli>={latest}"
+    if (pathlib.Path(sys.prefix) / "uv-receipt.toml").exists():
+        # `uv tool upgrade` keeps a pinned requirement (init pinned ==version before 1.9.2); install replaces it.
+        attempts = [["uv", "tool", "install", req]]
+    else:
+        # uv-made venvs usually have no pip, so fall back to uv pip for this same interpreter.
+        attempts = [[sys.executable, "-m", "pip", "install", "--upgrade", req],
+                    ["uv", "pip", "install", "--python", sys.executable, "--upgrade", req]]
+    for cmd in attempts:
+        try:
+            subprocess.run(cmd, check=True)
+            return
+        except (subprocess.CalledProcessError, FileNotFoundError):
+            continue
+    console.print(f"[red]Could not upgrade goodvibes.[/red] Run: {' '.join(attempts[0])}")
+    raise typer.Exit(1)
 
 
 def upgrade_cmd(
