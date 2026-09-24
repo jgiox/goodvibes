@@ -1609,3 +1609,17 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 **Next time:** Human UAT: the journal gate on macOS (BWK awk, untested in the sandbox), context7 trust prompt, Windows Git Bash, caveman ultra style. npm Publishing access: require 2FA and disallow tokens, then delete the NPM_TOKEN secret, if not done yet.
 
 **Docs updated:** STATE.md, JOURNAL.md.
+
+---
+
+## 2026-09-24 · pip `upgrade` upgrades the install that is running
+
+**What I did:** Codex review on PR #40 (P1): `_self_update_pip` always tried `uv tool install` first, so for a `pip install goodvibes-cli` user who also has uv, it created a second, uv-managed copy and never touched the pip install being run; the re-run then failed the new version check every time. It now checks whether the running environment is a uv tool (`uv-receipt.toml` in `sys.prefix`, verified in a sandbox: present for `uv tool install`, absent for a venv). A uv tool gets `uv tool install goodvibes-cli>=<latest>`; anything else gets `python -m pip install --upgrade` for the running interpreter, then `uv pip install --python <interpreter>` when that environment has no pip (uv-made venvs usually do not). If every installer fails it stops with exit 1 and the command to run.
+
+**Files changed:** packages/pip/src/goodvibes_cli/commands/upgrade_cmd.py, packages/pip/tests/test_upgrade_cmd.py, JOURNAL.md.
+
+**Why:** Review finding on PR #40.
+
+**Tests run:** RED: pip upgrade tests 3 failed, 11 passed.
+
+**Docs updated:** JOURNAL.md.
