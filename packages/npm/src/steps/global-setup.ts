@@ -8,6 +8,7 @@ import { listTemplateFiles } from './copy-templates.js'
 import { readManifest, type Manifest, MANIFEST_PATH } from './write-manifest.js'
 import { mergeManagedJson, presentIds } from '../utils/json-merge.js'
 import { goodvibesBlock } from '../utils/scope.js'
+import { versionGte } from '../utils/sentinel-merge.js'
 
 const CONTEXT7_URL = 'https://mcp.context7.com/mcp'
 
@@ -40,7 +41,8 @@ export async function ensureGlobalCli(version: string, dryRun: boolean): Promise
   try {
     const { stdout } = await execa('npm', ['ls', '-g', 'goodvibes-cli', '--depth=0', '--json'], { reject: false, timeout: 30_000 })
     const current = JSON.parse(stdout || '{}').dependencies?.['goodvibes-cli']?.version
-    if (current === version) return { status: 'already-installed' }
+    // Never downgrade: an older npx run must not replace a newer global install.
+    if (current && versionGte(current, version)) return { status: 'already-installed' }
     if (dryRun) return { status: 'skipped', reason: `dry run; would run npm install -g goodvibes-cli@${version}` }
     await execa('npm', ['install', '-g', `goodvibes-cli@${version}`], { timeout: 120_000 })
     return { status: 'installed' }

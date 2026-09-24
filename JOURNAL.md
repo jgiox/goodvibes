@@ -1590,6 +1590,6 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 
 **Why:** Bug report from the maintainer's terminal. Existing 1.9.0 and 1.9.1 installs made by pip `init` stay pinned until reinstalled once with `uv tool install goodvibes-cli@latest` (verified: upgrades a `==1.9.0` pin and removes it).
 
-**Tests run:** RED: npm 4 failed, 18 passed (upgrade, update, global-setup); pip 7 failed, 35 passed (upgrade, global_setup, update).
+**Tests run:** RED: npm 4 failed, 18 passed (upgrade, update, global-setup); pip 7 failed, 35 passed (upgrade, global_setup, update). GREEN: npm typecheck 0, vitest 282 passed, 1 skipped, 2 todo; pip pytest 239 passed; verify-phase1 to 5 PASS. Sandbox: `uv tool install "goodvibes-cli>=1.9.1"` over a `==1.9.0` tool gives 1.9.1 with receipt `>=1.9.1`; the CLI built from this branch, installed as a uv tool, exits 1 with the fix command when re-run with `_GV_UPGRADING=9.9.9`, and `update` in an empty folder says goodvibes is not set up there. Also: the npm re-run now passes its exit code through (execa would otherwise throw on exit 1).
 
 **Docs updated:** FAQ.md, CHANGELOG.md, JOURNAL.md.

@@ -102,8 +102,8 @@ export async function runUpdate(dryRun: boolean, force: boolean): Promise<void> 
   const globalManifest = await readManifest(claudeConfigDir())
   if (!manifest && !globalManifest) {
     note(
-      "No .goodvibes.json found. This project was initialised before v1.2.0.\n" +
-        "Run 'goodvibes init' once to create the manifest, then use 'goodvibes update' to keep files current.",
+      "No .goodvibes.json in this folder or in your Claude Code settings, so goodvibes is not set up here yet.\n" +
+        "Run 'goodvibes init' (files you already have are kept), then 'goodvibes update' keeps them current.",
       'No manifest',
     )
     outro('Nothing updated.')

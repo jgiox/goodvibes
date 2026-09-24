@@ -51,11 +51,12 @@ def ensure_global_cli(version: str, dry_run: bool) -> dict[str, str]:
     in_venv = found and sys.prefix != sys.base_prefix and pathlib.Path(found).resolve().is_relative_to(pathlib.Path(sys.prefix).resolve())
     if found and not in_venv:
         return {"status": "already-installed"}
-    manual = f"Install manually: uv tool install goodvibes-cli=={version}"
+    # >= not ==: uv stores the requirement, and a pin makes every later `uv tool upgrade` a no-op.
+    manual = f'Install manually: uv tool install "goodvibes-cli>={version}"'
     if dry_run:
-        return {"status": "skipped", "reason": f"dry run; would run uv tool install goodvibes-cli=={version}"}
+        return {"status": "skipped", "reason": f'dry run; would run uv tool install "goodvibes-cli>={version}"'}
     try:
-        subprocess.run(["uv", "tool", "install", f"goodvibes-cli=={version}"], capture_output=True, text=True, timeout=120, check=True)
+        subprocess.run(["uv", "tool", "install", f"goodvibes-cli>={version}"], capture_output=True, text=True, timeout=120, check=True)
         return {"status": "installed"}
     except FileNotFoundError:
         return {"status": "failed", "reason": f"uv not found. {manual} (or pip install goodvibes-cli)"}

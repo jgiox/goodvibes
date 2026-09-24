@@ -25,9 +25,18 @@ export function registerUpgradeCommand(program: Command): void {
       const dryRun = options.dryRun ?? false
       intro('goodvibes upgrade')
 
-      // _GV_UPGRADING prevents infinite re-exec if the new binary still sees itself as outdated.
-      if (!process.env[_GV_UPGRADING]) {
-        const current = packageVersion()
+      // The re-run carries the version it should now be; if it is not, the install did not take effect.
+      const target = process.env[_GV_UPGRADING]
+      const current = packageVersion()
+      if (target && !versionGte(current, target)) {
+        note(
+          `Still running goodvibes ${current} after installing ${target}. The goodvibes on your PATH is not the one that was upgraded.\n` +
+            `Run: npm install -g goodvibes-cli@${target}, then goodvibes --version.`,
+          'Upgrade did not take effect',
+        )
+        process.exit(1)
+      }
+      if (!target) {
         const latest = await checkLatestNpmVersion()
         if (latest && !versionGte(current, latest)) {
           if (dryRun) {
@@ -36,11 +45,12 @@ export function registerUpgradeCommand(program: Command): void {
             note(`Updating goodvibes ${current} → ${latest}…`, 'New version available')
             await execa('npm', ['install', '-g', `goodvibes-cli@${latest}`], { stdio: 'inherit' })
             // Re-run on the new version so the project gets its templates, not this process's.
-            await execa(process.argv[1], process.argv.slice(2), {
+            const rerun = await execa(process.argv[1], process.argv.slice(2), {
               stdio: 'inherit',
-              env: { ...process.env, [_GV_UPGRADING]: '1' },
+              env: { ...process.env, [_GV_UPGRADING]: latest },
+              reject: false,
             })
-            process.exit(0)
+            process.exit(rerun.exitCode ?? 1)
           }
         }
       }

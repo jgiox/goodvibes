@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/2.0.0/),
 
 ## [Unreleased]
 
+### Fixed
+
+- `goodvibes upgrade` (pip) said "Updated to X" while staying on the old version: `init` installed the CLI as `uv tool install goodvibes-cli==<version>`, and `uv tool upgrade` never moves past that pin. `init` now installs `goodvibes-cli>=<version>`, `upgrade` installs `goodvibes-cli>=<latest>` (which replaces an existing pin), and in both packages the re-run checks it is on the new version and otherwise stops with exit 1 and the exact fix command. Existing pinned installs: run `uv tool install goodvibes-cli@latest` once
+- npm `goodvibes init` from an older version (for example an old `npx` cache) no longer downgrades a newer global `goodvibes`
+- `goodvibes update` with no `.goodvibes.json` here or in `~/.claude` no longer claims the project was set up before v1.2.0; it says goodvibes is not set up there yet and to run `goodvibes init`
+
 ## [1.9.1] - 2026-09-24
 
 ### Fixed
