@@ -26,15 +26,16 @@ This sets goodvibes up for every project on your computer and adds the project f
 
 ## What you get
 
-`goodvibes init` sets up seven things in your project:
+`goodvibes init` sets up eight things:
 
 1. **Engineering rules for Claude** — think before coding, simplicity first, fail loud, keep a journal, update tests. By default in `~/.claude/rules/goodvibes.md` so every project gets them; with `--scope project`, in this project's `CLAUDE.md`
 2. **IDE rule files** — The same rules, adapted for your AI coding tool. Supports 14 AI coding tools out of the box: Claude Code, Cursor, GitHub Copilot, Windsurf, Devin Desktop, Kiro, Antigravity, Cline, Amazon Q, Continue.dev, OpenAI Codex CLI, Lovable, Replit Agent, and Bolt.new
 3. **caveman skill** — Compresses Claude's output so you get more done per context window (defaults to `ultra`; type `/caveman full` or `stop caveman` if replies get too terse). Also ships a `model-regression` skill that Claude Code loads only when a change touches model, scoring or metric code: baseline first, same evaluation before and after, revert on degradation
 4. **ponytail rules** — Keeps code minimal; no over-engineering
 5. **headroom** — Compresses what Claude reads, so context lasts longer (requires Python 3.10+; skipped gracefully if absent)
-6. **Journal check (Claude Code only)**: A hook in `.claude/settings.json` stops Claude Code from running `git commit` until `JOURNAL.md` is staged. It only gates commits made through Claude Code's own Bash tool. It does not gate commits you type in a terminal, commits from your editor's Git panel, or commits made by any other AI tool or IDE. If your project already had a `.claude/settings.json`, `goodvibes init` leaves it alone; run `goodvibes update` afterwards to add the hook without touching your own settings
-7. **context7 (Claude Code)**: `.mcp.json` connects Claude Code to [context7](https://github.com/upstash/context7) for up-to-date library docs. Free, no account or key. Claude Code asks you once to trust this project's MCP servers; say yes. An optional free key raises the rate limit: see [docs/getting-started.md](docs/getting-started.md#what-is-context7)
+6. **Journal check (Claude Code only)**: A hook stops Claude Code from running `git commit` until `JOURNAL.md` is staged. By default it goes in `~/.claude/settings.json` and acts only in repos that have a `JOURNAL.md`; with `--scope project` it goes in this project's `.claude/settings.json`. It only gates commits made through Claude Code's own Bash tool. It does not gate commits you type in a terminal, commits from your editor's Git panel, or commits made by any other AI tool or IDE. Your own settings are kept: goodvibes adds its entries next to yours. With `--scope project`, if the project already had a `.claude/settings.json`, `goodvibes init` leaves it alone; run `goodvibes update` afterwards to add the hook
+7. **context7 (Claude Code)**: Connects Claude Code to [context7](https://github.com/upstash/context7) for up-to-date library docs. Free, no account or key. By default it is added to your Claude Code user settings, so every project has it. With `--scope project` it goes in this project's `.mcp.json` instead, and Claude Code asks you once to trust the project's MCP servers; say yes. An optional free key raises the rate limit: see [docs/getting-started.md](docs/getting-started.md#what-is-context7)
+8. **Session check (Claude Code only)**: When Claude Code starts, `goodvibes doctor --quick` checks that git knows your name and email and that the goodvibes rules are in place. It prints nothing when all is well; otherwise Claude sees a one-line fix. See [docs/getting-started.md](docs/getting-started.md#session-start-check-claude-code-only)
 
 Running it a second time is safe — existing files are not overwritten, and CLAUDE.md is merged rather than replaced.
 
@@ -71,6 +72,16 @@ goodvibes init --minimal    # Skip headroom install, all .github/ files, and doc
 goodvibes init --scope project   # Everything inside this project only (default: global)
 ```
 
+## Commands
+
+| Command | What it does |
+|---------|--------------|
+| `goodvibes init` | Set goodvibes up (see above) |
+| `goodvibes update` | Bring this project's goodvibes files, and the global setup if you use it, up to date with the goodvibes you have installed. Add `--dry-run` to preview |
+| `goodvibes upgrade` | Install the newest goodvibes, then run `update` with it. Add `--dry-run` to preview without installing anything |
+| `goodvibes doctor` | Check that git, headroom and the goodvibes rules are set up, with a fix for anything missing |
+| `goodvibes --version` | Show the installed version |
+
 `--minimal` skips: `.github/` (workflows, issue templates, PR template, dependabot, Copilot instructions) and `docs/`. All IDE rule files (Cursor, Windsurf, Devin Desktop, Kiro, Antigravity, AGENTS.md, Cline, Amazon Q, Continue.dev, replit.md, .bolt/prompt) are written by `--minimal` — they are AI configuration, not scaffolding.
 
 ## What you need first
@@ -95,11 +106,11 @@ goodvibes init --scope project   # Everything inside this project only (default:
 
 ## IDE compatibility
 
-`goodvibes init` writes a rule file for each supported AI coding tool. All rule files encode the same engineering principles as `CLAUDE.md` and activate automatically — no user configuration needed.
+`goodvibes init` writes a rule file for each supported AI coding tool. All rule files encode the same engineering principles as the Claude Code rules and activate automatically — no user configuration needed.
 
 | IDE | File written | Minimum version | Activation |
 |-----|-------------|-----------------|------------|
-| Claude Code | `CLAUDE.md` | Any | Automatic — loaded on every session |
+| Claude Code | `~/.claude/rules/goodvibes.md` (default) or `CLAUDE.md` (`--scope project`) | Any | Automatic, loaded on every session |
 | Cursor | `.cursor/rules/goodvibes.mdc` | 0.45+ | Automatic — `alwaysApply: true` in frontmatter |
 | GitHub Copilot | `.github/copilot-instructions.md` | VS Code Copilot extension | Automatic — applied to all Copilot Chat requests |
 | Windsurf (legacy) | `.windsurfrules` | Any Windsurf build | Automatic — applied to every Cascade conversation |
@@ -121,7 +132,7 @@ goodvibes init --scope project   # Everything inside this project only (default:
 
 ## Docs
 
-- [FAQ.md](FAQ.md) — common issues: package name migration, update command, upgrading from older versions
+- [FAQ.md](FAQ.md) — common issues: where goodvibes put its files, update vs upgrade, package name migration
 - [docs/getting-started.md](docs/getting-started.md) — first steps after `goodvibes init`
 - [docs/onboarding.md](docs/onboarding.md) — git and GitHub basics for complete beginners
 - [docs/platform-setup/cursor.md](docs/platform-setup/cursor.md) — Cursor ponytail setup
@@ -129,6 +140,8 @@ goodvibes init --scope project   # Everything inside this project only (default:
 - [docs/platform-setup/kiro.md](docs/platform-setup/kiro.md) — Kiro ponytail setup
 - [docs/platform-setup/replit.md](docs/platform-setup/replit.md) — Replit Agent setup
 - [docs/platform-setup/bolt.md](docs/platform-setup/bolt.md) — Bolt.new setup
+- [docs/platform-setup/chatgpt.md](docs/platform-setup/chatgpt.md) — ChatGPT Projects setup
+- [docs/platform-setup/base44.md](docs/platform-setup/base44.md) — Base44 setup
 - [CONTRIBUTING.md](CONTRIBUTING.md) — how to contribute
 - [SECURITY.md](SECURITY.md) — reporting vulnerabilities
 - [CHANGELOG.md](CHANGELOG.md) — what changed in each release

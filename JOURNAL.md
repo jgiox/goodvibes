@@ -1467,3 +1467,17 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 **Tests run:** RED: npm upgrade integration 2 failed, 1 passed; pip upgrade 1 failed, 11 passed. GREEN: npm vitest 267 passed, 1 skipped, 2 todo; pip pytest 222 passed; npm build OK; built CLI `upgrade --dry-run` in a sandboxed global-scope project previews project files only (no skills, no rules block) and writes nothing. `verify-phase5.sh` (run by CI) grepped `upgrade.ts` for `.claude/skills`, i.e. the deleted copy code; its check now asserts that both packages' upgrade delegates to update, and the gate passes (quick and full).
 
 **Docs updated:** JOURNAL.md.
+
+---
+
+## 2026-09-24 · Public docs brought up to 1.9.0
+
+**What I did:** Swept every public doc for claims 1.9.0 made untrue. README: eight parts (session check added), journal check and context7 described for both scopes, new Commands table, Claude Code row points at `~/.claude/rules/goodvibes.md`, ChatGPT and Base44 pages linked. npm and PyPI package READMEs (the registry pages) were still at 1.6-era "five things" with no scope, update, upgrade or doctor; rewritten to match, with the telemetry opt-out. FAQ: `upgrade` does exist (it said it did not), what it now does, how to remove a rules block an old `upgrade` wrote into a global-scope project, and what telemetry sends. getting-started (both copies): turning the journal and session checks off in `~/.claude/settings.json`, adding a context7 key at user scope, doctor checks by scope, corrected commands table (it listed `upgrade --dry-run` as previewing `update`). CONTRIBUTING (both copies) taught `git add -A`, which the rules forbid; now named files, JOURNAL.md, `feat/`/`fix/` branches. Bolt and Replit pages pasted the `CLAUDE.md` block, which global-scope projects no longer have; they now paste `AGENTS.md`. `docs/onboarding.md` gained the troubleshooting section the template copy already had. CHANGELOG `[Unreleased]` lists this and the upgrade and telemetry-test fixes. Telemetry wording checked against both implementations: empty POST, random per-run ID, skipped when `CI=true`.
+
+**Files changed:** README.md, FAQ.md, CHANGELOG.md, CONTRIBUTING.md, templates/CONTRIBUTING.md, docs/getting-started.md, templates/docs/getting-started.md, docs/onboarding.md, docs/platform-setup/bolt.md, docs/platform-setup/replit.md, templates/docs/platform-setup/bolt.md, templates/docs/platform-setup/replit.md, packages/npm/README.md, packages/pip/README.md, JOURNAL.md.
+
+**Why:** User request: update all public-facing docs. The package pages and CONTRIBUTING contradicted the shipped behaviour and the rules.
+
+**Tests run:** npm vitest 267 passed, 1 skipped, 2 todo; pip pytest 222 passed; verify-phase4 and phase5 PASS. verify-phase1, 2 and 3 fail identically with and without these edits (stale checks, tracked separately).
+
+**Docs updated:** all of the above.

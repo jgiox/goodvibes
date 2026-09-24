@@ -17,23 +17,30 @@ npx goodvibes-cli init
 
 That's it. No install required.
 
+By default this sets goodvibes up for every project on your computer (rules, skills, hooks and context7 in `~/.claude`, plus the `goodvibes` command installed globally) and adds the project files to the current folder. Add `--scope project` to keep everything inside this one project. Details: [Global or one project](https://github.com/jgiox/goodvibes#global-or-one-project).
+
 ## What you get
 
-`goodvibes init` sets up five things in your project:
+1. **Engineering rules for Claude**: think before coding, simplicity first, fail loud, keep a journal, update tests. In `~/.claude/rules/goodvibes.md` by default, or this project's `CLAUDE.md` with `--scope project`
+2. **IDE rule files**: the same rules for 14 AI coding tools: Claude Code, Cursor, GitHub Copilot, Windsurf, Devin Desktop, Kiro, Antigravity, Cline, Amazon Q, Continue.dev, OpenAI Codex CLI, Lovable, Replit Agent, and Bolt.new
+3. **Skills**: caveman (shorter replies, so context lasts longer), model-regression (loaded only when a change touches model or metric code) and others
+4. **ponytail rules**: keeps code minimal; no over-engineering
+5. **headroom**: compresses what Claude reads, so context lasts longer (requires Python 3.10+; skipped gracefully if absent)
+6. **Journal check (Claude Code only)**: Claude Code cannot `git commit` until `JOURNAL.md` is staged
+7. **context7 (Claude Code)**: up-to-date library docs, free, no key
+8. **Session check (Claude Code only)**: `goodvibes doctor --quick` runs when Claude Code starts and stays silent unless something needs fixing
 
-1. **CLAUDE.md** — Engineering rules that Claude reads automatically on every session: think before coding, simplicity first, fail loud, keep a journal, update tests
-2. **IDE rule files** — The same rules, adapted for your AI coding tool. Supports 14 AI coding tools out of the box: Claude Code, Cursor, GitHub Copilot, Windsurf, Devin Desktop, Kiro, Antigravity, Cline, Amazon Q, Continue.dev, OpenAI Codex CLI, Lovable, Replit Agent, and Bolt.new
-3. **caveman skill** — Compresses Claude's output so you get more done per context window
-4. **ponytail rules** — Keeps code minimal; no over-engineering
-5. **headroom** — Compresses what Claude reads, so context lasts longer (requires Python 3.10+; skipped gracefully if absent)
+Running it a second time is safe: existing files are not overwritten, and your own settings are kept.
 
-Running it a second time is safe — existing files are not overwritten, and CLAUDE.md is merged rather than replaced.
-
-## Flags
+## Commands and flags
 
 ```sh
-goodvibes init --dry-run    # Preview files without writing anything
-goodvibes init --minimal    # Skip headroom install, all .github/ files, and docs/
+goodvibes init --dry-run         # Preview files without writing anything
+goodvibes init --minimal         # Skip headroom install, all .github/ files, and docs/
+goodvibes init --scope project   # Everything inside this project only (default: global)
+goodvibes update                 # Bring goodvibes files up to date; keeps your edits (--dry-run to preview)
+goodvibes upgrade                # Install the newest goodvibes, then run update
+goodvibes doctor                 # Check the setup and print a fix for anything missing
 ```
 
 ## Requirements
@@ -44,13 +51,15 @@ goodvibes init --minimal    # Skip headroom install, all .github/ files, and doc
 
 **Windows users:** Use WSL2 for the best experience.
 
+**Privacy:** `goodvibes init` sends one anonymous install count: an empty request with a random ID, nothing about you or your code (the server sees your IP address, as with any request). Set `GOODVIBES_NO_TELEMETRY=1` or `DO_NOT_TRACK=1` to turn it off.
+
 ## IDE support
 
 `goodvibes init` writes a rule file for each supported AI coding tool. All rule files encode the same engineering principles and activate automatically — no user configuration needed.
 
 | IDE | File written | Activation |
 |-----|-------------|------------|
-| Claude Code | `CLAUDE.md` | Automatic |
+| Claude Code | `~/.claude/rules/goodvibes.md` (default) or `CLAUDE.md` | Automatic |
 | Cursor | `.cursor/rules/goodvibes.mdc` | Automatic (`alwaysApply: true`) |
 | GitHub Copilot | `.github/copilot-instructions.md` | Automatic |
 | Windsurf | `.windsurfrules` | Automatic |

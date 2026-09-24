@@ -6,7 +6,7 @@ Replit Agent does not read files from your project automatically. Instead, you p
 
 1. Open your Repl.
 2. Find **System prompt** or **AI instructions** in the Agent settings panel.
-3. Copy the text from `CLAUDE.md` — specifically the section between `<!-- goodvibes:start -->` and `<!-- goodvibes:end -->`.
+3. Copy the whole of `AGENTS.md` from your project (goodvibes writes the same rules there).
 4. Paste into the system prompt field and click **Save**.
 
 That is it. Replit Agent will follow the goodvibes rules for every task in this project.
