@@ -1651,3 +1651,4 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 - GREEN: parseManifest() throws '<path> is not valid JSON (...)'; update and doctor report it and exit 1 (doctor --quick prints it, exits 0); manifest keys forward-slash on read and write (items 9, 11). Existing doctor/update unit mocks adjusted to return a valid manifest / posixKey.
 - RED: JSON files written via temp file + rename; non-object user JSON reported, not a crash (item 15).
 - GREEN: utils/fs-safe.ts writeFileAtomic (temp + rename, symlinked config file keeps its link) for settings.json, .mcp.json and both manifests; isJsonObject guard in update, global setup and managedRecord (item 15).
+- RED: never write through a symlink (init copy, CLAUDE.md, update copy/merge, manifest), real-path assertSafe; broken CLAUDE.md markers reported by callers, update exits 1 (items 1, 3).

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { mkdtempSync, writeFileSync, readFileSync, rmSync, mkdirSync, existsSync } from 'node:fs'
+import { mkdtempSync, writeFileSync, readFileSync, rmSync, mkdirSync, existsSync, symlinkSync, readdirSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
@@ -390,5 +390,104 @@ describe('update command — broken manifests and Windows keys', () => {
     expect(readFileSync(join(projectDir, 'docs', 'b.md'), 'utf-8')).toBe('b edited by me\n')
     const files = JSON.parse(readFileSync(join(projectDir, '.goodvibes.json'), 'utf-8')).files
     expect(files).toEqual({ 'docs/a.md': sha256('a v2\n'), 'docs/b.md': sha256('b v1\n') })
+  })
+})
+
+describe('update command — symlinks and broken CLAUDE.md markers', () => {
+  let templateDir: string
+  let projectDir: string
+  let outside: string
+  let cwdSpy: ReturnType<typeof vi.spyOn>
+  let exitSpy: ReturnType<typeof vi.spyOn>
+
+  async function runUpdate(...flags: string[]): Promise<void> {
+    const { resolveTemplatesDir } = await import('../steps/copy-templates.js')
+    vi.mocked(resolveTemplatesDir).mockReturnValue(templateDir)
+    const { registerUpdateCommand } = await import('./update.js')
+    const { Command } = await import('commander')
+    const program = new Command()
+    program.exitOverride()
+    registerUpdateCommand(program)
+    await program.parseAsync(['node', 'goodvibes', 'update', ...flags])
+  }
+
+  const said = async () => {
+    const { note, cancel, outro } = await import('@clack/prompts')
+    return [note, cancel, outro].flatMap(f => vi.mocked(f).mock.calls.map(c => String(c[0]))).join('\n')
+  }
+
+  beforeEach(async () => {
+    templateDir = mkdtempSync(join(tmpdir(), 'gv-sl-tpl-'))
+    projectDir = mkdtempSync(join(tmpdir(), 'gv-sl-proj-'))
+    outside = mkdtempSync(join(tmpdir(), 'gv-sl-outside-'))
+    cwdSpy = vi.spyOn(process, 'cwd').mockReturnValue(projectDir)
+    exitSpy = vi.spyOn(process, 'exit').mockImplementation(((code?: number) => { throw new Error(`exit ${code}`) }) as never)
+    const { note, cancel, outro } = await import('@clack/prompts')
+    for (const f of [note, cancel, outro]) vi.mocked(f).mockClear()
+    mkdirSync(join(templateDir, '.claude'))
+    writeFileSync(join(templateDir, '.claude', 'settings.json'), JSON.stringify({ permissions: { ask: ['Bash(git push*)'] } }))
+  })
+
+  afterEach(() => {
+    cwdSpy.mockRestore()
+    exitSpy.mockRestore()
+    for (const d of [templateDir, projectDir, outside]) rmSync(d, { recursive: true, force: true })
+  })
+
+  it('update --force writes nothing outside the project when .claude is a symlink to an outside folder', async () => {
+    const original = JSON.stringify({ model: 'outside' })
+    writeFileSync(join(outside, 'settings.json'), original)
+    symlinkSync(outside, join(projectDir, '.claude'))
+    writeFileSync(join(projectDir, '.goodvibes.json'), JSON.stringify({ version: '1.0.0', files: { '.claude/settings.json': sha256(original) } }))
+
+    await runUpdate('--force')
+
+    expect(readdirSync(outside)).toEqual(['settings.json'])
+    expect(readFileSync(join(outside, 'settings.json'), 'utf-8')).toBe(original)
+    expect(await said()).toContain('.claude/settings.json: symlink, not written')
+    const files = JSON.parse(readFileSync(join(projectDir, '.goodvibes.json'), 'utf-8')).files
+    expect(files['.claude/settings.json']).toBe(sha256(original))
+  })
+
+  it('update --force does not merge keys into a user-edited settings.json behind a symlinked .claude', async () => {
+    const original = JSON.stringify({ model: 'outside' })
+    writeFileSync(join(outside, 'settings.json'), original)
+    symlinkSync(outside, join(projectDir, '.claude'))
+    writeFileSync(join(projectDir, '.goodvibes.json'), JSON.stringify({ version: '1.0.0', files: { '.claude/settings.json': 'old-hash' } }))
+
+    await runUpdate('--force')
+
+    expect(readFileSync(join(outside, 'settings.json'), 'utf-8')).toBe(original)
+  })
+
+  it('does not write the manifest through a symlinked .goodvibes.json', async () => {
+    const target = join(outside, 'manifest.json')
+    writeFileSync(target, JSON.stringify({ version: '1.0.0', files: {} }))
+    symlinkSync(target, join(projectDir, '.goodvibes.json'))
+    writeFileSync(join(templateDir, 'AGENTS.md'), 'tpl\n')
+
+    await runUpdate('--force')
+
+    expect(JSON.parse(readFileSync(target, 'utf-8'))).toEqual({ version: '1.0.0', files: {} })
+    expect(await said()).toContain('.goodvibes.json: symlink, not written')
+  })
+
+  it('reports broken CLAUDE.md markers, still updates the other files, and exits 1 at the end', async () => {
+    writeFileSync(join(templateDir, 'CLAUDE.md'), '<!-- goodvibes:start -->\n# goodvibes: v2.0.0\n<!-- goodvibes:end -->\n')
+    writeFileSync(join(templateDir, 'AGENTS.md'), 'tpl v2\n')
+    const broken = '# Mine\n<!-- goodvibes:end -->\ntext\n<!-- goodvibes:start -->\n'
+    writeFileSync(join(projectDir, 'CLAUDE.md'), broken)
+    writeFileSync(join(projectDir, 'AGENTS.md'), 'tpl v1\n')
+    writeFileSync(join(projectDir, '.goodvibes.json'), JSON.stringify({
+      version: '1.0.0',
+      files: { 'CLAUDE.md': 'x', 'AGENTS.md': sha256('tpl v1\n') },
+    }))
+
+    await expect(runUpdate('--force')).rejects.toThrow('exit 1')
+
+    expect(readFileSync(join(projectDir, 'CLAUDE.md'), 'utf-8')).toBe(broken)
+    expect(readFileSync(join(projectDir, 'AGENTS.md'), 'utf-8')).toBe('tpl v2\n')
+    expect(await said()).toMatch(/end line comes before the start line.*fix CLAUDE\.md by hand/)
+    expect(existsSync(join(projectDir, '.goodvibes.json'))).toBe(true)
   })
 })

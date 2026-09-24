@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { mkdtempSync, rmSync, existsSync, readFileSync, symlinkSync, mkdirSync } from 'node:fs'
+import { mkdtempSync, rmSync, existsSync, readFileSync, symlinkSync, mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { fileURLToPath } from 'node:url'
@@ -73,5 +73,22 @@ describe('built CLI (dist/index.js)', () => {
     await run('init', '--minimal')
 
     expect(readFileSync(rules, 'utf-8')).toBe(edited)
+  })
+
+  it('init leaves an outside file unchanged when the project CLAUDE.md is a symlink to it', async () => {
+    const outsideDir = mkdtempSync(join(tmpdir(), 'gv-dist-outside-'))
+    try {
+      const target = join(outsideDir, 'notes.md')
+      writeFileSync(target, 'private\n')
+      symlinkSync(target, join(projectDir, 'CLAUDE.md'))
+
+      const result = await run('init', '--minimal', '--scope', 'project')
+
+      expect(result.exitCode).toBe(0)
+      expect(readFileSync(target, 'utf-8')).toBe('private\n')
+      expect(result.stdout).toContain('CLAUDE.md: symlink, not written')
+    } finally {
+      rmSync(outsideDir, { recursive: true, force: true })
+    }
   })
 })
