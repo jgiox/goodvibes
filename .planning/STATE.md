@@ -24,8 +24,8 @@ See: .planning/PROJECT.md (updated 2026-07-03)
 
 ## Current Position
 
-Phase: v1.8.0 release
-Plan: Phases 15-17 complete; versions bumped to 1.8.0 (npm, pip, template stamp); next: PR, green CI, merge, tag npm-v1.8.0 / pip-v1.8.0 / v1.8.0
+Phase: v1.8.0 release (partially published)
+Plan: v1.8.0 merged (7660cc5); PyPI 1.8.0 published; npm publish blocked: NPM_TOKEN secret rejected (E404 on PUT); release tags not pushed (git proxy 403)
 Status: all v1.8.0 phases complete; human UAT pending (MCP trust prompt, Windows Git Bash, installed-wheel update run, caveman ultra style)
 Last activity: 2026-09-24 -- Phase 15 final sign-off passed, phase marked complete; quick task 260924-mh9 completed (see .planning/quick/)
 

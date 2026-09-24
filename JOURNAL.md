@@ -1363,3 +1363,19 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 **Tests run:** npm vitest 246 passed, 1 skipped, 2 todo (built-CLI test sees 1.8.0); pip pytest 206 passed; verify-phase5 PASS; CI stamp check logic: 1.8.0 / 1.8.0 / 1.8.0.
 
 **Docs updated:** CHANGELOG.md, JOURNAL.md.
+
+---
+
+## 2026-09-24 · v1.8.0 release: PyPI published, npm blocked on NPM_TOKEN
+
+**What I did:** Merged PR #35 (merge commit 7660cc5) after all 12 CI checks passed. Pushing release tags `v1.8.0`, `npm-v1.8.0`, `pip-v1.8.0` returned HTTP 403 from the session's git proxy (policy denial, not retried), so both publish workflows were started by `workflow_dispatch` on main. PyPI run 36062117526 succeeded: `goodvibes-cli` 1.8.0 wheel and sdist are live; `pip install goodvibes-cli==1.8.0` then `init --minimal` in a blank dir exits 0 with manifest version 1.8.0 and stamp v1.8.0. npm run 36062115333 passed build, tests and the pack check, then `npm publish` failed with `E404 Not Found - PUT https://registry.npmjs.org/goodvibes-cli`, the registry's response to a token without publish rights for the package; dispatch run 8 (v1.6.2) failed the same way. npm `latest` is still 1.7.1, whose `init` crashes.
+
+**Files changed:** JOURNAL.md, .planning/STATE.md.
+
+**Why:** Record the release state for the next session.
+
+**Tests run:** PyPI install smoke test as above; registry checks: PyPI latest 1.8.0, npm latest 1.7.1.
+
+**Next time:** Maintainer must refresh the `NPM_TOKEN` repository secret (an npm automation or granular token with publish rights on `goodvibes-cli`), then re-run "Publish npm package" on main, and push the three tags from a machine that is allowed to.
+
+**Docs updated:** JOURNAL.md, STATE.md.
