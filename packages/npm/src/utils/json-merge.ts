@@ -8,10 +8,12 @@ type Json = Record<string, any>
 
 const MARKER = /^: (goodvibes-[a-z0-9-]+);/
 
+const markerOf = (h: Json): string | null => (typeof h?.command === 'string' ? h.command.match(MARKER)?.[1] ?? null : null)
+
 function hookId(group: Json): string | null {
   for (const h of group?.hooks ?? []) {
-    const m = typeof h?.command === 'string' ? h.command.match(MARKER) : null
-    if (m) return m[1]
+    const id = markerOf(h)
+    if (id) return id
   }
   return null
 }
@@ -98,8 +100,12 @@ export function mergeManagedJson(
       const userGroups: Json[] = merged.hooks?.[event] ?? []
       const idx = userGroups.findIndex(ug => hookId(ug) === id)
       if (idx >= 0) {
-        if (!same(userGroups[idx], g)) {
-          userGroups[idx] = g
+        // Only the marked hook is ours; the user's other hooks and fields in that group stay.
+        const ug = userGroups[idx]
+        const tplHook = g.hooks.find((h: Json) => markerOf(h) === id)
+        const next = { ...ug, hooks: ug.hooks.map((h: Json) => (markerOf(h) === id ? tplHook : h)) }
+        if (!same(ug, next)) {
+          userGroups[idx] = next
           changes.push(`~ hooks.${event}: ${id}`)
         }
       } else if (!wasInstalled(`hook:${event}:${id}`)) {

@@ -1642,3 +1642,4 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 - RED: version comparison with pre-releases and strict CLAUDE.md marker lines (items 3, 10).
 - GREEN: parse pre-release/post versions (never throws); markers only count alone on their line, ambiguous markers throw MarkerError without writing, CRLF kept (items 3, 10).
 - RED: hook merge must keep user hooks that share a group with a goodvibes hook (item 4).
+- GREEN: replace only the marked hook object inside a user group (item 4).
