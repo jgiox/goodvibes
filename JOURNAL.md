@@ -1117,3 +1117,17 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 **Tests run:** None (documentation-only change; no code touched). Verified: `diff templates/AGENTS.md templates/<each byte-identical-group file>` clean for all six; `grep -l "Definition of done"` matches `CLAUDE.md`, `AGENTS.md`, `copilot-instructions.md`, `goodvibes.mdc`, `goodvibes.md` (kiro); `grep -q "goodvibes: v1.7.1" templates/CLAUDE.md` still true.
 
 **Docs updated:** All template files listed above, `CHANGELOG.md`, JOURNAL.md.
+
+---
+
+## 2026-09-24 — Quick task 260924-mh9 closed: orchestrator verification, merge, push
+
+**What I did:** Independently re-verified the executor's five commits instead of trusting its report: re-ran both full suites on merged `main`, checked out the RED commit `727eeb7` in a scratch worktree and confirmed every new regression test fails there (npm 2/2, pip 3/3 — pip needed `-o addopts=""` because the config stops at the first failure), diffed the six byte-identical rule files against `templates/AGENTS.md` (identical), and validated `templates/.claude/settings.json` parses. Merged the executor worktree into `main`, recorded the task in STATE.md.
+
+**Files changed:** `.planning/STATE.md`, `.planning/quick/260924-mh9-cross-repo-governance-gap-review-follow-/260924-mh9-SUMMARY.md`, JOURNAL.md.
+
+**Why:** Proof-of-work rule — subagent self-reports are not evidence.
+
+**Tests run:** `npx vitest run` → 173 passed / 1 skipped / 2 todo; `uv run pytest tests/` → 179 passed; `bash scripts/verify-phase4.sh --quick` → 15 passed, 0 failed.
+
+**Docs updated:** STATE.md, SUMMARY.md, JOURNAL.md. Follow-up for the maintainer: existing projects only receive the new CLAUDE.md rules after a version bump + publish (sentinel merge skips equal stamps). New `ruff check` CI step will fail projects that already have lint errors — intended, but worth a line in release notes.

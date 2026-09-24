@@ -4,7 +4,7 @@ milestone: v1.8.0
 milestone_name: Agent Governance & Cross-Tool Enforcement
 status: executing
 last_updated: "2026-09-06T11:37:00.000Z"
-last_activity: 2026-09-06 -- gap-closure plan 15-06 (round 3) executed and verified, 0 blockers
+last_activity: 2026-09-24 -- Completed quick task 260924-mh9: cross-repo gap review follow-up
 progress:
   total_phases: 17
   completed_phases: 3
@@ -27,7 +27,7 @@ See: .planning/PROJECT.md (updated 2026-07-03)
 Phase: 15 (journal-gate-hook-context7-mcp) — EXECUTING
 Plan: 15-06 gap-closure round 3 (CR-01 through CR-07) executed and verified: `gsd-plan-checker` returned VERIFICATION PASSED, 0 blockers, 2 non-blocking warnings (an accepted narrow false-positive edge case and a pre-existing, out-of-scope tab-escape defect from phase 15-01, both filed for future tracking, neither reopens CR-01–07 or 15-05's Test D/E/F)
 Status: Gap closure verified — full phase-level completion sign-off (goal-backward `gsd-verifier` pass + STATE.md phase-complete marking) not yet run
-Last activity: 2026-09-06 -- gap-closure plan 15-06 (round 3) executed and verified, 0 blockers
+Last activity: 2026-09-24 -- Completed quick task 260924-mh9: cross-repo gap review follow-up
 
 ## Performance Metrics
 
@@ -135,6 +135,7 @@ Recent decisions affecting current work:
 | 2026-06-30 | eacces-fix | EACCES error now leads with "check your project directory"; Next Steps panel distinguishes Claude Code vs other IDEs |
 | 2026-06-30 | v1.4.0-publish | Tagged npm-v1.4.0 + pip-v1.4.0; published to npm and PyPI; dogfooded IDE files to repo root |
 | 2026-07-28 | 260728-a1b | Added FAQ.md covering jgiox-goodvibes → goodvibes-cli migration and common update command issues |
+| 2026-09-24 | 260924-mh9 | Cross-repo gap review report; fixed `update` data loss (skipped files kept in manifest, CLAUDE.md always block-merged); `ask` rules for publish/deploy; CI lint + gitleaks + fail-loud; definition-of-done / .env.example / no-fabricated-data rules in all templates |
 
 ### Blockers/Concerns
 
