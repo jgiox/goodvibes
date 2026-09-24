@@ -203,3 +203,52 @@ def test_init_exits_1_with_a_clear_message_when_the_global_manifest_is_broken(ru
     result = runner.invoke(app, ["--minimal"])
     assert result.exit_code == 1
     assert "is not valid JSON" in result.output
+
+
+_TEMPLATES = pathlib.Path(__file__).resolve().parents[3] / "templates"
+
+
+@pytest.fixture
+def real_project(mocker, tmp_path):
+    """A real project dir where init and update read and write the real manifest (headroom/MCP still mocked)."""
+    from goodvibes_cli.steps.write_manifest import write_manifest as real_write_manifest
+    from goodvibes_cli.utils.json_merge import managed_record as real_managed_record
+    proj = tmp_path / "proj"
+    proj.mkdir()
+    mocker.patch("pathlib.Path.cwd", return_value=proj)
+    mocker.patch("goodvibes_cli.commands.init_cmd.write_manifest", real_write_manifest)
+    mocker.patch("goodvibes_cli.commands.init_cmd.managed_record", real_managed_record)
+    for mod in ("init_cmd", "update_cmd"):
+        mocker.patch(f"goodvibes_cli.commands.{mod}.resolve_templates_dir", return_value=_TEMPLATES)
+    mocker.patch("goodvibes_cli.commands.init_cmd.install_headroom", return_value={"status": "already-installed", "reason": ""})
+    mocker.patch("goodvibes_cli.commands.init_cmd.configure_mcp", return_value={"status": "already-registered", "reason": ""})
+    return proj
+
+
+def _manifest_files(proj):
+    import json
+    return json.loads((proj / ".goodvibes.json").read_text(encoding="utf-8"))["files"]
+
+
+def test_init_records_only_files_it_wrote_so_update_never_overwrites_the_users_own_files(runner, real_project):
+    from goodvibes_cli.main import app as main_app
+    proj = real_project
+    (proj / ".github").mkdir()
+    (proj / ".github" / "dependabot.yml").write_text("# my own dependabot\n", encoding="utf-8")
+    (proj / "src").mkdir()
+    (proj / "src" / "app.py").write_text("print('mine')\n", encoding="utf-8")
+    (proj / ".git").mkdir()
+    (proj / ".git" / "config").write_text("[core]\n", encoding="utf-8")
+
+    result = runner.invoke(main_app, ["init"])
+    assert result.exit_code == 0, result.output
+
+    files = _manifest_files(proj)
+    assert "JOURNAL.md" in files
+    for mine in (".github/dependabot.yml", "src/app.py", ".git/config"):
+        assert mine not in files
+
+    result = runner.invoke(main_app, ["update", "--force"])
+    assert result.exit_code == 0, result.output
+    assert (proj / ".github" / "dependabot.yml").read_text(encoding="utf-8") == "# my own dependabot\n"
+    assert (proj / "src" / "app.py").read_text(encoding="utf-8") == "print('mine')\n"

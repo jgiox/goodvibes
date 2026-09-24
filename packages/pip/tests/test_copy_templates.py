@@ -494,3 +494,17 @@ def test_copy_templates_reports_broken_claude_md_markers_and_keeps_copying(tmp_p
     assert "CLAUDE.md" not in written
     assert "CONTRIBUTING.md" in written
     assert any(s.startswith("CLAUDE.md:") and "fix CLAUDE.md by hand" in s for s in skipped)
+
+
+def test_copy_templates_returns_only_files_this_run_created(tmp_path, template_dir):
+    from goodvibes_cli.steps.copy_templates import copy_templates
+    dest = tmp_path / "proj"
+    (dest / "src").mkdir(parents=True)
+    (dest / "src" / "app.py").write_text("mine\n", encoding="utf-8")
+    (dest / "AGENTS.md").write_text("my agents\n", encoding="utf-8")
+    written, skipped = copy_templates(template_dir, dest)
+    assert "src/app.py" not in written
+    assert "AGENTS.md" not in written
+    assert "AGENTS.md" in skipped
+    assert "CONTRIBUTING.md" in written
+    assert ".github/workflows/ci.yml" in written
