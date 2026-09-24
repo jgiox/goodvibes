@@ -11,6 +11,7 @@ def _auto_mock_write_manifest(request, mocker):
     # Only mock when the test exercises init_cmd (not test_write_manifest.py itself)
     if "test_write_manifest" not in request.module.__name__:
         mocker.patch("goodvibes_cli.commands.init_cmd.write_manifest")
+        mocker.patch("goodvibes_cli.commands.init_cmd.managed_record", return_value={})
 
 
 @pytest.fixture

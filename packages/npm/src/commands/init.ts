@@ -1,6 +1,6 @@
 import type { Command } from 'commander'
 import { readdirSync } from 'node:fs'
-import { createRequire } from 'node:module'
+import { packageVersion } from '../utils/version.js'
 import { intro, outro, note, tasks, cancel } from '@clack/prompts'
 import { copyTemplates, listTemplateFiles, resolveTemplatesDir } from '../steps/copy-templates.js'
 import { installHeadroom, type HeadroomResult } from '../steps/install-headroom.js'
@@ -8,6 +8,7 @@ import { configureMcp, type McpResult } from '../steps/configure-mcp.js'
 import { detectProjectType } from '../utils/detect-project-type.js'
 import { sendTelemetry } from '../steps/telemetry.js'
 import { writeManifest } from '../steps/write-manifest.js'
+import { managedRecord } from '../utils/json-merge.js'
 
 // ponytail: inline helper — too small to justify a separate module
 function formatHeadroomStatus(hr: HeadroomResult | undefined, mr: McpResult | undefined): string {
@@ -142,9 +143,8 @@ export function registerInitCommand(program: Command): void {
         process.exit(1)
       }
 
-      const _req = createRequire(import.meta.url)
-      const _ver = (_req('../../package.json') as { version: string }).version
-      await writeManifest(cwd, createdFiles.filter(f => f !== '.goodvibes.json'), _ver)
+      const _ver = packageVersion()
+      await writeManifest(cwd, createdFiles.filter(f => f !== '.goodvibes.json'), _ver, undefined, await managedRecord(cwd, templateDir))
 
       await Promise.race([telemetryPromise.catch(() => {}), sleep(1_000)])
 

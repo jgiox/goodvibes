@@ -24,15 +24,19 @@ goodvibes init
 
 ## What you get
 
-`goodvibes init` sets up five things in your project:
+`goodvibes init` sets up seven things in your project:
 
 1. **CLAUDE.md** — Engineering rules that Claude reads automatically on every session: think before coding, simplicity first, fail loud, keep a journal, update tests
 2. **IDE rule files** — The same rules, adapted for your AI coding tool. Supports 14 AI coding tools out of the box: Claude Code, Cursor, GitHub Copilot, Windsurf, Devin Desktop, Kiro, Antigravity, Cline, Amazon Q, Continue.dev, OpenAI Codex CLI, Lovable, Replit Agent, and Bolt.new
-3. **caveman skill** — Compresses Claude's output so you get more done per context window
+3. **caveman skill** — Compresses Claude's output so you get more done per context window (defaults to `ultra`; type `/caveman full` or `stop caveman` if replies get too terse). Also ships a `model-regression` skill that Claude Code loads only when a change touches model, scoring or metric code: baseline first, same evaluation before and after, revert on degradation
 4. **ponytail rules** — Keeps code minimal; no over-engineering
 5. **headroom** — Compresses what Claude reads, so context lasts longer (requires Python 3.10+; skipped gracefully if absent)
+6. **Journal check (Claude Code only)**: A hook in `.claude/settings.json` stops Claude Code from running `git commit` until `JOURNAL.md` is staged. It only gates commits made through Claude Code's own Bash tool. It does not gate commits you type in a terminal, commits from your editor's Git panel, or commits made by any other AI tool or IDE. If your project already had a `.claude/settings.json`, `goodvibes init` leaves it alone; run `goodvibes update` afterwards to add the hook without touching your own settings
+7. **context7 (Claude Code)**: `.mcp.json` connects Claude Code to [context7](https://github.com/upstash/context7) for up-to-date library docs. Free, no account or key. Claude Code asks you once to trust this project's MCP servers; say yes. An optional free key raises the rate limit: see [docs/getting-started.md](docs/getting-started.md#what-is-context7)
 
 Running it a second time is safe — existing files are not overwritten, and CLAUDE.md is merged rather than replaced.
+
+`goodvibes update` brings an existing project up to date. Files you never edited are replaced with the new version. Files you edited are left alone, except `.claude/settings.json` and `.mcp.json`: for those, update adds only the goodvibes parts (the journal check, the ask-before-publish rules, context7) and keeps everything you added. `goodvibes update --dry-run` shows each change first. If you delete one of those goodvibes parts on purpose, update will not put it back.
 
 ## Flags
 

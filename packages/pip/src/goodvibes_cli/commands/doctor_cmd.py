@@ -5,6 +5,7 @@ import importlib.metadata
 import pathlib
 import subprocess
 from dataclasses import dataclass, field
+from typing import Annotated
 
 import typer
 from rich.console import Console
@@ -90,9 +91,19 @@ def _check_sentinel(cwd: pathlib.Path) -> CheckResult:
     )
 
 
-def doctor_cmd() -> None:
+def doctor_cmd(
+    quick: Annotated[bool, typer.Option("--quick", help="Fast local checks only; silent when all pass, always exits 0 (used by the session-start hook)")] = False,
+) -> None:
     """Check that goodvibes setup is complete."""
     cwd = pathlib.Path.cwd()
+
+    if quick:
+        # Exit 2 from a SessionStart hook blocks the session, so quick mode reports and always exits 0.
+        checks = [_check_git_config("user.name"), _check_git_config("user.email"), _check_claude_md(cwd), _check_sentinel(cwd)]
+        for r in checks:
+            if not r.passed:
+                typer.echo(f"goodvibes doctor: ✗ {r.label}." + (f" {r.remedy}" if r.remedy else ""))
+        return
 
     results = [
         _check_headroom(),

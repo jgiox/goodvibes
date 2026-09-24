@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.8.0
 milestone_name: Agent Governance & Cross-Tool Enforcement
 status: executing
-last_updated: "2026-09-06T11:37:00.000Z"
-last_activity: 2026-09-24 -- Completed quick task 260924-mh9: cross-repo gap review follow-up
+last_updated: "2026-09-24T21:00:00.000Z"
+last_activity: 2026-09-24 -- Phase 15 final sign-off passed (8/8); quick task 260924-mh9 (cross-repo gap review follow-up) completed
 progress:
   total_phases: 17
-  completed_phases: 3
+  completed_phases: 6
   total_plans: 19
   completed_plans: 58
-  percent: 18
+  percent: 35
 ---
 
 # Project State
@@ -20,14 +20,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-07-03)
 
 **Core value:** One command gives a vibe coder a fully configured project — token efficiency and engineering discipline happen automatically in the background.
-**Current focus:** Phase 15 — journal-gate-hook-context7-mcp
+**Current focus:** v1.8.0 release; Phases 15-17 complete
 
 ## Current Position
 
-Phase: 15 (journal-gate-hook-context7-mcp) — EXECUTING
-Plan: 15-06 gap-closure round 3 (CR-01 through CR-07) executed and verified: `gsd-plan-checker` returned VERIFICATION PASSED, 0 blockers, 2 non-blocking warnings (an accepted narrow false-positive edge case and a pre-existing, out-of-scope tab-escape defect from phase 15-01, both filed for future tracking, neither reopens CR-01–07 or 15-05's Test D/E/F)
-Status: Gap closure verified — full phase-level completion sign-off (goal-backward `gsd-verifier` pass + STATE.md phase-complete marking) not yet run
-Last activity: 2026-09-24 -- Completed quick task 260924-mh9: cross-repo gap review follow-up
+Phase: v1.8.0 release
+Plan: Phases 15-17 complete; versions bumped to 1.8.0 (npm, pip, template stamp); next: PR, green CI, merge, tag npm-v1.8.0 / pip-v1.8.0 / v1.8.0
+Status: all v1.8.0 phases complete; human UAT pending (MCP trust prompt, Windows Git Bash, installed-wheel update run, caveman ultra style)
+Last activity: 2026-09-24 -- Phase 15 final sign-off passed, phase marked complete; quick task 260924-mh9 completed (see .planning/quick/)
 
 ## Performance Metrics
 
@@ -51,9 +51,9 @@ Last activity: 2026-09-24 -- Completed quick task 260924-mh9: cross-repo gap rev
 | 12 | 3 | - | - |
 | 13 | 6 | - | - |
 | 14 | 5 | - | - |
-| 15 | TBD | - | - |
-| 16 | TBD | - | - |
-| 17 | TBD | - | - |
+| 15 | 6 | - | - |
+| 16 | 1 | - | - |
+| 17 | 1 | - | - |
 
 **Recent Trend:**
 
@@ -136,6 +136,7 @@ Recent decisions affecting current work:
 | 2026-06-30 | v1.4.0-publish | Tagged npm-v1.4.0 + pip-v1.4.0; published to npm and PyPI; dogfooded IDE files to repo root |
 | 2026-07-28 | 260728-a1b | Added FAQ.md covering jgiox-goodvibes → goodvibes-cli migration and common update command issues |
 | 2026-09-24 | 260924-mh9 | Cross-repo gap review report; fixed `update` data loss (skipped files kept in manifest, CLAUDE.md always block-merged); `ask` rules for publish/deploy; CI lint + gitleaks + fail-loud; definition-of-done / .env.example / no-fabricated-data rules in all templates |
+| 2026-09-24 | 260924-q1 | Journal gate allows same-command staging of JOURNAL.md (RED/GREEN, npm+pip); 11 more ask rules for publish/deploy bypass forms; onboarding stops teaching `git add -A` |
 
 ### Blockers/Concerns
 

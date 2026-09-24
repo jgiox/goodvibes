@@ -200,3 +200,45 @@ def test_allows_commit_from_staged_cwd_whose_message_merely_contains_adjacent_gi
     subprocess.run(["git", "add", "JOURNAL.md"], cwd=repo_dir, check=True, capture_output=True)
     result = _run_hook('git commit -am "fix: git -C anchor bypass in journal-gate hook"', repo_dir)
     assert result.returncode == 0
+
+
+def _commit_journal(repo_dir):
+    subprocess.run(["git", "add", "JOURNAL.md"], cwd=repo_dir, check=True, capture_output=True)
+    subprocess.run(["git", "-c", "commit.gpgsign=false", "commit", "-m", "init"], cwd=repo_dir, check=True, capture_output=True)
+    (repo_dir / "JOURNAL.md").write_text("# journal\n- entry\n")
+
+
+def test_allows_add_journal_and_commit_in_one_command_when_journal_has_changes(repo_dir):
+    assert _run_hook('git add JOURNAL.md && git commit -m "log"', repo_dir).returncode == 0
+
+
+def test_allows_add_of_exact_paths_including_journal_and_commit(repo_dir):
+    assert _run_hook('git add src.txt JOURNAL.md && git commit -m "log"', repo_dir).returncode == 0
+
+
+def test_allows_add_all_and_commit_when_journal_has_changes(repo_dir):
+    assert _run_hook('git add -A && git commit -m "log"', repo_dir).returncode == 0
+
+
+def test_blocks_add_of_other_paths_and_commit_when_journal_not_in_add_list(repo_dir):
+    assert _run_hook('git add src.txt && git commit -m "log"', repo_dir).returncode == 2
+
+
+def test_blocks_when_add_journal_runs_only_after_the_commit(repo_dir):
+    assert _run_hook('git commit -m "log" && git add JOURNAL.md', repo_dir).returncode == 2
+
+
+def test_blocks_add_journal_and_commit_when_journal_has_no_changes(repo_dir):
+    _commit_journal(repo_dir)
+    subprocess.run(["git", "checkout", "--", "JOURNAL.md"], cwd=repo_dir, check=True, capture_output=True)
+    assert _run_hook('git add JOURNAL.md && git commit -m "log"', repo_dir).returncode == 2
+
+
+def test_allows_commit_all_when_tracked_journal_modified_in_working_tree(repo_dir):
+    _commit_journal(repo_dir)
+    assert _run_hook('git commit -am "log"', repo_dir).returncode == 0
+
+
+def test_blocks_commit_without_all_when_tracked_journal_modified_but_unstaged(repo_dir):
+    _commit_journal(repo_dir)
+    assert _run_hook('git commit -m "log"', repo_dir).returncode == 2

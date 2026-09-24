@@ -3,15 +3,7 @@ import { note, outro } from '@clack/prompts'
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { execa } from 'execa'
-import { createRequire } from 'node:module'
-
-const _require = createRequire(import.meta.url)
-function _getVersion(): string {
-  try {
-    const pkg = _require('../../package.json') as { version?: string }
-    return pkg.version ?? 'unknown'
-  } catch { return 'unknown' }
-}
+import { packageVersion } from '../utils/version.js'
 
 // ponytail: not imported from sentinel-merge.ts — those constants are module-private
 const SENTINEL_START = '<!-- goodvibes:start -->'
@@ -81,8 +73,16 @@ export function registerDoctorCommand(program: Command): void {
   program
     .command('doctor')
     .description('Check goodvibes setup is complete')
-    .action(async () => {
+    .option('--quick', 'Fast local checks only; silent when all pass, always exits 0 (used by the session-start hook)')
+    .action(async (options: { quick?: boolean } = {}) => {
       const cwd = process.cwd()
+
+      if (options.quick) {
+        // Exit 2 from a SessionStart hook blocks the session, so quick mode reports and always exits 0.
+        const quick = [...(await checkGit()), checkClaudeMd(cwd), checkSentinel(cwd)].filter(r => !r.pass)
+        for (const r of quick) console.log(`goodvibes doctor: ✗ ${r.label}.${r.remedy ? ` ${r.remedy}` : ''}`)
+        return
+      }
 
       const headroomResult = await checkHeadroom()
       const gitResults = await checkGit()
@@ -91,7 +91,7 @@ export function registerDoctorCommand(program: Command): void {
 
       const all: CheckResult[] = [headroomResult, ...gitResults, claudeMdResult, sentinelResult]
 
-      const version = _getVersion()
+      const version = packageVersion()
       const lines = [`goodvibes v${version}`, ...all.map(r => `${r.pass ? '✓' : '✗'} ${r.label}`)]
       note(lines.join('\n'), 'goodvibes doctor')
 

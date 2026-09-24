@@ -7,21 +7,19 @@ if (major < 20) {
   process.exit(1)
 }
 
-import { createRequire } from 'node:module'
+import { packageVersion } from './utils/version.js'
 import { Command } from 'commander'
 import { registerInitCommand } from './commands/init.js'
 import { registerUpgradeCommand } from './commands/upgrade.js'
 import { registerDoctorCommand } from './commands/doctor.js'
 import { registerUpdateCommand } from './commands/update.js'
 
-const _require = createRequire(import.meta.url)
-const _pkg = _require('../package.json') as { version: string }
 
 const program = new Command()
 
 program
   .name('goodvibes')
-  .version(_pkg.version)
+  .version(packageVersion())
   .description('One-command bootstrap for vibe coding projects')
 
 registerInitCommand(program)

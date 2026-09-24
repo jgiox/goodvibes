@@ -153,3 +153,32 @@ def test_doctor_output_starts_with_version_line(mocker, tmp_path):
     from typer.testing import CliRunner as TR
     result = TR().invoke(app, ["doctor"])
     assert "goodvibes v1.6.2" in result.output
+
+
+def test_doctor_quick_prints_nothing_and_skips_headroom_when_all_quick_checks_pass(mocker, tmp_path):
+    (tmp_path / "CLAUDE.md").write_text("<!-- goodvibes:start -->\nx\n<!-- goodvibes:end -->\n", encoding="utf-8")
+    mocker.patch("pathlib.Path.cwd", return_value=tmp_path)
+    run = mocker.patch(
+        "goodvibes_cli.commands.doctor_cmd.subprocess.run",
+        return_value=subprocess.CompletedProcess(args=[], returncode=0, stdout="value", stderr=""),
+    )
+    from goodvibes_cli.main import app
+    result = runner.invoke(app, ["doctor", "--quick"])
+    assert result.exit_code == 0
+    assert result.output == ""
+    assert all(c.args[0][0] != "headroom" for c in run.call_args_list)
+
+
+def test_doctor_quick_prints_one_line_per_failure_and_exits_0(mocker, tmp_path):
+    mocker.patch("pathlib.Path.cwd", return_value=tmp_path)
+    mocker.patch(
+        "goodvibes_cli.commands.doctor_cmd.subprocess.run",
+        return_value=subprocess.CompletedProcess(args=[], returncode=0, stdout="value", stderr=""),
+    )
+    from goodvibes_cli.main import app
+    result = runner.invoke(app, ["doctor", "--quick"])
+    assert result.exit_code == 0
+    assert result.output.splitlines() == [
+        "goodvibes doctor: ✗ CLAUDE.md present. Run: goodvibes init",
+        "goodvibes doctor: ✗ goodvibes sentinel block. Run: goodvibes init",
+    ]

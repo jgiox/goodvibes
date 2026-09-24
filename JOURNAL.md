@@ -1131,3 +1131,235 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 **Tests run:** `npx vitest run` → 173 passed / 1 skipped / 2 todo; `uv run pytest tests/` → 179 passed; `bash scripts/verify-phase4.sh --quick` → 15 passed, 0 failed.
 
 **Docs updated:** STATE.md, SUMMARY.md, JOURNAL.md. Follow-up for the maintainer: existing projects only receive the new CLAUDE.md rules after a version bump + publish (sentinel merge skips equal stamps). New `ruff check` CI step will fail projects that already have lint errors — intended, but worth a line in release notes.
+
+---
+
+## 2026-09-24 · Phase 15 final sign-off; parallel branch reconciled
+
+**What I did:** Asked to "complete phase", I started from a stale clone (`e729eba`) that did not have the 15-01 to 15-06 work on main, and built Phase 15 a second time on `claude/jolly-thompson-vb6qyd` (commits 5d539f4, 6562868, b9f9c0c). Found the duplication at push time, pushed those commits unchanged so nothing was lost, then merged `origin/main` with every conflict resolved to main. From the parallel build I kept two copy-templates tests plus doc additions (README items 6 and 7; hook opt-out, "Pending approval" and `claude mcp reset-project-choices` in getting-started; CHANGELOG entry). Then ran the goal-backward sign-off against main's hook: 8/8, phase marked complete.
+
+**Files changed:** README.md, CHANGELOG.md, docs/getting-started.md, templates/docs/getting-started.md, packages/npm/src/steps/copy-templates.integration.test.ts, .planning/phases/15-journal-gate-hook-context7-mcp/15-VERIFICATION.md, .planning/ROADMAP.md, .planning/REQUIREMENTS.md, .planning/STATE.md, JOURNAL.md.
+
+**Why:** STATE.md said only the phase-level sign-off was left. HOOK-04 names README, which had no mention of the hook.
+
+**What I learned:** The hook reads the index before the Bash command runs, so `git add JOURNAL.md && git commit` is blocked and the whole command, `git add` included, never executes. Reproduced live in Claude Code, and it hit this session too once the dogfooded hook loaded. Recorded as a follow-up in 15-VERIFICATION.md rather than changed, because 15-01 locks the hook logic. CR-01 (`-C` target) independently re-reproduced as fixed.
+
+**Tests run:** npm vitest 170 passed, 1 skipped, 2 todo; pip pytest 176 passed; verify-phase5 --quick 10/10; npm build ok; wheel and `npm pack --dry-run` contain the hook and `.mcp.json`; live `claude -p`: blocked without journal, blocked on compound add (false block), passed with journal staged first.
+
+**Docs updated:** README.md, CHANGELOG.md, getting-started (both copies), 15-VERIFICATION.md, JOURNAL.md.
+
+---
+
+## 2026-09-24 · Journal gate: same-command staging, RED tests (quick 260924-q1)
+
+**What I did:** Added 8 hook tests in each suite for commits that stage in the same command: `git add JOURNAL.md && git commit`, exact paths including JOURNAL.md, `git add -A && git commit`, and `git commit -a` with tracked JOURNAL.md modified. Four guard tests keep blocking: add of other paths only, add after the commit, add of an unchanged JOURNAL.md, and `commit -m` without `-a`.
+
+**Files changed:** packages/npm/src/steps/journal-gate-hook.integration.test.ts, packages/pip/tests/test_journal_gate_hook.py, JOURNAL.md.
+
+**Why:** The new "stage exact paths" rule makes `git add <paths> && git commit` the normal agent pattern, and the hook blocks the whole command because it reads the index before `git add` runs. User approved changing the hook logic that 15-01 had locked.
+
+**Tests run:** npm journal-gate suite: 4 failed (the 4 allow cases, as expected), 26 passed. pip: first allow case fails as expected.
+
+**Docs updated:** JOURNAL.md.
+
+---
+
+## 2026-09-24 · Journal gate: same-command staging, GREEN (quick 260924-q1)
+
+**What I did:** When the staged check fails and there is no `-C` target, the hook now allows the commit if a `git add` before the first `commit` word names JOURNAL.md (or `-A`, `--all`, `.`) and `git status --porcelain` shows JOURNAL.md changed; or if the commit carries `-a`/`--all` and tracked JOURNAL.md is modified. Applied to `templates/.claude/settings.json` and the dogfooded `.claude/settings.json`.
+
+**Files changed:** templates/.claude/settings.json, .claude/settings.json, JOURNAL.md.
+
+**Why:** Makes the RED tests pass without loosening any existing block; anything the text match cannot parse still fails closed.
+
+**Tests run:** npm journal-gate 30/30; pip journal-gate 30/30; my earlier independent 20-case matrix: 17 pass, the 3 failures are known design differences (no `if` field, message wording, first commit without JOURNAL.md blocked).
+
+**What I learned:** The hook also gates any Bash command whose text merely contains commit-like strings, such as a heredoc writing test files. Workaround used: write scripts with the file tools, run them by path.
+
+**Docs updated:** JOURNAL.md.
+
+---
+
+## 2026-09-24 · Ask-list bypasses: RED test (quick 260924-q1)
+
+**What I did:** Added a test that `permissions.ask` covers publish/deploy forms which run under an existing allow rule without matching any ask prefix: `npx -y`/`--yes`, `npx wrangler@<ver>`, `npx netlify-cli`, `npx firebase-tools`, `uv run twine`, `uv run python -m twine`, `npm run deploy|release|publish`, `node node_modules/.bin/*`.
+
+**Files changed:** packages/npm/src/steps/settings-permissions.test.ts, JOURNAL.md.
+
+**Why:** The D2 ask list from 260924-mh9 matches by prefix, so `npx -y wrangler deploy` or `npm run deploy` still auto-ran via `Bash(npx*)` / `Bash(npm run*)`.
+
+**Tests run:** settings-permissions: 1 failed (new test, as expected), 2 passed.
+
+**Docs updated:** JOURNAL.md.
+
+---
+
+## 2026-09-24 · Ask-list bypasses: GREEN (quick 260924-q1)
+
+**What I did:** Appended the 11 bypass patterns to `permissions.ask` in `templates/.claude/settings.json`. `allow`, `deny` and the hook are unchanged. Claude Code evaluates deny, then ask, then allow, so these prompt even though `Bash(npx*)` etc. still allow.
+
+**Files changed:** templates/.claude/settings.json, JOURNAL.md.
+
+**Why:** Closes the prefix-matching gaps in D2. Still best-effort: an unlisted deploy CLI run via `npx` auto-runs.
+
+**Tests run:** npm vitest 184 passed, 1 skipped, 2 todo; pip pytest 187 passed.
+
+**Docs updated:** JOURNAL.md.
+
+---
+
+## 2026-09-24 · Quick 260924-q1 docs: onboarding staging, CHANGELOG, follow-ups
+
+**What I did:** Onboarding (both copies) now shows staging exact paths instead of `git add -A`. CHANGELOG gains Fixed entries for the gate and the ask list; the compound-staging known limitation is replaced by the command-text matching caveat. The 15-VERIFICATION follow-up is marked resolved, and the quick-task summary records the remaining agreed plan.
+
+**Files changed:** docs/onboarding.md, templates/docs/onboarding.md, CHANGELOG.md, .planning/STATE.md, .planning/phases/15-journal-gate-hook-context7-mcp/15-VERIFICATION.md, .planning/quick/260924-q1-journal-gate-staging-ask-gaps/260924-q1-SUMMARY.md, JOURNAL.md.
+
+**Why:** The docs contradicted the agent rules, and the plan for Phases 16/17, the skill and v1.8.0 has to outlive this session.
+
+**Tests run:** None (docs only; suites green at f607bf3).
+
+**What I learned:** A single Bash command that appends to JOURNAL.md and then commits is blocked, because the journal has no changes yet when the hook checks. Correct fail-closed behaviour; write first, commit in a second call.
+
+**Docs updated:** as listed.
+
+---
+
+## 2026-09-24 · update overwrites pre-existing files missing from the manifest: RED (Phase 16)
+
+**What I did:** Added one real-tmpdir test per CLI: a project whose `AGENTS.md` existed before `init` (so init skipped it and never recorded it) keeps that file across two `update --force` runs.
+
+**Files changed:** packages/npm/src/commands/update.integration.test.ts, packages/pip/tests/test_update_cmd.py, JOURNAL.md.
+
+**Why:** `init` records only files it wrote. `update` classes every template file absent from the manifest as net-new and copies it with overwrite, destroying the user's own file. This is exactly the path a hand-made `.claude/settings.json` or `.mcp.json` takes.
+
+**Tests run:** npm update.integration: 1 failed (new, expected), 2 passed. pip: new test fails as expected.
+
+**Docs updated:** JOURNAL.md.
+
+---
+
+## 2026-09-24 · update keeps pre-existing files missing from the manifest: GREEN (Phase 16)
+
+**What I did:** In both CLIs, a template file absent from the manifest but already on disk (other than CLAUDE.md, which is block-merged) is now "kept": listed in dry-run as "already yours", never copied, and recorded in the manifest as `user-owned` so every later run classifies it as user-modified.
+
+**Files changed:** packages/npm/src/commands/update.ts, packages/pip/src/goodvibes_cli/commands/update_cmd.py, JOURNAL.md.
+
+**Why:** Makes the RED tests pass; stops `update` destroying files the user had before `init`.
+
+**Tests run:** npm vitest 185 passed, 1 skipped, 2 todo; pip pytest 188 passed.
+
+**Docs updated:** JOURNAL.md.
+
+---
+
+## 2026-09-24 · Phase 16: JSON-aware `goodvibes update` merge (UPD-07)
+
+**What I did:** `update` now merges goodvibes-managed keys into a user-modified or user-owned `.claude/settings.json` / `.mcp.json` instead of skipping it whole. Managed keys: `permissions.ask` and `permissions.deny` entries (add-only, never `allow`), hook groups carrying a `: goodvibes-<id>;` marker (added, or replaced in place), and template MCP servers (added, or managed fields updated while user fields such as `headers` stay). `.goodvibes.json` gains a `managed` record of ids goodvibes has installed per file; an id recorded there but missing from the file was removed by the user and is not re-added, so deleting the hook to opt out survives updates. Dry-run lists every key change; invalid JSON is reported and left unchanged. Untouched files still overwrite whole-file. Journal-gate hook gets the `: goodvibes-journal-gate;` marker in both settings files. npm and pip.
+
+**Files changed:** packages/npm/src/utils/json-merge.ts (new), packages/npm/src/utils/json-merge.test.ts (new), packages/npm/src/commands/update.ts, packages/npm/src/commands/init.ts, packages/npm/src/steps/write-manifest.ts, packages/npm/src/commands/update.integration.test.ts, packages/npm/src/commands/update.test.ts, packages/npm/src/commands/init.test.ts, packages/pip/src/goodvibes_cli/utils/json_merge.py (new), packages/pip/tests/test_json_merge.py (new), packages/pip/src/goodvibes_cli/commands/update_cmd.py, packages/pip/src/goodvibes_cli/commands/init_cmd.py, packages/pip/src/goodvibes_cli/steps/write_manifest.py, packages/pip/tests/test_update_cmd.py, packages/pip/tests/conftest.py, templates/.claude/settings.json, .claude/settings.json, JOURNAL.md.
+
+**Why:** Without it, the journal gate, context7 and the D2 ask list only reach fresh `init`s; any project that customised either file was skipped forever.
+
+**Tests run:** npm vitest 201 passed, 1 skipped, 2 todo (10 json-merge unit, 6 new real-tmpdir update cases for SC1-SC4, opt-out, invalid JSON). pip pytest 204 passed (mirrors).
+
+**What I learned:** Running the built CLI showed published npm `goodvibes-cli@1.7.1` `init` exits 1 with `Cannot find module '../../package.json'` and never writes `.goodvibes.json`, so npm `update` has never worked since 1.7.0. Fixing next, regression first.
+
+**Docs updated:** JOURNAL.md (user docs follow with the Phase 16 docs commit).
+
+---
+
+## 2026-09-24 · npm init crashes in the built CLI: RED
+
+**What I did:** Added `packages/npm/src/dist-cli.integration.test.ts`, which runs the built `dist/index.js init --minimal` in a temp dir and expects exit 0 plus a `.goodvibes.json` carrying the package version.
+
+**Files changed:** packages/npm/src/dist-cli.integration.test.ts (new), JOURNAL.md.
+
+**Why:** `init.ts` reads `../../package.json` via `createRequire`; that is right for `src/commands/` (what the unit tests run) and wrong for the bundled `dist/index.js`. Reproduced on published `goodvibes-cli@1.7.1`: exit 1, no manifest, so npm `update` always reports "No manifest".
+
+**Tests run:** new test fails with `Cannot find module '../../package.json'`, as expected.
+
+**Docs updated:** JOURNAL.md.
+
+---
+
+## 2026-09-24 · npm init crashes in the built CLI: GREEN
+
+**What I did:** Added `packages/npm/src/utils/version.ts` (`packageVersion()`), which tries `../package.json` (bundled dist) then `../../package.json` (source), accepts only `name === "goodvibes-cli"`, and throws an actionable error if neither exists. Replaced all five lookups: init, doctor, update, upgrade, index. Unit tests now mock `../utils/version.js` instead of `node:module`. `publish-npm.yml` builds before testing, since the new test runs `dist/`.
+
+**Files changed:** packages/npm/src/utils/version.ts (new), packages/npm/src/utils/version.test.ts (new), packages/npm/src/commands/{init,doctor,update,upgrade}.ts, packages/npm/src/index.ts, packages/npm/src/commands/{doctor,update,upgrade}.test.ts, .github/workflows/publish-npm.yml, JOURNAL.md.
+
+**Why:** Makes the RED test pass. `doctor`/`update` had silently reported version "unknown" and `upgrade` never knew the installed version, from the same bug.
+
+**Tests run:** npm vitest 203 passed, 1 skipped, 2 todo. `npm pack` tarball installed into a temp prefix: `init --minimal` exit 0, manifest version 1.7.1 with `managed` record; `--version` prints 1.7.1; `update` on a hand-edited 1.7.1-style project kept `Bash(make*)` and the postgres server, and added the hook, 20 ask rules and context7.
+
+**Docs updated:** JOURNAL.md.
+
+---
+
+## 2026-09-24 · Phase 16 docs and sign-off
+
+**What I did:** README explains what `update` does to edited files and that init leaves an existing settings.json for update to merge; new FAQ entry on settings.json/.mcp.json; CHANGELOG Fixed/Added entries for the merge, the kept-file fix and the npm init crash; UPD-07 widened and marked complete; ROADMAP, STATE, and Phase 16 PLAN/SUMMARY/VERIFICATION written.
+
+**Files changed:** README.md, FAQ.md, CHANGELOG.md, .planning/REQUIREMENTS.md, .planning/ROADMAP.md, .planning/STATE.md, .planning/phases/16-goodvibes-update-json-aware-merge/ (3 files), JOURNAL.md.
+
+**Why:** Phase 16 success criteria 1-4 verified (16-VERIFICATION.md); docs must describe the new update behaviour before release.
+
+**Tests run:** None new (docs); suites green at ea17b0e.
+
+**Docs updated:** as listed.
+
+---
+
+## 2026-09-24 · Session-start `goodvibes doctor` hook
+
+**What I did:** Added `goodvibes doctor --quick` (npm and pip): git name/email, CLAUDE.md and sentinel checks only, prints one line per failure with its fix, prints nothing on success, always exits 0. Added a `SessionStart` hook (matcher `startup`, `timeout: 10`, marker `: goodvibes-doctor;`) that runs it only when `command -v goodvibes` succeeds, to both the template and this repo's settings. The Phase 16 merge picks it up automatically through the marker.
+
+**Files changed:** packages/npm/src/commands/doctor.ts, packages/npm/src/commands/doctor.test.ts, packages/npm/src/steps/session-doctor-hook.integration.test.ts (new), packages/pip/src/goodvibes_cli/commands/doctor_cmd.py, packages/pip/tests/test_doctor_cmd.py, templates/.claude/settings.json, .claude/settings.json, docs/getting-started.md, templates/docs/getting-started.md, CHANGELOG.md, JOURNAL.md.
+
+**Why:** Gap-review deferred item. Claude Code docs (fetched 2026-09-24): SessionStart exit-0 stdout is added to Claude's context, exit 2 blocks the session, default timeout is 600 s; hence always-0 and a 10 s cap.
+
+**Tests run:** npm vitest 208 passed, 1 skipped, 2 todo; pip pytest 206 passed. Built CLI: `doctor --quick` 172-188 ms, silent when passing, two fix lines and exit 0 with CLAUDE.md removed.
+
+**Docs updated:** getting-started (both copies), CHANGELOG.md, JOURNAL.md.
+
+---
+
+## 2026-09-24 · model-regression skill
+
+**What I did:** Added `templates/.claude/skills/model-regression/SKILL.md`. It records a baseline file before any change (metrics, data hash, seeds, command, SHA, date, declared tolerance), runs the same evaluation after, never changes model and evaluation together, uses 3+ seeds when results are noisy, never tunes on the test set, reverts on degradation, keeps a frozen-fixture regression test, and reports a before/after table with only measured numbers. README and CHANGELOG mention it; a copy-templates test asserts it ships.
+
+**Files changed:** templates/.claude/skills/model-regression/SKILL.md (new), README.md, CHANGELOG.md, packages/npm/src/steps/copy-templates.integration.test.ts, JOURNAL.md.
+
+**Why:** User decision: the ML regression rule (gap-review rule 2) ships as an on-demand skill, not base-template text, so non-ML users pay no token cost. Only Claude Code loads skills.
+
+**Tests run:** copy-templates integration 56 passed.
+
+**Docs updated:** README.md, CHANGELOG.md, JOURNAL.md.
+
+---
+
+## 2026-09-24 · Phase 17: directive wording, cross-agent handoff, caveman ultra
+
+**What I did:** Rewrote templates/CLAUDE.md, AGENTS.md and its six identical copies, copilot-instructions.md, the Cursor and Kiro files, replit.md and .bolt/prompt in must/never language, each opening with a session-start block (read JOURNAL.md first and treat it as binding; never re-ask what README/CLAUDE/AGENTS/JOURNAL or the code answers; never state a guess as fact). Added gap-review rules 6, 10, 11, 13, 14. Copilot's file claims authority; AGENTS.md calls itself the fallback, not a guarantee. JOURNAL.md template is now a binding handoff record with fields matching the Journal rule. caveman defaults to ultra (marked as a goodvibes change; MIT upstream). A fresh CLAUDE.md starts with a project stub outside the goodvibes block. Added `rule-files.test.ts` as the grep-based consistency check.
+
+**Files changed:** templates/CLAUDE.md, templates/AGENTS.md, templates/.windsurfrules, templates/GEMINI.md, templates/.clinerules/goodvibes.md, templates/.amazonq/rules/goodvibes.md, templates/.continue/rules/goodvibes.md, templates/.devin/rules/goodvibes.md, templates/.github/copilot-instructions.md, templates/.cursor/rules/goodvibes.mdc, templates/.kiro/steering/goodvibes.md, templates/replit.md, templates/.bolt/prompt, templates/JOURNAL.md, templates/.claude/skills/caveman/SKILL.md, templates/.claude/skills/caveman/README.md, docs/getting-started.md, templates/docs/getting-started.md, packages/npm/src/steps/rule-files.test.ts (new), README.md, CHANGELOG.md, .planning/ (REQUIREMENTS, ROADMAP, STATE, phase 17 dir), JOURNAL.md.
+
+**Why:** Phase 17 requirements AGENT-01..04, CAVE-01/02, plus AGENT-05/06 for the deferred gap-review rules. Budget: goodvibes block 159 → 151 lines, +0.5% characters.
+
+**Tests run:** npm vitest 246 passed, 1 skipped, 2 todo; pip pytest 206 passed; verify-phase3/4/5 pass; verify-phase1/2 fail identically before and after (stale v1.0 checks, not in CI). Built CLI fresh init: stub present, JOURNAL.md and AGENTS.md carry the binding wording.
+
+**Docs updated:** getting-started (both copies), README.md, CHANGELOG.md, JOURNAL.md.
+
+---
+
+## 2026-09-24 · v1.8.0 version bump
+
+**What I did:** Bumped npm `package.json`/`package-lock.json`, pip `pyproject.toml` (and its `uv.lock` entry, which had drifted at 1.7.0) and the `templates/CLAUDE.md` stamp to 1.8.0. Rolled CHANGELOG `[Unreleased]` into `[1.8.0] - 2026-09-24` and added the Windows-without-Git-Bash limitation. Before the bump, ran the installed pip wheel end to end: init exit 0 with manifest and managed record, update merged both hooks, 22 ask rules and context7 into a hand-edited project while keeping `Bash(make*)` and the postgres server, `doctor --quick` exit 0.
+
+**Files changed:** packages/npm/package.json, packages/npm/package-lock.json, packages/pip/pyproject.toml, packages/pip/uv.lock, templates/CLAUDE.md, CHANGELOG.md, .planning/STATE.md, JOURNAL.md.
+
+**Why:** User asked to release v1.8.0. `mergeClaude` only refreshes a project's goodvibes block when the stamp is newer, so the bump is what delivers the new rules to existing projects.
+
+**Tests run:** npm vitest 246 passed, 1 skipped, 2 todo (built-CLI test sees 1.8.0); pip pytest 206 passed; verify-phase5 PASS; CI stamp check logic: 1.8.0 / 1.8.0 / 1.8.0.
+
+**Docs updated:** CHANGELOG.md, JOURNAL.md.

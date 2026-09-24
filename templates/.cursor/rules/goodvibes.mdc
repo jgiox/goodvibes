@@ -4,11 +4,16 @@ alwaysApply: true
 
 ## Engineering Rules — goodvibes
 
+goodvibes puts these rules in each tool's own rule file (GitHub Copilot: `.github/copilot-instructions.md`; Claude Code: `CLAUDE.md`) and in `AGENTS.md`, the cross-tool fallback for tools without one; AGENTS.md is read by many tools but not guaranteed to be read by all. Every rule below is an order, not a suggestion.
+
+### Start of every session
+Read JOURNAL.md before acting; its entries are binding decisions from earlier sessions and other tools. Never ask the user for information already answered in README.md, CLAUDE.md, AGENTS.md, JOURNAL.md, or the codebase; ask only when they are silent or contradict each other. Never state a guess as fact: run the command or read the file first, and label anything unverified.
+
 ### Think before coding
-State assumptions explicitly before implementing. Stop if an assumption is security-sensitive, schema-sensitive, or has multiple materially different interpretations.
+State assumptions before implementing. Stop and ask if an assumption is security-sensitive, schema-sensitive, or has multiple materially different interpretations.
 
 ### Simplicity first
-Make the smallest complete change. Check for all instances — a fix that closes one of three identical bugs is not complete.
+Make the smallest complete change. Fix every instance — a fix that closes one of three identical bugs is not complete.
 
 Stop at the first rung that holds:
 
@@ -20,20 +25,24 @@ Stop at the first rung that holds:
 6. Can it be one line? One line.
 7. Only then: the minimum code that completely solves the problem — all instances, not just the one you noticed.
 
+No unrequested abstractions. No boilerplate for later. Deletion over addition.
+
 ### Surgical changes
-Keep diffs narrow. No opportunistic reformats. No renames unless required. Only remove what your change made unused.
+Keep diffs narrow. No opportunistic reformats. No renames unless the task requires it. Only remove what your change made unused.
 
 ### Fail loud
-No empty `catch` blocks. No silent retries. No returning fake success on real failure. Error messages must be actionable. Never invent data, numbers, or API responses to make code work — missing data is an error, not a placeholder (test fixtures are fine).
+No empty `catch` blocks. No silent retries. Never return fake success on real failure. Error messages must be actionable. Never invent data, numbers, or API responses to make code work — missing data is an error, not a placeholder (test fixtures are fine).
 
 ### Security
-Validate input at the boundary. Keep secrets out of code and logs. `.env` is never committed and every new environment variable is added to `.env.example` in the same change; never send secrets, personal data, or private code in documentation lookups (context7 or web search). Flag immediately: SQL injection, XSS, command injection, path traversal, broken auth, leaked secrets.
+Validate input at the boundary. Keep secrets out of code and logs. Apply least privilege. `.env` is never committed and every new environment variable is added to `.env.example` in the same change; never send secrets, personal data, or private code in documentation lookups (context7 or web search). For code handling input, auth, money, or files, answer before merging: what can an attacker control, where is the trust boundary, what breaks if it fails open?
 
-### Proof of work
-Run tests before marking done. Paste the passing output. Name the files you changed and the tests that cover them. If no test covers a change, say so explicitly.
+Flag immediately: SQL injection, XSS, command injection, path traversal, broken auth, leaked secrets.
+
+### Dependencies, performance, git
+Never add a dependency for what a few lines can do; check licence, maintenance, and advisories first. Review each Dependabot PR's changelog, advisories, and lockfile diff; never mass-upgrade. Measure before optimizing; no N+1 queries or calls in loops. Branch names start with `feat/`, `fix/`, `docs/`, or `chore/`; delete a branch only when `git log origin/main..<branch>` prints nothing.
 
 ### Definition of done
-A task is done only when tests pass with pasted output, every Markdown file the change made untrue is updated with dated CHANGELOG.md and JOURNAL.md entries, exact paths were staged (never `git add -A`/`git add .`), and after a push CI is confirmed green with the branch and commit SHA reported. Anything blocked is reported as what failed, why, the risk, and the exact next step.
+A task is done only when tests pass with pasted output (name the files changed and the tests covering them; say so when none does), every Markdown file the change made untrue is updated with dated CHANGELOG.md and JOURNAL.md entries, exact paths were staged (never `git add -A`/`git add .`), and after a push CI is confirmed green with the branch and commit SHA reported. Anything blocked is reported as what failed, why, the risk, and the exact next step.
 
 ### Action tiers
 Read → automatic. Local edit → do it, state what changed. Commit → show diff summary first. Push → confirm with human first. Deploy/publish → explicit human approval required.

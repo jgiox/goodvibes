@@ -97,6 +97,14 @@ package it came from. Version 1.7.0 or higher means you are on `goodvibes-cli`.
 
 ---
 
+## Will `goodvibes update` overwrite my `.claude/settings.json` or `.mcp.json`?
+
+No. If you never edited them, update replaces them with the new version. If you edited them, or they were yours before `goodvibes init`, update only adds or refreshes the goodvibes parts: the journal check hook, the ask-before-publish and deny rules, and the context7 server. Your own permissions, hooks and MCP servers stay exactly as they are. It never adds "allow" rules to a file you edited.
+
+Run `goodvibes update --dry-run` first to see every key it would add or change. If one of your JSON files is not valid JSON, update leaves it unchanged and tells you.
+
+If you delete a goodvibes part on purpose (for example the journal check hook), update remembers that in `.goodvibes.json` and does not add it back.
+
 ## Still stuck?
 
 Open an issue and describe what you see: <https://github.com/jgiox/goodvibes/issues>

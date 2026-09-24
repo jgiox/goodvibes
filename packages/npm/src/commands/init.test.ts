@@ -207,6 +207,8 @@ describe('init command', () => {
       expect.any(String),
       expect.any(Array),
       expect.any(String),
+      undefined,
+      expect.any(Object),
     )
   })
 

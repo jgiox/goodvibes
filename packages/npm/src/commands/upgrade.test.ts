@@ -51,10 +51,8 @@ vi.mock('execa', () => ({
   execa: vi.fn().mockResolvedValue({ stdout: '' }),
 }))
 
-// Mock node:module — prevents real require() for package.json in getInstalledVersion
-vi.mock('node:module', () => ({
-  createRequire: () => () => ({ version: '1.0.0' }),
-}))
+// Pins the installed version seen by getInstalledVersion
+vi.mock('../utils/version.js', () => ({ packageVersion: () => '1.0.0' }))
 
 describe('upgrade command', () => {
   beforeEach(() => {

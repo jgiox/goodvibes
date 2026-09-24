@@ -3,15 +3,17 @@ import { intro, outro, note, confirm, isCancel, cancel } from '@clack/prompts'
 import { listTemplateFiles, resolveTemplatesDir } from '../steps/copy-templates.js'
 import { readManifest, writeManifest } from '../steps/write-manifest.js'
 import { mergeClaude } from '../utils/sentinel-merge.js'
+import { MANAGED_JSON, mergeManagedJson, managedRecord } from '../utils/json-merge.js'
 import { detectProjectType } from '../utils/detect-project-type.js'
-import { readFile } from 'node:fs/promises'
+import { readFile, writeFile } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
 import { join, resolve, sep } from 'node:path'
 import { createHash } from 'node:crypto'
-import { createRequire } from 'node:module'
+import { packageVersion } from '../utils/version.js'
 import { copy } from 'fs-extra'
 
-const _require = createRequire(import.meta.url)
+// Not a hex digest, so the file always classifies as user-modified on later runs.
+const USER_OWNED = 'user-owned'
 
 function assertSafe(base: string, rel: string): void {
   const resolved = resolve(base, rel)
@@ -20,26 +22,18 @@ function assertSafe(base: string, rel: string): void {
   }
 }
 
-function getVersion(): string {
-  try {
-    const pkg = _require('../../package.json') as { version?: string }
-    return pkg.version ?? 'unknown'
-  } catch {
-    return 'unknown'
-  }
-}
-
 async function categorise(
   templateDir: string,
   cwd: string,
   manifest: { files: Record<string, string> },
   projectType: string,
-): Promise<{ overwrite: string[]; skip: string[]; netNew: string[] }> {
+): Promise<{ overwrite: string[]; skip: string[]; netNew: string[]; kept: string[] }> {
   const ciVariants = ['ci-node.yml', 'ci-python.yml', 'ci-both.yml']
   const selectedVariantSrc = `ci-${projectType}.yml`
   const overwrite: string[] = []
   const skip: string[] = []
   const netNew: string[] = []
+  const kept: string[] = []
 
   // First pass: check manifest-tracked files — unmodified → overwrite, user-modified → skip
   for (const [rel, manifestSha] of Object.entries(manifest.files)) {
@@ -71,12 +65,16 @@ async function categorise(
     const destRel = templateFile.endsWith(selectedVariantSrc)
       ? '.github/workflows/ci.yml'
       : templateFile
-    if (!(destRel in manifest.files)) {
+    if (destRel in manifest.files) continue
+    // init only records files it wrote; a file already on disk is the user's own.
+    if (destRel !== 'CLAUDE.md' && existsSync(join(cwd, destRel))) {
+      kept.push(destRel)
+    } else {
       netNew.push(destRel)
     }
   }
 
-  return { overwrite, skip, netNew }
+  return { overwrite, skip, netNew, kept }
 }
 
 export function registerUpdateCommand(program: Command): void {
@@ -105,7 +103,29 @@ export function registerUpdateCommand(program: Command): void {
 
       const templateDir = resolveTemplatesDir()
       const projectType = detectProjectType(cwd)
-      const { overwrite, skip, netNew } = await categorise(templateDir, cwd, manifest, projectType)
+      const { overwrite, skip, netNew, kept } = await categorise(templateDir, cwd, manifest, projectType)
+
+      // User-modified settings.json / .mcp.json still receive goodvibes-managed keys.
+      const merges: { rel: string; merged: Record<string, unknown>; changes: string[] }[] = []
+      const mergeErrors: string[] = []
+      for (const rel of [...skip, ...kept].filter(r => MANAGED_JSON.includes(r))) {
+        const tplPath = join(templateDir, rel)
+        if (!existsSync(tplPath)) continue
+        let user: Record<string, unknown>
+        try {
+          user = JSON.parse(await readFile(join(cwd, rel), 'utf-8'))
+        } catch (e) {
+          mergeErrors.push(`${rel}: not valid JSON (${(e as Error).message}); left unchanged, fix it and re-run update`)
+          continue
+        }
+        const tpl = JSON.parse(await readFile(tplPath, 'utf-8'))
+        const { merged, changes } = mergeManagedJson(rel, tpl, user, manifest.managed?.[rel])
+        if (changes.length > 0) merges.push({ rel, merged, changes })
+      }
+      const mergeLines = [
+        ...merges.map(m => `Will merge goodvibes keys into ${m.rel}:\n  ${m.changes.join('\n  ')}`),
+        ...mergeErrors.map(e => `Cannot merge ${e}`),
+      ]
 
       if (dryRun) {
         note(
@@ -117,6 +137,10 @@ export function registerUpdateCommand(program: Command): void {
               ? `Will skip — user-modified (${skip.length}): ${skip.join(', ')}`
               : null,
             netNew.length > 0 ? `Will add net-new (${netNew.length}): ${netNew.join(', ')}` : null,
+            kept.length > 0
+              ? `Will keep — already yours, not written by goodvibes (${kept.length}): ${kept.join(', ')}`
+              : null,
+            ...mergeLines,
           ]
             .filter(Boolean)
             .join('\n'),
@@ -126,8 +150,10 @@ export function registerUpdateCommand(program: Command): void {
         return
       }
 
-      if (!force && overwrite.length > 0) {
-        const proceed = await confirm({ message: `Overwrite ${overwrite.length} managed file(s)?` })
+      if (!force && (overwrite.length > 0 || merges.length > 0)) {
+        const proceed = await confirm({
+          message: `Overwrite ${overwrite.length} managed file(s) and merge goodvibes keys into ${merges.length} file(s)?`,
+        })
         if (isCancel(proceed) || !proceed) {
           cancel('Update cancelled.')
           process.exit(0)
@@ -156,23 +182,35 @@ export function registerUpdateCommand(program: Command): void {
         }
       }
 
+      for (const m of merges) {
+        await writeFile(join(cwd, m.rel), JSON.stringify(m.merged, null, 2) + '\n', 'utf-8')
+      }
+
       // Preserve skipped (user-modified) files' prior hashes so they stay
       // protected on every later run instead of dropping out of the manifest.
       const preserved: Record<string, string> = {}
       for (const rel of skip) {
         preserved[rel] = manifest.files[rel]
       }
+      for (const rel of kept) {
+        preserved[rel] = USER_OWNED
+      }
 
       await writeManifest(
         cwd,
         [...overwrite, ...netNew].filter(rel => existsSync(join(cwd, rel))),
-        getVersion(),
+        packageVersion(),
         preserved,
+        await managedRecord(cwd, templateDir, manifest.managed),
       )
 
       const applied = overwrite.length + netNew.length
       note(
-        `Applied ${applied} file(s). Skipped ${skip.length} user-modified file(s).`,
+        [
+          `Applied ${applied} file(s). Skipped ${skip.length + kept.length} user-modified file(s).`,
+          ...merges.map(m => `Merged ${m.changes.length} goodvibes key(s) into ${m.rel}.`),
+          ...mergeErrors.map(e => `Not merged: ${e}`),
+        ].join('\n'),
         'Update complete',
       )
       outro('Done!')

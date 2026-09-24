@@ -43,9 +43,7 @@ vi.mock('node:crypto', () => ({
   }),
 }))
 
-vi.mock('node:module', () => ({
-  createRequire: () => () => ({ version: '1.2.0' }),
-}))
+vi.mock('../utils/version.js', () => ({ packageVersion: () => '1.2.0' }))
 
 vi.mock('fs-extra', () => ({
   copy: vi.fn().mockResolvedValue(undefined),
@@ -165,6 +163,7 @@ describe('update command', () => {
       expect.any(Array),
       expect.any(String),
       expect.any(Object),
+      expect.any(Object),
     )
   })
 
@@ -191,6 +190,7 @@ describe('update command', () => {
       expect.any(String),
       [],
       expect.any(String),
+      expect.any(Object),
       expect.any(Object),
     )
   })

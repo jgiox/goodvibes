@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import hashlib
 import importlib.metadata
+import json
 import pathlib
 import shutil
 from typing import Annotated
@@ -14,9 +15,13 @@ from rich.panel import Panel
 from goodvibes_cli.steps.copy_templates import list_template_files, resolve_templates_dir
 from goodvibes_cli.steps.write_manifest import read_manifest, write_manifest
 from goodvibes_cli.utils.detect_project_type import detect_project_type
+from goodvibes_cli.utils.json_merge import MANAGED_JSON, managed_record, merge_managed_json
 from goodvibes_cli.utils.sentinel_merge import merge_claude
 
 console = Console()
+
+# Not a hex digest, so the file always classifies as user-modified on later runs.
+USER_OWNED = "user-owned"
 
 
 def _assert_safe(base: pathlib.Path, rel: str) -> None:
@@ -49,6 +54,7 @@ def update_cmd(
     overwrite: list[str] = []
     skip: list[str] = []
     net_new: list[str] = []
+    kept: list[str] = []
     ci_variants = {"ci-node.yml", "ci-python.yml", "ci-both.yml"}
     selected_variant_src = f"ci-{project_type}.yml"
 
@@ -83,8 +89,32 @@ def update_cmd(
             dest_rel = ".github/workflows/ci.yml"  # map selected variant to dest name
         else:
             dest_rel = tf
-        if dest_rel not in managed_keys:
+        if dest_rel in managed_keys:
+            continue
+        # init only records files it wrote; a file already on disk is the user's own.
+        if dest_rel != "CLAUDE.md" and (cwd / dest_rel).exists():
+            kept.append(dest_rel)
+        else:
             net_new.append(dest_rel)
+
+    # User-modified settings.json / .mcp.json still receive goodvibes-managed keys.
+    merges: list[tuple[str, dict, list[str]]] = []
+    merge_errors: list[str] = []
+    for rel in [r for r in skip + kept if r in MANAGED_JSON]:
+        tpl_path = template_dir / rel
+        if not tpl_path.exists():
+            continue
+        try:
+            user = json.loads((cwd / rel).read_text(encoding="utf-8"))
+        except ValueError as e:
+            merge_errors.append(f"{rel}: not valid JSON ({e}); left unchanged, fix it and re-run update")
+            continue
+        tpl = json.loads(tpl_path.read_text(encoding="utf-8"))
+        merged, changes = merge_managed_json(rel, tpl, user, (manifest.get("managed") or {}).get(rel))
+        if changes:
+            merges.append((rel, merged, changes))
+    merge_lines = [f"Will merge goodvibes keys into {rel}:\n  " + "\n  ".join(ch) for rel, _, ch in merges]
+    merge_lines += [f"Cannot merge {e}" for e in merge_errors]
 
     if dry_run:
         lines = [
@@ -92,12 +122,17 @@ def update_cmd(
             f"Will skip — user-modified ({len(skip)}): {', '.join(skip)}" if skip else "Will skip — user-modified (0): (none)",
             f"Will add net-new ({len(net_new)}): {', '.join(net_new)}" if net_new else "Will add net-new (0): (none)",
         ]
+        if kept:
+            lines.append(f"Will keep — already yours, not written by goodvibes ({len(kept)}): {', '.join(kept)}")
+        lines += merge_lines
         console.print(Panel("\n".join(lines), title="Dry run — no files written"))
         console.rule("Run without --dry-run to apply.")
         return
 
-    if not force and overwrite:
-        confirmed = typer.confirm(f"Overwrite {len(overwrite)} managed file(s)?")
+    if not force and (overwrite or merges):
+        confirmed = typer.confirm(
+            f"Overwrite {len(overwrite)} managed file(s) and merge goodvibes keys into {len(merges)} file(s)?"
+        )
         if not confirmed:
             console.rule("Update cancelled.")
             return
@@ -127,12 +162,21 @@ def update_cmd(
 
         applied.append(rel)
 
+    for rel, merged, _ in merges:
+        (cwd / rel).write_text(json.dumps(merged, indent=2) + "\n", encoding="utf-8")
+
     # Preserve skipped (user-modified) files' prior hashes so they stay
     # protected on every later run instead of dropping out of the manifest.
     preserved = {rel: manifest["files"][rel] for rel in skip}
+    preserved.update({rel: USER_OWNED for rel in kept})
 
     _version = importlib.metadata.version("goodvibes-cli")
-    write_manifest(cwd, applied, _version, preserved=preserved)
+    write_manifest(
+        cwd, applied, _version, preserved=preserved,
+        managed=managed_record(cwd, template_dir, manifest.get("managed")),
+    )
 
-    console.print(Panel("\n".join(applied) or "(none)", title="Updated"))
+    summary = applied + [f"{rel} (merged {len(ch)} goodvibes key(s))" for rel, _, ch in merges]
+    summary += [f"Not merged: {e}" for e in merge_errors]
+    console.print(Panel("\n".join(summary) or "(none)", title="Updated"))
     console.rule("[green]Update complete![/green]")

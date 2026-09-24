@@ -294,6 +294,23 @@ describe('copyTemplates — IDE rule files', () => {
     expect(existsSync(join(tmpDir, '.kiro', 'steering', 'goodvibes.md'))).toBe(true)
   })
 
+  it('writes .mcp.json and the hooked .claude/settings.json on fresh init (CTX7-01, HOOK-01)', async () => {
+    const { written } = await copyTemplates(templateDir, tmpDir, false, false)
+    expect(written).toContain('.mcp.json')
+    expect(readFileSync(join(tmpDir, '.claude', 'settings.json'), 'utf-8')).toContain('PreToolUse')
+  })
+
+  it('writes the on-demand model-regression skill on fresh init', async () => {
+    await copyTemplates(templateDir, tmpDir, false, false)
+    const skill = readFileSync(join(tmpDir, '.claude', 'skills', 'model-regression', 'SKILL.md'), 'utf-8')
+    expect(skill).toMatch(/^---\nname: model-regression\n/)
+  })
+
+  it('--minimal still writes .mcp.json (CTX7-01)', async () => {
+    await copyTemplates(templateDir, tmpDir, false, true)
+    expect(existsSync(join(tmpDir, '.mcp.json'))).toBe(true)
+  })
+
   it('writes GEMINI.md on fresh init', async () => {
     const { written } = await copyTemplates(templateDir, tmpDir, false, false)
     expect(existsSync(join(tmpDir, 'GEMINI.md'))).toBe(true)

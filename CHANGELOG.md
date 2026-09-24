@@ -6,22 +6,47 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/2.0.0/),
 
 ## [Unreleased]
 
+## [1.8.0] - 2026-09-24
+
 ### Fixed
 
+- npm `goodvibes init` no longer exits 1 before writing `.goodvibes.json` (`Cannot find module '../../package.json'` in the built CLI since 1.7.0); `doctor`, `update` and `upgrade` now report the real version instead of "unknown"
+- `goodvibes update` no longer overwrites a file that existed before `init` (and so was never recorded in the manifest); it is kept and recorded as user-owned
+- Journal gate no longer blocks `git add JOURNAL.md && git commit`, exact-path adds that include `JOURNAL.md`, `git add -A && git commit`, or `git commit -a` when `JOURNAL.md` has changes; `-C` targets and unparseable commands still fail closed
+- `permissions.ask` now also covers publish/deploy forms that slipped past the prefix rules: `npx -y`/`--yes`, `npx wrangler@<version>`, `npx netlify-cli`, `npx firebase-tools`, `uv run twine`, `npm run deploy|release|publish`, `node node_modules/.bin/*`
+- Onboarding no longer teaches `git add -A`, which the agent rules forbid; it now shows staging exact paths
 - `goodvibes update` no longer drops user-modified (skipped) files from `.goodvibes.json` on write-back, so a second `update` run no longer reclassifies them as net-new and overwrites them — npm and pip
 - `goodvibes update` now always refreshes the goodvibes sentinel block in a project's `CLAUDE.md`, even when the file has custom prose outside the block that previously kept its whole-file hash from ever matching
 - `templates/.claude/settings.json` no longer auto-approves `git push`, npm/uv/twine publish, or wrangler/vercel/netlify/firebase deploy commands — closed via a new `permissions.ask` list
 
 ### Added
 
+- `model-regression` Claude Code skill (on demand, not in CLAUDE.md): baseline before change, same evaluation after, tolerance declared up front, revert on degradation, a frozen-fixture regression test, and a before/after metric table
+- `goodvibes doctor --quick`: local checks only (no headroom probe), silent when all pass, always exits 0; a `SessionStart` hook (matcher `startup`, 10 s timeout) runs it when Claude Code opens the project, and skips itself when goodvibes is not installed
+- `goodvibes update` merges goodvibes-managed keys into a hand-edited `.claude/settings.json` / `.mcp.json`: ask/deny rules (add-only, never `allow`), marker-tagged hooks, and the context7 server; user keys are kept, `--dry-run` lists each key change, and a key you delete stays deleted (npm and pip)
 - `ruff check` lint step in the Python CI templates (`ci-python.yml`, `ci-both.yml`)
 - `gitleaks` secret-scan job in `security.yml`, alongside CodeQL
 - Definition-of-done, `.env.example`, no-fabricated-data, and documentation-lookup-data-handling rules across every shipped agent-instruction template (`CLAUDE.md`, `AGENTS.md`, every per-IDE rule file, `replit.md`, `.bolt/prompt`)
+- Journal-gate hook in `templates/.claude/settings.json` (also dogfooded in this repo's `.claude/settings.json`): a `PreToolUse` Bash hook, one inline shell command with no `jq` and no script file, that blocks Claude Code from running `git commit` unless `JOURNAL.md` is staged. Exempts `--amend` and in-progress merge/rebase; honors `git -C <path>`; blocks `git -C` combined with `&&`, `||`, `;` or `|` as ambiguous. Only gates commits made through Claude Code's own Bash tool
+- `templates/.mcp.json`: context7 MCP server at the free public HTTP endpoint (`https://mcp.context7.com/mcp`), no key and no signup
+- Getting-started docs: journal-gate scope, context7 trust prompt, and the optional `${CONTEXT7_API_KEY}` upgrade
 
 ### Changed
 
+- Every agent rule file (CLAUDE.md, AGENTS.md and its six copies, Copilot, Cursor, Kiro, Replit, Bolt) is rewritten in directive language and opens with a session-start block: read JOURNAL.md first and treat it as binding, never re-ask for what README/CLAUDE/AGENTS/JOURNAL or the code already answers, never state a guess as fact
+- New rules: dependency discipline, security review questions, branch hygiene, measure before optimizing; the CLAUDE.md goodvibes block is 8 lines shorter than 1.7.1
+- `.github/copilot-instructions.md` states it is authoritative for Copilot; AGENTS.md states it is the cross-tool fallback, not a guarantee
+- `JOURNAL.md` template is now a binding handoff record with fields matching the Journal rule
+- caveman skill defaults to `ultra` (was `full`); getting-started explains what that changes and how to switch back
+- A fresh `CLAUDE.md` starts with a "What this is / Core value / Constraints" section outside the goodvibes block
 - CI templates no longer hide `uv sync` errors behind `2>/dev/null`
 - CI templates emit a visible `::warning::` instead of silently passing when no tests or no lint script are found
+
+### Known limitations
+
+- `goodvibes init` does not touch an existing `.claude/settings.json` or `.mcp.json`; run `goodvibes update` afterwards to merge the goodvibes keys in
+- The journal gate matches command text, so any Bash command that merely contains commit-like text (for example a heredoc that writes test code) is checked too
+- On Windows without Git Bash, Claude Code runs hooks in PowerShell, where the journal gate and the session check do not run (Claude Code shows a hook error and continues)
 
 ## [1.7.1] — 2026-08-06
 

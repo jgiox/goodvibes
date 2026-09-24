@@ -1,54 +1,75 @@
 ---
 phase: 15-journal-gate-hook-context7-mcp
-verified: 2026-09-06T10:23:40Z
-status: gaps_found
-score: 6/8 must-haves verified
+verified: 2026-09-24T21:00:00Z
+status: passed
+score: 8/8 must-haves verified
 overrides_applied: 0
 re_verification:
   previous_status: gaps_found
   previous_score: 6/8
   gaps_closed:
-    - "Non-amend commit whose message contains the literal substring \"--amend\" (double- or single-quoted) is now BLOCKED as expected — closed by 15-04 (UNQUOTED quote-stripping)"
-    - "Non-commit git command whose arguments contain the substring \"git ... commit\" (e.g. `git log --grep=\"...git commit...\"`) is now correctly allowed (exit 0) — closed by 15-04"
-  gaps_remaining:
-    - "Core guardrail truth (Roadmap SC1/SC2, HOOK-01/HOOK-02) is still not reliably achieved — a NEW critical defect (15-REVIEW.md CR-01, dated after 15-04 closed the previous gap) independently reproduced: the hook's git-state checks (GITDIR, MERGE_HEAD/rebase checks, staged-file check) always run against the hook process's own cwd and never honor a `-C <path>` (or --git-dir=/--work-tree=) argument in the intercepted command. A commit targeting a different repository than the hook's cwd is checked against the wrong repo's staged-file state, producing both a bypass (blocks nothing) and a false block (blocks a legitimate, correctly-staged commit)."
+    - "CR-01 (-C target ignored): closed by 15-05/15-06; independently reproduced 2026-09-24 with repoA/repoB (cwd A, -C B unstaged -> exit 2; cwd B, -C A staged -> exit 0)"
+  gaps_remaining: []
   regressions: []
-gaps:
-  - truth: "Claude Code's own Bash tool is blocked from running `git commit` when JOURNAL.md is not in the staged file list, with an actionable stderr message (Roadmap SC1; HOOK-01/HOOK-02)"
-    status: failed
-    reason: >
-      Independently reproduced 15-REVIEW.md's CR-01 finding by extracting the live hook
-      command from templates/.claude/settings.json and running it directly (not via the test
-      suite) against two hand-built repos, repoA (JOURNAL.md staged) and repoB (JOURNAL.md not
-      staged): (1) with the hook's cwd set to repoA and the intercepted command
-      `git -C <repoB> commit -am "fix"`, the hook exits 0 (allowed) even though the actual
-      target repo, repoB, does NOT have JOURNAL.md staged — a real bypass; (2) with the hook's
-      cwd set to repoB and the intercepted command `git -C <repoA> commit -am "fix"`, the hook
-      exits 2 (BLOCKED) even though the actual target repo, repoA, DOES have JOURNAL.md
-      staged — a false block of a legitimate, correctly-prepared commit. Root cause: GITDIR,
-      the MERGE_HEAD/rebase-merge/rebase-apply checks, and `git diff --cached --name-only` all
-      run implicitly against the hook process's own cwd and never parse/honor a `-C <path>`
-      (or --git-dir=/--work-tree=) argument present in the command text being gated. The
-      existing "-C variant" integration test (`journal-gate-hook.integration.test.ts:82`,
-      `test_journal_gate_hook.py:81`) only exercises `-C <repoDir-equal-to-cwd>`, so it passes
-      despite this defect and gives false confidence that `-C` is handled. Notably, `-C`
-      handling was an explicit, named goal from phase planning (15-CONTEXT.md, 15-DISCUSSION-LOG.md:
-      "Exact hook matcher pattern for intercepting git commit invocations (covering ... git -C
-      path commit)"; 15-01-PLAN.md Test 8 comment: "the `-C` variant must still be caught") —
-      this is an incomplete implementation of a requirement the plan itself called out, not an
-      out-of-scope edge case. No override or accepted-limitation entry exists for this finding
-      anywhere in the phase's planning artifacts or in this VERIFICATION.md's frontmatter.
-    artifacts:
-      - path: "templates/.claude/settings.json"
-        issue: "hooks.PreToolUse[0].hooks[0].command computes GITDIR and runs `git diff --cached` against the hook's own cwd, ignoring a `-C <path>` argument in the actual intercepted command"
-      - path: ".claude/settings.json"
-        issue: "identical command string, same defect reproduced at repo root (dogfood copy)"
-    missing:
-      - "Extract a `-C <path>` (and ideally --git-dir=/--work-tree=) argument from the UNQUOTED command text and route every git invocation in the hook (GITDIR resolution, MERGE_HEAD/rebase-merge/rebase-apply checks, and the staged-file diff) through that target directory, per 15-REVIEW.md CR-01's suggested fix — or, if full -C support is explicitly descoped, document that a git commit issued with -C/--git-dir/--work-tree is checked against the wrong repo and add a fail-safe (block rather than silently misjudge) for that case"
-      - "New integration test scenarios covering the cross-repo case in both directions: (a) hook cwd has JOURNAL.md staged, command's -C target does not -> must block; (b) hook cwd does not have JOURNAL.md staged, command's -C target does -> must allow. The current -C test only covers -C pointing at the hook's own cwd and does not catch this class of defect."
-deferred: []
-human_verification: []
+follow_ups:
+  - "RESOLVED 2026-09-24 by quick 260924-q1 (e6dc255 RED, d280a01 GREEN): same-command staging (`git add JOURNAL.md && git commit`, exact paths, `-A`, `commit -a`) is now allowed when JOURNAL.md has changes"
+  - "Command-text matching also gates Bash commands that merely contain commit-like text (heredocs writing test code). Workaround: write via file tools. Not fixed: needs real shell parsing"
+  - "First commit in a new repo without JOURNAL.md staged is blocked. Meets HOOK-02 as written (only the bootstrap commit that adds JOURNAL.md is exempt)"
+  - "T-15-20 / T-15-21 and the 15-01 tab-escape defect: carried from 15-06-SUMMARY, unchanged"
+human_verification:
+  - test: "Open Claude Code interactively in a freshly initialised project"
+    expected: "One-time trust prompt lists context7; after approval `claude mcp list` shows it connected, not Pending approval"
+    why_human: "Trust dialog cannot be driven from `claude -p`; sandbox egress to mcp.context7.com is blocked (proxy 403)"
+  - test: "On Windows with Git Bash, ask Claude Code to commit without staging JOURNAL.md"
+    expected: "Commit blocked with the BLOCKED message"
+    why_human: "No Windows runner; CI is ubuntu-only. Without Git Bash, hooks run in PowerShell, the sh syntax errors, and Claude Code treats that as non-blocking (fails open)"
 ---
+
+# Phase 15 Final Sign-off (2026-09-24)
+
+Goal-backward pass over the state after plan 15-06. The report from 2026-09-06 is kept below unchanged as history.
+
+## Success criteria
+
+| # | Criterion | Status | Evidence |
+|---|-----------|--------|----------|
+| 1 | Claude Code's Bash tool is blocked from `git commit` without `JOURNAL.md` staged, with an actionable stderr message | VERIFIED | Live `claude -p` in a temp repo with `templates/.claude/settings.json`: `BLOCKED: JOURNAL.md not staged. Update JOURNAL.md, then: git add JOURNAL.md`, no commit created. CR-01 repro above. npm and pip hook integration suites green |
+| 2 | Not blocked for `--amend`, merge/rebase in progress, or the bootstrap commit adding `JOURNAL.md` | VERIFIED | Covered by `journal-gate-hook.integration.test.ts` and `test_journal_gate_hook.py`; bootstrap commit passes because `JOURNAL.md` is staged. Also passed my independent 20-case matrix for amend, `MERGE_HEAD`, `rebase-merge`, `rebase-apply`, bootstrap add |
+| 3 | `.mcp.json` has context7 at the free HTTP endpoint, no key; trust prompt documented | VERIFIED | `mcp-json.test.ts`, `test_mcp_json.py`; `docs/getting-started.md` "What is context7?" now also names `Pending approval` and `claude mcp reset-project-choices` |
+| 4 | Docs state the Claude-Code-only boundary and the optional `${CONTEXT7_API_KEY}` path, no literal key | VERIFIED | `docs/getting-started.md` "About the journal-gate hook"; README "What you get" items 6 and 7 (added 2026-09-24 so HOOK-04's README clause is met too) |
+
+## Evidence (2026-09-24)
+
+```
+packages/npm$ npx vitest run
+ Test Files  14 passed | 1 skipped (15)
+      Tests  170 passed | 1 skipped | 2 todo (173)
+packages/pip$ uv run --extra dev pytest tests/
+176 passed in 2.88s
+scripts/verify-phase5.sh --quick     10 passed, 0 failed
+npm run build                        ESM Build success
+npm pack --dry-run                   templates/.claude/settings.json (2.9kB), templates/.mcp.json
+wheel                                .mcp.json present; settings.json has PreToolUse and --absolute-git-dir
+```
+
+Live Claude Code (`claude -p`, haiku, temp repo):
+
+```
+A  git commit -m "change app"                          BLOCKED, 1 commit in log
+B  git add JOURNAL.md && git commit -m "with journal"  BLOCKED (false block, see follow_ups), 1 commit
+C  (JOURNAL.md staged) git commit -m "with journal"    [master 48ebdd6], 2 commits
+```
+
+In an untrusted workspace `claude -p` ignored `permissions.allow` from project settings but still ran the hook.
+
+## Not verified
+
+- context7 endpoint reachability without a key: sandbox egress blocked. The keyless claim rests on the upstash/context7 README ("API Key Recommended ... for higher rate limits").
+- `npx tsc --noEmit` reports pre-existing TS2591 errors (Node types absent from tsconfig `types`) in every file; CI runs tsup, not tsc.
+
+---
+
+## Previous verification (2026-09-06, superseded)
 
 # Phase 15: Journal-Gate Hook & context7 MCP Verification Report
 

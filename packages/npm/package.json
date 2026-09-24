@@ -1,6 +1,6 @@
 {
   "name": "goodvibes-cli",
-  "version": "1.7.1",
+  "version": "1.8.0",
   "description": "One-command bootstrap for vibe coding projects",
   "type": "module",
   "bin": {

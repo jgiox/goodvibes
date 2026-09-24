@@ -1,66 +1,74 @@
 # CLAUDE.md
 
+## Project
+
+<!-- Fill these in. goodvibes never changes anything outside its own block below. -->
+**What this is:**
+**Core value:**
+**Constraints:**
+
 <!-- goodvibes:start -->
-# goodvibes: v1.7.1
+# goodvibes: v1.8.0
 
 ## Engineering Rules
 
+Every rule below is an order, not a suggestion.
+
+### Start of every session
+- Read JOURNAL.md before acting. Its entries are binding decisions from earlier sessions and other tools; follow them unless the user overrides one.
+- Never ask the user for information already answered in README.md, CLAUDE.md, AGENTS.md, JOURNAL.md, or the codebase. Look there first. Ask only when those sources are silent or contradict each other, and say which.
+- Never state a guess as fact. Run the command, read the file, or look the API up (context7) first; label anything you could not verify as unverified.
+
 ### Before you begin
-For every task, define: the exact request, success criteria, files you expect to touch, tests you expect to run, docs you expect to update. If you cannot state those things clearly, you are not ready to code.
+Define the exact request, success criteria, files you will touch, tests you will run, and docs you will update. If you cannot state those, you are not ready to code.
 
 ### Think before coding
-**State assumptions explicitly before implementing.**
-- Write down assumptions before editing code.
-- Do not silently choose one interpretation when multiple materially different interpretations exist.
-- If you proceed with an assumption because the task is small and reversible, say so in the PR.
-- If the assumption is security-sensitive, data-sensitive, or schema-sensitive, do not proceed silently.
+- Write assumptions down before editing code.
+- When a request has materially different interpretations, stop and ask; never pick one silently.
+- A small, reversible assumption may proceed; state it in the PR.
+- Never proceed silently on a security-, data-, or schema-sensitive assumption.
 
 ### Simplicity first
 **Make the smallest complete change.**
-- Prefer a direct implementation over a generalized one.
-- Prefer one clear function over a new framework layer.
-- Avoid optional flags, plugin hooks, factories, and strategy objects unless the task actually requires them.
-- If 200 lines can be 50 without losing clarity, reduce it.
-- Check for all instances: a fix that closes one of three identical bugs is not complete.
+- A direct implementation, not a generalized one; one clear function, not a new framework layer.
+- No optional flags, plugin hooks, factories, or strategy objects unless the task requires them.
+- If 200 lines can be 50 without losing clarity, cut it.
+- Fix every instance: closing one of three identical bugs is not done.
 
 ### Surgical changes
-**Touch only what the task requires.**
-- Keep diffs narrow. Do not opportunistically reformat unrelated files.
-- Do not rename files, symbols, or folders unless the task requires it.
-- Only remove imports, variables, functions, or files that your change made unused.
-- If you notice unrelated dead code, mention it in the PR but do not delete it unless asked.
+- Keep diffs narrow. Never reformat unrelated files.
+- Never rename files, symbols, or folders unless the task requires it.
+- Remove only the imports, variables, functions, or files your change made unused.
+- Report unrelated dead code in the PR; never delete it unless asked.
 
 ### Fail loud
-**Do not fail silently.**
 - No empty `catch` blocks. No swallowed exceptions.
-- No silent retries without bounded policy and logging.
-- No returning fake success on real failure.
+- No silent retries without a bounded policy and logging.
+- Never return fake success on real failure.
 - Error messages must be actionable and specific enough to debug.
 - Never invent data, numbers, or API responses to make code work; missing data is an error, not a placeholder (test fixtures are fine).
 
 ### Security
-**Security is an engineering requirement, not a cleanup task.**
 - Validate input at the boundary. Encode output to the target context.
 - Use parameterized queries. Keep secrets out of code, commits, and logs.
 - Apply least privilege for tokens, roles, and permissions.
-- `.env` is never committed; every new environment variable is added to `.env.example` in the same change.
+- `.env` is never committed; every new environment variable goes into `.env.example` in the same change.
 - Never send secrets, personal data, or private code in documentation lookups (context7 or web search).
+- For code that handles input, auth, money, or files, answer before merging: what can an attacker control, where is the trust boundary, what breaks if it fails open?
 
-Must flag immediately: SQL injection, XSS, command injection, path traversal, broken auth, leaked secrets, unsafe dependency additions.
+Flag immediately: SQL injection, XSS, command injection, path traversal, broken auth, leaked secrets, unsafe dependency additions.
 
-### Proof of work
-**Show evidence, not intent.**
-- Before marking a task done, run the relevant tests and paste the passing output.
-- Name the files you changed and the specific tests that cover each one.
-- If no automated test covers a change, say so explicitly — do not assume the change is correct.
-- "I ran the tests" is not proof. Paste the output.
+### Dependencies and performance
+- Never add a dependency for what a few lines can do. Check its licence, maintenance, and security advisories first.
+- Review every Dependabot PR: changelog, advisories, lockfile diff, licence. Never mass-upgrade in one change.
+- Measure before optimizing. No N+1 queries or calls in loops; batch and cache only where a measurement shows the need.
 
 ### Definition of done
 **A task is not done until every one of these is true.**
-- Tests pass — paste the output, not a claim.
+- The relevant tests pass, with the output pasted ("I ran the tests" is not proof). Name the files changed and the tests covering each; say so when none does.
 - Every Markdown file the change made untrue is updated; CHANGELOG.md gets a dated entry and JOURNAL.md gets a new entry.
-- Exact paths are staged — never `git add -A` or `git add .`.
-- After a push, CI is confirmed green before saying done, and the branch and commit SHA are reported.
+- Exact paths are staged; never `git add -A` or `git add .`.
+- After a push, CI is confirmed green before saying done, with the branch and commit SHA reported.
 - Anything blocked is reported as: what failed, why, the risk, and the exact next step.
 
 ### Action tiers
@@ -75,20 +83,15 @@ Must flag immediately: SQL injection, XSS, command injection, path traversal, br
 | Deploy / publish | npm publish, pip publish, production deploy | Explicit human approval required — never autonomous |
 
 ### Journal
-**Update `JOURNAL.md` at the end of every task.**
-Each entry must include: date, task summary, files changed, why the change was made, tests run, docs updated.
-Rules: do not rewrite history. Additive entries only. Keep it short, factual, and readable.
+Add a JOURNAL.md entry at the end of every task: date, task summary, files changed, why, tests run, docs updated. Additive only; never rewrite earlier entries. Write it for the next agent, which may be a different tool.
 
-### Push to remote
-**Push to GitHub after every completed task or end of session.**
-A commit that only exists locally is one machine failure away from being lost. Run `git push origin <branch>` after each commit, or at minimum before stopping for the day. Never leave completed work unpushed for more than one session.
+### Git
+- Push after every completed task, once the human confirms; never end a session with completed work only on this machine.
+- Branch names start with `feat/`, `fix/`, `docs/`, or `chore/`.
+- Delete a branch only when `git log origin/main..<branch>` prints nothing. A lost commit is in `git reflog`.
 
 ### Tools and environment
-**IDE plugin commands are surface-specific.**
-A slash command or plugin install that works in Claude Code terminal will not work in the
-VS Code extension, Cursor, Windsurf, Kiro, or any other IDE. Before referencing a tool
-command in shared docs, prompts, or instructions, confirm which surface it runs on. If it
-only works in one place, say so explicitly — do not leave users to discover it silently fails.
+Slash commands and plugins are surface-specific (Claude Code terminal vs VS Code, Cursor, Windsurf, Kiro). Before referencing one in docs or instructions, say which surface runs it.
 
 ## Ponytail — Minimalism Ruleset
 
@@ -138,24 +141,20 @@ Never lazy about understanding the problem. Trace the whole thing first.
 
 ## Testing
 
-**Inline comments:** Only write a comment when WHY is non-obvious. Never describe what the
+**Inline comments:** Write a comment only when WHY is non-obvious. Never describe what the
 code does. No docstrings for self-evident functions. One line max.
 
 **Unit tests:** Mock all external calls (subprocess, network, filesystem). Test one function
-in isolation. File: `src/steps/foo.ts` → `src/steps/foo.test.ts` (TS) or `tests/test_foo.py`
-(Python). Every public function gets at least one test. Use vitest (TS) or pytest + pytest-mock
-(Python). Never run real uv/pip/claude/npm in a unit test.
+in isolation, next to its source (`foo.ts` → `foo.test.ts`, `foo.py` → `tests/test_foo.py`).
+Every public function gets at least one test. Never run real package installs or deploys in a unit test.
 
-**Integration tests:** Use a real temporary directory, no mocks for file ops. Verify that
-modules work together. Live in `tests/integration/` or `src/**/*.integration.test.ts`.
-Run with: `npm run test:integration` or `pytest tests/integration/`.
+**Integration tests:** A real temporary directory, no file-op mocks, verifying modules together; kept apart from unit tests.
 
-**Regression tests:** For every bug fix — write a failing test reproducing the bug BEFORE the
+**Regression tests:** For every bug fix, write a failing test that reproduces the bug BEFORE the
 fix. Commit the failing test first (RED), then the fix (GREEN), in separate commits.
-Test name must reference the symptom: `test_install_headroom_does_not_throw_on_cpp_failure`.
+The test name references the symptom: `test_install_does_not_throw_on_cpp_failure`.
 
-**Test naming:** Test names are sentences describing the expected behavior.
-- TS: `it('returns null when Python version is below 3.10')`
-- Python: `def test_returns_none_when_python_below_3_10()`
+**Test naming:** Test names are sentences describing the expected behavior:
+`it('returns null when Python version is below 3.10')`, `def test_returns_none_when_python_below_3_10()`.
 Never name tests `test_1`, `test_happy_path`, or `test_works`.
 <!-- goodvibes:end -->
