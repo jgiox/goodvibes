@@ -11,7 +11,7 @@ from goodvibes_cli.steps.configure_mcp import configure_mcp
 from goodvibes_cli.steps.copy_templates import copy_templates, list_template_files, resolve_templates_dir
 from goodvibes_cli.steps.install_headroom import install_headroom
 from goodvibes_cli.steps.telemetry import opted_out, start_telemetry_thread
-from goodvibes_cli.steps.write_manifest import ManifestError, write_manifest
+from goodvibes_cli.steps.write_manifest import ManifestError, read_manifest, write_manifest
 from goodvibes_cli.utils.detect_project_type import detect_project_type
 from goodvibes_cli.utils.json_merge import managed_record
 from goodvibes_cli.steps.global_setup import apply_global_config, ensure_global_cli, format_global, register_context7
@@ -107,6 +107,8 @@ def init_cmd(
 
     global_result = cli_result = c7_result = None
     try:
+        # Read before writing anything: a broken manifest stops init instead of being overwritten.
+        prev = (read_manifest(cwd) if in_project else None) or {}
         if scope == "global":
             with console.status("Setting up goodvibes for all your projects"):
                 _v = importlib.metadata.version("goodvibes-cli")
@@ -149,11 +151,14 @@ def init_cmd(
 
     _version = importlib.metadata.version("goodvibes-cli")
     if in_project:
+        written = [f for f in created_files if f != ".goodvibes.json"]
+        # A re-run writes only missing files; everything recorded earlier keeps its entry and managed ids.
         write_manifest(
             cwd,
-            [f for f in created_files if f != ".goodvibes.json"],
+            written,
             _version,
-            managed=managed_record(cwd, template_dir),
+            preserved={k: v for k, v in (prev.get("files") or {}).items() if k not in written},
+            managed=managed_record(cwd, template_dir, prev.get("managed")),
             scope=scope,
         )
 

@@ -1664,3 +1664,4 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 - item 0 RED: init must record only files it created (not src/, .git/ or a user's own .github/dependabot.yml) and update --force must leave those untouched (2 failed).
 - item 0 GREEN: copy_templates records files through copytree's copy_function (plus the ci.yml rename and CLAUDE.md) instead of every file under the project, so the manifest never claims src/, .git/ or the user's own files (298 passed).
 - item 2 RED: a second init must keep every manifest entry and the managed record (a deleted hook stays deleted after update), and refuse a broken project manifest (3 failed).
+- item 2 GREEN: init reads the previous manifest before writing anything, keeps its entries for files this run did not write and passes its managed record to managed_record (301 passed).
