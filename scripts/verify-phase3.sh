@@ -81,10 +81,10 @@ if [ "$QUICK" -eq 0 ]; then
   echo "--- Build checks (full mode) ---"
 
   # PIP-UV-BUILD: uv build produces a wheel with the correct name
-  check "PIP-UV-BUILD" "cd packages/pip && uv build --no-sources 2>/dev/null && test -f dist/goodvibes_cli-*.whl"
+  check "PIP-UV-BUILD" "cd packages/pip && rm -rf dist/verify && uv build --no-sources --out-dir dist/verify 2>/dev/null && ls dist/verify/goodvibes_cli-*.whl >/dev/null 2>&1"
 
   # PIP-DOTFILES: wheel includes .claude/ and .github/ directories (D-03)
-  check "PIP-DOTFILES" "cd packages/pip && python3 -c \"import zipfile,glob; w=glob.glob('dist/goodvibes_cli-*.whl')[0]; names=zipfile.ZipFile(w).namelist(); assert any('.claude' in n for n in names), '.claude/ missing from wheel'; assert any('.github' in n for n in names), '.github/ missing from wheel'; print('DOTFILES OK')\""
+  check "PIP-DOTFILES" "cd packages/pip && python3 -c \"import zipfile,glob; w=glob.glob('dist/verify/goodvibes_cli-*.whl')[0]; names=zipfile.ZipFile(w).namelist(); assert any('.claude' in n for n in names), '.claude/ missing from wheel'; assert any('.github' in n for n in names), '.github/ missing from wheel'; print('DOTFILES OK')\""
 
   # PIP-INSTALL: import succeeds after uv sync
   check "PIP-INSTALL" "cd packages/pip && uv run python -c 'import goodvibes_cli' 2>/dev/null"
