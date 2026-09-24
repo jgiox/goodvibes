@@ -6,7 +6,7 @@ import pathlib
 import shutil
 
 from goodvibes_cli.utils.scope import global_owned, project_stub
-from goodvibes_cli.utils.sentinel_merge import merge_claude
+from goodvibes_cli.utils.sentinel_merge import ClaudeMdError, merge_claude
 
 
 def resolve_templates_dir() -> pathlib.Path:
@@ -126,8 +126,11 @@ def copy_templates(
         claude_dest = dest_dir / "CLAUDE.md"
         template_content = claude_src.read_text(encoding="utf-8")
         if scope == "project":
-            merge_claude(claude_dest, template_content)
-            claude_merged = True
+            try:
+                merge_claude(claude_dest, template_content)
+                claude_merged = True
+            except ClaudeMdError as e:
+                skipped_files.append(str(e))
         elif not claude_dest.exists():
             claude_dest.write_text(project_stub(template_content), encoding="utf-8")
 

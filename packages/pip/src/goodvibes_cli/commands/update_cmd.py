@@ -18,7 +18,7 @@ from goodvibes_cli.utils.detect_project_type import detect_project_type
 from goodvibes_cli.utils.json_merge import MANAGED_JSON, managed_record, merge_managed_json
 from goodvibes_cli.steps.global_setup import apply_global_config, claude_config_dir, format_global
 from goodvibes_cli.utils.scope import global_owned
-from goodvibes_cli.utils.sentinel_merge import merge_claude
+from goodvibes_cli.utils.sentinel_merge import ClaudeMdError, merge_claude
 
 console = Console()
 
@@ -159,6 +159,7 @@ def update_cmd(
 
     # Apply: overwrite managed files and copy net-new files
     applied: list[str] = []
+    problems: list[str] = []
     for rel in overwrite + net_new:
         _assert_safe(cwd, rel)
         if rel == "CLAUDE.md":
@@ -174,7 +175,13 @@ def update_cmd(
         if rel == "CLAUDE.md":
             # ponytail: CLAUDE.md must go through merge_claude — sentinel block preservation
             template_content = template_src.read_text(encoding="utf-8")
-            merge_claude(cwd / rel, template_content)
+            try:
+                merge_claude(cwd / rel, template_content)
+            except ClaudeMdError as e:
+                problems.append(str(e))
+                if rel in manifest["files"]:
+                    skip.append(rel)
+                continue
         else:
             dest = cwd / rel
             dest.parent.mkdir(parents=True, exist_ok=True)
@@ -200,4 +207,8 @@ def update_cmd(
     summary = applied + [f"{rel} (merged {len(ch)} goodvibes key(s))" for rel, _, ch in merges]
     summary += [f"Not merged: {e}" for e in merge_errors]
     console.print(Panel("\n".join(summary) or "(none)", title="Updated"))
+    if problems:
+        console.print(Panel("\n".join(problems), title="Not updated — needs your attention"))
+        console.rule("[red]Update finished with problems.[/red]")
+        raise typer.Exit(1)
     console.rule("[green]Update complete![/green]")
