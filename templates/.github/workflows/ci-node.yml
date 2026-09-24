@@ -33,4 +33,9 @@ jobs:
         run: npm test --if-present
 
       - name: Lint
-        run: npm run lint --if-present
+        run: |
+          if node -e "process.exit(require('./package.json').scripts?.lint ? 0 : 1)"; then
+            npm run lint
+          else
+            echo "::warning::No lint script in package.json — add one (for example eslint) so CI catches mistakes"
+          fi

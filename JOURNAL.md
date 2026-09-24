@@ -1089,3 +1089,17 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 **Tests run:** `npx vitest run src/steps/settings-permissions.test.ts` (1 failed as expected — `ask` missing; 1 passed — sanity guard).
 
 **Docs updated:** JOURNAL.md only.
+
+---
+
+## 2026-09-24 — Permissions ask-list + CI fail-loud: GREEN implementation (260924-mh9 task 2)
+
+**What I did:** D2: added a top-level `ask` array inside `permissions` in `templates/.claude/settings.json` with the 11 push/publish/deploy patterns, via a targeted JSON edit that left `allow`, `deny`, and the `hooks` block byte-identical (verified by diff — only the new `ask` key was added). D3: in `ci-python.yml` and `ci-both.yml`'s python job, dropped `2>/dev/null` from `uv sync --all-extras || uv sync` so install failures are visible, added a `Lint` step running `uvx ruff check .` between install and test, and changed the silent "No tests found" echo to `::warning::No tests found`. In `ci-node.yml` and `ci-both.yml`'s node job, replaced the unconditional `npm run lint --if-present` with a check for a `lint` script in `package.json`: runs `npm run lint` (unguarded, so a real lint failure still fails the job) when present, otherwise emits a visible `::warning::` instead of skipping silently. In `security.yml`, added a new `secrets` job (sibling to `analyze`) that checks out full git history (`fetch-depth: 0`) and runs `ghcr.io/gitleaks/gitleaks:v8.30.1` via Docker to scan for committed secrets.
+
+**Files changed:** `templates/.claude/settings.json`, `templates/.github/workflows/ci-python.yml`, `templates/.github/workflows/ci-node.yml`, `templates/.github/workflows/ci-both.yml`, `templates/.github/workflows/security.yml`, JOURNAL.md.
+
+**Why:** Closes D2 (permissions template auto-approved deploy/publish commands, contradicting the template's own Action tiers rule) and D3 (CI templates hid `uv sync` errors, had no Python lint gate, silently skipped missing lint/tests, and had no secret scanning) from the cross-repo governance gap review.
+
+**Tests run:** `npx vitest run src/steps/settings-permissions.test.ts` (2 passed); `npx vitest run` (173 passed, 1 skipped, 2 todo — full suite); `bash scripts/verify-phase4.sh --quick` (15 passed, 0 failed, including CI-PYTHON-EXTRA-DEV / CI-PYTHON-MATRIX / SECURITY-EXTENDED).
+
+**Docs updated:** JOURNAL.md only.
