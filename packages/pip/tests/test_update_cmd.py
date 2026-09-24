@@ -164,6 +164,28 @@ def test_update_keeps_user_modified_file_across_two_runs(mocker, tmp_path):
     assert (project_dir / "tracked.md").read_text(encoding="utf-8") == user_content
 
 
+def test_update_does_not_overwrite_pre_existing_file_missing_from_manifest(mocker, tmp_path):
+    """A file init skipped (it already existed) is absent from the manifest; update must not treat it as net-new and overwrite it."""
+    template_dir = tmp_path / "templates"
+    template_dir.mkdir()
+    (template_dir / "AGENTS.md").write_text("goodvibes template\n", encoding="utf-8")
+
+    project_dir = tmp_path / "project"
+    project_dir.mkdir()
+    user_agents = "my own agent rules, written before goodvibes init\n"
+    (project_dir / "AGENTS.md").write_text(user_agents, encoding="utf-8")
+    (project_dir / ".goodvibes.json").write_text(json.dumps({"version": "1.0.0", "files": {}}), encoding="utf-8")
+
+    mocker.patch("goodvibes_cli.commands.update_cmd.resolve_templates_dir", return_value=template_dir)
+    mocker.patch("goodvibes_cli.commands.update_cmd.detect_project_type", return_value="both")
+    mocker.patch("pathlib.Path.cwd", return_value=project_dir)
+
+    for _ in range(2):
+        result = runner.invoke(app, ["update", "--force"])
+        assert result.exit_code == 0
+        assert (project_dir / "AGENTS.md").read_text(encoding="utf-8") == user_agents
+
+
 def test_update_refreshes_claude_block_and_preserves_outside_content(mocker, tmp_path):
     """CLAUDE.md's sentinel block refreshes via update even when the whole-file hash never matches."""
     template_dir = tmp_path / "templates"

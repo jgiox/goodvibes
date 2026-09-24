@@ -1221,3 +1221,17 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 **What I learned:** A single Bash command that appends to JOURNAL.md and then commits is blocked, because the journal has no changes yet when the hook checks. Correct fail-closed behaviour; write first, commit in a second call.
 
 **Docs updated:** as listed.
+
+---
+
+## 2026-09-24 · update overwrites pre-existing files missing from the manifest: RED (Phase 16)
+
+**What I did:** Added one real-tmpdir test per CLI: a project whose `AGENTS.md` existed before `init` (so init skipped it and never recorded it) keeps that file across two `update --force` runs.
+
+**Files changed:** packages/npm/src/commands/update.integration.test.ts, packages/pip/tests/test_update_cmd.py, JOURNAL.md.
+
+**Why:** `init` records only files it wrote. `update` classes every template file absent from the manifest as net-new and copies it with overwrite, destroying the user's own file. This is exactly the path a hand-made `.claude/settings.json` or `.mcp.json` takes.
+
+**Tests run:** npm update.integration: 1 failed (new, expected), 2 passed. pip: new test fails as expected.
+
+**Docs updated:** JOURNAL.md.

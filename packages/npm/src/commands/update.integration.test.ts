@@ -72,6 +72,26 @@ describe('update command — real tmp-dir regression coverage (D1)', () => {
     expect(readFileSync(join(projectDir, 'tracked.md'), 'utf-8')).toBe(userContent)
   })
 
+  it('does not overwrite a pre-existing file that init skipped and the manifest never recorded', async () => {
+    const { resolveTemplatesDir } = await import('../steps/copy-templates.js')
+    vi.mocked(resolveTemplatesDir).mockReturnValue(templateDir)
+
+    writeFileSync(join(templateDir, 'AGENTS.md'), 'goodvibes template\n')
+    const userAgents = 'my own agent rules, written before goodvibes init\n'
+    writeFileSync(join(projectDir, 'AGENTS.md'), userAgents)
+    writeFileSync(join(projectDir, '.goodvibes.json'), JSON.stringify({ version: '1.0.0', files: {} }, null, 2))
+
+    const { registerUpdateCommand } = await import('./update.js')
+    const { Command } = await import('commander')
+    for (let run = 0; run < 2; run++) {
+      const program = new Command()
+      program.exitOverride()
+      registerUpdateCommand(program)
+      await program.parseAsync(['node', 'goodvibes', 'update', '--force'])
+      expect(readFileSync(join(projectDir, 'AGENTS.md'), 'utf-8')).toBe(userAgents)
+    }
+  })
+
   it('refreshes the goodvibes block in CLAUDE.md while preserving content outside it', async () => {
     const { resolveTemplatesDir } = await import('../steps/copy-templates.js')
     vi.mocked(resolveTemplatesDir).mockReturnValue(templateDir)
