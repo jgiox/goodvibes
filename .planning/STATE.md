@@ -2,9 +2,9 @@
 gsd_state_version: 1.0
 milestone: v1.8.0
 milestone_name: Agent Governance & Cross-Tool Enforcement
-status: executing
-last_updated: "2026-09-24T21:00:00.000Z"
-last_activity: 2026-09-24 -- Phase 15 final sign-off passed (8/8); quick task 260924-mh9 (cross-repo gap review follow-up) completed
+status: complete
+last_updated: "2026-09-24T22:15:00.000Z"
+last_activity: 2026-09-24 -- v1.9.0 published to npm (trusted publishing) and PyPI; milestone v1.8.0 closed
 progress:
   total_phases: 17
   completed_phases: 6
@@ -20,14 +20,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-07-03)
 
 **Core value:** One command gives a vibe coder a fully configured project — token efficiency and engineering discipline happen automatically in the background.
-**Current focus:** v1.8.0 release; Phases 15-17 complete
+**Current focus:** milestone v1.8.0 closed (shipped as 1.9.0 on npm and PyPI); next milestone not started
 
 ## Current Position
 
-Phase: v1.8.0 release (partially published)
-Plan: v1.8.0 merged (7660cc5); PyPI 1.8.0 published; npm publish blocked: NPM_TOKEN secret rejected (E404 on PUT); release tags not pushed (git proxy 403)
-Status: all v1.8.0 phases complete; human UAT pending (MCP trust prompt, Windows Git Bash, installed-wheel update run, caveman ultra style)
-Last activity: 2026-09-24 -- Phase 15 final sign-off passed, phase marked complete; quick task 260924-mh9 completed (see .planning/quick/)
+Phase: none (milestone v1.8.0 complete)
+Plan: 1.9.0 live on npm and PyPI from main df152e8 (PR #36). PyPI also has 1.8.0; npm skipped 1.8.0. Tag v1.9.0 still to push from a maintainer machine (session git proxy refuses tag pushes)
+Status: released; human UAT pending (context7 trust prompt, Windows Git Bash, caveman ultra style); follow-ups listed in JOURNAL.md 2026-09-24 release entry
+Last activity: 2026-09-24 -- v1.9.0 released to npm and PyPI
 
 ## Performance Metrics
 

@@ -13,6 +13,8 @@ jobs:
     permissions:
       contents: read
       id-token: write  # required for OIDC trusted publishing — no API token in repo
+    outputs:
+      version: ${{ steps.version.outputs.version }}
     steps:
       - uses: actions/checkout@v7
 
@@ -30,6 +32,11 @@ jobs:
       - name: Verify wheel name (PKG-01 — goodvibes-cli)
         run: test -f packages/pip/dist/goodvibes_cli-*.whl
 
+      - name: Read version
+        id: version
+        working-directory: packages/pip
+        run: echo "version=$(grep '^version' pyproject.toml | sed 's/version = "\(.*\)"/\1/')" >> "$GITHUB_OUTPUT"
+
       - name: Publish to PyPI
         working-directory: packages/pip
         run: uv publish --trusted-publishing always
@@ -42,15 +49,21 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v7
 
-      - name: Wait for registry propagation
-        run: sleep 30
-
+      # Pin the version just published: an unpinned install passes silently against the previous release
+      # while PyPI's CDN catches up, so retry instead of a fixed sleep.
       - name: Install from PyPI
-        run: uv tool install goodvibes-cli
+        run: |
+          for i in $(seq 1 20); do
+            uv tool install --no-cache "goodvibes-cli==${{ needs.publish.outputs.version }}" && exit 0
+            echo "attempt $i: goodvibes-cli==${{ needs.publish.outputs.version }} not installable yet, retrying in 15s"
+            sleep 15
+          done
+          echo "::error::goodvibes-cli==${{ needs.publish.outputs.version }} still not installable after 5 minutes"
+          exit 1
 
       - name: Smoke test
         run: |
           TMPDIR=$(mktemp -d)
           cd $TMPDIR
-          goodvibes init --dry-run 2>&1 | tee /tmp/gv-out.txt
+          goodvibes init --dry-run --scope project 2>&1 | tee /tmp/gv-out.txt
           grep -q "CLAUDE.md" /tmp/gv-out.txt
