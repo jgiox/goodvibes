@@ -31,6 +31,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/2.0.0/),
 
 ### Changed
 
+- Every agent rule file (CLAUDE.md, AGENTS.md and its six copies, Copilot, Cursor, Kiro, Replit, Bolt) is rewritten in directive language and opens with a session-start block: read JOURNAL.md first and treat it as binding, never re-ask for what README/CLAUDE/AGENTS/JOURNAL or the code already answers, never state a guess as fact
+- New rules: dependency discipline, security review questions, branch hygiene, measure before optimizing; the CLAUDE.md goodvibes block is 8 lines shorter than 1.7.1
+- `.github/copilot-instructions.md` states it is authoritative for Copilot; AGENTS.md states it is the cross-tool fallback, not a guarantee
+- `JOURNAL.md` template is now a binding handoff record with fields matching the Journal rule
+- caveman skill defaults to `ultra` (was `full`); getting-started explains what that changes and how to switch back
+- A fresh `CLAUDE.md` starts with a "What this is / Core value / Constraints" section outside the goodvibes block
 - CI templates no longer hide `uv sync` errors behind `2>/dev/null`
 - CI templates emit a visible `::warning::` instead of silently passing when no tests or no lint script are found
 

@@ -2,10 +2,13 @@
 <!-- Replit Agent may regenerate this file. Commit it to git to preserve your edits. -->
 
 ## Project Overview
-This project uses goodvibes engineering rules. Apply them to every task.
+This project uses goodvibes engineering rules. Apply them to every task; every rule is an order, not a suggestion.
+
+## Start of Every Session
+Read JOURNAL.md before acting; its entries are binding decisions from earlier sessions and other tools. Never ask the user for information already answered in README.md, AGENTS.md, JOURNAL.md, or the code. Never state a guess as fact: check first.
 
 ## Coding Style
-State assumptions before implementing. Stop if an assumption is security-sensitive, schema-sensitive, or has multiple materially different interpretations.
+State assumptions before implementing. Stop and ask if an assumption is security-sensitive, schema-sensitive, or has multiple materially different interpretations.
 
 ## Simplicity First
 Stop at the first rung that holds:
@@ -24,7 +27,7 @@ No unrequested abstractions. No boilerplate for later. Deletion over addition.
 Keep diffs narrow. No opportunistic reformats. Only remove what your change made unused.
 
 ## Fail Loud
-No empty catch blocks. No silent retries. No fake success on real failure. Error messages must be actionable.
+No empty catch blocks. No silent retries. Never return fake success on real failure. Error messages must be actionable.
 
 ## Security
 Validate input at the boundary. Keep secrets out of code and logs. Apply least privilege.

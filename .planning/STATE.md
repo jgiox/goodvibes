@@ -7,10 +7,10 @@ last_updated: "2026-09-24T21:00:00.000Z"
 last_activity: 2026-09-24 -- Phase 15 final sign-off passed (8/8); quick task 260924-mh9 (cross-repo gap review follow-up) completed
 progress:
   total_phases: 17
-  completed_phases: 5
+  completed_phases: 6
   total_plans: 19
   completed_plans: 58
-  percent: 29
+  percent: 35
 ---
 
 # Project State
@@ -20,13 +20,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-07-03)
 
 **Core value:** One command gives a vibe coder a fully configured project — token efficiency and engineering discipline happen automatically in the background.
-**Current focus:** Phase 17 (Cross-Tool Governance & Directive Wording); Phases 15-16 complete
+**Current focus:** v1.8.0 release; Phases 15-17 complete
 
 ## Current Position
 
-Phase: 17 (Cross-Tool Governance & Directive Wording): in progress
-Plan: Phase 16 complete (16-01, UPD-07); next Phase 17, then SessionStart doctor hook, model-regression skill, v1.8.0 release
-Status: Phases 15 and 16 complete; human UAT pending (MCP trust prompt, Windows Git Bash, installed-wheel update run)
+Phase: v1.8.0 release
+Plan: Phases 15, 16, 17 complete; session-start doctor hook and model-regression skill shipped; next: v1.8.0 version bump and publish
+Status: all v1.8.0 phases complete; human UAT pending (MCP trust prompt, Windows Git Bash, installed-wheel update run, caveman ultra style)
 Last activity: 2026-09-24 -- Phase 15 final sign-off passed, phase marked complete; quick task 260924-mh9 completed (see .planning/quick/)
 
 ## Performance Metrics
@@ -53,7 +53,7 @@ Last activity: 2026-09-24 -- Phase 15 final sign-off passed, phase marked comple
 | 14 | 5 | - | - |
 | 15 | 6 | - | - |
 | 16 | 1 | - | - |
-| 17 | TBD | - | - |
+| 17 | 1 | - | - |
 
 **Recent Trend:**
 

@@ -29,7 +29,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 14: goodvibes update with Manifest** - Ship manifest-based template update with dry-run preview, confirmation prompt, and sentinel data-loss guard (v1.2.0) (completed 2026-07-27)
 - [x] **Phase 15: Journal-Gate Hook & context7 MCP** - Ship a Claude Code PreToolUse hook that blocks `git commit` without JOURNAL.md staged, and wire context7 into `.mcp.json` at the free/public endpoint (v1.8.0): verified 2026-09-24, see 15-VERIFICATION.md
 - [x] **Phase 16: goodvibes update JSON-Aware Merge** - Teach `goodvibes update` to merge only goodvibes-managed keys in settings.json/.mcp.json, preserving user-added keys (v1.8.0)
-- [ ] **Phase 17: Cross-Tool Governance & Directive Wording** - Rewrite CLAUDE.md/AGENTS.md/per-IDE rule files in directive language, harden cross-agent JOURNAL.md handoff wording, and ship caveman's ultra default (v1.8.0)
+- [x] **Phase 17: Cross-Tool Governance & Directive Wording** - Rewrite CLAUDE.md/AGENTS.md/per-IDE rule files in directive language, harden cross-agent JOURNAL.md handoff wording, and ship caveman's ultra default (v1.8.0)
 
 ## Phase Details
 
@@ -457,7 +457,7 @@ Plans:
 
 **Goal**: Any agent or tool picking up a goodvibes project — Claude Code, Codex, Cursor, Copilot, or otherwise — reads JOURNAL.md as a binding handoff record, never re-asks the user for information already on file, and receives unambiguous, non-optional instructions from the file its tool actually prioritizes
 **Depends on**: Nothing (pure content edits to already-shipped files; can run in parallel with Phase 15/16)
-**Requirements**: AGENT-01, AGENT-02, AGENT-03, AGENT-04, CAVE-01, CAVE-02
+**Requirements**: AGENT-01, AGENT-02, AGENT-03, AGENT-04, AGENT-05, AGENT-06, CAVE-01, CAVE-02
 **Success Criteria** (what must be TRUE):
 
   1. `JOURNAL.md`, `CLAUDE.md`, and `AGENTS.md` each instruct a new agent session to read prior `JOURNAL.md` entries before acting and treat them as binding, not optional context
@@ -466,7 +466,10 @@ Plans:
   4. `.github/copilot-instructions.md` states it is the authoritative rule file for GitHub Copilot; `AGENTS.md` states it is the cross-tool fallback, not a universal guarantee
   5. A freshly-initialized project's `caveman` skill defaults to `ultra` intensity, and onboarding docs explain what `ultra` changes and how to dial it back to `full` or `lite`
 
-**Plans**: TBD
+**Plans**: 1 plan
+Plans:
+
+- [x] 17-01-PLAN.md: directive rewrite of all 13 rule files, JOURNAL.md handoff header, caveman ultra default, gap-review rules, project stub, rule-files consistency test
 
 **UI hint**: no
 
@@ -501,4 +504,4 @@ v1.8.0 build order: 15 and 17 have no shared files and can run in parallel — P
 | 14. goodvibes update with Manifest | 5/5 | Complete    | 2026-07-27 |
 | 15. Journal-Gate Hook & context7 MCP | 6/6 | Complete    | 2026-09-24 |
 | 16. goodvibes update JSON-Aware Merge | 1/1 | Complete    | 2026-09-24 |
-| 17. Cross-Tool Governance & Directive Wording | 0/TBD | Not started | - |
+| 17. Cross-Tool Governance & Directive Wording | 1/1 | Complete    | 2026-09-24 |

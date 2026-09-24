@@ -15,10 +15,12 @@
 
 ### Cross-Agent Handoff & Binding Wording
 
-- [ ] **AGENT-01**: `JOURNAL.md`, `CLAUDE.md`, and `AGENTS.md` instruct any agent picking up the project to read prior `JOURNAL.md` entries before acting and treat them as binding, not advisory
-- [ ] **AGENT-02**: `CLAUDE.md` gains a rule: never ask the user for information already answered in README.md, CLAUDE.md, AGENTS.md, JOURNAL.md, or the codebase itself — with that source list enumerated in the rule text
-- [ ] **AGENT-03**: `CLAUDE.md`, `AGENTS.md`, and all per-IDE rule files use directive, non-optional language throughout (no "should"/"consider"/"try to")
-- [ ] **AGENT-04**: `.github/copilot-instructions.md` is documented as the authoritative rule file for GitHub Copilot (Copilot ranks it above `AGENTS.md`); `AGENTS.md` is documented as the cross-tool fallback, not a universal guarantee
+- [x] **AGENT-01**: `JOURNAL.md`, `CLAUDE.md`, and `AGENTS.md` instruct any agent picking up the project to read prior `JOURNAL.md` entries before acting and treat them as binding, not advisory
+- [x] **AGENT-02**: `CLAUDE.md` gains a rule: never ask the user for information already answered in README.md, CLAUDE.md, AGENTS.md, JOURNAL.md, or the codebase itself — with that source list enumerated in the rule text
+- [x] **AGENT-03**: `CLAUDE.md`, `AGENTS.md`, and all per-IDE rule files use directive, non-optional language throughout (no "should"/"consider"/"try to")
+- [x] **AGENT-04**: `.github/copilot-instructions.md` is documented as the authoritative rule file for GitHub Copilot (Copilot ranks it above `AGENTS.md`); `AGENTS.md` is documented as the cross-tool fallback, not a universal guarantee
+- [x] **AGENT-05**: Gap-review rules 6, 10, 11, 13, 14 in directive form across CLAUDE.md, AGENTS.md and per-IDE files: dependency discipline, never state a guess as fact, security review questions, branch hygiene, measure before optimizing; CLAUDE.md goodvibes block does not grow in lines
+- [x] **AGENT-06**: Fresh CLAUDE.md ships a "What this is / Core value / Constraints" project stub outside the goodvibes block (gap-review rule 15)
 
 ### context7 MCP
 
@@ -28,8 +30,8 @@
 
 ### Caveman Default
 
-- [ ] **CAVE-01**: `caveman` skill's default intensity changes from `full` to `ultra`, still user-overridable via `/caveman lite|full|ultra`
-- [ ] **CAVE-02**: Onboarding docs add a note explaining what `ultra` does and how to dial it back if output gets too terse/jargon-heavy
+- [x] **CAVE-01**: `caveman` skill's default intensity changes from `full` to `ultra`, still user-overridable via `/caveman lite|full|ultra`
+- [x] **CAVE-02**: Onboarding docs add a note explaining what `ultra` does and how to dial it back if output gets too terse/jargon-heavy
 
 ### Update Command
 
@@ -118,13 +120,15 @@ All prior requirements from v1.0–v1.1.0 are validated. See ROADMAP.md phases 0
 | HOOK-02 | Phase 15 | Complete |
 | HOOK-03 | Phase 15 | Complete |
 | HOOK-04 | Phase 15 | Complete |
-| AGENT-01 | Phase 17 | Planned |
-| AGENT-02 | Phase 17 | Planned |
-| AGENT-03 | Phase 17 | Planned |
-| AGENT-04 | Phase 17 | Planned |
+| AGENT-01 | Phase 17 | Complete |
+| AGENT-02 | Phase 17 | Complete |
+| AGENT-03 | Phase 17 | Complete |
+| AGENT-04 | Phase 17 | Complete |
+| AGENT-05 | Phase 17 | Complete |
+| AGENT-06 | Phase 17 | Complete |
 | CTX7-01 | Phase 15 | Complete |
 | CTX7-02 | Phase 15 | Complete |
 | CTX7-03 | Phase 15 | Complete |
-| CAVE-01 | Phase 17 | Planned |
-| CAVE-02 | Phase 17 | Planned |
+| CAVE-01 | Phase 17 | Complete |
+| CAVE-02 | Phase 17 | Complete |
 | UPD-07 | Phase 16 | Complete |

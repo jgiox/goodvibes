@@ -26,6 +26,18 @@ Run `goodvibes doctor` to verify everything is working. It checks that headroom 
 | `goodvibes doctor` | Check that headroom, git, and rules are all working |
 | `goodvibes upgrade --dry-run` | Preview what `goodvibes update` would change |
 
+## Why Claude's replies are so short (caveman)
+
+goodvibes turns on the caveman skill at its strongest setting, `ultra`, so Claude's replies use far fewer tokens and your context lasts longer. In `ultra`, Claude drops filler words, uses short forms such as "DB", "auth" and "fn" in its explanations, and writes arrows for cause and effect ("token expired → 401"). Code, file names, commands and error messages are never shortened.
+
+If the replies are too terse to follow, type one of these in Claude Code:
+
+- `/caveman full`: short sentences, no abbreviations.
+- `/caveman lite`: normal full sentences, just no filler.
+- `stop caveman` (or `normal mode`): turns it off for the rest of the session.
+
+This only affects Claude Code. Other tools use their own reply style.
+
 ## What is headroom?
 
 headroom compresses the AI's memory of your project so you spend fewer tokens per session. It runs automatically in the background when Claude Code is active — you do not need to invoke it manually.

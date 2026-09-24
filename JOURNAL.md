@@ -1335,3 +1335,17 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 **Tests run:** copy-templates integration 56 passed.
 
 **Docs updated:** README.md, CHANGELOG.md, JOURNAL.md.
+
+---
+
+## 2026-09-24 · Phase 17: directive wording, cross-agent handoff, caveman ultra
+
+**What I did:** Rewrote templates/CLAUDE.md, AGENTS.md and its six identical copies, copilot-instructions.md, the Cursor and Kiro files, replit.md and .bolt/prompt in must/never language, each opening with a session-start block (read JOURNAL.md first and treat it as binding; never re-ask what README/CLAUDE/AGENTS/JOURNAL or the code answers; never state a guess as fact). Added gap-review rules 6, 10, 11, 13, 14. Copilot's file claims authority; AGENTS.md calls itself the fallback, not a guarantee. JOURNAL.md template is now a binding handoff record with fields matching the Journal rule. caveman defaults to ultra (marked as a goodvibes change; MIT upstream). A fresh CLAUDE.md starts with a project stub outside the goodvibes block. Added `rule-files.test.ts` as the grep-based consistency check.
+
+**Files changed:** templates/CLAUDE.md, templates/AGENTS.md, templates/.windsurfrules, templates/GEMINI.md, templates/.clinerules/goodvibes.md, templates/.amazonq/rules/goodvibes.md, templates/.continue/rules/goodvibes.md, templates/.devin/rules/goodvibes.md, templates/.github/copilot-instructions.md, templates/.cursor/rules/goodvibes.mdc, templates/.kiro/steering/goodvibes.md, templates/replit.md, templates/.bolt/prompt, templates/JOURNAL.md, templates/.claude/skills/caveman/SKILL.md, templates/.claude/skills/caveman/README.md, docs/getting-started.md, templates/docs/getting-started.md, packages/npm/src/steps/rule-files.test.ts (new), README.md, CHANGELOG.md, .planning/ (REQUIREMENTS, ROADMAP, STATE, phase 17 dir), JOURNAL.md.
+
+**Why:** Phase 17 requirements AGENT-01..04, CAVE-01/02, plus AGENT-05/06 for the deferred gap-review rules. Budget: goodvibes block 159 → 151 lines, +0.5% characters.
+
+**Tests run:** npm vitest 246 passed, 1 skipped, 2 todo; pip pytest 206 passed; verify-phase3/4/5 pass; verify-phase1/2 fail identically before and after (stale v1.0 checks, not in CI). Built CLI fresh init: stub present, JOURNAL.md and AGENTS.md carry the binding wording.
+
+**Docs updated:** getting-started (both copies), README.md, CHANGELOG.md, JOURNAL.md.
