@@ -1648,3 +1648,4 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 - RED: headroom install timeout 15 min with a heads-up; MCP registered with '-- <path> mcp serve', broken entries repaired, first line of where (items 7, 8).
 - GREEN: install commands get a 15-minute timeout (probes stay 10 s); MCP add passes '-- <path> mcp serve', 'claude mcp get' detects and repairs old entries; first non-empty line of where (items 7, 8).
 - RED: broken .goodvibes.json is an error (update/doctor exit 1); backslash manifest keys normalised (items 9, 11).
+- GREEN: parseManifest() throws '<path> is not valid JSON (...)'; update and doctor report it and exit 1 (doctor --quick prints it, exits 0); manifest keys forward-slash on read and write (items 9, 11). Existing doctor/update unit mocks adjusted to return a valid manifest / posixKey.

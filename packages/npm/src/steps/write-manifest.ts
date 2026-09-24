@@ -11,6 +11,11 @@ export interface Manifest {
 
 export const MANIFEST_PATH = '.goodvibes.json'
 
+// Manifest keys are always forward-slash so a manifest written on Windows matches on every OS.
+export const posixKey = (rel: string): string => rel.replace(/\\/g, '/')
+const posixKeys = <T>(record: Record<string, T> = {}): Record<string, T> =>
+  Object.fromEntries(Object.entries(record).map(([k, v]) => [posixKey(k), v]))
+
 export async function writeManifest(
   destDir: string,
   writtenFiles: string[],
@@ -21,23 +26,38 @@ export async function writeManifest(
 ): Promise<void> {
   // Preserved hashes come only from the prior manifest, never re-read from dest,
   // so a skipped (user-modified) file can't be silently reclassified as unmodified.
-  const files: Record<string, string> = { ...preserved }
+  const files: Record<string, string> = posixKeys(preserved)
   for (const rel of writtenFiles) {
     const content = await readFile(join(destDir, rel), 'utf-8')
-    files[rel] = createHash('sha256').update(content, 'utf8').digest('hex')
+    files[posixKey(rel)] = createHash('sha256').update(content, 'utf8').digest('hex')
   }
-  const manifest: Manifest = { version, files, ...(managed ? { managed } : {}), ...(scope ? { scope } : {}) }
+  const manifest: Manifest = { version, files, ...(managed ? { managed: posixKeys(managed) } : {}), ...(scope ? { scope } : {}) }
   await writeFile(join(destDir, MANIFEST_PATH), JSON.stringify(manifest, null, 2) + '\n', 'utf-8')
 }
 
-export async function readManifest(destDir: string): Promise<Manifest | null> {
+// Throws an actionable error for a manifest that exists but cannot be used; guessing would lose tracking.
+export function parseManifest(raw: string, path: string): Manifest {
+  let data: unknown
   try {
-    const raw = await readFile(join(destDir, MANIFEST_PATH), 'utf-8')
-    return JSON.parse(raw) as Manifest
+    data = JSON.parse(raw)
   } catch (e) {
-    const err = e as NodeJS.ErrnoException
-    if (err.code === 'ENOENT') return null
-    if (e instanceof SyntaxError) return null // JSON.parse failure
+    throw new Error(`${path} is not valid JSON (${(e as Error).message}); fix it or delete it and run goodvibes init`)
+  }
+  const m = data as Manifest
+  if (!m || typeof m !== 'object' || Array.isArray(m) || (m.files !== undefined && (typeof m.files !== 'object' || Array.isArray(m.files)))) {
+    throw new Error(`${path} is not valid JSON (not a JSON object); fix it or delete it and run goodvibes init`)
+  }
+  return { ...m, files: posixKeys(m.files), ...(m.managed ? { managed: posixKeys(m.managed) } : {}) }
+}
+
+export async function readManifest(destDir: string): Promise<Manifest | null> {
+  const path = join(destDir, MANIFEST_PATH)
+  let raw: string
+  try {
+    raw = await readFile(path, 'utf-8')
+  } catch (e) {
+    if ((e as NodeJS.ErrnoException).code === 'ENOENT') return null
     throw e
   }
+  return parseManifest(raw, path)
 }

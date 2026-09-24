@@ -17,6 +17,7 @@ vi.mock('../steps/copy-templates.js', () => ({
 vi.mock('../steps/write-manifest.js', () => ({
   writeManifest: vi.fn().mockResolvedValue(undefined),
   readManifest: vi.fn().mockResolvedValue(null),
+  posixKey: (rel: string) => rel.replace(/\\/g, '/'),
 }))
 
 vi.mock('../utils/sentinel-merge.js', () => ({

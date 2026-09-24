@@ -16,6 +16,10 @@ vi.mock('node:fs', () => ({
 
 vi.mock('../utils/version.js', () => ({ packageVersion: () => '1.6.2' }))
 
+// existsSync is true for every path in some tests, so .goodvibes.json must read as a real manifest there.
+const withManifest = (claudeMd: string) => (p: unknown) =>
+  String(p).endsWith('.goodvibes.json') ? '{"version":"1.0.0","files":{}}' : claudeMd
+
 describe('doctor command', () => {
   beforeEach(() => {
     vi.resetAllMocks()
@@ -179,7 +183,7 @@ describe('doctor command', () => {
 
       const { existsSync, readFileSync } = await import('node:fs')
       vi.mocked(existsSync).mockReturnValue(true) // CLAUDE.md present
-      vi.mocked(readFileSync).mockReturnValue('# Some content without sentinel') // no sentinel
+      vi.mocked(readFileSync).mockImplementation(withManifest('# Some content without sentinel')) // no sentinel
 
       const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never)
       const { note } = await import('@clack/prompts')
@@ -208,9 +212,7 @@ describe('doctor command', () => {
 
       const { existsSync, readFileSync } = await import('node:fs')
       vi.mocked(existsSync).mockReturnValue(true)
-      vi.mocked(readFileSync).mockReturnValue(
-        '<!-- goodvibes:start -->\ncontent\n<!-- goodvibes:end -->'
-      )
+      vi.mocked(readFileSync).mockImplementation(withManifest('<!-- goodvibes:start -->\ncontent\n<!-- goodvibes:end -->'))
 
       const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never)
       const { outro } = await import('@clack/prompts')
@@ -300,9 +302,7 @@ describe('doctor command', () => {
 
       const { existsSync, readFileSync } = await import('node:fs')
       vi.mocked(existsSync).mockReturnValue(true)
-      vi.mocked(readFileSync).mockReturnValue(
-        '<!-- goodvibes:start -->\ncontent\n<!-- goodvibes:end -->'
-      )
+      vi.mocked(readFileSync).mockImplementation(withManifest('<!-- goodvibes:start -->\ncontent\n<!-- goodvibes:end -->'))
 
       const { note } = await import('@clack/prompts')
 
@@ -345,7 +345,7 @@ describe('doctor command', () => {
       vi.mocked(execa).mockResolvedValue({ stdout: 'value' } as any)
       const { existsSync, readFileSync } = await import('node:fs')
       vi.mocked(existsSync).mockReturnValue(true)
-      vi.mocked(readFileSync).mockReturnValue('<!-- goodvibes:start -->\nx\n<!-- goodvibes:end -->')
+      vi.mocked(readFileSync).mockImplementation(withManifest('<!-- goodvibes:start -->\nx\n<!-- goodvibes:end -->'))
 
       const { logs, exitSpy } = await runQuick()
 

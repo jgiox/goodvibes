@@ -1,7 +1,7 @@
 import type { Command } from 'commander'
 import { intro, outro, note, confirm, isCancel, cancel } from '@clack/prompts'
 import { listTemplateFiles, resolveTemplatesDir } from '../steps/copy-templates.js'
-import { readManifest, writeManifest } from '../steps/write-manifest.js'
+import { readManifest, writeManifest, posixKey, type Manifest } from '../steps/write-manifest.js'
 import { mergeClaude } from '../utils/sentinel-merge.js'
 import { MANAGED_JSON, mergeManagedJson, managedRecord } from '../utils/json-merge.js'
 import { applyGlobalConfig, claudeConfigDir, formatGlobal } from '../steps/global-setup.js'
@@ -63,7 +63,7 @@ async function categorise(
   }
 
   // Second pass: template files absent from manifest are net-new
-  const allTemplateFiles = await listTemplateFiles(templateDir)
+  const allTemplateFiles = (await listTemplateFiles(templateDir)).map(posixKey)
   for (const templateFile of allTemplateFiles) {
     if (templateFile === '.goodvibes.json') continue
     const isVariant = ciVariants.some(v => templateFile.endsWith(v))
@@ -98,8 +98,15 @@ export function registerUpdateCommand(program: Command): void {
 export async function runUpdate(dryRun: boolean, force: boolean): Promise<void> {
   const cwd = process.cwd()
 
-  const manifest = await readManifest(cwd)
-  const globalManifest = await readManifest(claudeConfigDir())
+  let manifest: Manifest | null
+  let globalManifest: Manifest | null
+  try {
+    manifest = await readManifest(cwd)
+    globalManifest = await readManifest(claudeConfigDir())
+  } catch (e) {
+    cancel((e as Error).message)
+    process.exit(1)
+  }
   if (!manifest && !globalManifest) {
     note(
       "No .goodvibes.json in this folder or in your Claude Code settings, so goodvibes is not set up here yet.\n" +
