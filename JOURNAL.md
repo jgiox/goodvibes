@@ -1623,3 +1623,20 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 **Tests run:** RED: pip upgrade tests 3 failed, 11 passed. GREEN: pip pytest 242 passed. Sandbox: a uv-made venv without pip holding goodvibes 1.9.0 went to 1.9.1 through `_self_update_pip("1.9.1")` from this branch, with no uv tool created.
 
 **Docs updated:** JOURNAL.md.
+
+---
+
+## 2026-09-24 · npm CLI: fix 15 verified bugs (symlinks, manifest, markers, hooks, update order, headroom, Windows, Node gate)
+
+**What I did:** Fixing the verified-bug list in `packages/npm/src/` item by item, each as a RED test commit followed by a GREEN fix commit. The pip package gets the same list from a second worker.
+
+**Files changed:** packages/npm/** (source, tests, package.json, tsup config), JOURNAL.md.
+
+**Why:** Verified bugs: writes through symlinks, init wiping the manifest, CLAUDE.md marker handling losing text, hook merge deleting user hooks, update touching ~/.claude before its prompt, update re-adding removed files, headroom install killed after 10 s, headroom MCP registered without arguments, Windows manifest keys, pre-release version comparison, broken manifest treated as missing, upgrade on Windows, Node 20 crash on import, DO_NOT_TRACK values, non-atomic JSON writes.
+
+**Tests run:** vitest per item (RED then GREEN); full `npm run prebuild && npm run typecheck && npm run build && npx vitest run` at the end.
+
+**Docs updated:** JOURNAL.md.
+
+**Commits:**
+- RED: version comparison with pre-releases and strict CLAUDE.md marker lines (items 3, 10).
