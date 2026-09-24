@@ -10,10 +10,9 @@ TELEMETRY_URL = os.environ.get(
 )
 
 
-def _opt_out() -> bool:
+def opted_out() -> bool:
     return (
-        os.environ.get("DO_NOT_TRACK") == "1"
-        or os.environ.get("GOODVIBES_NO_TELEMETRY") == "1"
+        any(os.environ.get(v, "").strip().lower() in ("1", "true", "yes") for v in ("DO_NOT_TRACK", "GOODVIBES_NO_TELEMETRY"))
         or os.environ.get("CI") == "true"
     )
 
@@ -31,7 +30,7 @@ def _fire(request_id: str) -> None:
 
 
 def start_telemetry_thread() -> threading.Thread | None:
-    if _opt_out():
+    if opted_out():
         return None
     request_id = str(_uuid.uuid4())
     t = threading.Thread(target=_fire, args=(request_id,), daemon=True)

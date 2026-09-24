@@ -1642,3 +1642,4 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 - item 10 RED: version_gte / extract_version tests for rc, post and trailing-dot versions (5 failed).
 - item 10 GREEN: version_gte parses release + pre-release (a/b/rc, -rc.N, -beta.N) + .postN and returns False on unparseable input; extract_version keeps pre-release tags, drops a trailing dot (247 passed).
 - item 15 RED: DO_NOT_TRACK / GOODVIBES_NO_TELEMETRY = true/yes (any case) must opt out, in telemetry and the init privacy panel (9 failed).
+- item 15 GREEN: telemetry.opted_out() accepts 1/true/yes in any case for DO_NOT_TRACK and GOODVIBES_NO_TELEMETRY; init's privacy panel reuses it (258 passed).

@@ -1,6 +1,5 @@
 """goodvibes init command — port of init.ts."""
 import importlib.metadata
-import os
 import pathlib
 from typing import Annotated
 
@@ -11,7 +10,7 @@ from rich.panel import Panel
 from goodvibes_cli.steps.configure_mcp import configure_mcp
 from goodvibes_cli.steps.copy_templates import copy_templates, list_template_files, resolve_templates_dir
 from goodvibes_cli.steps.install_headroom import install_headroom
-from goodvibes_cli.steps.telemetry import start_telemetry_thread
+from goodvibes_cli.steps.telemetry import opted_out, start_telemetry_thread
 from goodvibes_cli.steps.write_manifest import write_manifest
 from goodvibes_cli.utils.detect_project_type import detect_project_type
 from goodvibes_cli.utils.json_merge import managed_record
@@ -67,12 +66,7 @@ def init_cmd(
 
     console.rule("[bold]goodvibes init[/bold]")
 
-    _opted_out = (
-        os.environ.get("DO_NOT_TRACK") == "1"
-        or os.environ.get("GOODVIBES_NO_TELEMETRY") == "1"
-        or os.environ.get("CI") == "true"
-    )
-    if not _opted_out:
+    if not opted_out():
         console.print(Panel(
             "Anonymous usage stats are collected. Set DO_NOT_TRACK=1 to opt out.",
             title="Privacy",
