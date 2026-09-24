@@ -29,6 +29,7 @@ function formatHeadroomStatus(hr: HeadroomResult | undefined, mr: McpResult | un
   if (mr) {
     const mcp = ({
       'registered':         'MCP: registered',
+      'repaired':           'MCP: repaired (was missing "mcp serve")',
       'already-registered': 'MCP: already configured',
       'skipped':            `MCP: skipped (${mr.status === 'skipped' ? mr.reason : ''})`,
       'failed':             `MCP: failed (${mr.status === 'failed' ? mr.reason : ''})`,
@@ -141,6 +142,7 @@ export function registerInitCommand(program: Command): void {
         }
         const mcpLabels: Record<McpResult['status'], string> = {
           'registered':         'MCP server registered',
+          'repaired':           'MCP server entry repaired',
           'already-registered': 'MCP server already configured',
           'skipped':            'MCP registration skipped',
           'failed':             'MCP registration failed — see note below',
