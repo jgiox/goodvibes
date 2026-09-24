@@ -773,16 +773,263 @@ line count (105 < 120), and migration command presence with grep.
 
 ---
 
-## 2026-09-24 · Phase 15: journal-gate hook and context7 MCP
+## 2026-09-05 — Phase 15 Plan 01: journal-gate PreToolUse hook (HOOK-01/02/03)
 
-**What I did:** Added a `PreToolUse` hook to `templates/.claude/settings.json` (matcher `Bash`, `if: "Bash(git commit*)"`, one inline POSIX `sh` command) that blocks Claude Code from running `git commit` unless `JOURNAL.md` is staged. It lets through `--amend`, in-progress merge/rebase, repos with no commits yet, and the bootstrap commit that adds `JOURNAL.md`; for `git add ... && git commit` and `git commit -a` it checks the working tree because the index is not updated yet when the hook fires. Added `templates/.mcp.json` with context7 at `https://mcp.context7.com/mcp` (HTTP, no key). Documented scope, trust prompt, opt-out, and the optional `${CONTEXT7_API_KEY}` upgrade in onboarding and README.
+**What I did:** Shipped a `PreToolUse` hook (matcher: `Bash`) as an inline shell command in `templates/.claude/settings.json` that blocks Claude Code's Bash tool from running `git commit` unless `JOURNAL.md` is staged. Exempts `--amend`, in-progress merge/rebase, and any commit where `JOURNAL.md` is already staged. On block, stderr is the exact, copy-pasteable fix: `BLOCKED: JOURNAL.md not staged. Update JOURNAL.md, then: git add JOURNAL.md`. Generated the hook's shell string via a JSON round-trip (write → parse → embed) rather than hand-typing the escaped quotes, per RESEARCH.md's anti-pattern warning. Dogfooded the identical hook into the repo's own root `.claude/settings.json`, merged alongside its existing narrower `permissions.allow` list (D-01) — verified byte-for-byte that only the new `hooks` key was added, no reformatting of the pre-existing `permissions` block. TDD: wrote 9-scenario real-subprocess integration tests first (RED, both packages failed with missing-`hooks`-key errors), then implemented the hook (GREEN, all 18 tests across both packages pass).
 
-**Files changed:** templates/.claude/settings.json, templates/.mcp.json (new), templates/docs/onboarding.md, packages/npm/src/journal-gate.integration.test.ts (new), packages/npm/src/steps/copy-templates.integration.test.ts, README.md, CHANGELOG.md, .planning/ (phase 15 plan, summary, verification; roadmap, requirements, state).
+**Files changed:** templates/.claude/settings.json, .claude/settings.json, packages/npm/src/steps/journal-gate-hook.integration.test.ts (new), packages/pip/tests/test_journal_gate_hook.py (new). packages/npm/templates/.claude/settings.json regenerated via `npm run prebuild` (gitignored artifact, not committed).
 
-**Why:** v1.8.0 goal: turn the "update JOURNAL.md every task" rule from advice into a check Claude Code cannot skip, and give the agent a docs lookup path. HOOK-01 requires inline shell: no `jq`, no Node, no script file whose exec bit could be lost in the wheel.
+**Why:** Operationalizes the existing "update JOURNAL.md every task" CLAUDE.md rule mechanically instead of trusting the agent to remember — v1.8.0 Agent Governance milestone, Phase 15.
 
-**What I learned:** If an older Claude Code ignored the `if` field, the hook would run on every Bash call; the `-a` flag regex matched `ls -la` and blocked it. Added an in-command `git commit` guard and a test for it. Also, in an untrusted workspace `claude -p` ignored `permissions.allow` but still ran the hook.
+**Tests run:** npm: 154 passed, 1 skipped, 2 todo (full suite). pip: 162 passed (full suite). Both include the new 9-scenario journal-gate-hook integration test file.
 
-**Tests run:** npm vitest 167 passed, 1 skipped, 2 todo (20 new journal-gate tests, 2 new copy-templates tests); pip pytest 153 passed; verify-phase5 --quick 10/10; `npm run build` ok; wheel and `npm pack --dry-run` both contain `.mcp.json` and the hooked settings. Live `claude -p` in a temp repo: commit blocked without journal, commit succeeded with `git add JOURNAL.md && git commit`.
+**Docs updated:** JOURNAL.md.
 
-**Docs updated:** templates/docs/onboarding.md, README.md, CHANGELOG.md, JOURNAL.md.
+---
+
+## 2026-09-05 — Phase 15 Plan 02: context7 MCP template (CTX7-01)
+
+**What I did:** Added `templates/.mcp.json` wiring the `context7` MCP server at its free/public HTTP endpoint (`https://mcp.context7.com/mcp`, `type: "http"`, no key, no headers). Dogfooded the identical file into the repo root `.mcp.json`. Wrote shape-assertion unit tests (`JSON.parse` + assert `type`/`url`/absence of `headers`) in both packages via TDD RED/GREEN.
+
+**Files changed:** templates/.mcp.json (new), .mcp.json (new), packages/npm/src/steps/mcp-json.test.ts (new), packages/pip/tests/test_mcp_json.py (new).
+
+**Why:** CTX7-01 — ship context7 with zero signup/config, matching the project's zero-config constraint.
+
+**Tests run:** New unit tests pass in both packages (folded into full-suite runs recorded for Plan 03 below).
+
+**Docs updated:** None (docs land in Plan 03).
+
+---
+
+## 2026-09-05 — Phase 15 Plan 03: getting-started.md docs (HOOK-04, CTX7-02, CTX7-03)
+
+**What I did:** Added "About the journal-gate hook" (states the hook only gates commits run through Claude Code's own Bash tool — not manual `git commit`, not other agents/IDEs) and "What is context7?" (covers the optional `${CONTEXT7_API_KEY}` upgrade path with the exact JSON snippet, and the one-time "trust this project's MCP servers" prompt) sections to `docs/getting-started.md` and `templates/docs/getting-started.md`.
+
+**Files changed:** docs/getting-started.md, templates/docs/getting-started.md, packages/npm/templates/docs/getting-started.md (regenerated via prebuild).
+
+**Why:** HOOK-04 and CTX7-02/CTX7-03 — accurate scoping claims and an escape hatch for the free-tier rate limit, without breaking the no-signup promise at `init` time.
+
+**Tests run:** npm: full suite green. pip: full suite green (post-merge gate, see below).
+
+**Docs updated:** docs/getting-started.md, templates/docs/getting-started.md.
+
+---
+
+## 2026-09-05 — Phase 15 close-out: worktree merge, post-merge gate, code review
+
+**What I did:** Merged all 3 phase-15 worktree branches into `main` (manual `git merge --no-ff`, the `worktree.cleanup-wave` SDK helper repeatedly failed on a stray untracked `15-01-SUMMARY.md` it was leaving behind mid-merge). Resolved one real merge conflict in `.planning/REQUIREMENTS.md` (union of two branches' independently-true checkbox edits, all 7 REQ-IDs marked complete). Ran the post-merge build/test gate at the package level (no root-level manifest in this monorepo): `npm test` and `uv run pytest tests/`, both green. Ran the required `code_review_gate` (`gsd-code-reviewer`, standard depth, 11 files) — see `15-REVIEW.md`.
+
+**Code review found 3 Critical issues, verified by executing the shipped hook command directly, not just reading the existing tests:**
+- The hook's `--amend` exemption and "is this a commit" detection are both raw substring/regex matches on the unparsed command line. A commit *message* containing the word `--amend` bypasses the JOURNAL.md gate entirely; a read-only command like `git log --grep="git commit"` is misdetected as a commit and incorrectly blocked. Both reproduced against the actual shipped `templates/.claude/settings.json` command.
+- The repo-root `.claude/settings.json` grants unconditional `Bash(rm -rf *)` and hardcodes one developer's absolute home path — a real least-privilege violation for every future contributor, tracked in git. **Correction (caught by verify_phase_goal below):** this predates Phase 15 (introduced in `a46c114`, 2026-06-24) and was not modified by this phase's tasks — the code review mischaracterized it as newly-committed.
+
+None of these were caught by the 20 existing tests (10 vitest + 10 pytest), which only exercise the scenarios the plan anticipated, not adversarial input. Filed as follow-up gap-closure work rather than fixed inline, since the review step is advisory-only per the execute-phase workflow and the fixes touch hook logic that needs its own test-first pass.
+
+**Files changed:** .planning/REQUIREMENTS.md (conflict resolution), .planning/phases/15-journal-gate-hook-context7-mcp/15-REVIEW.md (new), JOURNAL.md.
+
+**Why:** Standard phase close-out per execute-phase.md; the code review step is required and non-skippable regardless of severity found.
+
+**Tests run:** npm full suite (post-merge), pip full suite (post-merge) — both green. Code review is manual/adversarial, not a test run.
+
+**Docs updated:** JOURNAL.md, 15-REVIEW.md.
+
+---
+
+## 2026-09-05 — Phase 15 verify_phase_goal: gaps_found, phase NOT complete
+
+**What I did:** Ran the required `verify_phase_goal` gate (`gsd-verifier`). It independently reproduced the code review's CR-01/CR-02 hook bugs by extracting the live command from `templates/.claude/settings.json` and piping adversarial payloads through it directly (not just reading tests): a non-amend commit message containing the text "--amend" bypasses the JOURNAL.md gate (exit 0, should be exit 2), and a read-only command like `git log --grep="git commit"` is misidentified as a commit and incorrectly blocked (exit 2, should be exit 0). Score: 6/8 must-haves — CTX7-01 and all three docs truths (HOOK-04, CTX7-02, CTX7-03) verified clean; HOOK-01/HOOK-02 marked BLOCKED/PARTIAL because the hook does not reliably do what it claims under realistic input. The verifier also corrected the code review's CR-03 characterization: the `rm -rf *` grant in `.claude/settings.json` predates this phase (commit `a46c114`, 2026-06-24) and was not touched by Phase 15's tasks — downgraded from this phase's blocker list to a pre-existing warning for separate cleanup.
+
+Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` completion marks that an earlier tracking-update call in this session had set ahead of verification — Phase 15's roadmap checkbox reverted to `[ ]` with a "gaps found" note, and `STATE.md` status changed from stale `executing` to `gaps_found`, pointing at `/gsd-plan-phase 15 --gaps` as next step.
+
+**Files changed:** .planning/phases/15-journal-gate-hook-context7-mcp/15-VERIFICATION.md (new), .planning/ROADMAP.md, .planning/STATE.md, JOURNAL.md.
+
+**Why:** `verify_phase_goal` checks goal achievement against the actual codebase, not just task completion — the phase's own tests didn't cover the adversarial cases that break its core guardrail.
+
+**Tests run:** Verifier's spot-checks (see 15-VERIFICATION.md Behavioral Spot-Checks table) — 2 of 6 checked behaviors failed. Existing 20-test suite (10 vitest + 10 pytest) still green but does not cover the failing cases.
+
+**Docs updated:** 15-VERIFICATION.md, ROADMAP.md, STATE.md, JOURNAL.md. Phase 15 is NOT complete — gap closure required before advancing to Phase 16.
+
+---
+
+## 2026-09-06 — Phase 15-04 Task 1: adversarial regression tests (RED)
+
+**What I did:** Added 3 new adversarial test cases to each of `journal-gate-hook.integration.test.ts` (npm) and `test_journal_gate_hook.py` (pip), closing the gaps recorded in `15-VERIFICATION.md`/`15-REVIEW.md` (CR-01, CR-02) plus an untested single-quote variant: Test A (double-quoted commit message containing the literal text "--amend" must still be blocked), Test B (a non-commit `git log --grep="...git commit..."` must not be blocked), Test C (single-quoted variant of Test A). Confirmed RED against the current, unfixed hook: exactly 3 failing / 9 passing in both suites, matching each test's documented expected failure reason. No mocking added (verified via grep for `vi.mock`/`mocker.patch`). The fix itself (Task 2) is a separate commit.
+
+**Files changed:** packages/npm/src/steps/journal-gate-hook.integration.test.ts, packages/pip/tests/test_journal_gate_hook.py.
+
+**Why:** Executing gap-closure plan 15-04 per CLAUDE.md's regression-test discipline — failing test committed before the fix.
+
+**Tests run:** `cd packages/npm && npx vitest run src/steps/journal-gate-hook.integration.test.ts` → 3 failed, 9 passed (expected RED). `cd packages/pip && uv run pytest tests/test_journal_gate_hook.py --maxfail=0` → 3 failed, 9 passed (expected RED).
+
+**Docs updated:** JOURNAL.md.
+
+---
+
+## 2026-09-06 — Phase 15-04 Task 2: strip quoted spans before matching (GREEN)
+
+**What I did:** Applied the pre-verified fix to `hooks.PreToolUse[0].hooks[0].command` in both `templates/.claude/settings.json` and `.claude/settings.json` via a `node -e` JSON parse/stringify round-trip (no hand-editing of the escaped string). The fix inserts an `UNQUOTED` variable that strips backslash-escaped double-quoted spans and plain single-quoted spans out of the extracted command text before the `--amend` and `git ... commit` regex checks run. Regenerated the gitignored npm prebuild mirror (`packages/npm/templates/.claude/settings.json`). Confirmed both settings.json files parse as valid JSON, `hooks` blocks remain byte-identical between `templates/` and repo-root, and `.claude/settings.json`'s `permissions.allow` 3 entries are untouched.
+
+**Files changed:** templates/.claude/settings.json, .claude/settings.json, packages/npm/templates/.claude/settings.json (prebuild-generated), JOURNAL.md.
+
+**Why:** Closes HOOK-01/HOOK-02 per gap-closure plan 15-04-PLAN.md Task 2 — makes the RED tests from Task 1 pass without touching any other line of the hook logic.
+
+**Tests run:** `cd packages/npm && npx vitest run src/steps/journal-gate-hook.integration.test.ts` → 12 passed (12). `cd packages/pip && uv run pytest tests/test_journal_gate_hook.py --maxfail=0` → 12 passed (12). Manually reproduced CR-01, CR-02, and the single-quote variant against the live extracted command in a fresh temp git repo — all three now resolve to the plan-specified exit code.
+
+**Docs updated:** JOURNAL.md.
+
+---
+
+## 2026-09-06 — Phase 15-04 gap-closure plan complete
+
+**What I did:** Closed the HOOK-01/HOOK-02 verification gap (CR-01, CR-02, WR-03) with plan `15-04-PLAN.md`, executed directly (the environment's Agent-tool permission classifier blocked both worktree-isolated and plain sequential `gsd-executor` subagent spawns for this plan, so I ran its tasks myself per the user's explicit go-ahead). Wrote `15-04-SUMMARY.md` documenting both task commits, decisions, and the one out-of-scope issue encountered (`uv.lock` version drift, reverted).
+
+**Files changed:** .planning/phases/15-journal-gate-hook-context7-mcp/15-04-SUMMARY.md (new), JOURNAL.md.
+
+**Why:** Plan close-out per execute-plan.md's summary-creation step.
+
+**Tests run:** Full regression suites re-confirmed green: npm 158/158 passed (1 skipped, 2 todo, pre-existing), pip 166/166 passed.
+
+**Docs updated:** 15-04-SUMMARY.md, JOURNAL.md.
+
+---
+
+## 2026-09-06 — Phase 15 code review (subagent)
+
+**What I did:** Ran `execute-phase.md`'s `code_review_gate` step per the user's "let the subagent do the job" instruction. `gsd-sdk query config-get workflow.code_review` confirmed the gate is enabled. Computed file scope via the SUMMARY.md tier across all 4 phase plans (10 files: journal-gate hook + tests, context7 `.mcp.json` + tests, `docs/getting-started.md` and its two template copies). Spawned `gsd-code-reviewer` (real subagent, no classifier block this time) at standard depth. It found 1 Critical (CR-01: the hook's `git rev-parse --git-dir`/`git diff --cached` checks always run against the hook's own cwd, ignoring `-C <path>` in the intercepted command — confirmed exploitable as both a bypass and a false-block via live reproduction against two temp repos), 5 Warnings (no parity check between the 3 duplicated hook-string copies, the hook being an unreadable triple-escaped one-liner, `.claude/settings.json`'s unrestricted `Bash(rm -rf *)` allow plus a hardcoded personal path, `getting-started.md` conflating `update`/`upgrade` subcommands, a stale RED-phase comment in the npm test file), and 1 Info (text-pattern commit matching is inherently spoofable by aliases).
+
+**Files changed:** .planning/phases/15-journal-gate-hook-context7-mcp/15-REVIEW.md (regenerated, superseding the prior plans-02/03 review), JOURNAL.md.
+
+**Why:** `code_review_gate` is a required, advisory-only step in `execute-phase.md` — runs regardless of prior verification status, never blocks phase completion.
+
+**Tests run:** None run by me this step; the reviewer subagent independently re-executed both integration suites (13/13 npm, 13/13 pip) and manually reproduced the CR-01 bypass/false-block against the live extracted hook command in fresh temp repos.
+
+**Docs updated:** 15-REVIEW.md, JOURNAL.md.
+
+---
+
+## 2026-09-06 — Phase 15 gap-closure plan 15-05: fix `-C` cross-repo hook bypass
+
+**What I did:** Ran `/gsd-plan-phase 15 --gaps` to close 15-VERIFICATION.md's sole BLOCKER gap (independently confirmed by 15-REVIEW.md CR-01): the journal-gate hook's `GITDIR`/merge-rebase/staged-file checks ignore a `-C <path>` argument in the intercepted command, causing both a bypass (unstaged target repo wrongly allowed) and a false block (staged target repo wrongly blocked). Spawned `gsd-planner`, which produced 15-05-PLAN.md choosing full `-C` support (a `TARGETDIR` extraction + `GIT()` wrapper) over the fail-closed alternative, since the mandated ALLOW scenario can't be satisfied by fail-closed alone. `gsd-plan-checker` then caught a real defect the planner missed: `git rev-parse --git-dir` returns a path relative to `-C`'s target, so the merge/rebase-in-progress exemption checks (plain `[ -f ... ]` tests, not routed through the `GIT()` wrapper) still silently read the hook's own cwd — reproduced empirically as a false block on a cross-repo merge-in-progress commit. Re-spawned `gsd-planner` with that feedback; it switched to `git rev-parse --absolute-git-dir` and added a third adversarial test (Test F) covering the cross-repo merge exemption, re-verifying all 15 scenarios (12 original + Test D/E/F) against real hand-built git repos before re-submitting. `gsd-plan-checker` re-verified independently (own execution, not trusting the planner's claim) and passed. Corrected `STATE.md`, which carried a stale, uncommitted "Phase 15 execution started, Plan 1 of 4" snapshot left over from an earlier, unrelated session.
+
+**Files changed:** `.planning/phases/15-journal-gate-hook-context7-mcp/15-05-PLAN.md` (new, then revised in place), `.planning/ROADMAP.md`, `.planning/STATE.md`, JOURNAL.md. No source files touched yet — this task only produced and verified the plan; execution (editing `templates/.claude/settings.json`, `.claude/settings.json`, the test suites) is the next step.
+
+**Why:** `-C` handling was an explicit named goal during Phase 15's original planning (15-CONTEXT.md, 15-01-PLAN.md Test 8) and its incomplete implementation is a BLOCKER per 15-VERIFICATION.md, not deferrable scope.
+
+**Tests run:** None yet against real source (plan-only task). The planner and checker each independently ran the plan's exact, JSON-escaped candidate command via `sh -c` against real hand-built temp git repos for all 15 scenarios during plan authoring/verification — not unit tests in the repo's own suites, which still reflect the unfixed hook until 15-05 executes.
+
+**Docs updated:** 15-05-PLAN.md, ROADMAP.md, STATE.md, JOURNAL.md.
+
+---
+
+## 2026-09-06 — Phase 15-05 Task 1: cross-repo -C adversarial regression tests (RED)
+
+**What I did:** Executed 15-05-PLAN.md Task 1. Appended 3 new adversarial test cases to each of the two existing journal-gate-hook integration suites, reproducing 15-REVIEW.md CR-01's cross-repo `-C` defect from three angles: Test D (bypass — cwd staged, `-C` target unstaged, must BLOCK), Test E (false-block — cwd unstaged, `-C` target staged, must ALLOW), and Test F (target merge-exemption — cwd not mid-merge/unstaged, `-C` target mid-merge, must ALLOW). Each test creates a second, independent git repo nested inside the existing fixture directory via real `git init`, matching the plan's exact scenario definitions and naming. Confirmed RED against the live, currently-shipped (unfixed) hook in `templates/.claude/settings.json` — no source files touched yet.
+
+**Files changed:** `packages/npm/src/steps/journal-gate-hook.integration.test.ts`, `packages/pip/tests/test_journal_gate_hook.py`.
+
+**Why:** TDD RED step per CLAUDE.md's regression-test convention — the failing test must be committed before the fix.
+
+**Tests run:**
+- `cd packages/npm && npx vitest run src/steps/journal-gate-hook.integration.test.ts` — 3 failed (Test D, E, F, each for the documented reason), 12 passed
+- `cd packages/pip && uv run pytest tests/test_journal_gate_hook.py --override-ini="addopts=-q"` — 3 failed (Test D, E, F, each for the documented reason), 12 passed
+- `grep -c 'vi.mock\|mocker.patch'` on both files — 0 (no subprocess mocking added)
+
+**Docs updated:** JOURNAL.md.
+
+---
+
+## 2026-09-06 — Phase 15-05 close-out: SUMMARY.md
+
+**What I did:** Created `.planning/phases/15-journal-gate-hook-context7-mcp/15-05-SUMMARY.md` per this plan's `<output>` step, documenting both tasks' commits, decisions, deviations (worktree base correction, dependency installs), and next-phase readiness.
+
+**Files changed:** `.planning/phases/15-journal-gate-hook-context7-mcp/15-05-SUMMARY.md` (new), JOURNAL.md.
+
+**Why:** Plan-completion documentation required by the execute-plan workflow; STATE.md/ROADMAP.md are intentionally left untouched (orchestrator owns those writes after this worktree agent completes).
+
+**Tests run:** None (docs-only step).
+
+**Docs updated:** 15-05-SUMMARY.md, JOURNAL.md.
+
+---
+
+## 2026-09-06 — Phase 15-05 Task 2: route git-state checks through -C target via absolute GITDIR (GREEN)
+
+**What I did:** Executed 15-05-PLAN.md Task 2. Replaced `hooks.PreToolUse[0].hooks[0].command` in `templates/.claude/settings.json` and `.claude/settings.json` with the plan's exact, pre-verified string: adds a `TARGETDIR` extraction (anchored `sed -nE` capture of the argument following a `-C` token), a `GIT()` wrapper function that prepends `-C "$TARGETDIR"` to every git invocation when a target is present, and switches `GITDIR` resolution from `git rev-parse --git-dir` to `git rev-parse --absolute-git-dir` so the plain `[ -f ]`/`[ -d ]` merge/rebase exemption file-tests resolve correctly regardless of the hook process's own cwd. Used a `node -e` `JSON.parse`/`JSON.stringify` round-trip (matching 15-04's precedent) to avoid hand-escaping. Regenerated the gitignored `packages/npm/templates/.claude/settings.json` mirror via `npm run prebuild`. Confirmed both files remain valid JSON, all three files' `hooks` blocks are byte-identical, and `.claude/settings.json`'s `permissions.allow` (3 original entries) is untouched.
+
+**Files changed:** `templates/.claude/settings.json`, `.claude/settings.json`, `packages/npm/templates/.claude/settings.json` (gitignored prebuild artifact, not committed), JOURNAL.md.
+
+**Why:** Closes 15-VERIFICATION.md's sole BLOCKER gap (15-REVIEW.md CR-01) — the hook's git-state checks ignored a `-C <path>` target, producing both a bypass and a false block.
+
+**Tests run:**
+- `cd packages/npm && npx vitest run src/steps/journal-gate-hook.integration.test.ts` — 15/15 passed
+- `cd packages/pip && uv run pytest tests/test_journal_gate_hook.py --override-ini="addopts=-q"` — 15/15 passed
+- `cd packages/npm && npm test` (full suite) — 161 passed, 1 skipped, 2 todo, 0 failed
+- `cd packages/pip && uv run pytest tests/` (full suite) — 169 passed
+- `node -e "JSON.parse(...)"` on both settings.json files — both valid JSON
+- `diff` of `hooks` blocks across `templates/.claude/settings.json`, `.claude/settings.json`, and `packages/npm/templates/.claude/settings.json` — all three identical
+
+**Docs updated:** JOURNAL.md.
+
+---
+
+## 2026-09-06 — Phase 15 execute-phase: merged plan 15-05, code review finds 3 new critical `-C` bypasses
+
+**What I did:** Ran `/gsd-execute-phase 15 --gaps-only`. The `gsd-executor` subagent's plan-15-05 work (RED test commit, GREEN fix commit, SUMMARY.md commit) was fast-forward merged from its worktree into `main`. Independently re-ran both journal-gate-hook suites (15/15 in each) and both packages' full regression suites (npm 161/1skip/2todo, pip 169/169) myself to confirm the executor's claims. Found and fixed a real gap: `packages/npm/templates/.claude/settings.json` (gitignored prebuild mirror) was stale in this checkout after the merge — worktrees have separate untracked/gitignored files, so the executor's `npm run prebuild` only updated its own worktree copy, not this one; re-ran `npm run prebuild` here to sync it. Then ran the required `code_review_gate` step (`gsd-code-reviewer`, standard depth) on the plan's changed files. The reviewer empirically confirmed the original CR-01 (`-C` cross-repo bypass/false-block) is fixed for its reported scope, but black-box probing beyond the plan's Test D/E/F found the fix itself introduces three new, more severe bypasses: (1) `-C` to any non-git-repo path fails `rev-parse` and fails OPEN, universally bypassing the gate; (2) the `TARGETDIR` regex isn't scoped to the actual `commit` clause, so an unrelated `-C` elsewhere in a chained command hijacks routing; (3) quote-stripping runs before `-C` extraction, so a quoted `-C` path (needed for paths with spaces) gets erased, silently reintroducing the original bug. All three confirmed via direct `sh -c` execution against real git repos, not just static reading.
+
+**Files changed:** `.claude/settings.json`, `templates/.claude/settings.json`, `packages/npm/src/steps/journal-gate-hook.integration.test.ts`, `packages/pip/tests/test_journal_gate_hook.py` (merged from worktree, no further edits by me), `.planning/phases/15-journal-gate-hook-context7-mcp/15-REVIEW.md` (overwritten with this round's findings), `.planning/phases/15-journal-gate-hook-context7-mcp/15-05-SUMMARY.md` (merged from worktree), JOURNAL.md.
+
+**Why:** `code_review_gate` is required and advisory-only per `execute-phase.md`, but three empirically-confirmed critical bypasses in a just-shipped security control (one of which is *worse* than the defect it replaced) is not something to push through silently — CLAUDE.md's security rule requires flagging this immediately rather than marking the phase complete or pushing.
+
+**Tests run:** `npx vitest run src/steps/journal-gate-hook.integration.test.ts` (15/15), `npm test` (161 passed/1 skipped/2 todo), `uv run pytest tests/test_journal_gate_hook.py` (15/15), `uv run pytest tests/` (169 passed) — all green, since none of the 3 new bypasses are covered by existing tests (that's WR-04 in the fresh review).
+
+**Docs updated:** 15-REVIEW.md, JOURNAL.md. STATE.md/ROADMAP.md deliberately NOT updated to "complete" — phase 15 is not being marked done this round.
+
+---
+
+## 2026-09-06 — Phase 15 gap-closure: plan 15-06 revised (round 3), CR-06/CR-07 fixed and shipped
+
+**What I did:** Read the round-3 revision context (checker's reproduction of two new bugs — CR-06 and CR-07 — found in round 2's own drafted-but-unshipped fix) and applied all 7 required edits to `15-06-PLAN.md` (updated Task 1's test matrix to 22 scenarios, Task 2's exact fix command, corrected T-15-19's mitigation text, added STRIDE rows T-15-20/T-15-21, added a verification note). Root cause: round 2's fix extracted a `-C` target from raw, unquoted-preserving `$CMD` unconditionally, without first confirming (via the quote-stripped `$UNQUOTED` variable) that a real `git -C` flag actually exists — so a commit message merely containing the adjacent text "git -C <token>" was misread as a real target. The round-3 fix adds `HASREALC` (confirms a real `-C` flag via `$UNQUOTED` before attempting any raw-text extraction) and `RAWCOUNT` (fails closed if the raw-text anchor pattern matches more than once, i.e., ambiguous). Executed Task 1 (RED): added CR-06/CR-07 to both test suites (22 total each), confirmed the expected 3-failing/19-passing split in both `vitest` and `pytest`, committed. Executed Task 2 (GREEN): applied the exact, pre-verified fix string to `templates/.claude/settings.json` and `.claude/settings.json` via a `node -e` `JSON.parse`/`JSON.stringify` round-trip, regenerated the gitignored `packages/npm/templates/.claude/settings.json` mirror via `npm run prebuild`, and confirmed all three files' `hooks` blocks are byte-identical (1879 chars).
+
+**Files changed:** `.planning/phases/15-journal-gate-hook-context7-mcp/15-06-PLAN.md`, `templates/.claude/settings.json`, `.claude/settings.json`, `packages/npm/templates/.claude/settings.json` (gitignored prebuild artifact, not committed), `packages/npm/src/steps/journal-gate-hook.integration.test.ts`, `packages/pip/tests/test_journal_gate_hook.py`, JOURNAL.md.
+
+**Why:** Closes the round-3 gap the checker found in round 2's own fix before it ever shipped, per CLAUDE.md's "fail loud" and security rules — a security control's own regression must not ship silently.
+
+**Tests run:**
+- `npx vitest run src/steps/journal-gate-hook.integration.test.ts` — 22/22 passed (post-fix; RED was 19/22)
+- `uv run pytest tests/test_journal_gate_hook.py -o addopts=""` — 22/22 passed (post-fix; RED was 19/22)
+- `npm test` (full suite) — 168 passed, 1 skipped, 2 todo, 0 failed
+- `uv run pytest tests/` (full suite) — 176 passed
+- Manual `sh -c` reproduction of all 7 CR directions (CR-01..CR-07) plus 15-05's baseline Test D/E/F against the live fixed hook — all 10 passed with expected exit codes
+- `diff`/Node comparison of `hooks` blocks across all three settings.json files — byte-identical
+
+**Docs updated:** JOURNAL.md, `15-06-PLAN.md`.
+
+**Known issue found, not fixed (out of scope for this plan per its explicit instruction not to re-derive the regex):** During this task, a `git add <files> && git commit -m "$(cat <<'EOF' ...)"` style compound commit (heredoc-based message via command substitution) appeared to bypass the *round-2* (pre-fix) hook's JOURNAL.md-staged check once during manual use — the commit landed without JOURNAL.md staged. An isolated `sh -c` reproduction of the same command shape against the round-2 hook string did NOT reproduce the bypass (correctly blocked), so the exact trigger is unconfirmed — possibly an artifact of the live Claude Code hook environment differing subtly from the isolated reproduction (e.g. actual heredoc body content, working directory, or a race condition), not a difference in the regex itself. Flagging for a future round rather than guessing at a fix.
+
+---
+
+## 2026-09-06 — Phase 15 gap-closure: round-3 fix independently re-verified, 0 blockers
+
+**What I did:** Independently re-verified (as orchestrator, not trusting the executing subagent's self-report) the round-3 GREEN commit (`4e0fe3a`) by: diffing all three `settings.json` files' `hooks` blocks for byte-identity (confirmed, 1879 chars each) against the exact fix string I had pre-derived and locally tested earlier in this session; re-running both journal-gate-hook suites myself (22/22 in each) plus both packages' full regression suites (npm 168/1skip/2todo, pip 176 passed); and re-running the full adversarial `sh -c` harness (CR-01 through CR-07, Test D/E/F) directly against the actual shipped `templates/.claude/settings.json` hook command, plus a standalone reproduction of the round-2 false-block case. All passed. Then spawned `gsd-plan-checker` for round-3 verification per the user's explicit "re-verify with the checker after" choice; it independently reproduced all 7 CR scenarios plus Test D/E/F against the live shipped hook, probed adversarially for a new bypass from the `HASREALC`/`RAWCOUNT` change (found none — only a narrow, safe-direction false-block edge case for `-C` value text containing a lookalike phrase, and one pre-existing tab-escape defect from phase 15-01 unrelated to this defect class), and returned `## VERIFICATION PASSED` with 0 blockers and 2 non-blocking warnings. Updated `.planning/STATE.md`'s Current Position to reflect the verified gap closure (not a full phase-complete marking, since phase-level `gsd-verifier` sign-off hasn't run).
+
+**Files changed:** `.planning/STATE.md`, JOURNAL.md.
+
+**Why:** CLAUDE.md's "Proof of work" rule requires pasting actual test output and independently confirming a subagent's claims rather than trusting its self-report at face value, especially given this defect class recurred across 3 prior rounds; STATE.md must reflect verified reality, not stale BLOCKED status.
+
+**Tests run:** `npx vitest run src/steps/journal-gate-hook.integration.test.ts` (22/22), `uv run pytest tests/test_journal_gate_hook.py -v` (22 passed), `npm test` (168 passed/1 skipped/2 todo), `uv run pytest tests/ -v` (176 passed), manual `sh -c` reproduction of CR-01 through CR-07 plus Test D/E/F against the live shipped hook (8/8 asserted PASS, 0 FAIL), standalone reverse false-block reproduction (exit 0, correct) — all independently re-run by the orchestrator, not just accepted from subagent reports.
+
+**Docs updated:** JOURNAL.md, `.planning/STATE.md`.
+
+---
+
+## 2026-09-06 — Phase 15 gap-closure: created missing 15-06-SUMMARY.md (found during /gsd-verify-work)
+
+**What I did:** Ran `/gsd-verify-work 15` to start UAT. Its `find_summaries` step found `15-01` through `15-05-SUMMARY.md` but no `15-06-SUMMARY.md` — the round-3 executing subagent applied and committed the fix correctly (see prior entries) but never created the plan's required `<output>` artifact. Wrote `15-06-SUMMARY.md` retroactively from facts already independently verified earlier this session (byte-identical settings.json fix, 22/22 tests, `gsd-plan-checker` VERIFICATION PASSED with 0 blockers) rather than trusting the subagent's report a second time.
+
+**Files changed:** `.planning/phases/15-journal-gate-hook-context7-mcp/15-06-SUMMARY.md` (created), JOURNAL.md.
+
+**Why:** UAT test extraction reads SUMMARY.md files for testable deliverables; without one for 15-06, the round-3 fix's own scope (CR-06/CR-07) would be invisible to UAT. CLAUDE.md's "fail loud" rule means flagging the missing artifact rather than silently working around it.
+
+**Tests run:** None (documentation-only change; no code touched).
+
+**Docs updated:** `15-06-SUMMARY.md`, JOURNAL.md.

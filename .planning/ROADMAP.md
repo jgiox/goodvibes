@@ -27,7 +27,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 12: Headroom Status Surfacing** - Replace hardcoded "headroom ready" with truthful install and MCP config outcomes in the init outro (v1.2.0) (completed 2026-07-06)
 - [x] **Phase 13: Anonymous Telemetry** - Add GDPR-compliant anonymous install counter to `goodvibes init` with first-run disclosure and opt-out (v1.2.0) (completed 2026-07-27)
 - [x] **Phase 14: goodvibes update with Manifest** - Ship manifest-based template update with dry-run preview, confirmation prompt, and sentinel data-loss guard (v1.2.0) (completed 2026-07-27)
-- [x] **Phase 15: Journal-Gate Hook & context7 MCP** - Ship a Claude Code PreToolUse hook that blocks `git commit` without JOURNAL.md staged, and wire context7 into `.mcp.json` at the free/public endpoint (v1.8.0)
+- [ ] **Phase 15: Journal-Gate Hook & context7 MCP** - Ship a Claude Code PreToolUse hook that blocks `git commit` without JOURNAL.md staged, and wire context7 into `.mcp.json` at the free/public endpoint (v1.8.0) — gaps found 2026-09-05, hook logic bypassable, see 15-VERIFICATION.md
 - [ ] **Phase 16: goodvibes update JSON-Aware Merge** - Teach `goodvibes update` to merge only goodvibes-managed keys in settings.json/.mcp.json, preserving user-added keys (v1.8.0)
 - [ ] **Phase 17: Cross-Tool Governance & Directive Wording** - Rewrite CLAUDE.md/AGENTS.md/per-IDE rule files in directive language, harden cross-agent JOURNAL.md handoff wording, and ship caveman's ultra default (v1.8.0)
 
@@ -418,10 +418,19 @@ Plans:
   3. A freshly-initialized project's `.mcp.json` has `context7` configured at the free/public HTTP endpoint (no key, no signup); Claude Code's one-time "trust this project's MCP servers" prompt is documented in onboarding, not hidden
   4. README/onboarding docs state plainly that the hook only gates commits made through Claude Code's own Bash tool — not manual `git commit`, not other agents/IDEs — and separately document the optional `${CONTEXT7_API_KEY}` upgrade path with no literal key ever committed
 
-**Plans**: 1 plan
-Plans:
+**Plans**: 6 plans
 
-- [x] 15-01-PLAN.md: inline journal-gate PreToolUse hook, context7 .mcp.json, integration tests, onboarding/README docs
+**Wave 1** *(parallel — no file conflicts)*
+
+- [x] 15-01-PLAN.md — Journal-gate hook: settings.json PreToolUse block + dogfood root settings + 9-scenario integration tests (HOOK-01, HOOK-02, HOOK-03)
+- [x] 15-02-PLAN.md — context7 MCP: .mcp.json template + dogfood root .mcp.json + shape tests (CTX7-01)
+- [x] 15-03-PLAN.md — Docs: hook-scope caveat + "What is context7?" sections in getting-started.md (HOOK-04, CTX7-02, CTX7-03)
+
+**Gap closure**
+
+- [x] 15-04-PLAN.md — Fix journal-gate hook quote-stripping bypass (CR-01/CR-02): strip quoted spans before --amend/commit-subcommand matching, add adversarial tests (HOOK-01, HOOK-02)
+- [x] 15-05-PLAN.md — Fix journal-gate hook -C cross-repo bypass/false-block (CR-01): route GITDIR/MERGE_HEAD/rebase/staged-file checks through the -C target directory, add cross-repo adversarial tests (HOOK-01, HOOK-02)
+- [ ] 15-06-PLAN.md — Fix 3 new -C bypasses (CR-01/CR-02/CR-03) introduced by 15-05's own fix: fail-closed on unresolvable -C target, fail-closed on compound-command-plus--C, extract quoted-or-unquoted -C from raw command text (HOOK-01, HOOK-02)
 
 **UI hint**: no
 
@@ -487,6 +496,6 @@ v1.8.0 build order: 15 and 17 have no shared files and can run in parallel — P
 | 12. Headroom Status Surfacing | 3/3 | Complete    | 2026-07-06 |
 | 13. Anonymous Telemetry | 6/6 | Complete    | 2026-07-27 |
 | 14. goodvibes update with Manifest | 5/5 | Complete    | 2026-07-27 |
-| 15. Journal-Gate Hook & context7 MCP | 1/1 | Complete    | 2026-09-24 |
+| 15. Journal-Gate Hook & context7 MCP | 3/3 | Gaps found | - |
 | 16. goodvibes update JSON-Aware Merge | 0/TBD | Not started | - |
 | 17. Cross-Tool Governance & Directive Wording | 0/TBD | Not started | - |
