@@ -1660,3 +1660,4 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 - RED: update must not re-create removed tracked files (project and global) nor add workflows/.github/docs groups the manifest never tracked (item 6).
 - GREEN: tracked-but-deleted files (project and config dir) are reported 'removed by you, not re-added (run goodvibes init to restore)' and dropped from the manifest; net-new workflows/.github/docs only when the manifest tracks that layer (item 6).
 - RED: upgrade re-runs via process.execPath and turns npm install -g failures into an actionable message with exit 1 (item 12).
+- GREEN: upgrade re-runs with process.execPath + argv[1]; npm install -g failure prints the EACCES docs link or the first npm error line and exits 1 (item 12).
