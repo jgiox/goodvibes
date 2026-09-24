@@ -4,6 +4,7 @@ import json
 import os
 import pathlib
 import subprocess
+import sys
 
 from typer.testing import CliRunner
 
@@ -51,6 +52,16 @@ def test_ensure_global_cli_skips_when_goodvibes_is_on_path(mocker):
 
 def test_ensure_global_cli_installs_with_uv_tool_when_not_on_path(mocker):
     mocker.patch("goodvibes_cli.steps.global_setup.shutil.which", return_value=None)
+    run = mocker.patch("goodvibes_cli.steps.global_setup.subprocess.run", return_value=_done())
+    assert ensure_global_cli("1.8.0", dry_run=False) == {"status": "installed"}
+    assert run.call_args.args[0] == ["uv", "tool", "install", "goodvibes-cli==1.8.0"]
+
+
+def test_ensure_global_cli_installs_with_uv_tool_when_goodvibes_is_only_in_the_active_virtualenv(mocker, tmp_path):
+    venv = tmp_path / "venv"
+    mocker.patch.object(sys, "prefix", str(venv))
+    mocker.patch.object(sys, "base_prefix", "/usr")
+    mocker.patch("goodvibes_cli.steps.global_setup.shutil.which", return_value=str(venv / "bin" / "goodvibes"))
     run = mocker.patch("goodvibes_cli.steps.global_setup.subprocess.run", return_value=_done())
     assert ensure_global_cli("1.8.0", dry_run=False) == {"status": "installed"}
     assert run.call_args.args[0] == ["uv", "tool", "install", "goodvibes-cli==1.8.0"]

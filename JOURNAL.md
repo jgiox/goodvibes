@@ -1495,3 +1495,17 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 **Tests run:** RED: npm hook tests 5 failed, 33 passed; pip 5 failed, 33 passed. GREEN: hook tests 38 passed in each; full npm vitest 274 passed, 1 skipped, 2 todo (after prebuild and build); pip pytest 229 passed; verify-phase5 PASS. Probed by hand under dash + mawk: `/bin/bash` heredocs, `<<-` with tabs, `<<"EOF"`, a `.sh` file written by heredoc, and an escaped `\\n` inside a quoted printf. Not tested: macOS BWK awk (download blocked by the sandbox proxy); the program sticks to POSIX awk features BWK implements.
 
 **Docs updated:** JOURNAL.md.
+
+---
+
+## 2026-09-24 · pip init installs goodvibes globally when it is only in a virtualenv
+
+**What I did:** `ensure_global_cli` treated any `goodvibes` on PATH as a global install. After `pip install goodvibes-cli` inside an active virtualenv, that binary is on PATH only while the venv is active, so the session check silently skipped in every other shell and Claude Code session. A `goodvibes` found under the running interpreter's virtualenv (`sys.prefix != sys.base_prefix`) no longer counts; init installs it with `uv tool install` as it does for `uvx`/`pipx run`. Added a regression test.
+
+**Files changed:** packages/pip/src/goodvibes_cli/steps/global_setup.py, packages/pip/tests/test_global_setup.py, CHANGELOG.md, JOURNAL.md.
+
+**Why:** Follow-up from the 1.9.0 release.
+
+**Tests run:** RED: test_global_setup 1 failed, 14 passed.
+
+**Docs updated:** CHANGELOG.md, JOURNAL.md.
