@@ -8,6 +8,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/2.0.0/),
 
 ### Fixed
 
+- Journal gate no longer blocks `git add JOURNAL.md && git commit`, exact-path adds that include `JOURNAL.md`, `git add -A && git commit`, or `git commit -a` when `JOURNAL.md` has changes; `-C` targets and unparseable commands still fail closed
+- `permissions.ask` now also covers publish/deploy forms that slipped past the prefix rules: `npx -y`/`--yes`, `npx wrangler@<version>`, `npx netlify-cli`, `npx firebase-tools`, `uv run twine`, `npm run deploy|release|publish`, `node node_modules/.bin/*`
+- Onboarding no longer teaches `git add -A`, which the agent rules forbid; it now shows staging exact paths
 - `goodvibes update` no longer drops user-modified (skipped) files from `.goodvibes.json` on write-back, so a second `update` run no longer reclassifies them as net-new and overwrites them — npm and pip
 - `goodvibes update` now always refreshes the goodvibes sentinel block in a project's `CLAUDE.md`, even when the file has custom prose outside the block that previously kept its whole-file hash from ever matching
 - `templates/.claude/settings.json` no longer auto-approves `git push`, npm/uv/twine publish, or wrangler/vercel/netlify/firebase deploy commands — closed via a new `permissions.ask` list
@@ -29,7 +32,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/2.0.0/),
 ### Known limitations
 
 - `goodvibes init` does not overwrite an existing `.claude/settings.json`, so projects that already have one do not receive the hook until JSON-aware `goodvibes update` merge ships (Phase 16)
-- The hook checks the staged file list before the command runs, so `git add JOURNAL.md && git commit ...` and `git commit -a` are blocked even when the journal was updated; stage `JOURNAL.md` in a separate command first
+- The journal gate matches command text, so any Bash command that merely contains commit-like text (for example a heredoc that writes test code) is checked too
 
 ## [1.7.1] — 2026-08-06
 

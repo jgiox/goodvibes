@@ -136,6 +136,7 @@ Recent decisions affecting current work:
 | 2026-06-30 | v1.4.0-publish | Tagged npm-v1.4.0 + pip-v1.4.0; published to npm and PyPI; dogfooded IDE files to repo root |
 | 2026-07-28 | 260728-a1b | Added FAQ.md covering jgiox-goodvibes → goodvibes-cli migration and common update command issues |
 | 2026-09-24 | 260924-mh9 | Cross-repo gap review report; fixed `update` data loss (skipped files kept in manifest, CLAUDE.md always block-merged); `ask` rules for publish/deploy; CI lint + gitleaks + fail-loud; definition-of-done / .env.example / no-fabricated-data rules in all templates |
+| 2026-09-24 | 260924-q1 | Journal gate allows same-command staging of JOURNAL.md (RED/GREEN, npm+pip); 11 more ask rules for publish/deploy bypass forms; onboarding stops teaching `git add -A` |
 
 ### Blockers/Concerns
 

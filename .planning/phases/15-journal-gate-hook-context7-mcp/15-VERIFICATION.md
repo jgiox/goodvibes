@@ -12,7 +12,8 @@ re_verification:
   gaps_remaining: []
   regressions: []
 follow_ups:
-  - "False block: `git add JOURNAL.md && git commit ...` and `git commit -a` with JOURNAL.md edited are blocked, because the hook reads the index before the command runs. Reproduced live in Claude Code 2026-09-24. Friction, not a bypass; the stderr fix-hint (`git add JOURNAL.md`) is misleading in this case. A candidate fix (working-tree check when the command also stages) and 4 tests exist in commit 5d539f4 on branch claude/jolly-thompson-vb6qyd, written against a different hook; not applied because 15-01 locks the hook logic and it interacts with the -C compound rule"
+  - "RESOLVED 2026-09-24 by quick 260924-q1 (e6dc255 RED, d280a01 GREEN): same-command staging (`git add JOURNAL.md && git commit`, exact paths, `-A`, `commit -a`) is now allowed when JOURNAL.md has changes"
+  - "Command-text matching also gates Bash commands that merely contain commit-like text (heredocs writing test code). Workaround: write via file tools. Not fixed: needs real shell parsing"
   - "First commit in a new repo without JOURNAL.md staged is blocked. Meets HOOK-02 as written (only the bootstrap commit that adds JOURNAL.md is exempt)"
   - "T-15-20 / T-15-21 and the 15-01 tab-escape defect: carried from 15-06-SUMMARY, unchanged"
 human_verification:

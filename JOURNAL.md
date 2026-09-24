@@ -1205,3 +1205,19 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 **Tests run:** npm vitest 184 passed, 1 skipped, 2 todo; pip pytest 187 passed.
 
 **Docs updated:** JOURNAL.md.
+
+---
+
+## 2026-09-24 · Quick 260924-q1 docs: onboarding staging, CHANGELOG, follow-ups
+
+**What I did:** Onboarding (both copies) now shows staging exact paths instead of `git add -A`. CHANGELOG gains Fixed entries for the gate and the ask list; the compound-staging known limitation is replaced by the command-text matching caveat. The 15-VERIFICATION follow-up is marked resolved, and the quick-task summary records the remaining agreed plan.
+
+**Files changed:** docs/onboarding.md, templates/docs/onboarding.md, CHANGELOG.md, .planning/STATE.md, .planning/phases/15-journal-gate-hook-context7-mcp/15-VERIFICATION.md, .planning/quick/260924-q1-journal-gate-staging-ask-gaps/260924-q1-SUMMARY.md, JOURNAL.md.
+
+**Why:** The docs contradicted the agent rules, and the plan for Phases 16/17, the skill and v1.8.0 has to outlive this session.
+
+**Tests run:** None (docs only; suites green at f607bf3).
+
+**What I learned:** A single Bash command that appends to JOURNAL.md and then commits is blocked, because the journal has no changes yet when the hook checks. Correct fail-closed behaviour; write first, commit in a second call.
+
+**Docs updated:** as listed.

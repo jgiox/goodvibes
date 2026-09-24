@@ -46,13 +46,13 @@ A commit is a saved snapshot of your changes with a message that describes what 
 
 1. Edit the files you want to change and save them.
 
-2. Stage your changes — tell git which files to include in the commit:
+2. Stage your changes: tell git exactly which files to include in the commit:
 
    ```
-   git add -A
+   git add path/to/file JOURNAL.md
    ```
 
-   This stages all changed files. To stage just one file, use `git add path/to/file` instead.
+   List each file you changed. Naming files one by one (instead of `git add -A`, which stages everything) keeps stray files, such as a `.env` with passwords, out of your commit.
 
 3. Commit your staged changes with a descriptive message:
 
