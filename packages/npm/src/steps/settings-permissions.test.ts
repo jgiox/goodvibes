@@ -17,7 +17,7 @@ const ASK_PATTERNS = [
   'Bash(npx firebase deploy*)',
 ]
 
-// Each of these runs under an existing allow rule (npx*, uv*, npm run*, node*) without matching any ASK_PATTERNS prefix.
+// Publish or deploy forms that match no ASK_PATTERNS prefix; they still prompt if a user adds a broad allow rule (npx*, uv*, npm run*, node*).
 const BYPASS_ASK_PATTERNS = [
   'Bash(npx -y *)',
   'Bash(npx --yes *)',

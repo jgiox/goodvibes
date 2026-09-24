@@ -1630,6 +1630,7 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 
 **What I did:** Hardened what goodvibes ships into projects, one RED/GREEN pair per testable item. Commit log for this entry:
 - RED: tests pinning that the shipped allow list no longer auto-approves node, python, npx, uv, npm run/install, pip install or `git restore`, and that new ask/deny rules for destructive git commands and every force-push form exist (npm settings-permissions.test.ts, pip test_settings_permissions.py).
+- GREEN: templates/.claude/settings.json allow keeps only Read/Edit/Write, safe git, `npm test*`, `pytest*`, `uv run pytest*`, `python -m pytest*`; ask adds `git restore*`, branch/stash deletes, `git clean*`, `--force-with-lease`; deny adds `-f`, flag-after-remote and `+refspec` force pushes. Checked that `mergeManagedJson` adds all 11 new ask/deny entries to a user-edited settings file; it never touches allow, so old broad allow entries stay in user-edited files. vitest settings-permissions + json-merge + global-setup 38 passed; pytest 27 passed.
 
 **Files changed:** packages/npm/src/steps/settings-permissions.test.ts, packages/pip/tests/test_settings_permissions.py, JOURNAL.md (more listed per commit below).
 
