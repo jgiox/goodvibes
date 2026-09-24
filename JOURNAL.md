@@ -1565,3 +1565,17 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 **Tests run:** RED: npm hook tests 4 failed, 40 passed; pip 4 failed, 40 passed. GREEN: hook tests 44 passed in each; full npm vitest 280 passed, 1 skipped, 2 todo; typecheck 0; pip pytest 236 passed; verify-phase5 PASS. Probed by hand under dash + mawk: `$((1<<2))` then a commit (fails closed, blocked), `$(bash <<EOF ...)`, `ssh host <<EOF`, `<<"END.X"`, `/bin/bash`, `<<-` with tabs.
 
 **Docs updated:** JOURNAL.md.
+
+---
+
+## 2026-09-24 · v1.9.1 version bump
+
+**What I did:** Bumped npm `package.json`/`package-lock.json`, pip `pyproject.toml`/`uv.lock`, the `templates/CLAUDE.md` stamp and this repo's `CLAUDE.md` block to 1.9.1; CHANGELOG `[Unreleased]` became `[1.9.1] - 2026-09-24` (the fixes and docs from PR #38), with the heredoc end-marker and shell-consumer details from the Codex review added. `verify-phase3.sh` now accepts more than one wheel in `dist/` (a leftover 1.9.0 wheel made `test -f` fail locally).
+
+**Files changed:** packages/npm/package.json, packages/npm/package-lock.json, packages/pip/pyproject.toml, packages/pip/uv.lock, templates/CLAUDE.md, CLAUDE.md, CHANGELOG.md, scripts/verify-phase3.sh, JOURNAL.md.
+
+**Why:** User asked to release 1.9.1. Patch version: fixes and docs only, no new behaviour beyond the fixes.
+
+**Tests run:** stamps in sync (1.9.1 x3); npm typecheck 0, vitest 280 passed, 1 skipped, 2 todo, built CLI `--version` 1.9.1; pip pytest 236 passed, `goodvibes --version` 1.9.1; verify-phase1 to 5 PASS.
+
+**Docs updated:** CHANGELOG.md, JOURNAL.md.
