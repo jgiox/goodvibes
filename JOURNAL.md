@@ -1644,3 +1644,4 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 - RED: hook merge must keep user hooks that share a group with a goodvibes hook (item 4).
 - GREEN: replace only the marked hook object inside a user group (item 4).
 - RED: DO_NOT_TRACK / GOODVIBES_NO_TELEMETRY accept 1, true, yes (item 14).
+- GREEN: telemetryOptedOut() shared by init and sendTelemetry (item 14).

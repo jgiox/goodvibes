@@ -6,7 +6,7 @@ import { copyTemplates, listTemplateFiles, resolveTemplatesDir } from '../steps/
 import { installHeadroom, type HeadroomResult } from '../steps/install-headroom.js'
 import { configureMcp, type McpResult } from '../steps/configure-mcp.js'
 import { detectProjectType } from '../utils/detect-project-type.js'
-import { sendTelemetry } from '../steps/telemetry.js'
+import { sendTelemetry, telemetryOptedOut } from '../steps/telemetry.js'
 import { writeManifest } from '../steps/write-manifest.js'
 import { managedRecord } from '../utils/json-merge.js'
 import { applyGlobalConfig, ensureGlobalCli, registerContext7, formatGlobal, type GlobalResult, type CliStatus, type McpStatus } from '../steps/global-setup.js'
@@ -65,8 +65,7 @@ export function registerInitCommand(program: Command): void {
 
       intro('goodvibes init')
 
-      const telemetryOptOut = process.env.DO_NOT_TRACK === '1' || process.env.GOODVIBES_NO_TELEMETRY === '1' || process.env.CI === 'true'
-      if (!telemetryOptOut) { note('Anonymous usage stats are collected. Set DO_NOT_TRACK=1 to opt out.', 'Privacy') }
+      if (!telemetryOptedOut()) { note('Anonymous usage stats are collected. Set DO_NOT_TRACK=1 to opt out.', 'Privacy') }
 
       const existingEntries = readdirSync(cwd).filter(e => e !== '.git' && e !== '.DS_Store')
       if (existingEntries.length > 0) {
