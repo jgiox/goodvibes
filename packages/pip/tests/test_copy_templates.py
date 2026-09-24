@@ -466,3 +466,18 @@ def test_copy_templates_minimal_writes_bolt_prompt(tmp_dir, template_dir, mocker
     mocker.patch("goodvibes_cli.steps.copy_templates.merge_claude")
     copy_templates(template_dir, tmp_dir, minimal=True)
     assert (tmp_dir / ".bolt" / "prompt").exists()
+
+
+def test_resolve_templates_dir_falls_back_to_the_repo_templates_in_a_source_checkout(mocker, tmp_path):
+    from goodvibes_cli.steps.copy_templates import resolve_templates_dir
+    missing = tmp_path / "site-packages" / "goodvibes_cli"
+    mocker.patch("goodvibes_cli.steps.copy_templates.importlib.resources.files", return_value=missing)
+    repo_templates = pathlib.Path(__file__).resolve().parents[3] / "templates"
+    assert resolve_templates_dir() == repo_templates
+
+
+def test_resolve_templates_dir_prefers_the_bundled_templates(mocker, tmp_path):
+    from goodvibes_cli.steps.copy_templates import resolve_templates_dir
+    (tmp_path / "templates").mkdir()
+    mocker.patch("goodvibes_cli.steps.copy_templates.importlib.resources.files", return_value=tmp_path)
+    assert resolve_templates_dir() == tmp_path / "templates"
