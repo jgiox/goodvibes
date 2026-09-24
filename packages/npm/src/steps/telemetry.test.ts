@@ -50,6 +50,15 @@ describe('sendTelemetry', () => {
     expect(vi.mocked(fetch as any)).not.toHaveBeenCalled()
   })
 
+  it('does not call fetch when DO_NOT_TRACK is set to true', async () => {
+    vi.stubEnv('DO_NOT_TRACK', 'true')
+    vi.stubEnv('CI', '')
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, status: 200 }))
+    const { sendTelemetry } = await import('./telemetry.js')
+    await sendTelemetry()
+    expect(vi.mocked(fetch as any)).not.toHaveBeenCalled()
+  })
+
   it('does not call fetch when GOODVIBES_NO_TELEMETRY is set to 1', async () => {
     vi.stubEnv('GOODVIBES_NO_TELEMETRY', '1')
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, status: 200 }))
@@ -70,5 +79,27 @@ describe('sendTelemetry', () => {
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('network down')))
     const { sendTelemetry } = await import('./telemetry.js')
     await expect(sendTelemetry()).resolves.toBeUndefined()
+  })
+})
+
+describe('telemetryOptedOut', () => {
+  it('treats 1, true and yes in any case as opt-out for DO_NOT_TRACK and GOODVIBES_NO_TELEMETRY', async () => {
+    const { telemetryOptedOut } = await import('./telemetry.js')
+    for (const v of ['1', 'true', 'TRUE', 'yes', 'Yes']) {
+      expect(telemetryOptedOut({ DO_NOT_TRACK: v })).toBe(true)
+      expect(telemetryOptedOut({ GOODVIBES_NO_TELEMETRY: v })).toBe(true)
+    }
+  })
+
+  it('does not opt out for empty, 0 or false values', async () => {
+    const { telemetryOptedOut } = await import('./telemetry.js')
+    expect(telemetryOptedOut({})).toBe(false)
+    expect(telemetryOptedOut({ DO_NOT_TRACK: '0', GOODVIBES_NO_TELEMETRY: 'false' })).toBe(false)
+    expect(telemetryOptedOut({ DO_NOT_TRACK: '' })).toBe(false)
+  })
+
+  it('opts out when CI is true', async () => {
+    const { telemetryOptedOut } = await import('./telemetry.js')
+    expect(telemetryOptedOut({ CI: 'true' })).toBe(true)
   })
 })

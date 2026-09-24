@@ -39,7 +39,8 @@ vi.mock('../steps/configure-mcp.js', () => ({
 }))
 
 // Mock telemetry — prevents real HTTP in all tests
-vi.mock('../steps/telemetry.js', () => ({
+vi.mock('../steps/telemetry.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../steps/telemetry.js')>()),
   sendTelemetry: vi.fn().mockResolvedValue(undefined),
 }))
 
@@ -345,6 +346,39 @@ describe('init command', () => {
 
   it('does not show disclosure note when DO_NOT_TRACK is set to 1', async () => {
     vi.stubEnv('DO_NOT_TRACK', '1')
+    try {
+      const { note, tasks } = await import('@clack/prompts')
+      const { copyTemplates, resolveTemplatesDir } = await import('../steps/copy-templates.js')
+      const { installHeadroom } = await import('../steps/install-headroom.js')
+      const { configureMcp } = await import('../steps/configure-mcp.js')
+
+      vi.mocked(resolveTemplatesDir).mockReturnValue('/fake/templates')
+      vi.mocked(copyTemplates).mockResolvedValue({ written: ['CLAUDE.md'], skipped: [] })
+      vi.mocked(installHeadroom).mockResolvedValue({ status: 'installed' })
+      vi.mocked(configureMcp).mockResolvedValue({ status: 'registered' })
+      vi.mocked(tasks).mockImplementation(async (taskList: any[]) => {
+        for (const t of taskList) { await t.task(vi.fn()) }
+      })
+
+      const { registerInitCommand } = await import('./init.js')
+      const { Command } = await import('commander')
+      const program = new Command()
+      program.exitOverride()
+      registerInitCommand(program)
+
+      await program.parseAsync(['node', 'goodvibes', 'init'])
+
+      expect(vi.mocked(note)).not.toHaveBeenCalledWith(
+        'Anonymous usage stats are collected. Set DO_NOT_TRACK=1 to opt out.',
+        'Privacy'
+      )
+    } finally {
+      vi.unstubAllEnvs()
+    }
+  })
+
+  it('does not show disclosure note when DO_NOT_TRACK is set to yes', async () => {
+    vi.stubEnv('DO_NOT_TRACK', 'yes')
     try {
       const { note, tasks } = await import('@clack/prompts')
       const { copyTemplates, resolveTemplatesDir } = await import('../steps/copy-templates.js')

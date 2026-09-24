@@ -1643,3 +1643,4 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 - GREEN: parse pre-release/post versions (never throws); markers only count alone on their line, ambiguous markers throw MarkerError without writing, CRLF kept (items 3, 10).
 - RED: hook merge must keep user hooks that share a group with a goodvibes hook (item 4).
 - GREEN: replace only the marked hook object inside a user group (item 4).
+- RED: DO_NOT_TRACK / GOODVIBES_NO_TELEMETRY accept 1, true, yes (item 14).
