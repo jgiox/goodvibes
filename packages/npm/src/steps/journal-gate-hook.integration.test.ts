@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { mkdtempSync, rmSync, mkdirSync, readFileSync, writeFileSync } from 'fs'
+import { existsSync, mkdtempSync, rmSync, mkdirSync, readFileSync, writeFileSync } from 'fs'
 import { join } from 'path'
 import { tmpdir } from 'os'
 import { execa } from 'execa'
@@ -14,10 +14,14 @@ function getHookCommand(): string {
   return data.hooks.PreToolUse[0].hooks[0].command
 }
 
-async function runHook(command: string, cwd: string): Promise<{ exitCode: number; stderr: string }> {
+async function runHook(
+  command: string,
+  cwd: string,
+  env: Record<string, string> = {},
+): Promise<{ exitCode: number; stderr: string }> {
   const hookCmd = getHookCommand()
   const payload = JSON.stringify({ tool_name: 'Bash', tool_input: { command } })
-  const result = await execa('sh', ['-c', hookCmd], { input: payload, cwd, reject: false })
+  const result = await execa('sh', ['-c', hookCmd], { input: payload, cwd, env, reject: false })
   return { exitCode: result.exitCode ?? -1, stderr: result.stderr }
 }
 
@@ -323,5 +327,17 @@ describe('journal-gate hook', () => {
   it('still blocks a commit in a heredoc fed to bash with no space before <<', async () => {
     const { exitCode } = await runHook('bash<<EOF\ngit commit -m x\nEOF', repoDir)
     expect(exitCode).toBe(2)
+  })
+
+  it('does not run the core.fsmonitor command of a bare repo that the command text only mentions', async () => {
+    const marker = join(repoDir, 'fsmonitor-ran')
+    const evil = join(repoDir, 'vendor', 'evil')
+    await execa('git', ['init', '--bare', evil])
+    await execa('git', ['config', '-f', join(evil, 'config'), 'core.bare', 'false'])
+    await execa('git', ['config', '-f', join(evil, 'config'), 'core.worktree', '../..'])
+    await execa('git', ['config', '-f', join(evil, 'config'), 'core.fsmonitor', `touch '${marker}' #`])
+    await runHook('# git -C vendor/evil commit', repoDir)
+    await runHook('echo git -C vendor/evil commit -m wip', repoDir)
+    expect(existsSync(marker)).toBe(false)
   })
 })

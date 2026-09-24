@@ -1623,3 +1623,10 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 **Tests run:** RED: pip upgrade tests 3 failed, 11 passed. GREEN: pip pytest 242 passed. Sandbox: a uv-made venv without pip holding goodvibes 1.9.0 went to 1.9.1 through `_self_update_pip("1.9.1")` from this branch, with no uv tool created.
 
 **Docs updated:** JOURNAL.md.
+
+---
+
+## 2026-09-24 · Journal gate: fsmonitor code execution, missed commits, wrong-repo checks
+
+**What I did:** Hardened the journal-gate PreToolUse hook (templates/.claude/settings.json and the dogfood .claude/settings.json, kept identical). One RED test commit, then one GREEN fix commit, per problem:
+- RED 1: a bare repo inside the project with `core.fsmonitor` set runs its command when the hook merely sees `git -C vendor/evil commit` in the text.

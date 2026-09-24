@@ -300,3 +300,14 @@ def test_still_blocks_commit_in_heredoc_fed_to_sudo_bash(repo_dir):
 
 def test_still_blocks_commit_in_heredoc_fed_to_bash_without_space(repo_dir):
     assert _run_hook('bash<<EOF\ngit commit -m x\nEOF', repo_dir).returncode == 2
+
+
+def test_does_not_run_fsmonitor_command_of_bare_repo_that_command_text_only_mentions(repo_dir):
+    marker = repo_dir / "fsmonitor-ran"
+    evil = repo_dir / "vendor" / "evil"
+    subprocess.run(["git", "init", "--bare", str(evil)], check=True, capture_output=True)
+    for key, value in [("core.bare", "false"), ("core.worktree", "../.."), ("core.fsmonitor", f"touch '{marker}' #")]:
+        subprocess.run(["git", "config", "-f", str(evil / "config"), key, value], check=True, capture_output=True)
+    _run_hook("# git -C vendor/evil commit", repo_dir)
+    _run_hook("echo git -C vendor/evil commit -m wip", repo_dir)
+    assert not marker.exists()
