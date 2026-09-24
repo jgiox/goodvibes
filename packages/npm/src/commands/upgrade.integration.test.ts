@@ -50,6 +50,7 @@ describe('upgrade command in a real tmp dir', () => {
     writeFileSync(join(templateDir, 'CLAUDE.md'), '# CLAUDE.md\n\n<!-- goodvibes:start -->\n# goodvibes: v9.9.9\nrules\n<!-- goodvibes:end -->\n')
     mkdirSync(join(templateDir, '.claude', 'skills', 'caveman'), { recursive: true })
     writeFileSync(join(templateDir, '.claude', 'skills', 'caveman', 'SKILL.md'), 'skill v2\n')
+    writeFileSync(join(templateDir, '.claude', 'settings.json'), '{}\n')
   })
 
   afterEach(() => {
