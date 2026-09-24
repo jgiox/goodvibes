@@ -1265,3 +1265,17 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 **What I learned:** Running the built CLI showed published npm `goodvibes-cli@1.7.1` `init` exits 1 with `Cannot find module '../../package.json'` and never writes `.goodvibes.json`, so npm `update` has never worked since 1.7.0. Fixing next, regression first.
 
 **Docs updated:** JOURNAL.md (user docs follow with the Phase 16 docs commit).
+
+---
+
+## 2026-09-24 · npm init crashes in the built CLI: RED
+
+**What I did:** Added `packages/npm/src/dist-cli.integration.test.ts`, which runs the built `dist/index.js init --minimal` in a temp dir and expects exit 0 plus a `.goodvibes.json` carrying the package version.
+
+**Files changed:** packages/npm/src/dist-cli.integration.test.ts (new), JOURNAL.md.
+
+**Why:** `init.ts` reads `../../package.json` via `createRequire`; that is right for `src/commands/` (what the unit tests run) and wrong for the bundled `dist/index.js`. Reproduced on published `goodvibes-cli@1.7.1`: exit 1, no manifest, so npm `update` always reports "No manifest".
+
+**Tests run:** new test fails with `Cannot find module '../../package.json'`, as expected.
+
+**Docs updated:** JOURNAL.md.
