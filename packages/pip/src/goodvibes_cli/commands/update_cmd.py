@@ -15,7 +15,7 @@ from rich.panel import Panel
 from goodvibes_cli.steps.copy_templates import list_template_files, resolve_templates_dir
 from goodvibes_cli.steps.write_manifest import ManifestError, read_manifest, write_manifest
 from goodvibes_cli.utils.detect_project_type import detect_project_type
-from goodvibes_cli.utils.json_merge import MANAGED_JSON, managed_record, merge_managed_json
+from goodvibes_cli.utils.json_merge import MANAGED_JSON, managed_record, merge_managed_json, write_json
 from goodvibes_cli.steps.global_setup import apply_global_config, claude_config_dir, format_global
 from goodvibes_cli.utils.scope import global_owned
 from goodvibes_cli.utils.sentinel_merge import ClaudeMdError, merge_claude
@@ -129,6 +129,9 @@ def update_cmd(
         except ValueError as e:
             merge_errors.append(f"{rel}: not valid JSON ({e}); left unchanged, fix it and re-run update")
             continue
+        if not isinstance(user, dict):
+            merge_errors.append(f"{rel}: not a JSON object; left unchanged, fix it and re-run update")
+            continue
         tpl = json.loads(tpl_path.read_text(encoding="utf-8"))
         merged, changes = merge_managed_json(rel, tpl, user, (manifest.get("managed") or {}).get(rel))
         if changes:
@@ -190,7 +193,7 @@ def update_cmd(
         applied.append(rel)
 
     for rel, merged, _ in merges:
-        (cwd / rel).write_text(json.dumps(merged, indent=2) + "\n", encoding="utf-8")
+        write_json(cwd / rel, merged)
 
     # Preserve skipped (user-modified) files' prior hashes so they stay
     # protected on every later run instead of dropping out of the manifest.

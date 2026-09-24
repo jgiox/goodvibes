@@ -12,7 +12,7 @@ import sys
 
 from goodvibes_cli.steps.copy_templates import list_template_files
 from goodvibes_cli.steps.write_manifest import MANIFEST_PATH, read_manifest
-from goodvibes_cli.utils.json_merge import merge_managed_json, present_ids
+from goodvibes_cli.utils.json_merge import merge_managed_json, present_ids, write_json
 from goodvibes_cli.utils.scope import goodvibes_block
 
 CONTEXT7_URL = "https://mcp.context7.com/mcp"
@@ -98,21 +98,22 @@ def apply_global_config(template_dir: pathlib.Path, version: str, dry_run: bool)
     managed = dict(prev.get("managed") or {})
     try:
         user = json.loads(settings_path.read_text(encoding="utf-8")) if settings_path.exists() else {}
+    except ValueError as e:
+        user = None
+        result["settings_error"] = f"{settings_path}: not valid JSON ({e}); left unchanged, fix it and re-run"
+    if user is not None and not isinstance(user, dict):
+        result["settings_error"] = f"{settings_path}: not a JSON object; left unchanged, fix it and re-run"
+    elif user is not None:
         merged, changes = merge_managed_json(".claude/settings.json", tpl, user, managed.get("settings.json"))
         result["settings_changes"] = changes
         if not dry_run and changes:
             cfg.mkdir(parents=True, exist_ok=True)
-            settings_path.write_text(json.dumps(merged, indent=2) + "\n", encoding="utf-8")
+            write_json(settings_path, merged)
         managed["settings.json"] = list(dict.fromkeys([*managed.get("settings.json", []), *present_ids(".claude/settings.json", tpl, merged)]))
-    except ValueError as e:
-        result["settings_error"] = f"{settings_path}: not valid JSON ({e}); left unchanged, fix it and re-run"
 
     if not dry_run:
         cfg.mkdir(parents=True, exist_ok=True)
-        (cfg / MANIFEST_PATH).write_text(
-            json.dumps({"version": version, "scope": "global", "files": files, "managed": managed}, indent=2) + "\n",
-            encoding="utf-8",
-        )
+        write_json(cfg / MANIFEST_PATH, {"version": version, "scope": "global", "files": files, "managed": managed})
     return result
 
 

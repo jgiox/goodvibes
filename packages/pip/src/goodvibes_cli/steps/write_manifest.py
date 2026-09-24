@@ -4,6 +4,8 @@ import hashlib
 import json
 import pathlib
 
+from goodvibes_cli.utils.json_merge import write_json
+
 MANIFEST_PATH = ".goodvibes.json"
 
 
@@ -31,9 +33,7 @@ def write_manifest(
         manifest["managed"] = managed
     if scope is not None:
         manifest["scope"] = scope
-    (dest_dir / MANIFEST_PATH).write_text(
-        json.dumps(manifest, indent=2) + "\n", encoding="utf-8"
-    )
+    write_json(dest_dir / MANIFEST_PATH, manifest)
 
 
 class ManifestError(ValueError):
