@@ -1663,3 +1663,4 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 - item 4 GREEN: merge_managed_json swaps only the marked hook object inside the user's group; write_json (temp file + os.replace, ensure_ascii=False) now writes settings, .mcp.json and both manifests; non-object settings reported 'not a JSON object; left unchanged' in update and global setup (296 passed).
 - item 0 RED: init must record only files it created (not src/, .git/ or a user's own .github/dependabot.yml) and update --force must leave those untouched (2 failed).
 - item 0 GREEN: copy_templates records files through copytree's copy_function (plus the ci.yml rename and CLAUDE.md) instead of every file under the project, so the manifest never claims src/, .git/ or the user's own files (298 passed).
+- item 2 RED: a second init must keep every manifest entry and the managed record (a deleted hook stays deleted after update), and refuse a broken project manifest (3 failed).

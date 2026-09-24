@@ -252,3 +252,39 @@ def test_init_records_only_files_it_wrote_so_update_never_overwrites_the_users_o
     assert result.exit_code == 0, result.output
     assert (proj / ".github" / "dependabot.yml").read_text(encoding="utf-8") == "# my own dependabot\n"
     assert (proj / "src" / "app.py").read_text(encoding="utf-8") == "print('mine')\n"
+
+
+def test_running_init_twice_keeps_every_manifest_entry(runner, real_project):
+    from goodvibes_cli.main import app as main_app
+    assert runner.invoke(main_app, ["init"]).exit_code == 0
+    first = _manifest_files(real_project)
+
+    result = runner.invoke(main_app, ["init"])
+
+    assert result.exit_code == 0, result.output
+    assert _manifest_files(real_project) == first
+
+
+def test_rerunning_init_keeps_a_hook_the_user_deleted_deleted(runner, real_project):
+    import json
+    from goodvibes_cli.main import app as main_app
+    settings = real_project / ".claude" / "settings.json"
+    assert runner.invoke(main_app, ["init", "--scope", "project"]).exit_code == 0
+    edited = json.loads(settings.read_text(encoding="utf-8"))
+    del edited["hooks"]
+    settings.write_text(json.dumps(edited, indent=2), encoding="utf-8")
+
+    assert runner.invoke(main_app, ["init", "--scope", "project"]).exit_code == 0
+    result = runner.invoke(main_app, ["update", "--force"])
+
+    assert result.exit_code == 0, result.output
+    assert "hooks" not in json.loads(settings.read_text(encoding="utf-8"))
+
+
+def test_init_exits_1_and_leaves_a_broken_project_manifest_alone(runner, real_project):
+    from goodvibes_cli.main import app as main_app
+    (real_project / ".goodvibes.json").write_text("{ broken", encoding="utf-8")
+    result = runner.invoke(main_app, ["init"])
+    assert result.exit_code == 1
+    assert "is not valid JSON" in result.output
+    assert (real_project / ".goodvibes.json").read_text(encoding="utf-8") == "{ broken"
