@@ -111,4 +111,17 @@ describe('built CLI (dist/index.js)', () => {
     expect(upd.exitCode).toBe(0)
     expect(readFileSync(settingsPath, 'utf-8')).not.toContain('goodvibes-journal-gate')
   })
+
+  it('the entry file loads no dependency before its Node version check, so old Node gets the friendly message', () => {
+    const entry = readFileSync(distCli, 'utf-8')
+    const staticImports = [...entry.matchAll(/^import\s.*?from\s+["']([^"']+)["']/gm)].map(m => m[1])
+    expect(staticImports.filter(m => !m.startsWith('.') && !m.startsWith('node:'))).toEqual([])
+    expect(entry.indexOf('nodeVersionError(')).toBeGreaterThan(-1)
+    expect(entry.indexOf('await import(')).toBeGreaterThan(entry.indexOf('nodeVersionError('))
+  })
+
+  it('declares the Node version that execa and commander need', () => {
+    const pkg = JSON.parse(readFileSync(fileURLToPath(new URL('../package.json', import.meta.url)), 'utf-8'))
+    expect(pkg.engines.node).toBe('>=22.12.0')
+  })
 })
