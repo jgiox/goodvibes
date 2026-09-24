@@ -1645,3 +1645,4 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 - item 15 GREEN: telemetry.opted_out() accepts 1/true/yes in any case for DO_NOT_TRACK and GOODVIBES_NO_TELEMETRY; init's privacy panel reuses it (258 passed).
 - item 14 RED: resolve_templates_dir must fall back to the repo templates/ in a source checkout (1 failed).
 - item 14 GREEN: resolve_templates_dir walks up from the package to the first templates/CLAUDE.md when no bundled copy exists (260 passed).
+- item 13 RED: ensure_global_cli must tell the user to run uv tool update-shell when goodvibes is still not on PATH after installing (1 failed).

@@ -10,7 +10,7 @@ from typer.testing import CliRunner
 
 from goodvibes_cli.main import app
 from goodvibes_cli.steps.copy_templates import copy_templates
-from goodvibes_cli.steps.global_setup import apply_global_config, ensure_global_cli, register_context7
+from goodvibes_cli.steps.global_setup import apply_global_config, ensure_global_cli, format_global, register_context7
 
 TEMPLATES = pathlib.Path(__file__).resolve().parents[3] / "templates"
 runner = CliRunner()
@@ -55,6 +55,16 @@ def test_ensure_global_cli_installs_unpinned_so_uv_tool_upgrade_can_upgrade_it_l
     run = mocker.patch("goodvibes_cli.steps.global_setup.subprocess.run", return_value=_done())
     assert ensure_global_cli("1.8.0", dry_run=False) == {"status": "installed"}
     assert run.call_args.args[0] == ["uv", "tool", "install", "goodvibes-cli>=1.8.0"]
+
+
+def test_ensure_global_cli_tells_the_user_to_run_uv_tool_update_shell_when_goodvibes_is_still_not_on_path(mocker):
+    mocker.patch("goodvibes_cli.steps.global_setup.shutil.which", return_value=None)
+    mocker.patch("goodvibes_cli.steps.global_setup.subprocess.run", return_value=_done())
+    r = ensure_global_cli("1.8.0", dry_run=False)
+    assert r["status"] == "installed"
+    assert "uv tool update-shell" in r["reason"]
+    assert "new terminal" in r["reason"]
+    assert "uv tool update-shell" in format_global({"written": [], "kept": [], "settings_changes": []}, r, None)
 
 
 def test_ensure_global_cli_installs_with_uv_tool_when_goodvibes_is_only_in_the_active_virtualenv(mocker, tmp_path):
