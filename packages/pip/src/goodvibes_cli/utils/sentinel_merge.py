@@ -8,25 +8,36 @@ SENTINEL_START = "<!-- goodvibes:start -->"
 SENTINEL_END = "<!-- goodvibes:end -->"
 
 
+_VERSION = r"\d+(?:\.\d+)*(?:[-.]?(?:alpha|beta|a|b|rc)\.?\d*)?(?:\.post\d+)?"
+_PARTS = re.compile(r"v?(\d+(?:\.\d+)*)(?:[-.]?(alpha|beta|a|b|rc)\.?(\d*))?(?:\.post(\d+))?\.?", re.I)
+_PRE_RANK = {"alpha": 0, "a": 0, "beta": 1, "b": 1, "rc": 2}
+
+
 def extract_version(block: str) -> str | None:
     """Return version string from a sentinel block or version stamp line, or None."""
-    m = re.search(r"# goodvibes: v([\d.]+)", block)
+    m = re.search(rf"# goodvibes: v({_VERSION})", block)
     return m.group(1) if m else None
 
 
+def _version_key(v: str) -> tuple | None:
+    m = _PARTS.fullmatch(v.strip())
+    if not m:
+        return None
+    release = [int(x) for x in m.group(1).split(".")]
+    while len(release) > 1 and release[-1] == 0:
+        release.pop()
+    # A release sorts above its pre-releases (rank 3) and below its .postN releases.
+    pre = (_PRE_RANK[m.group(2).lower()], int(m.group(3) or 0)) if m.group(2) else (3, 0)
+    post = int(m.group(4)) + 1 if m.group(4) is not None else 0
+    return (release, pre, post)
+
+
 def version_gte(a: str, b: str) -> bool:
-    """Return True if version a >= version b (integer component comparison)."""
-    pa = [int(x) for x in a.split(".")]
-    pb = [int(x) for x in b.split(".")]
-    length = max(len(pa), len(pb))
-    for i in range(length):
-        va = pa[i] if i < len(pa) else 0
-        vb = pb[i] if i < len(pb) else 0
-        if va > vb:
-            return True
-        if va < vb:
-            return False
-    return True  # equal
+    """Return True if version a >= version b; False when either cannot be parsed."""
+    ka, kb = _version_key(a or ""), _version_key(b or "")
+    if ka is None or kb is None:
+        return False
+    return ka >= kb
 
 
 def _extract_sentinel_block(content: str) -> str:

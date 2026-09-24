@@ -1640,3 +1640,4 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 
 **Commits:**
 - item 10 RED: version_gte / extract_version tests for rc, post and trailing-dot versions (5 failed).
+- item 10 GREEN: version_gte parses release + pre-release (a/b/rc, -rc.N, -beta.N) + .postN and returns False on unparseable input; extract_version keeps pre-release tags, drops a trailing dot (247 passed).
