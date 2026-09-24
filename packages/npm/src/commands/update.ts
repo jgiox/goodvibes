@@ -122,19 +122,16 @@ export async function runUpdate(dryRun: boolean, force: boolean): Promise<void> 
     return // exit 0 — UPD-05 requires no crash, no process.exit(1)
   }
 
+  // Everything is planned (global as a dry run) before the one prompt, so cancelling leaves every file untouched.
   const templateDir = resolveTemplatesDir()
-  if (globalManifest || manifest?.scope === 'global') {
-    const g = await applyGlobalConfig(templateDir, packageVersion(), dryRun)
-    note(formatGlobal(g, undefined, undefined), `${dryRun ? 'Dry run — ' : ''}Global setup (${g.configDir})`)
-  }
-  if (!manifest) {
-    outro(dryRun ? 'Run without --dry-run to apply changes.' : 'Done!')
-    return
-  }
+  const globalPlan = globalManifest || manifest?.scope === 'global' ? await applyGlobalConfig(templateDir, packageVersion(), true) : undefined
+  if (globalPlan) note(formatGlobal(globalPlan, undefined, undefined), `${dryRun ? 'Dry run — ' : 'Plan — '}Global setup (${globalPlan.configDir})`)
 
   const projectType = detectProjectType(cwd)
-  const scope: Scope = manifest.scope ?? 'project'
-  const { overwrite, skip, netNew, kept, blocked } = await categorise(templateDir, cwd, manifest, projectType, scope)
+  const scope: Scope = manifest?.scope ?? 'project'
+  const { overwrite, skip, netNew, kept, blocked } = manifest
+    ? await categorise(templateDir, cwd, manifest, projectType, scope)
+    : { overwrite: [], skip: [], netNew: [], kept: [], blocked: {} as Record<string, string> }
 
   // User-modified settings.json / .mcp.json still receive goodvibes-managed keys.
   const merges: { rel: string; merged: Record<string, unknown>; changes: string[] }[] = []
@@ -154,46 +151,51 @@ export async function runUpdate(dryRun: boolean, force: boolean): Promise<void> 
       continue
     }
     const tpl = JSON.parse(await readFile(tplPath, 'utf-8'))
-    const { merged, changes } = mergeManagedJson(rel, tpl, user, manifest.managed?.[rel])
+    const { merged, changes } = mergeManagedJson(rel, tpl, user, manifest?.managed?.[rel])
     if (changes.length > 0) merges.push({ rel, merged, changes })
   }
-  const mergeLines = [
-    ...merges.map(m => `Will merge goodvibes keys into ${m.rel}:\n  ${m.changes.join('\n  ')}`),
-    ...mergeErrors.map(e => `Cannot merge ${e}`),
-    ...Object.values(blocked),
-  ]
 
-  if (dryRun) {
+  if (manifest) {
     note(
       [
-        overwrite.length > 0
-          ? `Will overwrite (${overwrite.length}): ${overwrite.join(', ')}`
-          : null,
-        skip.length > 0
-          ? `Will skip — user-modified (${skip.length}): ${skip.join(', ')}`
-          : null,
+        overwrite.length > 0 ? `Will overwrite (${overwrite.length}): ${overwrite.join(', ')}` : null,
+        skip.length > 0 ? `Will skip — user-modified (${skip.length}): ${skip.join(', ')}` : null,
         netNew.length > 0 ? `Will add net-new (${netNew.length}): ${netNew.join(', ')}` : null,
-        kept.length > 0
-          ? `Will keep — already yours, not written by goodvibes (${kept.length}): ${kept.join(', ')}`
-          : null,
-        ...mergeLines,
+        kept.length > 0 ? `Will keep — already yours, not written by goodvibes (${kept.length}): ${kept.join(', ')}` : null,
+        ...merges.map(m => `Will merge goodvibes keys into ${m.rel}:\n  ${m.changes.join('\n  ')}`),
+        ...mergeErrors.map(e => `Cannot merge ${e}`),
+        ...Object.values(blocked),
       ]
         .filter(Boolean)
-        .join('\n'),
-      'Dry run — no files written',
+        .join('\n') || 'Nothing to change in this project.',
+      dryRun ? 'Dry run — no files written' : 'Plan',
     )
+  }
+  if (dryRun) {
     outro('Run without --dry-run to apply changes.')
     return
   }
 
-  if (!force && (overwrite.length > 0 || merges.length > 0)) {
+  const globalChanges = globalPlan ? globalPlan.written.length + globalPlan.settingsChanges.length : 0
+  if (!force && (globalChanges > 0 || overwrite.length > 0 || netNew.length > 0 || merges.length > 0)) {
     const proceed = await confirm({
-      message: `Overwrite ${overwrite.length} managed file(s) and merge goodvibes keys into ${merges.length} file(s)?`,
+      message:
+        `Overwrite ${overwrite.length} managed file(s), add ${netNew.length}, merge goodvibes keys into ${merges.length} file(s)` +
+        `${globalPlan ? ` and update ${globalPlan.configDir}` : ''}?`,
     })
     if (isCancel(proceed) || !proceed) {
-      cancel('Update cancelled.')
+      cancel('Update cancelled. Nothing was changed.')
       process.exit(0)
     }
+  }
+
+  if (globalPlan) {
+    const g = await applyGlobalConfig(templateDir, packageVersion(), false)
+    note(formatGlobal(g, undefined, undefined), `Global setup (${g.configDir})`)
+  }
+  if (!manifest) {
+    outro('Done!')
+    return
   }
 
   // Apply overwrite + net-new; skip user-modified files
