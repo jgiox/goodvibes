@@ -359,3 +359,22 @@ def test_update_exits_1_when_the_global_manifest_is_broken(mocker, tmp_path, mon
     result = runner.invoke(app, ["update", "--force"])
     assert result.exit_code == 1
     assert "is not valid JSON" in _ANSI.sub("", result.output)
+
+
+def test_update_matches_backslash_manifest_keys_written_on_windows(mocker, tmp_path):
+    template_dir = tmp_path / "templates"
+    (template_dir / "docs").mkdir(parents=True)
+    (template_dir / "docs" / "onboarding.md").write_text("v2\n", encoding="utf-8")
+    project_dir = tmp_path / "project"
+    (project_dir / "docs").mkdir(parents=True)
+    (project_dir / "docs" / "onboarding.md").write_text("v1\n", encoding="utf-8")
+    _write_manifest(project_dir, {"docs\\onboarding.md": _sha("v1\n")})
+    mocker.patch("goodvibes_cli.commands.update_cmd.resolve_templates_dir", return_value=template_dir)
+    mocker.patch("goodvibes_cli.commands.update_cmd.detect_project_type", return_value="both")
+    mocker.patch("pathlib.Path.cwd", return_value=project_dir)
+
+    result = runner.invoke(app, ["update", "--force"])
+
+    assert result.exit_code == 0, result.output
+    assert (project_dir / "docs" / "onboarding.md").read_text(encoding="utf-8") == "v2\n"
+    assert list(_read(project_dir, ".goodvibes.json")["files"]) == ["docs/onboarding.md"]

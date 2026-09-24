@@ -1655,3 +1655,4 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 - item 12 GREEN: upgrade re-execs via os.execve(sys.executable, [sys.executable, -m, goodvibes_cli, ...]) with _GV_UPGRADING, installs nothing under uvx (archive-v* in sys.prefix), and prints the PyPI failure reason (270 passed).
 - item 11 RED: a broken .goodvibes.json must be a clear 'is not valid JSON (...); fix it or delete it and run goodvibes init' error, with update/doctor (and init for the global manifest) exiting 1 (7 failed).
 - item 11 GREEN: read_manifest raises ManifestError for invalid or non-object JSON; update and init print it and exit 1; doctor reports it as a failed check (exit 1; --quick prints it, exit 0) (276 passed).
+- item 9 RED: manifest keys must be forward-slash on write and read, so update matches keys a Windows run wrote with backslashes (3 failed).

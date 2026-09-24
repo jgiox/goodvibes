@@ -58,3 +58,18 @@ def test_write_manifest_merges_preserved_entries_without_rehashing(tmp_dir):
     data = json.loads((tmp_dir / ".goodvibes.json").read_text())
     assert data["files"]["skipped.md"] == "preserved-hash-value"
     assert len(data["files"]["CLAUDE.md"]) == 64
+
+
+def test_read_manifest_turns_windows_backslash_keys_into_forward_slashes(tmp_dir):
+    import json
+    (tmp_dir / ".goodvibes.json").write_text(json.dumps({"version": "1.0.0", "files": {".github\\workflows\\ci.yml": "abc"}}), encoding="utf-8")
+    assert read_manifest(tmp_dir)["files"] == {".github/workflows/ci.yml": "abc"}
+
+
+def test_write_manifest_writes_forward_slash_keys(tmp_dir):
+    import json
+    (tmp_dir / "docs").mkdir()
+    (tmp_dir / "docs" / "a.md").write_text("a", encoding="utf-8")
+    write_manifest(tmp_dir, ["docs/a.md"], "1.0.0", preserved={"docs\\b.md": "x"})
+    files = json.loads((tmp_dir / ".goodvibes.json").read_text(encoding="utf-8"))["files"]
+    assert set(files) == {"docs/a.md", "docs/b.md"}
