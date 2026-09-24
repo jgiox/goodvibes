@@ -6,10 +6,45 @@ on:
       - 'pip-v*'   # trigger: git tag pip-v1.0.0 && git push origin pip-v1.0.0
   workflow_dispatch:  # manual button in GitHub Actions UI
 
+permissions:
+  contents: read
+
 jobs:
-  publish:
+  # A dispatch from another branch could run an edited workflow and publish with valid attestations.
+  guard:
     runs-on: ubuntu-latest
-    environment: release  # matches PyPI trusted publisher environment name
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Allow only main, or a tag on main whose version matches pyproject.toml
+        run: |
+          set -euo pipefail
+          case "$GITHUB_REF" in
+            refs/heads/main) ;;
+            refs/tags/pip-v*)
+              if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+                echo "::error::Tag $GITHUB_REF_NAME points at $GITHUB_SHA, which is not on main. Merge the release to main, then tag a commit on main."
+                exit 1
+              fi
+              PKG_VERSION=$(python3 -c "import tomllib;print(tomllib.load(open('packages/pip/pyproject.toml','rb'))['project']['version'])")
+              if [ "${GITHUB_REF_NAME#pip-v}" != "$PKG_VERSION" ]; then
+                echo "::error::Tag $GITHUB_REF_NAME does not match packages/pip/pyproject.toml version $PKG_VERSION. Tag pip-v$PKG_VERSION instead."
+                exit 1
+              fi
+              ;;
+            *)
+              echo "::error::Publishing runs only from main or a pip-v* tag on main, not $GITHUB_REF. Run the workflow from main."
+              exit 1
+              ;;
+          esac
+
+  publish:
+    needs: guard
+    runs-on: ubuntu-latest
+    environment: release  # needs a required reviewer; the PyPI trusted publisher is bound to this environment
     permissions:
       contents: read
       id-token: write  # required for OIDC trusted publishing — no API token in repo

@@ -6,9 +6,45 @@ on:
       - 'npm-v*'   # trigger: git tag npm-v1.0.1 && git push origin npm-v1.0.1
   workflow_dispatch:  # manual button in GitHub Actions UI
 
+permissions:
+  contents: read
+
 jobs:
-  publish:
+  # A dispatch from another branch could run an edited workflow and publish with valid provenance.
+  guard:
     runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Allow only main, or a tag on main whose version matches package.json
+        run: |
+          set -euo pipefail
+          case "$GITHUB_REF" in
+            refs/heads/main) ;;
+            refs/tags/npm-v*)
+              if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+                echo "::error::Tag $GITHUB_REF_NAME points at $GITHUB_SHA, which is not on main. Merge the release to main, then tag a commit on main."
+                exit 1
+              fi
+              PKG_VERSION=$(node -p "require('./packages/npm/package.json').version")
+              if [ "${GITHUB_REF_NAME#npm-v}" != "$PKG_VERSION" ]; then
+                echo "::error::Tag $GITHUB_REF_NAME does not match packages/npm/package.json version $PKG_VERSION. Tag npm-v$PKG_VERSION instead."
+                exit 1
+              fi
+              ;;
+            *)
+              echo "::error::Publishing runs only from main or an npm-v* tag on main, not $GITHUB_REF. Run the workflow from main."
+              exit 1
+              ;;
+          esac
+
+  publish:
+    needs: guard
+    runs-on: ubuntu-latest
+    environment: release  # needs a required reviewer; the npm trusted publisher is bound to this environment
     permissions:
       contents: read
       id-token: write  # npm trusted publishing (OIDC): no NPM_TOKEN secret, provenance attached

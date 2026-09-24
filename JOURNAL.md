@@ -1623,3 +1623,14 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 **Tests run:** RED: pip upgrade tests 3 failed, 11 passed. GREEN: pip pytest 242 passed. Sandbox: a uv-made venv without pip holding goodvibes 1.9.0 went to 1.9.1 through `_self_update_pip("1.9.1")` from this branch, with no uv tool created.
 
 **Docs updated:** JOURNAL.md.
+
+---
+
+## 2026-09-24 · Harden the repo's own CI/CD and release pipeline
+
+**What I did:** Seven hardening changes to goodvibes' own workflows and packaging, one commit each (listed below). Nothing pushed, published or dispatched.
+
+**Why:** Review found that publishing could run from any branch or any tagged commit, tests did not gate the publish, actions and npm were referenced by mutable tags, vhs.yml ran the registry's latest release with a write token, the template PAT comment described an impossible classic-PAT scope, the packages shipped without LICENSE/NOTICE, and dependency review did not block copyleft licences.
+
+**Commits:**
+- 1: publish-npm.yml and publish-pip.yml: `guard` job (main, or an `npm-v*`/`pip-v*` tag whose commit is on origin/main and whose version matches the package), publish job in `environment: release`. Tests: YAML load, actionlint 1.7.12, guard script run against a fake clone (main/side branch, matching/mismatching tags): 12/12 as expected.
