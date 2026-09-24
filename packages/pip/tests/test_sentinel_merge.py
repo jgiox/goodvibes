@@ -29,6 +29,33 @@ def test_version_gte_handles_minor_version_numerically():
     assert version_gte("1.10.0", "1.9.0") is True
 
 
+def test_version_gte_ranks_a_release_candidate_below_its_release():
+    from goodvibes_cli.utils.sentinel_merge import version_gte
+    assert version_gte("2.0.0rc1", "2.0.0") is False
+    assert version_gte("1.9.1", "1.9.1rc1") is True
+
+
+def test_version_gte_orders_alpha_beta_and_rc_prereleases():
+    from goodvibes_cli.utils.sentinel_merge import version_gte
+    assert version_gte("2.0.0b1", "2.0.0a1") is True
+    assert version_gte("2.0.0rc1", "2.0.0b2") is True
+    assert version_gte("2.0.0-rc.2", "2.0.0-rc.1") is True
+    assert version_gte("2.0.0-beta.1", "2.0.0-rc.1") is False
+
+
+def test_version_gte_ranks_a_post_release_above_its_release():
+    from goodvibes_cli.utils.sentinel_merge import version_gte
+    assert version_gte("1.9.1.post1", "1.9.1") is True
+    assert version_gte("1.9.1", "1.9.1.post1") is False
+
+
+def test_version_gte_returns_false_instead_of_raising_on_unparseable_versions():
+    from goodvibes_cli.utils.sentinel_merge import version_gte
+    assert version_gte("banana", "1.0.0") is False
+    assert version_gte("1.0.0", "") is False
+    assert version_gte("v1.7.0.", "1.7.0") in (True, False)
+
+
 # ---------------------------------------------------------------------------
 # extract_version
 # ---------------------------------------------------------------------------
@@ -47,6 +74,13 @@ def test_extract_version_from_full_sentinel_block():
     from goodvibes_cli.utils.sentinel_merge import extract_version
     block = f"{SENTINEL_START}\n# goodvibes: v1.0.0\n\n## Rules\n{SENTINEL_END}"
     assert extract_version(block) == "1.0.0"
+
+
+def test_extract_version_drops_a_trailing_dot_and_keeps_prerelease_tags():
+    from goodvibes_cli.utils.sentinel_merge import extract_version
+    assert extract_version("# goodvibes: v1.7.0.") == "1.7.0"
+    assert extract_version("# goodvibes: v2.0.0rc1") == "2.0.0rc1"
+    assert extract_version("# goodvibes: v2.0.0-beta.1") == "2.0.0-beta.1"
 
 
 # ---------------------------------------------------------------------------

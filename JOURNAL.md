@@ -1623,3 +1623,20 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 **Tests run:** RED: pip upgrade tests 3 failed, 11 passed. GREEN: pip pytest 242 passed. Sandbox: a uv-made venv without pip holding goodvibes 1.9.0 went to 1.9.1 through `_self_update_pip("1.9.1")` from this branch, with no uv tool created.
 
 **Docs updated:** JOURNAL.md.
+
+---
+
+## 2026-09-24 · pip CLI: fix the verified bug list (data loss, symlinks, manifest, update, upgrade)
+
+**What I did:** Fixed the verified pip CLI bugs (items 0-15 of the audit list), each as a RED test commit followed by a GREEN fix commit. One line per commit below.
+
+**Files changed:** packages/pip/src/goodvibes_cli/**, packages/pip/tests/**, JOURNAL.md.
+
+**Why:** Verified bugs: init recorded every project file as goodvibes-written (update then overwrote them), writes followed symlinks, re-running init wiped the manifest, CLAUDE.md markers lost text, hook merges dropped user hooks, update changed ~/.claude before asking, and more.
+
+**Tests run:** pip pytest from packages/pip (results per commit below).
+
+**Docs updated:** JOURNAL.md.
+
+**Commits:**
+- item 10 RED: version_gte / extract_version tests for rc, post and trailing-dot versions (5 failed).
