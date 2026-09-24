@@ -1147,3 +1147,17 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 **Tests run:** npm vitest 170 passed, 1 skipped, 2 todo; pip pytest 176 passed; verify-phase5 --quick 10/10; npm build ok; wheel and `npm pack --dry-run` contain the hook and `.mcp.json`; live `claude -p`: blocked without journal, blocked on compound add (false block), passed with journal staged first.
 
 **Docs updated:** README.md, CHANGELOG.md, getting-started (both copies), 15-VERIFICATION.md, JOURNAL.md.
+
+---
+
+## 2026-09-24 · Journal gate: same-command staging, RED tests (quick 260924-q1)
+
+**What I did:** Added 8 hook tests in each suite for commits that stage in the same command: `git add JOURNAL.md && git commit`, exact paths including JOURNAL.md, `git add -A && git commit`, and `git commit -a` with tracked JOURNAL.md modified. Four guard tests keep blocking: add of other paths only, add after the commit, add of an unchanged JOURNAL.md, and `commit -m` without `-a`.
+
+**Files changed:** packages/npm/src/steps/journal-gate-hook.integration.test.ts, packages/pip/tests/test_journal_gate_hook.py, JOURNAL.md.
+
+**Why:** The new "stage exact paths" rule makes `git add <paths> && git commit` the normal agent pattern, and the hook blocks the whole command because it reads the index before `git add` runs. User approved changing the hook logic that 15-01 had locked.
+
+**Tests run:** npm journal-gate suite: 4 failed (the 4 allow cases, as expected), 26 passed. pip: first allow case fails as expected.
+
+**Docs updated:** JOURNAL.md.

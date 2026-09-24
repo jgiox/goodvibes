@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { mkdtempSync, rmSync, mkdirSync, readFileSync } from 'fs'
+import { mkdtempSync, rmSync, mkdirSync, readFileSync, writeFileSync } from 'fs'
 import { join } from 'path'
 import { tmpdir } from 'os'
 import { execa } from 'execa'
@@ -201,5 +201,55 @@ describe('journal-gate hook', () => {
     await execa('git', ['add', 'JOURNAL.md'], { cwd: repoDir })
     const { exitCode } = await runHook('git commit -am "fix: git -C anchor bypass in journal-gate hook"', repoDir)
     expect(exitCode).toBe(0)
+  })
+
+  async function commitJournal(): Promise<void> {
+    await execa('git', ['add', 'JOURNAL.md'], { cwd: repoDir })
+    await execa('git', ['-c', 'commit.gpgsign=false', 'commit', '-m', 'init'], { cwd: repoDir })
+    writeFileSync(join(repoDir, 'JOURNAL.md'), '# journal\n- entry\n')
+  }
+
+  it('allows git add JOURNAL.md && git commit in one command when JOURNAL.md has changes', async () => {
+    const { exitCode } = await runHook('git add JOURNAL.md && git commit -m "log"', repoDir)
+    expect(exitCode).toBe(0)
+  })
+
+  it('allows git add of exact paths including JOURNAL.md && git commit', async () => {
+    const { exitCode } = await runHook('git add src.txt JOURNAL.md && git commit -m "log"', repoDir)
+    expect(exitCode).toBe(0)
+  })
+
+  it('allows git add -A && git commit when JOURNAL.md has changes', async () => {
+    const { exitCode } = await runHook('git add -A && git commit -m "log"', repoDir)
+    expect(exitCode).toBe(0)
+  })
+
+  it('blocks git add of other paths && git commit when JOURNAL.md is not in the add list', async () => {
+    const { exitCode } = await runHook('git add src.txt && git commit -m "log"', repoDir)
+    expect(exitCode).toBe(2)
+  })
+
+  it('blocks when git add JOURNAL.md runs only after the commit', async () => {
+    const { exitCode } = await runHook('git commit -m "log" && git add JOURNAL.md', repoDir)
+    expect(exitCode).toBe(2)
+  })
+
+  it('blocks git add JOURNAL.md && git commit when JOURNAL.md has no changes', async () => {
+    await commitJournal()
+    await execa('git', ['checkout', '--', 'JOURNAL.md'], { cwd: repoDir })
+    const { exitCode } = await runHook('git add JOURNAL.md && git commit -m "log"', repoDir)
+    expect(exitCode).toBe(2)
+  })
+
+  it('allows git commit -am when tracked JOURNAL.md is modified in the working tree', async () => {
+    await commitJournal()
+    const { exitCode } = await runHook('git commit -am "log"', repoDir)
+    expect(exitCode).toBe(0)
+  })
+
+  it('blocks git commit -m without -a when tracked JOURNAL.md is modified but unstaged', async () => {
+    await commitJournal()
+    const { exitCode } = await runHook('git commit -m "log"', repoDir)
+    expect(exitCode).toBe(2)
   })
 })
