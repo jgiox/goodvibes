@@ -181,3 +181,14 @@ def test_init_dry_run_does_not_call_write_manifest(runner, app, mocker, tmp_path
     result = runner.invoke(app, ["--dry-run"])
     assert result.exit_code == 0
     assert mock_wm.call_count == 0
+
+
+def test_does_not_show_privacy_panel_when_do_not_track_is_true(runner, app, mocker, tmp_path):
+    mocker.patch.dict("os.environ", {"DO_NOT_TRACK": "True"})
+    mocker.patch("goodvibes_cli.commands.init_cmd.resolve_templates_dir", return_value=tmp_path)
+    mocker.patch("goodvibes_cli.commands.init_cmd.detect_project_type", return_value="both")
+    mocker.patch("goodvibes_cli.commands.init_cmd.copy_templates", return_value=(["CLAUDE.md"], []))
+    mocker.patch("pathlib.Path.iterdir", return_value=iter([]))
+    result = runner.invoke(app, ["--minimal"])
+    assert result.exit_code == 0
+    assert "Anonymous usage stats are collected" not in result.output

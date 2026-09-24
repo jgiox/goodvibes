@@ -94,3 +94,15 @@ def test_does_not_raise_when_urlopen_raises_os_error(mocker, monkeypatch):
     assert thread is not None
     thread.join(timeout=2.0)
     assert not thread.is_alive()
+
+
+@pytest.mark.parametrize("var", ["DO_NOT_TRACK", "GOODVIBES_NO_TELEMETRY"])
+@pytest.mark.parametrize("value", ["true", "TRUE", "yes", "Yes", "1"])
+def test_opts_out_when_opt_out_variable_is_true_or_yes_in_any_case(mocker, monkeypatch, var, value):
+    monkeypatch.delenv("CI", raising=False)
+    monkeypatch.setenv(var, value)
+    urlopen = mocker.patch("goodvibes_cli.steps.telemetry.urllib.request.urlopen")
+    from goodvibes_cli.steps.telemetry import start_telemetry_thread
+
+    assert start_telemetry_thread() is None
+    urlopen.assert_not_called()
