@@ -31,12 +31,19 @@ def write_manifest(
     )
 
 
+class ManifestError(ValueError):
+    pass
+
+
 def read_manifest(dest_dir: pathlib.Path) -> dict | None:
     p = dest_dir / MANIFEST_PATH
     if not p.exists():
         return None
+    fix = "fix it or delete it and run goodvibes init"
     try:
-        return json.loads(p.read_text(encoding="utf-8"))
-    except (json.JSONDecodeError, ValueError):
-        return None  # malformed JSON must not crash the CLI
-    # PermissionError, OSError, etc. propagate — fail loud per project rules
+        data = json.loads(p.read_text(encoding="utf-8"))
+    except ValueError as e:
+        raise ManifestError(f"{p} is not valid JSON ({e}); {fix}") from e
+    if not isinstance(data, dict):
+        raise ManifestError(f"{p} is not valid JSON (expected an object, found {type(data).__name__}); {fix}")
+    return data

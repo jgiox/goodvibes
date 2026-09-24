@@ -13,7 +13,7 @@ from rich.console import Console
 from rich.panel import Panel
 
 from goodvibes_cli.steps.copy_templates import list_template_files, resolve_templates_dir
-from goodvibes_cli.steps.write_manifest import read_manifest, write_manifest
+from goodvibes_cli.steps.write_manifest import ManifestError, read_manifest, write_manifest
 from goodvibes_cli.utils.detect_project_type import detect_project_type
 from goodvibes_cli.utils.json_merge import MANAGED_JSON, managed_record, merge_managed_json
 from goodvibes_cli.steps.global_setup import apply_global_config, claude_config_dir, format_global
@@ -39,8 +39,12 @@ def update_cmd(
     """Update goodvibes-managed files using the manifest."""
     console.rule("[bold]goodvibes update[/bold]")
     cwd = pathlib.Path.cwd()
-    manifest = read_manifest(cwd)
-    global_manifest = read_manifest(claude_config_dir())
+    try:
+        manifest = read_manifest(cwd)
+        global_manifest = read_manifest(claude_config_dir())
+    except ManifestError as e:
+        console.print(str(e), style="red", markup=False)
+        raise typer.Exit(1)
     if manifest is None and global_manifest is None:
         console.print(Panel(
             "No .goodvibes.json in this folder or in your Claude Code settings, so goodvibes is not set up here yet.\n"

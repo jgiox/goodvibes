@@ -11,7 +11,7 @@ from goodvibes_cli.steps.configure_mcp import configure_mcp
 from goodvibes_cli.steps.copy_templates import copy_templates, list_template_files, resolve_templates_dir
 from goodvibes_cli.steps.install_headroom import install_headroom
 from goodvibes_cli.steps.telemetry import opted_out, start_telemetry_thread
-from goodvibes_cli.steps.write_manifest import write_manifest
+from goodvibes_cli.steps.write_manifest import ManifestError, write_manifest
 from goodvibes_cli.utils.detect_project_type import detect_project_type
 from goodvibes_cli.utils.json_merge import managed_record
 from goodvibes_cli.steps.global_setup import apply_global_config, ensure_global_cli, format_global, register_context7
@@ -142,6 +142,9 @@ def init_cmd(
         raise typer.Exit(1)
     except OSError as e:
         console.print(f"[red]Unexpected error:[/red] {e}")
+        raise typer.Exit(1)
+    except ManifestError as e:
+        console.print(str(e), style="red", markup=False)
         raise typer.Exit(1)
 
     _version = importlib.metadata.version("goodvibes-cli")
