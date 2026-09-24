@@ -1562,6 +1562,6 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 
 **Why:** Review findings on PR #38 (P1 fail-open, P2 false positive).
 
-**Tests run:** RED: npm hook tests 4 failed, 40 passed; pip 4 failed, 40 passed.
+**Tests run:** RED: npm hook tests 4 failed, 40 passed; pip 4 failed, 40 passed. GREEN: hook tests 44 passed in each; full npm vitest 280 passed, 1 skipped, 2 todo; typecheck 0; pip pytest 236 passed; verify-phase5 PASS. Probed by hand under dash + mawk: `$((1<<2))` then a commit (fails closed, blocked), `$(bash <<EOF ...)`, `ssh host <<EOF`, `<<"END.X"`, `/bin/bash`, `<<-` with tabs.
 
 **Docs updated:** JOURNAL.md.
