@@ -1,10 +1,11 @@
 import { copy } from 'fs-extra'
-import { readFile, rename, writeFile } from 'node:fs/promises'
+import { readFile, rename, rm, writeFile } from 'node:fs/promises'
 import { readdir } from 'fs/promises'
 import { existsSync } from 'fs'
 import { join, relative, sep } from 'path'
 import { fileURLToPath } from 'url'
-import { mergeClaude } from '../utils/sentinel-merge.js'
+import { mergeClaude, MarkerError } from '../utils/sentinel-merge.js'
+import { writeBlocked } from '../utils/fs-safe.js'
 import { type ProjectType } from '../utils/detect-project-type.js'
 import { GLOBAL_OWNED, projectStub, type Scope } from '../utils/scope.js'
 
@@ -60,14 +61,14 @@ export async function copyTemplates(
   minimal: boolean,
   projectType: ProjectType = 'both',
   scope: Scope = 'project',
-): Promise<{ written: string[]; skipped: string[] }> {
+): Promise<{ written: string[]; skipped: string[]; problems: string[] }> {
   const ciVariants = ['ci-node.yml', 'ci-python.yml', 'ci-both.yml']
   const selectedVariant = `ci-${projectType}.yml`
 
   if (dryRun) {
     // Return template files excluding non-selected CI variants (preserves --dry-run NPM-07 behaviour)
     const all = (await listTemplateFiles(templateDir)).filter(p => scope === 'project' || !GLOBAL_OWNED(p))
-    return { written: all.filter(p => !ciVariants.some(v => p.endsWith(v) && v !== selectedVariant)), skipped: [] }
+    return { written: all.filter(p => !ciVariants.some(v => p.endsWith(v) && v !== selectedVariant)), skipped: [], problems: [] }
   }
 
   // Snapshot existing dest paths before copy for written/skipped classification
@@ -78,6 +79,7 @@ export async function copyTemplates(
   }
 
   const skippedFiles: string[] = []
+  const problems: string[] = []
   const destCiYml = join(destDir, '.github', 'workflows', 'ci.yml')
   const workflowPrefix = join('.github', 'workflows') + sep
   const destHasWorkflows = [...existingBefore].some(
@@ -88,9 +90,10 @@ export async function copyTemplates(
     await copy(templateDir, destDir, {
       overwrite: false,
       errorOnExist: false,
-      filter: (src: string) => {
+      filter: async (src: string, dest: string) => {
         if (src.endsWith('CLAUDE.md')) return false // handled by sentinel merge
         const rel = relative(templateDir, src)
+        if (rel === '') return true
         // ponytail: MIN-01 — .github/ and docs/ both skipped
         if (minimal && (rel.startsWith('.github') || rel.startsWith('docs'))) return false
         // ponytail: path traversal guard per T-02-02-A (templates are repo-controlled but belt-and-suspenders)
@@ -104,7 +107,9 @@ export async function copyTemplates(
         }
         // Skip all template workflow files if dest already has CI configured
         if (destHasWorkflows && rel.startsWith(workflowPrefix) && src.endsWith('.yml')) return false
-        return true
+        const blocked = await writeBlocked(destDir, relative(destDir, dest))
+        if (blocked) skippedFiles.push(blocked)
+        return !blocked
       },
     })
   } catch (e) {
@@ -120,8 +125,13 @@ export async function copyTemplates(
   if (!minimal) {
     const variantPath = join(destDir, '.github', 'workflows', selectedVariant)
     const ciPath = join(destDir, '.github', 'workflows', 'ci.yml')
-    if (existsSync(variantPath)) {
-      if (existsSync(ciPath)) {
+    // The variant was just copied, so it is only there if .github/workflows is a real folder inside the project.
+    if (existsSync(variantPath) && !(await writeBlocked(destDir, join('.github', 'workflows', selectedVariant)))) {
+      const ciBlocked = await writeBlocked(destDir, join('.github', 'workflows', 'ci.yml'))
+      if (ciBlocked) {
+        skippedFiles.push(ciBlocked)
+        await rm(variantPath)
+      } else if (existsSync(ciPath)) {
         skippedFiles.push('.github/workflows/ci.yml') // ponytail: UX-04
       } else {
         await rename(variantPath, ciPath)
@@ -132,8 +142,18 @@ export async function copyTemplates(
   const claudeSrc = join(templateDir, 'CLAUDE.md')
   const claudeDest = join(destDir, 'CLAUDE.md')
   const templateContent = await readFile(claudeSrc, 'utf-8')
-  if (scope === 'project') {
-    await mergeClaude(claudeDest, templateContent)
+  const claudeBlocked = await writeBlocked(destDir, 'CLAUDE.md')
+  let claudeMerged = false
+  if (claudeBlocked) {
+    skippedFiles.push(claudeBlocked)
+  } else if (scope === 'project') {
+    try {
+      await mergeClaude(claudeDest, templateContent)
+      claudeMerged = true
+    } catch (e) {
+      if (!(e instanceof MarkerError)) throw e
+      problems.push(e.message)
+    }
   } else if (!existsSync(claudeDest)) {
     await writeFile(claudeDest, projectStub(templateContent), 'utf-8')
   }
@@ -143,7 +163,7 @@ export async function copyTemplates(
   const allDestFiles = destFiles.sort()
   const written = allDestFiles.filter(f => !existingBefore.has(f))
   // CLAUDE.md is always in 'written' — sentinel merge runs regardless (per RESEARCH.md note)
-  const writtenWithClaude = written.includes('CLAUDE.md') || scope === 'global' ? written : ['CLAUDE.md', ...written]
+  const writtenWithClaude = written.includes('CLAUDE.md') || !claudeMerged ? written : ['CLAUDE.md', ...written]
   const skipped = [...allDestFiles.filter(f => existingBefore.has(f) && f !== 'CLAUDE.md'), ...skippedFiles]
-  return { written: writtenWithClaude.sort(), skipped: skipped.sort() }
+  return { written: writtenWithClaude.sort(), skipped: skipped.sort(), problems }
 }

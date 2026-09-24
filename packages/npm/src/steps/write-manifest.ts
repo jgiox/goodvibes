@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto'
 import { readFile } from 'node:fs/promises'
-import { writeFileAtomic } from '../utils/fs-safe.js'
+import { writeBlocked, writeFileAtomic } from '../utils/fs-safe.js'
 import { join } from 'node:path'
 
 export interface Manifest {
@@ -24,7 +24,9 @@ export async function writeManifest(
   preserved?: Record<string, string>,
   managed?: Record<string, string[]>,
   scope?: 'global' | 'project',
-): Promise<void> {
+): Promise<string | null> {
+  const blocked = await writeBlocked(destDir, MANIFEST_PATH)
+  if (blocked) return blocked
   // Preserved hashes come only from the prior manifest, never re-read from dest,
   // so a skipped (user-modified) file can't be silently reclassified as unmodified.
   const files: Record<string, string> = posixKeys(preserved)
@@ -34,6 +36,7 @@ export async function writeManifest(
   }
   const manifest: Manifest = { version, files, ...(managed ? { managed: posixKeys(managed) } : {}), ...(scope ? { scope } : {}) }
   await writeFileAtomic(join(destDir, MANIFEST_PATH), JSON.stringify(manifest, null, 2) + '\n')
+  return null
 }
 
 // Throws an actionable error for a manifest that exists but cannot be used; guessing would lose tracking.

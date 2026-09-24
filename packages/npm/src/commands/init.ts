@@ -102,6 +102,7 @@ export function registerInitCommand(program: Command): void {
 
       const createdFiles: string[] = []
       const skippedFiles: string[] = []
+      const problems: string[] = []
       let headroomResult: HeadroomResult | undefined
       let mcpResult: McpResult | undefined
       let globalResult: GlobalResult | undefined
@@ -124,9 +125,10 @@ export function registerInitCommand(program: Command): void {
         taskList.push({
           title: 'Copying template files',
           task: async () => {
-            const { written, skipped } = await copyTemplates(templateDir, cwd, false, minimal, projectType, scope)
+            const { written, skipped, problems: found } = await copyTemplates(templateDir, cwd, false, minimal, projectType, scope)
             createdFiles.push(...written)
             skippedFiles.push(...skipped)
+            problems.push(...found)
             return `Copied ${written.length} files`
           },
         })
@@ -178,7 +180,8 @@ export function registerInitCommand(program: Command): void {
 
       const _ver = packageVersion()
       if (inProject) {
-        await writeManifest(cwd, createdFiles.filter(f => f !== '.goodvibes.json'), _ver, undefined, await managedRecord(cwd, templateDir), scope)
+        const blocked = await writeManifest(cwd, createdFiles.filter(f => f !== '.goodvibes.json'), _ver, undefined, await managedRecord(cwd, templateDir), scope)
+        if (blocked) skippedFiles.push(blocked)
       }
 
       await Promise.race([telemetryPromise.catch(() => {}), sleep(1_000)])
@@ -189,6 +192,8 @@ export function registerInitCommand(program: Command): void {
       if (skippedFiles.length > 0) {
         note(skippedFiles.join('\n'), `Files skipped (${skippedFiles.length})`)
       }
+
+      if (problems.length > 0) note(problems.join('\n'), 'Needs your attention')
 
       if (!minimal && headroomResult) {
         note(formatHeadroomStatus(headroomResult, mcpResult), 'Headroom')

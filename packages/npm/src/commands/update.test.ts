@@ -22,6 +22,7 @@ vi.mock('../steps/write-manifest.js', () => ({
 
 vi.mock('../utils/sentinel-merge.js', () => ({
   mergeClaude: vi.fn().mockResolvedValue(undefined),
+  MarkerError: class MarkerError extends Error {},
 }))
 
 vi.mock('../utils/detect-project-type.js', () => ({
@@ -54,6 +55,13 @@ vi.mock('../steps/global-setup.js', () => ({
 }))
 
 vi.mock('../utils/version.js', () => ({ packageVersion: () => '1.2.0' }))
+
+// Symlink and real-path checks need a real filesystem; update.integration.test.ts covers them.
+vi.mock('../utils/fs-safe.js', () => ({
+  writeBlocked: vi.fn().mockResolvedValue(null),
+  assertSafe: vi.fn().mockResolvedValue(undefined),
+  writeFileAtomic: vi.fn().mockResolvedValue(undefined),
+}))
 
 vi.mock('fs-extra', () => ({
   copy: vi.fn().mockResolvedValue(undefined),

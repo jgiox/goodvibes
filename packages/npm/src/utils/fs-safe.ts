@@ -1,6 +1,51 @@
 import { randomUUID } from 'node:crypto'
-import { realpath, rename, rm, writeFile } from 'node:fs/promises'
-import { basename, dirname, join } from 'node:path'
+import { lstat, realpath, rename, rm, writeFile } from 'node:fs/promises'
+import { basename, dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
+
+// path.relative, not a string prefix: "/proj-evil" must not count as inside "/proj".
+const inside = (root: string, p: string): boolean => {
+  const r = relative(root, p)
+  return r !== '' && r !== '..' && !r.startsWith('..' + sep) && !isAbsolute(r)
+}
+
+function lexicalDest(root: string, rel: string): string {
+  const dest = resolve(root, rel)
+  if (!inside(resolve(root), dest)) throw new Error(`Unsafe manifest key rejected: ${rel}`)
+  return dest
+}
+
+async function lstatOrNull(p: string) {
+  try {
+    return await lstat(p)
+  } catch (e) {
+    const code = (e as NodeJS.ErrnoException).code
+    if (code === 'ENOENT' || code === 'ENOTDIR') return null
+    throw e
+  }
+}
+
+async function realInside(root: string, dest: string): Promise<boolean> {
+  let p = dest
+  while (!(await lstatOrNull(p)) && dirname(p) !== p) p = dirname(p)
+  const [realRoot, real] = await Promise.all([realpath(root), realpath(p)])
+  return real === realRoot || inside(realRoot, real)
+}
+
+// Throws for a key that escapes the project, lexically or through the real path of its deepest existing ancestor.
+export async function assertSafe(root: string, rel: string): Promise<void> {
+  if (!(await realInside(root, lexicalDest(root, rel)))) throw new Error(`Unsafe manifest key rejected: ${rel} resolves outside ${root}`)
+}
+
+// A skip message when writing root/rel would follow a symlink (dangling included) or land outside root; null when safe.
+export async function writeBlocked(root: string, rel: string): Promise<string | null> {
+  const blocked = `${rel.replace(/\\/g, '/')}: symlink, not written`
+  const base = resolve(root)
+  const dest = lexicalDest(root, rel)
+  for (let p = dest; p !== base; p = dirname(p)) {
+    if ((await lstatOrNull(p))?.isSymbolicLink()) return blocked
+  }
+  return (await realInside(root, dest)) ? null : blocked
+}
 
 // A crash mid-write must never leave a half-written settings file behind.
 export async function writeFileAtomic(path: string, content: string): Promise<void> {

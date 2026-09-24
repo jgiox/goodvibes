@@ -2,15 +2,15 @@ import type { Command } from 'commander'
 import { intro, outro, note, confirm, isCancel, cancel } from '@clack/prompts'
 import { listTemplateFiles, resolveTemplatesDir } from '../steps/copy-templates.js'
 import { readManifest, writeManifest, posixKey, type Manifest } from '../steps/write-manifest.js'
-import { mergeClaude } from '../utils/sentinel-merge.js'
+import { mergeClaude, MarkerError } from '../utils/sentinel-merge.js'
 import { MANAGED_JSON, mergeManagedJson, managedRecord, isJsonObject } from '../utils/json-merge.js'
-import { writeFileAtomic } from '../utils/fs-safe.js'
+import { assertSafe, writeBlocked, writeFileAtomic } from '../utils/fs-safe.js'
 import { applyGlobalConfig, claudeConfigDir, formatGlobal } from '../steps/global-setup.js'
 import { GLOBAL_OWNED, type Scope } from '../utils/scope.js'
 import { detectProjectType } from '../utils/detect-project-type.js'
 import { readFile } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
-import { join, resolve, sep } from 'node:path'
+import { join } from 'node:path'
 import { createHash } from 'node:crypto'
 import { packageVersion } from '../utils/version.js'
 import { copy } from 'fs-extra'
@@ -18,20 +18,13 @@ import { copy } from 'fs-extra'
 // Not a hex digest, so the file always classifies as user-modified on later runs.
 const USER_OWNED = 'user-owned'
 
-function assertSafe(base: string, rel: string): void {
-  const resolved = resolve(base, rel)
-  if (!resolved.startsWith(resolve(base) + sep)) {
-    throw new Error(`Unsafe manifest key rejected: ${rel}`)
-  }
-}
-
 async function categorise(
   templateDir: string,
   cwd: string,
   manifest: { files: Record<string, string> },
   projectType: string,
   scope: Scope = 'project',
-): Promise<{ overwrite: string[]; skip: string[]; netNew: string[]; kept: string[] }> {
+): Promise<{ overwrite: string[]; skip: string[]; netNew: string[]; kept: string[]; blocked: Record<string, string> }> {
   // In global scope the rules block, skills and context7 live in the user config, never in the project.
   const excluded = (rel: string) => scope === 'global' && (rel === 'CLAUDE.md' || GLOBAL_OWNED(rel))
   const ciVariants = ['ci-node.yml', 'ci-python.yml', 'ci-both.yml']
@@ -40,11 +33,17 @@ async function categorise(
   const skip: string[] = []
   const netNew: string[] = []
   const kept: string[] = []
+  // Symlinked destinations: never read for hashing, never written; tracked ones keep their manifest entry.
+  const blocked: Record<string, string> = {}
 
   // First pass: check manifest-tracked files — unmodified → overwrite, user-modified → skip
   for (const [rel, manifestSha] of Object.entries(manifest.files)) {
     if (excluded(rel)) continue
-    assertSafe(cwd, rel)
+    const why = await writeBlocked(cwd, rel)
+    if (why) {
+      blocked[rel] = why
+      continue
+    }
     const destPath = join(cwd, rel)
     if (!existsSync(destPath)) {
       overwrite.push(rel) // dest gone, re-create
@@ -73,6 +72,11 @@ async function categorise(
       ? '.github/workflows/ci.yml'
       : templateFile
     if (destRel in manifest.files || excluded(destRel)) continue
+    const why = await writeBlocked(cwd, destRel)
+    if (why) {
+      blocked[destRel] = why
+      continue
+    }
     // init only records files it wrote; a file already on disk is the user's own.
     if (destRel !== 'CLAUDE.md' && existsSync(join(cwd, destRel))) {
       kept.push(destRel)
@@ -81,7 +85,7 @@ async function categorise(
     }
   }
 
-  return { overwrite, skip, netNew, kept }
+  return { overwrite, skip, netNew, kept, blocked }
 }
 
 export function registerUpdateCommand(program: Command): void {
@@ -130,7 +134,7 @@ export async function runUpdate(dryRun: boolean, force: boolean): Promise<void> 
 
   const projectType = detectProjectType(cwd)
   const scope: Scope = manifest.scope ?? 'project'
-  const { overwrite, skip, netNew, kept } = await categorise(templateDir, cwd, manifest, projectType, scope)
+  const { overwrite, skip, netNew, kept, blocked } = await categorise(templateDir, cwd, manifest, projectType, scope)
 
   // User-modified settings.json / .mcp.json still receive goodvibes-managed keys.
   const merges: { rel: string; merged: Record<string, unknown>; changes: string[] }[] = []
@@ -156,6 +160,7 @@ export async function runUpdate(dryRun: boolean, force: boolean): Promise<void> 
   const mergeLines = [
     ...merges.map(m => `Will merge goodvibes keys into ${m.rel}:\n  ${m.changes.join('\n  ')}`),
     ...mergeErrors.map(e => `Cannot merge ${e}`),
+    ...Object.values(blocked),
   ]
 
   if (dryRun) {
@@ -193,8 +198,9 @@ export async function runUpdate(dryRun: boolean, force: boolean): Promise<void> 
 
   // Apply overwrite + net-new; skip user-modified files
   const selectedVariantSrc = `.github/workflows/ci-${projectType}.yml`
+  const claudeProblems: string[] = []
   for (const rel of [...overwrite, ...netNew]) {
-    assertSafe(cwd, rel)
+    await assertSafe(cwd, rel)
     let templateSrc: string
     if (rel === 'CLAUDE.md') {
       templateSrc = join(templateDir, 'CLAUDE.md')
@@ -207,7 +213,12 @@ export async function runUpdate(dryRun: boolean, force: boolean): Promise<void> 
     if (!existsSync(templateSrc)) continue
     if (rel === 'CLAUDE.md') {
       const templateContent = await readFile(templateSrc, 'utf-8')
-      await mergeClaude(join(cwd, rel), templateContent)
+      try {
+        await mergeClaude(join(cwd, rel), templateContent)
+      } catch (e) {
+        if (!(e instanceof MarkerError)) throw e
+        claudeProblems.push(e.message)
+      }
     } else {
       await copy(templateSrc, join(cwd, rel), { overwrite: true })
     }
@@ -220,16 +231,17 @@ export async function runUpdate(dryRun: boolean, force: boolean): Promise<void> 
   // Preserve skipped (user-modified) files' prior hashes so they stay
   // protected on every later run instead of dropping out of the manifest.
   const preserved: Record<string, string> = {}
-  for (const rel of skip) {
-    preserved[rel] = manifest.files[rel]
+  for (const rel of [...skip, ...Object.keys(blocked)]) {
+    if (rel in manifest.files) preserved[rel] = manifest.files[rel]
   }
+  if (claudeProblems.length > 0 && 'CLAUDE.md' in manifest.files) preserved['CLAUDE.md'] = manifest.files['CLAUDE.md']
   for (const rel of kept) {
     preserved[rel] = USER_OWNED
   }
 
-  await writeManifest(
+  const manifestBlocked = await writeManifest(
     cwd,
-    [...overwrite, ...netNew].filter(rel => existsSync(join(cwd, rel))),
+    [...overwrite, ...netNew].filter(rel => existsSync(join(cwd, rel)) && !(rel === 'CLAUDE.md' && claudeProblems.length > 0)),
     packageVersion(),
     preserved,
     await managedRecord(cwd, templateDir, manifest.managed),
@@ -242,8 +254,15 @@ export async function runUpdate(dryRun: boolean, force: boolean): Promise<void> 
       `Applied ${applied} file(s). Skipped ${skip.length + kept.length} user-modified file(s).`,
       ...merges.map(m => `Merged ${m.changes.length} goodvibes key(s) into ${m.rel}.`),
       ...mergeErrors.map(e => `Not merged: ${e}`),
+      ...Object.values(blocked),
+      ...(manifestBlocked ? [manifestBlocked] : []),
+      ...claudeProblems,
     ].join('\n'),
     'Update complete',
   )
+  if (claudeProblems.length > 0) {
+    cancel('CLAUDE.md was not updated; fix it by hand as described above, then run goodvibes update again.')
+    process.exit(1)
+  }
   outro('Done!')
 }

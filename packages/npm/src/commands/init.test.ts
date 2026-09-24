@@ -113,7 +113,7 @@ describe('init command', () => {
     const { configureMcp } = await import('../steps/configure-mcp.js')
 
     vi.mocked(resolveTemplatesDir).mockReturnValue('/fake/templates')
-    vi.mocked(copyTemplates).mockResolvedValue({ written: ['CLAUDE.md', 'README.md'], skipped: [] })
+    vi.mocked(copyTemplates).mockResolvedValue({ written: ['CLAUDE.md', 'README.md'], skipped: [], problems: [] })
     vi.mocked(listTemplateFiles).mockResolvedValue(['CLAUDE.md', 'README.md'])
 
     // tasks() executes each task function synchronously for testing
@@ -156,7 +156,7 @@ describe('init command', () => {
     const { sendTelemetry } = await import('../steps/telemetry.js')
 
     vi.mocked(resolveTemplatesDir).mockReturnValue('/fake/templates')
-    vi.mocked(copyTemplates).mockResolvedValue({ written: ['CLAUDE.md', '.github/workflows/ci.yml', 'README.md'], skipped: [] })
+    vi.mocked(copyTemplates).mockResolvedValue({ written: ['CLAUDE.md', '.github/workflows/ci.yml', 'README.md'], skipped: [], problems: [] })
     vi.mocked(installHeadroom).mockResolvedValue({ status: 'installed' })
     vi.mocked(configureMcp).mockResolvedValue({ status: 'registered' })
 
@@ -232,7 +232,7 @@ describe('init command', () => {
     const { configureMcp } = await import('../steps/configure-mcp.js')
 
     vi.mocked(resolveTemplatesDir).mockReturnValue('/fake/templates')
-    vi.mocked(copyTemplates).mockResolvedValue({ written: ['CLAUDE.md', 'README.md'], skipped: [] })
+    vi.mocked(copyTemplates).mockResolvedValue({ written: ['CLAUDE.md', 'README.md'], skipped: [], problems: [] })
     vi.mocked(installHeadroom).mockResolvedValue({ status: 'installed' })
     vi.mocked(configureMcp).mockResolvedValue({ status: 'registered' })
 
@@ -263,7 +263,7 @@ describe('init command', () => {
     const { configureMcp } = await import('../steps/configure-mcp.js')
 
     vi.mocked(resolveTemplatesDir).mockReturnValue('/fake/templates')
-    vi.mocked(copyTemplates).mockResolvedValue({ written: ['CLAUDE.md'], skipped: [] })
+    vi.mocked(copyTemplates).mockResolvedValue({ written: ['CLAUDE.md'], skipped: [], problems: [] })
     vi.mocked(installHeadroom).mockResolvedValue({ status: 'installed' })
     vi.mocked(configureMcp).mockResolvedValue({ status: 'registered' })
 
@@ -302,7 +302,7 @@ describe('init command', () => {
       const { sendTelemetry } = await import('../steps/telemetry.js')
 
       vi.mocked(resolveTemplatesDir).mockReturnValue('/fake/templates')
-      vi.mocked(copyTemplates).mockResolvedValue({ written: ['CLAUDE.md'], skipped: [] })
+      vi.mocked(copyTemplates).mockResolvedValue({ written: ['CLAUDE.md'], skipped: [], problems: [] })
       vi.mocked(installHeadroom).mockResolvedValue({ status: 'installed' })
       vi.mocked(configureMcp).mockResolvedValue({ status: 'registered' })
       vi.mocked(tasks).mockImplementation(async (taskList: any[]) => {
@@ -353,7 +353,7 @@ describe('init command', () => {
       const { configureMcp } = await import('../steps/configure-mcp.js')
 
       vi.mocked(resolveTemplatesDir).mockReturnValue('/fake/templates')
-      vi.mocked(copyTemplates).mockResolvedValue({ written: ['CLAUDE.md'], skipped: [] })
+      vi.mocked(copyTemplates).mockResolvedValue({ written: ['CLAUDE.md'], skipped: [], problems: [] })
       vi.mocked(installHeadroom).mockResolvedValue({ status: 'installed' })
       vi.mocked(configureMcp).mockResolvedValue({ status: 'registered' })
       vi.mocked(tasks).mockImplementation(async (taskList: any[]) => {
@@ -386,7 +386,7 @@ describe('init command', () => {
       const { configureMcp } = await import('../steps/configure-mcp.js')
 
       vi.mocked(resolveTemplatesDir).mockReturnValue('/fake/templates')
-      vi.mocked(copyTemplates).mockResolvedValue({ written: ['CLAUDE.md'], skipped: [] })
+      vi.mocked(copyTemplates).mockResolvedValue({ written: ['CLAUDE.md'], skipped: [], problems: [] })
       vi.mocked(installHeadroom).mockResolvedValue({ status: 'installed' })
       vi.mocked(configureMcp).mockResolvedValue({ status: 'registered' })
       vi.mocked(tasks).mockImplementation(async (taskList: any[]) => {
@@ -427,7 +427,7 @@ describe('UX-01: non-empty directory notice', () => {
     const { configureMcp } = await import('../steps/configure-mcp.js')
 
     vi.mocked(resolveTemplatesDir).mockReturnValue('/fake/templates')
-    vi.mocked(copyTemplates).mockResolvedValue({ written: ['CLAUDE.md'], skipped: [] })
+    vi.mocked(copyTemplates).mockResolvedValue({ written: ['CLAUDE.md'], skipped: [], problems: [] })
     vi.mocked(installHeadroom).mockResolvedValue({ status: 'installed' })
     vi.mocked(configureMcp).mockResolvedValue({ status: 'registered' })
 
@@ -468,7 +468,7 @@ describe('UX-02: written/skipped split in completion', () => {
     const { configureMcp } = await import('../steps/configure-mcp.js')
 
     vi.mocked(resolveTemplatesDir).mockReturnValue('/fake/templates')
-    vi.mocked(copyTemplates).mockResolvedValue({ written: ['CLAUDE.md', 'README.md'], skipped: [] })
+    vi.mocked(copyTemplates).mockResolvedValue({ written: ['CLAUDE.md', 'README.md'], skipped: [], problems: [] })
     vi.mocked(installHeadroom).mockResolvedValue({ status: 'installed' })
     vi.mocked(configureMcp).mockResolvedValue({ status: 'registered' })
 
@@ -500,7 +500,7 @@ describe('UX-02: written/skipped split in completion', () => {
     const { configureMcp } = await import('../steps/configure-mcp.js')
 
     vi.mocked(resolveTemplatesDir).mockReturnValue('/fake/templates')
-    vi.mocked(copyTemplates).mockResolvedValue({ written: ['CLAUDE.md'], skipped: ['JOURNAL.md'] })
+    vi.mocked(copyTemplates).mockResolvedValue({ written: ['CLAUDE.md'], skipped: ['JOURNAL.md'], problems: [] })
     vi.mocked(installHeadroom).mockResolvedValue({ status: 'installed' })
     vi.mocked(configureMcp).mockResolvedValue({ status: 'registered' })
 
@@ -536,7 +536,7 @@ describe('UX-03: error surfacing', () => {
     const { copyTemplates, resolveTemplatesDir } = await import('../steps/copy-templates.js')
 
     vi.mocked(resolveTemplatesDir).mockReturnValue('/fake/templates')
-    vi.mocked(copyTemplates).mockResolvedValue({ written: [], skipped: [] })
+    vi.mocked(copyTemplates).mockResolvedValue({ written: [], skipped: [], problems: [] })
 
     // tasks() throws EACCES
     vi.mocked(tasks).mockRejectedValue(Object.assign(new Error('EACCES: permission denied'), { code: 'EACCES' }))
