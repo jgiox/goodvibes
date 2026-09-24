@@ -1481,3 +1481,17 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 **Tests run:** npm vitest 267 passed, 1 skipped, 2 todo; pip pytest 222 passed; verify-phase4 and phase5 PASS. verify-phase1, 2 and 3 fail identically with and without these edits (stale checks, tracked separately).
 
 **Docs updated:** all of the above.
+
+---
+
+## 2026-09-24 · Journal gate reads multi-line commands line by line
+
+**What I did:** The gate saw a Bash command as one line with literal `\n` escapes (it is JSON-encoded), which broke it both ways. Fail-open: a `git commit` on any line after the first was not detected at all, because `git` was preceded by the `n` of `\n` instead of whitespace, so `echo hi` + newline + `git commit -m x` committed with no journal. False positive: `git` on one line and the word `commit` anywhere later (including inside a heredoc body, e.g. writing a note that says "git commit") was treated as a commit. The hook now drops heredoc bodies (except when the heredoc feeds `sh`/`bash`/`zsh`/`dash`/`ksh`/`ssh`/`eval`, which would run it; `<<<` here-strings are not heredocs), strips quoted strings as before, then splits the command into real lines for every check. A `git -C` commit in a multi-line command is blocked as ambiguous, like `&&`. Regression tests in npm and pip cover both directions plus `git commit -F -` with a heredoc message and a multi-line `-m` message that mentions `commit -a`.
+
+**Files changed:** templates/.claude/settings.json, .claude/settings.json, packages/npm/src/steps/journal-gate-hook.integration.test.ts, packages/pip/tests/test_journal_gate_hook.py, JOURNAL.md.
+
+**Why:** Follow-up from the 1.9.0 release: the gate blocked legitimate commands and, worse, missed real commits.
+
+**Tests run:** RED: npm hook tests 5 failed, 33 passed; pip 5 failed, 33 passed.
+
+**Docs updated:** JOURNAL.md.

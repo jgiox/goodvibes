@@ -258,4 +258,40 @@ describe('journal-gate hook', () => {
     const { exitCode } = await runHook('git commit -m "log"', repoDir)
     expect(exitCode).toBe(2)
   })
+
+  it('allows a heredoc whose body mentions git commit, because nothing is committed', async () => {
+    const { exitCode } = await runHook("cat > notes.md <<'EOF'\nremember to git commit later\nEOF", repoDir)
+    expect(exitCode).toBe(0)
+  })
+
+  it('allows a multi-line command with git on one line and the word commit on a later line', async () => {
+    const { exitCode } = await runHook('git status\necho commit', repoDir)
+    expect(exitCode).toBe(0)
+  })
+
+  it('still blocks a commit fed to a shell through a heredoc', async () => {
+    const { exitCode } = await runHook("bash <<'EOF'\ngit commit -m x\nEOF", repoDir)
+    expect(exitCode).toBe(2)
+  })
+
+  it('still blocks a commit on the line after a here-string', async () => {
+    const { exitCode } = await runHook('cat <<< hi\ngit commit -m x', repoDir)
+    expect(exitCode).toBe(2)
+  })
+
+  it('still blocks a commit on the line after a heredoc ends', async () => {
+    const { exitCode } = await runHook("cat > n.md <<'EOF'\nhi\nEOF\ngit commit -m x", repoDir)
+    expect(exitCode).toBe(2)
+  })
+
+  it('still blocks git commit -F - whose message comes from a heredoc', async () => {
+    const { exitCode } = await runHook("git commit -F - <<'EOF'\nmsg\nEOF", repoDir)
+    expect(exitCode).toBe(2)
+  })
+
+  it('still blocks a commit whose multi-line message mentions commit -a when JOURNAL.md is only modified', async () => {
+    await commitJournal()
+    const { exitCode } = await runHook('git commit -m "x\nuse commit -a next time"', repoDir)
+    expect(exitCode).toBe(2)
+  })
 })
