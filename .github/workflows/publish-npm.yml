@@ -6,29 +6,68 @@ on:
       - 'npm-v*'   # trigger: git tag npm-v1.0.1 && git push origin npm-v1.0.1
   workflow_dispatch:  # manual button in GitHub Actions UI
 
+permissions:
+  contents: read
+
 jobs:
-  publish:
+  # A dispatch from another branch could run an edited workflow and publish with valid provenance.
+  guard:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      id-token: write  # npm trusted publishing (OIDC): no NPM_TOKEN secret, provenance attached
-    outputs:
-      version: ${{ steps.version.outputs.version }}
     steps:
-      - uses: actions/checkout@v7
-
-      # No registry-url: setup-node would write an _authToken line to .npmrc that stops npm from using OIDC (actions/setup-node#1551).
-      - uses: actions/setup-node@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
-          node-version: '24'
+          fetch-depth: 0
+          persist-credentials: false
 
-      # Trusted publishing needs npm >= 11.5.1.
-      - name: Upgrade npm
-        run: npm install -g npm@^11.5.1
+      - name: Allow only main, or a tag on main whose version matches package.json
+        run: |
+          set -euo pipefail
+          case "$GITHUB_REF" in
+            refs/heads/main) ;;
+            refs/tags/npm-v*)
+              if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+                echo "::error::Tag $GITHUB_REF_NAME points at $GITHUB_SHA, which is not on main. Merge the release to main, then tag a commit on main."
+                exit 1
+              fi
+              PKG_VERSION=$(node -p "require('./packages/npm/package.json').version")
+              if [ "${GITHUB_REF_NAME#npm-v}" != "$PKG_VERSION" ]; then
+                echo "::error::Tag $GITHUB_REF_NAME does not match packages/npm/package.json version $PKG_VERSION. Tag npm-v$PKG_VERSION instead."
+                exit 1
+              fi
+              ;;
+            *)
+              echo "::error::Publishing runs only from main or an npm-v* tag on main, not $GITHUB_REF. Run the workflow from main."
+              exit 1
+              ;;
+          esac
+
+  test:
+    name: npm tests (Node ${{ matrix.node }})
+    needs: guard
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node: ['22', '24']
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v7.0.0
+        with:
+          node-version: ${{ matrix.node }}
 
       - name: Install dependencies
         working-directory: packages/npm
         run: npm ci
+
+      - name: Sync templates
+        working-directory: packages/npm
+        run: npm run prebuild
+
+      - name: Typecheck
+        working-directory: packages/npm
+        run: npm run typecheck
 
       # Build first: dist-cli.integration.test.ts runs the built CLI.
       - name: Build
@@ -39,11 +78,52 @@ jobs:
         working-directory: packages/npm
         run: npm test
 
+  publish:
+    needs: [guard, test]
+    runs-on: ubuntu-latest
+    environment: release  # needs a required reviewer; the npm trusted publisher is bound to this environment
+    permissions:
+      contents: read
+      id-token: write  # npm trusted publishing (OIDC): no NPM_TOKEN secret, provenance attached
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+
+      # No registry-url: setup-node would write an _authToken line to .npmrc that stops npm from using OIDC (actions/setup-node#1551).
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v7.0.0
+        with:
+          node-version: '24'
+
+      # Trusted publishing needs npm >= 11.5.1; exact pin because this job holds id-token: write (bump by hand).
+      - name: Upgrade npm
+        run: npm install -g npm@11.20.0
+
+      - name: Install dependencies
+        working-directory: packages/npm
+        run: npm ci
+
+      - name: Build
+        working-directory: packages/npm
+        run: npm run build
+
       - name: Verify package contents
         working-directory: packages/npm
         run: |
           npm pack --dry-run 2>&1 | grep -E "dist/|templates/"
           npm pack --dry-run 2>&1 | grep "src/" | wc -l | grep "^0$"
+          npm pack --dry-run 2>&1 | grep -E " (LICENSE|NOTICE)$" | wc -l | grep "^2$"
+
+      - name: Smoke test the packed tarball
+        working-directory: packages/npm
+        run: |
+          set -euo pipefail
+          npm pack
+          PREFIX=$(mktemp -d)
+          npm install -g --prefix "$PREFIX" ./goodvibes-cli-*.tgz
+          cd "$(mktemp -d)"
+          "$PREFIX/bin/goodvibes" init --dry-run --scope project 2>&1 | tee "$RUNNER_TEMP/gv-pack-out.txt"
+          grep -q "CLAUDE.md" "$RUNNER_TEMP/gv-pack-out.txt"
 
       - name: Read version
         id: version
@@ -59,7 +139,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions: {}
     steps:
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v7.0.0
         with:
           node-version: '22'
 

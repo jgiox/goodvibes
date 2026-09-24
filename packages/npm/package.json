@@ -12,7 +12,9 @@
   },
   "files": [
     "dist",
-    "templates"
+    "templates",
+    "LICENSE",
+    "NOTICE"
   ],
   "homepage": "https://github.com/jgiox/goodvibes",
   "repository": {
@@ -35,7 +37,7 @@
   },
   "license": "Apache-2.0",
   "scripts": {
-    "prebuild": "node -e \"const{cpSync}=require('fs');cpSync('../../templates','./templates',{recursive:true,force:true})\"",
+    "prebuild": "node -e \"const{cpSync}=require('fs');cpSync('../../templates','./templates',{recursive:true,force:true});cpSync('../../LICENSE','./LICENSE');cpSync('../../NOTICE','./NOTICE')\"",
     "build": "tsup",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",

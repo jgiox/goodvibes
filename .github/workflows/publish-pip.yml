@@ -6,24 +6,75 @@ on:
       - 'pip-v*'   # trigger: git tag pip-v1.0.0 && git push origin pip-v1.0.0
   workflow_dispatch:  # manual button in GitHub Actions UI
 
+permissions:
+  contents: read
+
 jobs:
-  publish:
+  # A dispatch from another branch could run an edited workflow and publish with valid attestations.
+  guard:
     runs-on: ubuntu-latest
-    environment: release  # matches PyPI trusted publisher environment name
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Allow only main, or a tag on main whose version matches pyproject.toml
+        run: |
+          set -euo pipefail
+          case "$GITHUB_REF" in
+            refs/heads/main) ;;
+            refs/tags/pip-v*)
+              if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+                echo "::error::Tag $GITHUB_REF_NAME points at $GITHUB_SHA, which is not on main. Merge the release to main, then tag a commit on main."
+                exit 1
+              fi
+              PKG_VERSION=$(python3 -c "import tomllib;print(tomllib.load(open('packages/pip/pyproject.toml','rb'))['project']['version'])")
+              if [ "${GITHUB_REF_NAME#pip-v}" != "$PKG_VERSION" ]; then
+                echo "::error::Tag $GITHUB_REF_NAME does not match packages/pip/pyproject.toml version $PKG_VERSION. Tag pip-v$PKG_VERSION instead."
+                exit 1
+              fi
+              ;;
+            *)
+              echo "::error::Publishing runs only from main or a pip-v* tag on main, not $GITHUB_REF. Run the workflow from main."
+              exit 1
+              ;;
+          esac
+
+  test:
+    name: pip tests (Python ${{ matrix.python }})
+    needs: guard
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python: ['3.10', '3.11', '3.12']
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78  # v7.6.0
+        with:
+          python-version: ${{ matrix.python }}
+
+      - name: Test
+        working-directory: packages/pip
+        run: uv run --extra dev pytest tests/ -x -q
+
+  publish:
+    needs: [guard, test]
+    runs-on: ubuntu-latest
+    environment: release  # needs a required reviewer; the PyPI trusted publisher is bound to this environment
     permissions:
       contents: read
       id-token: write  # required for OIDC trusted publishing — no API token in repo
     outputs:
       version: ${{ steps.version.outputs.version }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v7
-
-      - name: Test
-        working-directory: packages/pip
-        run: uv run --extra dev pytest tests/ -x -q
+        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78  # v7.6.0
 
       - name: Build wheel
         working-directory: packages/pip
@@ -31,6 +82,29 @@ jobs:
 
       - name: Verify wheel name (PKG-01 — goodvibes-cli)
         run: test -f packages/pip/dist/goodvibes_cli-*.whl
+
+      - name: Verify sdist carries LICENSE and NOTICE
+        run: tar -tzf packages/pip/dist/goodvibes_cli-*.tar.gz | grep -cE '^goodvibes_cli-[^/]+/(LICENSE|NOTICE)$' | grep -q '^2$'
+
+      - name: Smoke test the built wheel
+        working-directory: packages/pip
+        run: |
+          set -euo pipefail
+          WHEEL=$(ls dist/goodvibes_cli-*.whl)
+          python3 - "$WHEEL" <<'PY'
+          import sys, zipfile
+          names = zipfile.ZipFile(sys.argv[1]).namelist()
+          required = ("goodvibes_cli/templates/CLAUDE.md", ".dist-info/licenses/LICENSE", ".dist-info/licenses/NOTICE")
+          missing = [f for f in required if not any(n.endswith(f) for n in names)]
+          if missing:
+              sys.exit(f"::error::{sys.argv[1]} is missing {missing}")
+          PY
+          VENV="$(mktemp -d)/venv"
+          uv venv "$VENV"
+          uv pip install --python "$VENV/bin/python" "$WHEEL"
+          cd "$(mktemp -d)"
+          "$VENV/bin/goodvibes" init --dry-run --scope project 2>&1 | tee "$RUNNER_TEMP/gv-wheel-out.txt"
+          grep -q "CLAUDE.md" "$RUNNER_TEMP/gv-wheel-out.txt"
 
       - name: Read version
         id: version
@@ -47,7 +121,7 @@ jobs:
     permissions: {}
     steps:
       - name: Install uv
-        uses: astral-sh/setup-uv@v7
+        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78  # v7.6.0
 
       # Pin the version just published: an unpinned install passes silently against the previous release
       # while PyPI's CDN catches up, so retry instead of a fixed sleep.
