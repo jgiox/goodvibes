@@ -1,6 +1,6 @@
 import type { Command } from 'commander'
 import { readdirSync } from 'node:fs'
-import { createRequire } from 'node:module'
+import { packageVersion } from '../utils/version.js'
 import { intro, outro, note, tasks, cancel } from '@clack/prompts'
 import { copyTemplates, listTemplateFiles, resolveTemplatesDir } from '../steps/copy-templates.js'
 import { installHeadroom, type HeadroomResult } from '../steps/install-headroom.js'
@@ -143,8 +143,7 @@ export function registerInitCommand(program: Command): void {
         process.exit(1)
       }
 
-      const _req = createRequire(import.meta.url)
-      const _ver = (_req('../../package.json') as { version: string }).version
+      const _ver = packageVersion()
       await writeManifest(cwd, createdFiles.filter(f => f !== '.goodvibes.json'), _ver, undefined, await managedRecord(cwd, templateDir))
 
       await Promise.race([telemetryPromise.catch(() => {}), sleep(1_000)])

@@ -14,7 +14,7 @@ vi.mock('node:fs', () => ({
   readFileSync: vi.fn(),
 }))
 
-vi.mock('node:module', () => ({ createRequire: () => () => ({ version: '1.6.2' }) }))
+vi.mock('../utils/version.js', () => ({ packageVersion: () => '1.6.2' }))
 
 describe('doctor command', () => {
   beforeEach(() => {

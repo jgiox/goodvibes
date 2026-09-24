@@ -9,9 +9,8 @@ import { readFile, rename } from 'node:fs/promises'
 import { existsSync } from 'fs'
 import { join, relative } from 'path'
 import { execa } from 'execa'
-import { createRequire } from 'node:module'
+import { packageVersion } from '../utils/version.js'
 
-const _require = createRequire(import.meta.url)
 const _GV_UPGRADING = '_GV_UPGRADING'
 
 async function checkLatestNpmVersion(): Promise<string | null> {
@@ -23,14 +22,8 @@ async function checkLatestNpmVersion(): Promise<string | null> {
   }
 }
 
-function getInstalledVersion(): string | null {
-  try {
-    // Walk up from this file to find package.json bundled in the dist
-    const pkg = _require('../../package.json') as { version?: string }
-    return pkg.version ?? null
-  } catch {
-    return null
-  }
+function getInstalledVersion(): string {
+  return packageVersion()
 }
 
 async function selfUpdateNpm(version: string): Promise<void> {

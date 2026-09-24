@@ -1279,3 +1279,17 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 **Tests run:** new test fails with `Cannot find module '../../package.json'`, as expected.
 
 **Docs updated:** JOURNAL.md.
+
+---
+
+## 2026-09-24 · npm init crashes in the built CLI: GREEN
+
+**What I did:** Added `packages/npm/src/utils/version.ts` (`packageVersion()`), which tries `../package.json` (bundled dist) then `../../package.json` (source), accepts only `name === "goodvibes-cli"`, and throws an actionable error if neither exists. Replaced all five lookups: init, doctor, update, upgrade, index. Unit tests now mock `../utils/version.js` instead of `node:module`. `publish-npm.yml` builds before testing, since the new test runs `dist/`.
+
+**Files changed:** packages/npm/src/utils/version.ts (new), packages/npm/src/utils/version.test.ts (new), packages/npm/src/commands/{init,doctor,update,upgrade}.ts, packages/npm/src/index.ts, packages/npm/src/commands/{doctor,update,upgrade}.test.ts, .github/workflows/publish-npm.yml, JOURNAL.md.
+
+**Why:** Makes the RED test pass. `doctor`/`update` had silently reported version "unknown" and `upgrade` never knew the installed version, from the same bug.
+
+**Tests run:** npm vitest 203 passed, 1 skipped, 2 todo. `npm pack` tarball installed into a temp prefix: `init --minimal` exit 0, manifest version 1.7.1 with `managed` record; `--version` prints 1.7.1; `update` on a hand-edited 1.7.1-style project kept `Bash(make*)` and the postgres server, and added the hook, 20 ask rules and context7.
+
+**Docs updated:** JOURNAL.md.

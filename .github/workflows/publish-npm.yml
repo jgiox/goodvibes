@@ -23,13 +23,14 @@ jobs:
         working-directory: packages/npm
         run: npm ci
 
-      - name: Test
-        working-directory: packages/npm
-        run: npm test
-
+      # Build first: dist-cli.integration.test.ts runs the built CLI.
       - name: Build
         working-directory: packages/npm
         run: npm run build
+
+      - name: Test
+        working-directory: packages/npm
+        run: npm test
 
       - name: Verify package contents
         working-directory: packages/npm

@@ -9,10 +9,8 @@ import { readFile, writeFile } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
 import { join, resolve, sep } from 'node:path'
 import { createHash } from 'node:crypto'
-import { createRequire } from 'node:module'
+import { packageVersion } from '../utils/version.js'
 import { copy } from 'fs-extra'
-
-const _require = createRequire(import.meta.url)
 
 // Not a hex digest, so the file always classifies as user-modified on later runs.
 const USER_OWNED = 'user-owned'
@@ -21,15 +19,6 @@ function assertSafe(base: string, rel: string): void {
   const resolved = resolve(base, rel)
   if (!resolved.startsWith(resolve(base) + sep)) {
     throw new Error(`Unsafe manifest key rejected: ${rel}`)
-  }
-}
-
-function getVersion(): string {
-  try {
-    const pkg = _require('../../package.json') as { version?: string }
-    return pkg.version ?? 'unknown'
-  } catch {
-    return 'unknown'
   }
 }
 
@@ -210,7 +199,7 @@ export function registerUpdateCommand(program: Command): void {
       await writeManifest(
         cwd,
         [...overwrite, ...netNew].filter(rel => existsSync(join(cwd, rel))),
-        getVersion(),
+        packageVersion(),
         preserved,
         await managedRecord(cwd, templateDir, manifest.managed),
       )
