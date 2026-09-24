@@ -33,7 +33,12 @@ jobs:
         run: npm test --if-present
 
       - name: Lint
-        run: npm run lint --if-present
+        run: |
+          if node -e "process.exit(require('./package.json').scripts?.lint ? 0 : 1)"; then
+            npm run lint
+          else
+            echo "::warning::No lint script in package.json — add one (for example eslint) so CI catches mistakes"
+          fi
 
   test-python:
     name: Python tests (Python ${{ matrix.python }})
@@ -52,15 +57,18 @@ jobs:
       - name: Install dependencies
         run: |
           if [ -f "pyproject.toml" ]; then
-            uv sync --all-extras 2>/dev/null || uv sync
+            uv sync --all-extras || uv sync
           elif [ -f "requirements.txt" ]; then
             uv pip install -r requirements.txt
           fi
+
+      - name: Lint
+        run: uvx ruff check .
 
       - name: Run tests
         run: |
           if find . -name "test_*.py" -not -path "./.venv/*" | grep -q .; then
             uv run --extra dev pytest -x -q
           else
-            echo "No tests found — add a tests/ directory to get started"
+            echo "::warning::No tests found — add a tests/ directory to get started"
           fi

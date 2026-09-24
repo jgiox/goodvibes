@@ -1036,6 +1036,104 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 
 ---
 
+## 2026-09-24 — Cross-repo governance gap review: report + quick-task plan (260924-mh9)
+
+**What I did:** Reviewed agent-instruction files (CLAUDE.md, AGENTS.md, settings.json, hooks) across 16 private repos and compared them with what goodvibes v1.7.1 ships. Wrote an anonymised report (repo is public, so no private repo or client names) and a GSD quick-task plan to act on it. Found three goodvibes defects: `update` drops user-modified files from the manifest so a second run overwrites them; the permissions template auto-approves deploy/publish via `Bash(npx*)`/`Bash(uv*)`; CI templates hide errors and have no lint or secret scan.
+
+**Files changed:** `.planning/research/2026-09-24-cross-repo-gap-review.md` (new), `.planning/quick/260924-mh9-cross-repo-governance-gap-review-follow-/260924-mh9-PLAN.md` (new), JOURNAL.md.
+
+**Why:** Rules that real projects had to invent independently (definition of done, doc sweep + CHANGELOG, .env.example, no fabricated data, verify CI after push) belong in the default template. A first-draft claim (version-stamp mismatch as evidence of the update bug) was checked and retracted in the report — it was a release-ordering artifact.
+
+**Tests run:** None yet (planning only). Verified externally: Claude Code permission order is deny → ask → allow (Claude Code docs via context7); gitleaks v8.30.1 Docker image exits 0 on a clean repo and 1 on a committed GitHub-token-shaped string (local run).
+
+**Docs updated:** Report, PLAN.md, JOURNAL.md.
+
+---
+
+## 2026-09-24 — D1 update-data-loss fix: RED tests (260924-mh9 task 1)
+
+**What I did:** Wrote failing regression tests for D1 (`goodvibes update` drops user-modified files from `.goodvibes.json` on the write-back, so a second `update` run reclassifies them as net-new and overwrites them; also CLAUDE.md's whole-file hash never matches once custom prose exists outside the sentinel block, so `mergeClaude` never runs) in both CLIs before touching any production code. npm: `writeManifest` preserved-param test in `write-manifest.test.ts`, plus a new `update.integration.test.ts` with two real-tmpdir scenarios (two consecutive `update --force` runs must not destroy a skipped file; CLAUDE.md's block must refresh while custom prose survives). pip: matching `write_manifest` preserved-param test in `test_write_manifest.py`, plus the same two scenarios added to `test_update_cmd.py`. Ran both suites against the current, unmodified code and confirmed all five new tests fail for the documented reason (`TypeError`/`AssertionError` matching the bug mechanism, not an unrelated error). One RED test (the CLAUDE.md-refresh scenario) initially passed unexpectedly on first draft because the manifest hash was computed from post-edit content instead of the pre-edit baseline the real bug requires; caught this via the plan's fail-fast rule, corrected the fixture to hash the block-only baseline before the simulated user edit, and re-confirmed it now fails for the right reason in both CLIs.
+
+**Files changed:** `packages/npm/src/steps/write-manifest.test.ts`, `packages/npm/src/commands/update.integration.test.ts` (new), `packages/pip/tests/test_write_manifest.py`, `packages/pip/tests/test_update_cmd.py`, JOURNAL.md.
+
+**Why:** Plan `260924-mh9` task 1 requires RED tests committed before the GREEN fix, one commit each, so the fix is provably tied to the reported defect.
+
+**Tests run:** `npx vitest run src/steps/write-manifest.test.ts src/commands/update.integration.test.ts` (1 new + 2 new failing as expected, rest passing); `uv run pytest tests/test_write_manifest.py tests/test_update_cmd.py -v -o addopts=""` (3 failed as expected — `write_manifest() got an unexpected keyword argument 'preserved'`, and both two-runs/CLAUDE.md-refresh assertions failing with the exact data-loss/stale-block symptoms — 12 passed).
+
+**Docs updated:** JOURNAL.md only (no user-facing docs yet — GREEN commit follows).
+
+---
+
+## 2026-09-24 — D1 update-data-loss fix: GREEN implementation (260924-mh9 task 1)
+
+**What I did:** Implemented the fix that makes the RED tests pass, in both CLIs. `writeManifest`/`write_manifest` now accept an optional `preserved` map that is merged into the manifest's `files` object before the newly-hashed `writtenFiles` entries are added — preserved hashes are sourced only from the *prior* manifest (never re-read from dest), so a user-modified file can't be silently reclassified as unmodified by the fix itself. In `update.ts`/`update_cmd.py`, `categorise()`'s first-pass loop now routes `CLAUDE.md` unconditionally to the `overwrite` list whenever the dest file exists, skipping the whole-file hash comparison entirely — `mergeClaude`/`merge_claude` is inherently safe since it only ever replaces the sentinel block. The action handler builds `preserved` from the `skip` list using the manifest's existing hash for each skipped file, and passes it through to `writeManifest`/`write_manifest`. Updated two pre-existing npm tests whose `writeManifest` call-signature assertions broke from the new 4th arg (added `expect.any(Object)`), and swapped the CLAUDE.md fixture in the npm `update.test.ts` skip-category test and the pip `test_update_skips_user_modified_files` test for a non-CLAUDE.md file (`docs/onboarding.md`), since CLAUDE.md is no longer a valid "skip" example.
+
+**Files changed:** `packages/npm/src/steps/write-manifest.ts`, `packages/npm/src/commands/update.ts`, `packages/npm/src/commands/update.test.ts`, `packages/pip/src/goodvibes_cli/steps/write_manifest.py`, `packages/pip/src/goodvibes_cli/commands/update_cmd.py`, `packages/pip/tests/test_update_cmd.py`, JOURNAL.md.
+
+**Why:** Closes D1 from the cross-repo governance gap review — `update` was destroying user edits on its second run and never refreshing CLAUDE.md's goodvibes block once custom prose existed outside it.
+
+**Tests run:** `npx vitest run src/steps/write-manifest.test.ts src/commands/update.test.ts src/commands/update.integration.test.ts` (15 passed); `npx vitest run` (171 passed, 1 skipped, 2 todo — full suite); `uv run pytest tests/test_write_manifest.py tests/test_update_cmd.py -v -o addopts=""` (15 passed); `uv run pytest tests/` (179 passed — full suite).
+
+**Docs updated:** JOURNAL.md only.
+
+---
+
+## 2026-09-24 — Permissions ask-list + CI fail-loud: RED test (260924-mh9 task 2)
+
+**What I did:** Wrote a failing test asserting `templates/.claude/settings.json`'s `permissions.ask` array contains all 11 push/publish/deploy patterns from D2 (git push, npm/npx-npm/uv publish, twine/python-m-twine upload, wrangler deploy/pages-deploy, vercel, netlify deploy, firebase deploy), plus a sanity-guard test confirming `permissions.allow`, `permissions.deny`, and `hooks.PreToolUse` are still present (so the GREEN edit can be checked for not touching the hooks block). Ran against the current settings.json (no `ask` key) and confirmed the first test fails for the expected reason (`ask` is `undefined`, not an array) while the sanity-guard test passes.
+
+**Files changed:** `packages/npm/src/steps/settings-permissions.test.ts` (new), JOURNAL.md.
+
+**Why:** D2 from the cross-repo gap review — `templates/.claude/settings.json` auto-allows `Bash(npx*)`/`Bash(uv*)`, which lets deploy and publish commands run without a human in the loop, contradicting the template's own Action tiers rule.
+
+**Tests run:** `npx vitest run src/steps/settings-permissions.test.ts` (1 failed as expected — `ask` missing; 1 passed — sanity guard).
+
+**Docs updated:** JOURNAL.md only.
+
+---
+
+## 2026-09-24 — Permissions ask-list + CI fail-loud: GREEN implementation (260924-mh9 task 2)
+
+**What I did:** D2: added a top-level `ask` array inside `permissions` in `templates/.claude/settings.json` with the 11 push/publish/deploy patterns, via a targeted JSON edit that left `allow`, `deny`, and the `hooks` block byte-identical (verified by diff — only the new `ask` key was added). D3: in `ci-python.yml` and `ci-both.yml`'s python job, dropped `2>/dev/null` from `uv sync --all-extras || uv sync` so install failures are visible, added a `Lint` step running `uvx ruff check .` between install and test, and changed the silent "No tests found" echo to `::warning::No tests found`. In `ci-node.yml` and `ci-both.yml`'s node job, replaced the unconditional `npm run lint --if-present` with a check for a `lint` script in `package.json`: runs `npm run lint` (unguarded, so a real lint failure still fails the job) when present, otherwise emits a visible `::warning::` instead of skipping silently. In `security.yml`, added a new `secrets` job (sibling to `analyze`) that checks out full git history (`fetch-depth: 0`) and runs `ghcr.io/gitleaks/gitleaks:v8.30.1` via Docker to scan for committed secrets.
+
+**Files changed:** `templates/.claude/settings.json`, `templates/.github/workflows/ci-python.yml`, `templates/.github/workflows/ci-node.yml`, `templates/.github/workflows/ci-both.yml`, `templates/.github/workflows/security.yml`, JOURNAL.md.
+
+**Why:** Closes D2 (permissions template auto-approved deploy/publish commands, contradicting the template's own Action tiers rule) and D3 (CI templates hid `uv sync` errors, had no Python lint gate, silently skipped missing lint/tests, and had no secret scanning) from the cross-repo governance gap review.
+
+**Tests run:** `npx vitest run src/steps/settings-permissions.test.ts` (2 passed); `npx vitest run` (173 passed, 1 skipped, 2 todo — full suite); `bash scripts/verify-phase4.sh --quick` (15 passed, 0 failed, including CI-PYTHON-EXTRA-DEV / CI-PYTHON-MATRIX / SECURITY-EXTENDED).
+
+**Docs updated:** JOURNAL.md only.
+
+---
+
+## 2026-09-24 — Governance rules across every template + CHANGELOG (260924-mh9 task 3)
+
+**What I did:** Backfilled the review's rules 1, 3, 4, 7, 8, 9, 12 across every shipped agent-instruction template. `templates/CLAUDE.md`: inserted a "### Definition of done" section (5 bullets: tests pass with pasted output; every stale Markdown file plus CHANGELOG.md/JOURNAL.md updated; stage exact paths, never `git add -A`/`.`; confirm CI green and report branch/SHA after a push; blockers reported as what/why/risk/next-step) between Proof of work and Action tiers, without touching the `# goodvibes: v1.7.1` stamp; appended two bullets to Security (`.env`/`.env.example` discipline; never send secrets/PII/private code to context7 or web search) and one to Fail loud (never fabricate data — missing data is an error, not a placeholder). Applied the same three additions, condensed to `AGENTS.md`'s terse paragraph style. Copied that exact AGENTS.md body into the byte-identical group (`.windsurfrules`, `GEMINI.md`, `.clinerules/goodvibes.md`, `.amazonq/rules/goodvibes.md`, `.continue/rules/goodvibes.md`, `.devin/rules/goodvibes.md`) and confirmed via `diff` they remain byte-identical to `AGENTS.md`. Applied the same content, worded to match each file's own phrasing, to `.github/copilot-instructions.md`, `.cursor/rules/goodvibes.mdc`, and `.kiro/steering/goodvibes.md`. Added one compact sentence each (definition-of-done + no-fabricated-data + `.env.example`) to `replit.md` and `.bolt/prompt`, matching their existing prose style. Ran `npm run prebuild` to resync the gitignored `packages/npm/templates/` mirror (not staged). Added Fixed/Added/Changed entries to `CHANGELOG.md`'s `[Unreleased]` section summarising D1/D2/D3 and the new template rules. No deviation from the research report's "Changes shipped with this review" table, so left it unchanged.
+
+**Files changed:** `templates/CLAUDE.md`, `templates/AGENTS.md`, `templates/.windsurfrules`, `templates/GEMINI.md`, `templates/.clinerules/goodvibes.md`, `templates/.amazonq/rules/goodvibes.md`, `templates/.continue/rules/goodvibes.md`, `templates/.devin/rules/goodvibes.md`, `templates/.github/copilot-instructions.md`, `templates/.cursor/rules/goodvibes.mdc`, `templates/.kiro/steering/goodvibes.md`, `templates/replit.md`, `templates/.bolt/prompt`, `CHANGELOG.md`, JOURNAL.md.
+
+**Why:** These are the rules the highest number of the 16 reviewed repositories had independently invented (definition of done, `.env.example`, no-fabricated-data, doc-lookup data handling) — shipping them by default closes the gap for every new and existing goodvibes-managed project once they receive the next version bump.
+
+**Tests run:** None (documentation-only change; no code touched). Verified: `diff templates/AGENTS.md templates/<each byte-identical-group file>` clean for all six; `grep -l "Definition of done"` matches `CLAUDE.md`, `AGENTS.md`, `copilot-instructions.md`, `goodvibes.mdc`, `goodvibes.md` (kiro); `grep -q "goodvibes: v1.7.1" templates/CLAUDE.md` still true.
+
+**Docs updated:** All template files listed above, `CHANGELOG.md`, JOURNAL.md.
+
+---
+
+## 2026-09-24 — Quick task 260924-mh9 closed: orchestrator verification, merge, push
+
+**What I did:** Independently re-verified the executor's five commits instead of trusting its report: re-ran both full suites on merged `main`, checked out the RED commit `727eeb7` in a scratch worktree and confirmed every new regression test fails there (npm 2/2, pip 3/3 — pip needed `-o addopts=""` because the config stops at the first failure), diffed the six byte-identical rule files against `templates/AGENTS.md` (identical), and validated `templates/.claude/settings.json` parses. Merged the executor worktree into `main`, recorded the task in STATE.md.
+
+**Files changed:** `.planning/STATE.md`, `.planning/quick/260924-mh9-cross-repo-governance-gap-review-follow-/260924-mh9-SUMMARY.md`, JOURNAL.md.
+
+**Why:** Proof-of-work rule — subagent self-reports are not evidence.
+
+**Tests run:** `npx vitest run` → 173 passed / 1 skipped / 2 todo; `uv run pytest tests/` → 179 passed; `bash scripts/verify-phase4.sh --quick` → 15 passed, 0 failed.
+
+**Docs updated:** STATE.md, SUMMARY.md, JOURNAL.md. Follow-up for the maintainer: existing projects only receive the new CLAUDE.md rules after a version bump + publish (sentinel merge skips equal stamps). New `ruff check` CI step will fail projects that already have lint errors — intended, but worth a line in release notes.
+
+---
+
 ## 2026-09-24 · Phase 15 final sign-off; parallel branch reconciled
 
 **What I did:** Asked to "complete phase", I started from a stale clone (`e729eba`) that did not have the 15-01 to 15-06 work on main, and built Phase 15 a second time on `claude/jolly-thompson-vb6qyd` (commits 5d539f4, 6562868, b9f9c0c). Found the duplication at push time, pushed those commits unchanged so nothing was lost, then merged `origin/main` with every conflict resolved to main. From the parallel build I kept two copy-templates tests plus doc additions (README items 6 and 7; hook opt-out, "Pending approval" and `claude mcp reset-project-choices` in getting-started; CHANGELOG entry). Then ran the goal-backward sign-off against main's hook: 8/8, phase marked complete.

@@ -30,3 +30,6 @@ No empty catch blocks. No silent retries. No fake success on real failure. Error
 Validate input at the boundary. Keep secrets out of code and logs. Apply least privilege.
 
 Flag immediately: SQL injection, XSS, command injection, path traversal, broken auth, leaked secrets.
+
+## Definition of Done
+A task is done only when tests pass with pasted output and CHANGELOG.md/JOURNAL.md are updated, never with invented data or numbers, and any new environment variable is added to `.env.example` in the same change.

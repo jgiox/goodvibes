@@ -47,6 +47,10 @@ async function categorise(
     const destPath = join(cwd, rel)
     if (!existsSync(destPath)) {
       overwrite.push(rel) // dest gone, re-create
+    } else if (rel === 'CLAUDE.md') {
+      // mergeClaude only ever replaces the sentinel block, so it's always safe to
+      // run even when custom prose outside the block changes the whole-file hash.
+      overwrite.push(rel)
     } else {
       const destContent = await readFile(destPath, 'utf-8')
       const destSha = createHash('sha256').update(destContent, 'utf8').digest('hex')
@@ -152,10 +156,18 @@ export function registerUpdateCommand(program: Command): void {
         }
       }
 
+      // Preserve skipped (user-modified) files' prior hashes so they stay
+      // protected on every later run instead of dropping out of the manifest.
+      const preserved: Record<string, string> = {}
+      for (const rel of skip) {
+        preserved[rel] = manifest.files[rel]
+      }
+
       await writeManifest(
         cwd,
         [...overwrite, ...netNew].filter(rel => existsSync(join(cwd, rel))),
         getVersion(),
+        preserved,
       )
 
       const applied = overwrite.length + netNew.length

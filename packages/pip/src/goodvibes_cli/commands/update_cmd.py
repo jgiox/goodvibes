@@ -59,6 +59,11 @@ def update_cmd(
         if not dest_path.exists():
             overwrite.append(rel)
             continue
+        if rel == "CLAUDE.md":
+            # merge_claude only ever replaces the sentinel block, so it's always safe
+            # to run even when custom prose outside the block changes the whole-file hash.
+            overwrite.append(rel)
+            continue
         dest_sha = hashlib.sha256(dest_path.read_bytes()).hexdigest()
         if dest_sha == manifest_sha:
             overwrite.append(rel)
@@ -122,8 +127,12 @@ def update_cmd(
 
         applied.append(rel)
 
+    # Preserve skipped (user-modified) files' prior hashes so they stay
+    # protected on every later run instead of dropping out of the manifest.
+    preserved = {rel: manifest["files"][rel] for rel in skip}
+
     _version = importlib.metadata.version("goodvibes-cli")
-    write_manifest(cwd, applied, _version)
+    write_manifest(cwd, applied, _version, preserved=preserved)
 
     console.print(Panel("\n".join(applied) or "(none)", title="Updated"))
     console.rule("[green]Update complete![/green]")

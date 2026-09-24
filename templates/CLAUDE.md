@@ -36,12 +36,15 @@ For every task, define: the exact request, success criteria, files you expect to
 - No silent retries without bounded policy and logging.
 - No returning fake success on real failure.
 - Error messages must be actionable and specific enough to debug.
+- Never invent data, numbers, or API responses to make code work; missing data is an error, not a placeholder (test fixtures are fine).
 
 ### Security
 **Security is an engineering requirement, not a cleanup task.**
 - Validate input at the boundary. Encode output to the target context.
 - Use parameterized queries. Keep secrets out of code, commits, and logs.
 - Apply least privilege for tokens, roles, and permissions.
+- `.env` is never committed; every new environment variable is added to `.env.example` in the same change.
+- Never send secrets, personal data, or private code in documentation lookups (context7 or web search).
 
 Must flag immediately: SQL injection, XSS, command injection, path traversal, broken auth, leaked secrets, unsafe dependency additions.
 
@@ -51,6 +54,14 @@ Must flag immediately: SQL injection, XSS, command injection, path traversal, br
 - Name the files you changed and the specific tests that cover each one.
 - If no automated test covers a change, say so explicitly — do not assume the change is correct.
 - "I ran the tests" is not proof. Paste the output.
+
+### Definition of done
+**A task is not done until every one of these is true.**
+- Tests pass — paste the output, not a claim.
+- Every Markdown file the change made untrue is updated; CHANGELOG.md gets a dated entry and JOURNAL.md gets a new entry.
+- Exact paths are staged — never `git add -A` or `git add .`.
+- After a push, CI is confirmed green before saying done, and the branch and commit SHA are reported.
+- Anything blocked is reported as: what failed, why, the risk, and the exact next step.
 
 ### Action tiers
 **Each type of action requires a different level of authorization.**

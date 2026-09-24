@@ -164,6 +164,7 @@ describe('update command', () => {
       expect.any(String),
       expect.any(Array),
       expect.any(String),
+      expect.any(Object),
     )
   })
 
@@ -190,6 +191,7 @@ describe('update command', () => {
       expect.any(String),
       [],
       expect.any(String),
+      expect.any(Object),
     )
   })
 
@@ -201,15 +203,17 @@ describe('update command', () => {
     // Reset existsSync to true — previous test may have set it to false (clearAllMocks preserves implementations)
     vi.mocked(existsSync).mockReturnValue(true)
 
-    // CLAUDE.md has a different hash in manifest — user-modified → skip
+    // docs/onboarding.md has a different hash in manifest — user-modified → skip
     // .claude/skills/skills.md hash matches — unmodified → overwrite
+    // (CLAUDE.md is excluded from this scenario — it's always routed to overwrite
+    // via mergeClaude regardless of whole-file hash; see update.integration.test.ts)
     vi.mocked(readManifest).mockResolvedValue({
       version: '1.0.0',
-      files: { 'CLAUDE.md': 'different-hash', '.claude/skills/skills.md': 'abc123' },
+      files: { 'docs/onboarding.md': 'different-hash', '.claude/skills/skills.md': 'abc123' },
     })
-    vi.mocked(listTemplateFiles).mockResolvedValue(['CLAUDE.md', '.claude/skills/skills.md'])
+    vi.mocked(listTemplateFiles).mockResolvedValue(['docs/onboarding.md', '.claude/skills/skills.md'])
     vi.mocked(resolveTemplatesDir).mockReturnValue('/mock/templates')
-    // createHash returns 'abc123' — matches .claude/skills/skills.md but not CLAUDE.md
+    // createHash returns 'abc123' — matches .claude/skills/skills.md but not docs/onboarding.md
     vi.mocked(createHash).mockReturnValue({
       update: vi.fn().mockReturnThis(),
       digest: vi.fn().mockReturnValue('abc123'),
@@ -225,7 +229,7 @@ describe('update command', () => {
 
     expect(vi.mocked(writeManifest)).toHaveBeenCalled()
     const writtenFiles = vi.mocked(writeManifest).mock.calls[0][1] as string[]
-    expect(writtenFiles).not.toContain('CLAUDE.md')
+    expect(writtenFiles).not.toContain('docs/onboarding.md')
     expect(writtenFiles).toContain('.claude/skills/skills.md')
   })
 })

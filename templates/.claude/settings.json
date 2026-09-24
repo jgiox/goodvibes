@@ -27,6 +27,19 @@
     "deny": [
       "Bash(git push --force*)",
       "Bash(git reset --hard*)"
+    ],
+    "ask": [
+      "Bash(git push*)",
+      "Bash(npm publish*)",
+      "Bash(npx npm publish*)",
+      "Bash(uv publish*)",
+      "Bash(twine upload*)",
+      "Bash(python -m twine upload*)",
+      "Bash(npx wrangler deploy*)",
+      "Bash(npx wrangler pages deploy*)",
+      "Bash(npx vercel*)",
+      "Bash(npx netlify deploy*)",
+      "Bash(npx firebase deploy*)"
     ]
   },
   "hooks": {

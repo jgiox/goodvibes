@@ -4,7 +4,7 @@ milestone: v1.8.0
 milestone_name: Agent Governance & Cross-Tool Enforcement
 status: executing
 last_updated: "2026-09-24T21:00:00.000Z"
-last_activity: 2026-09-24 -- Phase 15 final sign-off passed (8/8), phase complete
+last_activity: 2026-09-24 -- Phase 15 final sign-off passed (8/8); quick task 260924-mh9 (cross-repo gap review follow-up) completed
 progress:
   total_phases: 17
   completed_phases: 4
@@ -27,7 +27,7 @@ See: .planning/PROJECT.md (updated 2026-07-03)
 Phase: 16 (goodvibes update JSON-Aware Merge): not started
 Plan: none. Phase 15 closed after 15-06; follow-ups (compound `git add && git commit` false block, T-15-20/21, tab-escape) listed in 15-VERIFICATION.md `follow_ups`
 Status: Phase 15 complete: final goal-backward sign-off 2026-09-24 passed 8/8; human UAT pending (interactive MCP trust prompt, Windows Git Bash). Ready for `/gsd-plan-phase 16`
-Last activity: 2026-09-24 -- Phase 15 final sign-off passed, phase marked complete
+Last activity: 2026-09-24 -- Phase 15 final sign-off passed, phase marked complete; quick task 260924-mh9 completed (see .planning/quick/)
 
 ## Performance Metrics
 
@@ -135,6 +135,7 @@ Recent decisions affecting current work:
 | 2026-06-30 | eacces-fix | EACCES error now leads with "check your project directory"; Next Steps panel distinguishes Claude Code vs other IDEs |
 | 2026-06-30 | v1.4.0-publish | Tagged npm-v1.4.0 + pip-v1.4.0; published to npm and PyPI; dogfooded IDE files to repo root |
 | 2026-07-28 | 260728-a1b | Added FAQ.md covering jgiox-goodvibes → goodvibes-cli migration and common update command issues |
+| 2026-09-24 | 260924-mh9 | Cross-repo gap review report; fixed `update` data loss (skipped files kept in manifest, CLAUDE.md always block-merged); `ask` rules for publish/deploy; CI lint + gitleaks + fail-loud; definition-of-done / .env.example / no-fabricated-data rules in all templates |
 
 ### Blockers/Concerns
 
