@@ -66,8 +66,11 @@ def ensure_global_cli(version: str, dry_run: bool) -> dict[str, str]:
         return {"status": "failed", "reason": f"{str(e).splitlines()[0]}. {manual}"}
 
 
-def apply_global_config(template_dir: pathlib.Path, version: str, dry_run: bool) -> dict:
-    """Write goodvibes-owned files into the Claude Code user config; a file the user edited since is kept."""
+def apply_global_config(template_dir: pathlib.Path, version: str, dry_run: bool, restore: bool = True) -> dict:
+    """Write goodvibes-owned files into the Claude Code user config; a file the user edited since is kept.
+
+    restore=False (update) leaves a recorded file the user deleted deleted; init passes True to bring it back.
+    """
     cfg = claude_config_dir()
     prev = read_manifest(cfg) or {}
     prev_files = prev.get("files") or {}
@@ -77,11 +80,14 @@ def apply_global_config(template_dir: pathlib.Path, version: str, dry_run: bool)
         if rel.startswith(".claude/skills/"):
             owned.append((rel[len(".claude/"):], (template_dir / rel).read_text(encoding="utf-8")))
 
-    result: dict = {"config_dir": str(cfg), "written": [], "kept": [], "settings_changes": [], "settings_error": None}
+    result: dict = {"config_dir": str(cfg), "written": [], "kept": [], "removed": [], "settings_changes": [], "settings_error": None}
     files: dict[str, str] = {}
     for rel, content in owned:
         dest = cfg / rel
         recorded = prev_files.get(rel)
+        if not restore and recorded and not dest.exists():
+            result["removed"].append(rel)
+            continue
         if dest.exists() and _sha(dest.read_text(encoding="utf-8")) != recorded:
             result["kept"].append(rel)
             if recorded:
@@ -120,6 +126,7 @@ def apply_global_config(template_dir: pathlib.Path, version: str, dry_run: bool)
 def format_global(g: dict, cli: dict | None, c7: dict | None) -> str:
     lines = [f"written: {f}" for f in g["written"]]
     lines += [f"kept (you edited it): {f}" for f in g["kept"]]
+    lines += [f"{f}: removed by you, not re-added (run goodvibes init to restore)" for f in g.get("removed", [])]
     lines += [f"settings.json {c}" for c in g["settings_changes"]]
     if g.get("settings_error"):
         lines.append(f"settings.json not changed: {g['settings_error']}")

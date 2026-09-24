@@ -25,6 +25,15 @@ console = Console()
 
 # Not a hex digest, so the file always classifies as user-modified on later runs.
 USER_OWNED = "user-owned"
+REMOVED = "removed by you, not re-added (run goodvibes init to restore)"
+
+
+def _group(rel: str) -> str | None:
+    if rel.startswith(".github/workflows/"):
+        return "workflows"
+    if rel.startswith(".github/"):
+        return ".github"
+    return "docs" if rel.startswith("docs/") else None
 
 
 def _assert_safe(base: pathlib.Path, rel: str) -> None:
@@ -58,7 +67,7 @@ def update_cmd(
 
     template_dir = resolve_templates_dir()
     if global_manifest is not None or (manifest or {}).get("scope") == "global":
-        g = apply_global_config(template_dir, importlib.metadata.version("goodvibes-cli"), dry_run=dry_run)
+        g = apply_global_config(template_dir, importlib.metadata.version("goodvibes-cli"), dry_run=dry_run, restore=False)
         console.print(Panel(format_global(g, None, None), title=f"{'Dry run — ' if dry_run else ''}Global setup ({g['config_dir']})"))
     if manifest is None:
         console.rule("Run without --dry-run to apply." if dry_run else "[green]Update complete![/green]")
@@ -79,6 +88,7 @@ def update_cmd(
     selected_variant_src = f"ci-{project_type}.yml"
     not_written: list[str] = []
     blocked: list[str] = []
+    removed: list[str] = []
 
     def symlinked(rel: str) -> bool:
         try:
@@ -98,7 +108,7 @@ def update_cmd(
         _assert_safe(cwd, rel)
         dest_path = cwd / rel
         if not dest_path.exists():
-            overwrite.append(rel)
+            removed.append(rel)
             continue
         if rel == "CLAUDE.md":
             # merge_claude only ever replaces the sentinel block, so it's always safe
@@ -114,6 +124,8 @@ def update_cmd(
     # Second pass: template files not yet in manifest → net_new
     all_template_files = list_template_files(template_dir)
     managed_keys = set(manifest["files"].keys())
+    # init --minimal, or a project that already had CI, skips whole groups; update must not add them later.
+    tracked_groups = {_group(k) for k in managed_keys if k not in removed}
     for tf in all_template_files:
         if tf == ".goodvibes.json":
             continue
@@ -129,7 +141,7 @@ def update_cmd(
         # init only records files it wrote; a file already on disk is the user's own.
         if dest_rel != "CLAUDE.md" and (cwd / dest_rel).exists():
             kept.append(dest_rel)
-        else:
+        elif _group(dest_rel) is None or _group(dest_rel) in tracked_groups:
             net_new.append(dest_rel)
 
     # User-modified settings.json / .mcp.json still receive goodvibes-managed keys.
@@ -164,6 +176,7 @@ def update_cmd(
             lines.append(f"Will keep — already yours, not written by goodvibes ({len(kept)}): {', '.join(kept)}")
         lines += merge_lines
         lines += not_written
+        lines += [f"{rel}: {REMOVED}" for rel in removed]
         console.print(Panel("\n".join(lines), title="Dry run — no files written"))
         console.rule("Run without --dry-run to apply.")
         return
@@ -236,6 +249,8 @@ def update_cmd(
     console.print(Panel("\n".join(summary) or "(none)", title="Updated"))
     if not_written:
         console.print(Panel("\n".join(not_written), title="Not written (symlinks are never followed)"))
+    for rel in removed:
+        console.print(f"{rel}: {REMOVED}", markup=False)
     if problems:
         console.print(Panel("\n".join(problems), title="Not updated — needs your attention"))
         console.rule("[red]Update finished with problems.[/red]")
