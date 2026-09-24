@@ -1177,3 +1177,17 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 **What I learned:** The hook also gates any Bash command whose text merely contains commit-like strings, such as a heredoc writing test files. Workaround used: write scripts with the file tools, run them by path.
 
 **Docs updated:** JOURNAL.md.
+
+---
+
+## 2026-09-24 · Ask-list bypasses: RED test (quick 260924-q1)
+
+**What I did:** Added a test that `permissions.ask` covers publish/deploy forms which run under an existing allow rule without matching any ask prefix: `npx -y`/`--yes`, `npx wrangler@<ver>`, `npx netlify-cli`, `npx firebase-tools`, `uv run twine`, `uv run python -m twine`, `npm run deploy|release|publish`, `node node_modules/.bin/*`.
+
+**Files changed:** packages/npm/src/steps/settings-permissions.test.ts, JOURNAL.md.
+
+**Why:** The D2 ask list from 260924-mh9 matches by prefix, so `npx -y wrangler deploy` or `npm run deploy` still auto-ran via `Bash(npx*)` / `Bash(npm run*)`.
+
+**Tests run:** settings-permissions: 1 failed (new test, as expected), 2 passed.
+
+**Docs updated:** JOURNAL.md.

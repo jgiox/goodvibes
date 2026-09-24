@@ -17,6 +17,21 @@ const ASK_PATTERNS = [
   'Bash(npx firebase deploy*)',
 ]
 
+// Each of these runs under an existing allow rule (npx*, uv*, npm run*, node*) without matching any ASK_PATTERNS prefix.
+const BYPASS_ASK_PATTERNS = [
+  'Bash(npx -y *)',
+  'Bash(npx --yes *)',
+  'Bash(npx wrangler@*)',
+  'Bash(npx netlify-cli*)',
+  'Bash(npx firebase-tools*)',
+  'Bash(uv run twine*)',
+  'Bash(uv run python -m twine*)',
+  'Bash(npm run deploy*)',
+  'Bash(npm run release*)',
+  'Bash(npm run publish*)',
+  'Bash(node node_modules/.bin/*)',
+]
+
 describe('templates/.claude/settings.json permissions', () => {
   it('requires explicit ask approval for push, publish, and deploy commands', async () => {
     const templateDir = resolveTemplatesDir()
@@ -25,6 +40,14 @@ describe('templates/.claude/settings.json permissions', () => {
 
     expect(Array.isArray(settings.permissions.ask)).toBe(true)
     for (const pattern of ASK_PATTERNS) {
+      expect(settings.permissions.ask).toContain(pattern)
+    }
+  })
+
+  it('asks before publish or deploy forms that slip past the prefix rules via npx -y, uv run, npm run scripts, or pinned versions', async () => {
+    const templateDir = resolveTemplatesDir()
+    const settings = JSON.parse(await readFile(join(templateDir, '.claude', 'settings.json'), 'utf-8'))
+    for (const pattern of BYPASS_ASK_PATTERNS) {
       expect(settings.permissions.ask).toContain(pattern)
     }
   })
