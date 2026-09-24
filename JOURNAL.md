@@ -1047,3 +1047,17 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 **Tests run:** None yet (planning only). Verified externally: Claude Code permission order is deny → ask → allow (Claude Code docs via context7); gitleaks v8.30.1 Docker image exits 0 on a clean repo and 1 on a committed GitHub-token-shaped string (local run).
 
 **Docs updated:** Report, PLAN.md, JOURNAL.md.
+
+---
+
+## 2026-09-24 — D1 update-data-loss fix: RED tests (260924-mh9 task 1)
+
+**What I did:** Wrote failing regression tests for D1 (`goodvibes update` drops user-modified files from `.goodvibes.json` on the write-back, so a second `update` run reclassifies them as net-new and overwrites them; also CLAUDE.md's whole-file hash never matches once custom prose exists outside the sentinel block, so `mergeClaude` never runs) in both CLIs before touching any production code. npm: `writeManifest` preserved-param test in `write-manifest.test.ts`, plus a new `update.integration.test.ts` with two real-tmpdir scenarios (two consecutive `update --force` runs must not destroy a skipped file; CLAUDE.md's block must refresh while custom prose survives). pip: matching `write_manifest` preserved-param test in `test_write_manifest.py`, plus the same two scenarios added to `test_update_cmd.py`. Ran both suites against the current, unmodified code and confirmed all five new tests fail for the documented reason (`TypeError`/`AssertionError` matching the bug mechanism, not an unrelated error). One RED test (the CLAUDE.md-refresh scenario) initially passed unexpectedly on first draft because the manifest hash was computed from post-edit content instead of the pre-edit baseline the real bug requires; caught this via the plan's fail-fast rule, corrected the fixture to hash the block-only baseline before the simulated user edit, and re-confirmed it now fails for the right reason in both CLIs.
+
+**Files changed:** `packages/npm/src/steps/write-manifest.test.ts`, `packages/npm/src/commands/update.integration.test.ts` (new), `packages/pip/tests/test_write_manifest.py`, `packages/pip/tests/test_update_cmd.py`, JOURNAL.md.
+
+**Why:** Plan `260924-mh9` task 1 requires RED tests committed before the GREEN fix, one commit each, so the fix is provably tied to the reported defect.
+
+**Tests run:** `npx vitest run src/steps/write-manifest.test.ts src/commands/update.integration.test.ts` (1 new + 2 new failing as expected, rest passing); `uv run pytest tests/test_write_manifest.py tests/test_update_cmd.py -v -o addopts=""` (3 failed as expected — `write_manifest() got an unexpected keyword argument 'preserved'`, and both two-runs/CLAUDE.md-refresh assertions failing with the exact data-loss/stale-block symptoms — 12 passed).
+
+**Docs updated:** JOURNAL.md only (no user-facing docs yet — GREEN commit follows).

@@ -53,4 +53,12 @@ describe('writeManifest / readManifest', () => {
     const data = JSON.parse(readFileSync(join(tmpDir, '.goodvibes.json'), 'utf-8'))
     expect(data.version).toBe('1.2.3')
   })
+
+  it('merges preserved entries into files without re-hashing them', async () => {
+    writeFileSync(join(tmpDir, 'CLAUDE.md'), '# hello\n')
+    await writeManifest(tmpDir, ['CLAUDE.md'], '1.0.0', { 'skipped.md': 'preserved-hash-value' })
+    const data = JSON.parse(readFileSync(join(tmpDir, '.goodvibes.json'), 'utf-8'))
+    expect(data.files['skipped.md']).toBe('preserved-hash-value')
+    expect(data.files['CLAUDE.md']).toHaveLength(64)
+  })
 })

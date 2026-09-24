@@ -38,3 +38,11 @@ def test_write_manifest_hashes_actual_dest_content(tmp_dir):
     write_manifest(tmp_dir, ["a.txt", "b.txt"], "1.0.0")
     data = json.loads((tmp_dir / ".goodvibes.json").read_text())
     assert data["files"]["a.txt"] != data["files"]["b.txt"]
+
+
+def test_write_manifest_merges_preserved_entries_without_rehashing(tmp_dir):
+    (tmp_dir / "CLAUDE.md").write_text("# hello\n", encoding="utf-8")
+    write_manifest(tmp_dir, ["CLAUDE.md"], "1.0.0", preserved={"skipped.md": "preserved-hash-value"})
+    data = json.loads((tmp_dir / ".goodvibes.json").read_text())
+    assert data["files"]["skipped.md"] == "preserved-hash-value"
+    assert len(data["files"]["CLAUDE.md"]) == 64
