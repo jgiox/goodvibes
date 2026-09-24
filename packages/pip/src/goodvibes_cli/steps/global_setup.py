@@ -8,6 +8,7 @@ import pathlib
 import re
 import shutil
 import subprocess
+import sys
 
 from goodvibes_cli.steps.copy_templates import list_template_files
 from goodvibes_cli.steps.write_manifest import MANIFEST_PATH, read_manifest
@@ -45,7 +46,10 @@ def register_context7(dry_run: bool) -> dict[str, str]:
 
 def ensure_global_cli(version: str, dry_run: bool) -> dict[str, str]:
     """A plain `pip install` already puts goodvibes on PATH; `uvx`/`pipx run` do not, so install it as a uv tool."""
-    if shutil.which("goodvibes"):
+    found = shutil.which("goodvibes")
+    # A goodvibes inside the active virtualenv is on PATH only while that venv is active.
+    in_venv = found and sys.prefix != sys.base_prefix and pathlib.Path(found).resolve().is_relative_to(pathlib.Path(sys.prefix).resolve())
+    if found and not in_venv:
         return {"status": "already-installed"}
     manual = f"Install manually: uv tool install goodvibes-cli=={version}"
     if dry_run:

@@ -1506,6 +1506,6 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 
 **Why:** Follow-up from the 1.9.0 release.
 
-**Tests run:** RED: test_global_setup 1 failed, 14 passed.
+**Tests run:** RED: test_global_setup 1 failed, 14 passed. GREEN: pip pytest 230 passed. ruff reports 22 pre-existing findings in untouched lines (ruff is not run in CI); none added here.
 
 **Docs updated:** CHANGELOG.md, JOURNAL.md.
