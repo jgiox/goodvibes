@@ -1161,3 +1161,19 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 **Tests run:** npm journal-gate suite: 4 failed (the 4 allow cases, as expected), 26 passed. pip: first allow case fails as expected.
 
 **Docs updated:** JOURNAL.md.
+
+---
+
+## 2026-09-24 · Journal gate: same-command staging, GREEN (quick 260924-q1)
+
+**What I did:** When the staged check fails and there is no `-C` target, the hook now allows the commit if a `git add` before the first `commit` word names JOURNAL.md (or `-A`, `--all`, `.`) and `git status --porcelain` shows JOURNAL.md changed; or if the commit carries `-a`/`--all` and tracked JOURNAL.md is modified. Applied to `templates/.claude/settings.json` and the dogfooded `.claude/settings.json`.
+
+**Files changed:** templates/.claude/settings.json, .claude/settings.json, JOURNAL.md.
+
+**Why:** Makes the RED tests pass without loosening any existing block; anything the text match cannot parse still fails closed.
+
+**Tests run:** npm journal-gate 30/30; pip journal-gate 30/30; my earlier independent 20-case matrix: 17 pass, the 3 failures are known design differences (no `if` field, message wording, first commit without JOURNAL.md blocked).
+
+**What I learned:** The hook also gates any Bash command whose text merely contains commit-like strings, such as a heredoc writing test files. Workaround used: write scripts with the file tools, run them by path.
+
+**Docs updated:** JOURNAL.md.
