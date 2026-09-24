@@ -18,13 +18,19 @@ import { copy } from 'fs-extra'
 // Not a hex digest, so the file always classifies as user-modified on later runs.
 const USER_OWNED = 'user-owned'
 
+const removedNote = (rel: string) => `${rel}: removed by you, not re-added (run goodvibes init to restore)`
+
+// init skips a whole layer (CI when the project had workflows, .github/docs under --minimal); update must not add it later.
+const layer = (rel: string) =>
+  rel.startsWith('.github/workflows/') ? 'workflows' : rel.startsWith('.github/') ? 'github' : rel.startsWith('docs/') ? 'docs' : null
+
 async function categorise(
   templateDir: string,
   cwd: string,
   manifest: { files: Record<string, string> },
   projectType: string,
   scope: Scope = 'project',
-): Promise<{ overwrite: string[]; skip: string[]; netNew: string[]; kept: string[]; blocked: Record<string, string> }> {
+): Promise<{ overwrite: string[]; skip: string[]; netNew: string[]; kept: string[]; removed: string[]; blocked: Record<string, string> }> {
   // In global scope the rules block, skills and context7 live in the user config, never in the project.
   const excluded = (rel: string) => scope === 'global' && (rel === 'CLAUDE.md' || GLOBAL_OWNED(rel))
   const ciVariants = ['ci-node.yml', 'ci-python.yml', 'ci-both.yml']
@@ -33,6 +39,7 @@ async function categorise(
   const skip: string[] = []
   const netNew: string[] = []
   const kept: string[] = []
+  const removed: string[] = []
   // Symlinked destinations: never read for hashing, never written; tracked ones keep their manifest entry.
   const blocked: Record<string, string> = {}
 
@@ -46,7 +53,7 @@ async function categorise(
     }
     const destPath = join(cwd, rel)
     if (!existsSync(destPath)) {
-      overwrite.push(rel) // dest gone, re-create
+      removed.push(rel) // the user deleted it; dropping it from the manifest is how the choice is kept
     } else if (rel === 'CLAUDE.md') {
       // mergeClaude only ever replaces the sentinel block, so it's always safe to
       // run even when custom prose outside the block changes the whole-file hash.
@@ -63,6 +70,7 @@ async function categorise(
   }
 
   // Second pass: template files absent from manifest are net-new
+  const trackedLayers = new Set(Object.keys(manifest.files).map(layer))
   const allTemplateFiles = (await listTemplateFiles(templateDir)).map(posixKey)
   for (const templateFile of allTemplateFiles) {
     if (templateFile === '.goodvibes.json') continue
@@ -72,6 +80,8 @@ async function categorise(
       ? '.github/workflows/ci.yml'
       : templateFile
     if (destRel in manifest.files || excluded(destRel)) continue
+    const destLayer = layer(destRel)
+    if (destLayer && !trackedLayers.has(destLayer)) continue
     const why = await writeBlocked(cwd, destRel)
     if (why) {
       blocked[destRel] = why
@@ -85,7 +95,7 @@ async function categorise(
     }
   }
 
-  return { overwrite, skip, netNew, kept, blocked }
+  return { overwrite, skip, netNew, kept, removed, blocked }
 }
 
 export function registerUpdateCommand(program: Command): void {
@@ -129,9 +139,9 @@ export async function runUpdate(dryRun: boolean, force: boolean): Promise<void> 
 
   const projectType = detectProjectType(cwd)
   const scope: Scope = manifest?.scope ?? 'project'
-  const { overwrite, skip, netNew, kept, blocked } = manifest
+  const { overwrite, skip, netNew, kept, removed, blocked } = manifest
     ? await categorise(templateDir, cwd, manifest, projectType, scope)
-    : { overwrite: [], skip: [], netNew: [], kept: [], blocked: {} as Record<string, string> }
+    : { overwrite: [], skip: [], netNew: [], kept: [], removed: [], blocked: {} as Record<string, string> }
 
   // User-modified settings.json / .mcp.json still receive goodvibes-managed keys.
   const merges: { rel: string; merged: Record<string, unknown>; changes: string[] }[] = []
@@ -164,6 +174,7 @@ export async function runUpdate(dryRun: boolean, force: boolean): Promise<void> 
         kept.length > 0 ? `Will keep — already yours, not written by goodvibes (${kept.length}): ${kept.join(', ')}` : null,
         ...merges.map(m => `Will merge goodvibes keys into ${m.rel}:\n  ${m.changes.join('\n  ')}`),
         ...mergeErrors.map(e => `Cannot merge ${e}`),
+        ...removed.map(removedNote),
         ...Object.values(blocked),
       ]
         .filter(Boolean)
@@ -256,6 +267,7 @@ export async function runUpdate(dryRun: boolean, force: boolean): Promise<void> 
       `Applied ${applied} file(s). Skipped ${skip.length + kept.length} user-modified file(s).`,
       ...merges.map(m => `Merged ${m.changes.length} goodvibes key(s) into ${m.rel}.`),
       ...mergeErrors.map(e => `Not merged: ${e}`),
+      ...removed.map(removedNote),
       ...Object.values(blocked),
       ...(manifestBlocked ? [manifestBlocked] : []),
       ...claudeProblems,

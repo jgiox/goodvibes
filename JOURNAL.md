@@ -1658,3 +1658,4 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 - RED: update plans global + project changes, asks once, and cancel writes nothing anywhere (item 5).
 - GREEN: runUpdate plans global (applyGlobalConfig dry run) and project changes, shows the plan, asks once (unless --force/--dry-run), then applies; cancel exits 0 with nothing written (item 5).
 - RED: update must not re-create removed tracked files (project and global) nor add workflows/.github/docs groups the manifest never tracked (item 6).
+- GREEN: tracked-but-deleted files (project and config dir) are reported 'removed by you, not re-added (run goodvibes init to restore)' and dropped from the manifest; net-new workflows/.github/docs only when the manifest tracks that layer (item 6).

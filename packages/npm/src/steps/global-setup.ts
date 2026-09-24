@@ -60,6 +60,7 @@ export type GlobalResult = {
   configDir: string
   written: string[]
   kept: string[]
+  removed: string[]
   settingsChanges: string[]
   settingsError?: string
 }
@@ -73,11 +74,16 @@ export async function applyGlobalConfig(templateDir: string, version: string, dr
     if (rel.startsWith('.claude/skills/')) owned.push([rel.slice('.claude/'.length), await readFile(join(templateDir, rel), 'utf-8')])
   }
 
-  const result: GlobalResult = { configDir: cfg, written: [], kept: [], settingsChanges: [] }
+  const result: GlobalResult = { configDir: cfg, written: [], kept: [], removed: [], settingsChanges: [] }
   const files: Record<string, string> = {}
   for (const [rel, content] of owned) {
     const dest = join(cfg, rel)
     const recorded = prev?.files[rel]
+    // Tracked but gone: the user deleted it, so it is neither rewritten nor kept in the manifest.
+    if (recorded && !existsSync(dest)) {
+      result.removed.push(rel)
+      continue
+    }
     if (existsSync(dest) && sha(await readFile(dest, 'utf-8')) !== recorded) {
       result.kept.push(rel)
       if (recorded) files[rel] = recorded
@@ -122,6 +128,7 @@ export function formatGlobal(g: GlobalResult, cli: CliStatus | undefined, c7: Mc
   const lines = [
     ...g.written.map(f => `written: ${f}`),
     ...g.kept.map(f => `kept (you edited it): ${f}`),
+    ...g.removed.map(f => `${f}: removed by you, not re-added (run goodvibes init to restore)`),
     ...g.settingsChanges.map(c => `settings.json ${c}`),
     ...(g.settingsError ? [`settings.json not changed: ${g.settingsError}`] : []),
   ]
