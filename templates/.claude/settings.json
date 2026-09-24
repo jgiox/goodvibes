@@ -39,7 +39,18 @@
       "Bash(npx wrangler pages deploy*)",
       "Bash(npx vercel*)",
       "Bash(npx netlify deploy*)",
-      "Bash(npx firebase deploy*)"
+      "Bash(npx firebase deploy*)",
+      "Bash(npx -y *)",
+      "Bash(npx --yes *)",
+      "Bash(npx wrangler@*)",
+      "Bash(npx netlify-cli*)",
+      "Bash(npx firebase-tools*)",
+      "Bash(uv run twine*)",
+      "Bash(uv run python -m twine*)",
+      "Bash(npm run deploy*)",
+      "Bash(npm run release*)",
+      "Bash(npm run publish*)",
+      "Bash(node node_modules/.bin/*)"
     ]
   },
   "hooks": {

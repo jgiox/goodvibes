@@ -1191,3 +1191,17 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 **Tests run:** settings-permissions: 1 failed (new test, as expected), 2 passed.
 
 **Docs updated:** JOURNAL.md.
+
+---
+
+## 2026-09-24 · Ask-list bypasses: GREEN (quick 260924-q1)
+
+**What I did:** Appended the 11 bypass patterns to `permissions.ask` in `templates/.claude/settings.json`. `allow`, `deny` and the hook are unchanged. Claude Code evaluates deny, then ask, then allow, so these prompt even though `Bash(npx*)` etc. still allow.
+
+**Files changed:** templates/.claude/settings.json, JOURNAL.md.
+
+**Why:** Closes the prefix-matching gaps in D2. Still best-effort: an unlisted deploy CLI run via `npx` auto-runs.
+
+**Tests run:** npm vitest 184 passed, 1 skipped, 2 todo; pip pytest 187 passed.
+
+**Docs updated:** JOURNAL.md.
