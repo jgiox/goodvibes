@@ -217,3 +217,56 @@ def test_init_restores_a_skill_the_user_deleted_from_the_config_dir():
     apply_global_config(TEMPLATES, "1.8.1", dry_run=False)
 
     assert (cfg / "skills" / "caveman" / "SKILL.md").exists()
+
+
+def _snapshot(root: pathlib.Path) -> dict:
+    return {p.relative_to(root).as_posix(): p.read_bytes() for p in sorted(root.rglob("*")) if p.is_file()}
+
+
+def _stale_config_and_project(mocker, tmp_path):
+    from goodvibes_cli.steps import global_setup
+    mocker.patch("goodvibes_cli.commands.update_cmd.apply_global_config", global_setup.apply_global_config)
+    cfg = _cfg()
+    apply_global_config(TEMPLATES, "1.8.0", dry_run=False)
+    (cfg / "rules" / "goodvibes.md").write_text("stale\n", encoding="utf-8")
+    manifest = json.loads((cfg / ".goodvibes.json").read_text(encoding="utf-8"))
+    manifest["files"]["rules/goodvibes.md"] = hashlib.sha256(b"stale\n").hexdigest()
+    (cfg / ".goodvibes.json").write_text(json.dumps(manifest), encoding="utf-8")
+    proj = tmp_path / "proj"
+    proj.mkdir()
+    (proj / "AGENTS.md").write_text("old agents\n", encoding="utf-8")
+    (proj / ".goodvibes.json").write_text(json.dumps({"version": "1.8.0", "scope": "global", "files": {"AGENTS.md": hashlib.sha256(b"old agents\n").hexdigest()}}), encoding="utf-8")
+    mocker.patch("pathlib.Path.cwd", return_value=proj)
+    mocker.patch("goodvibes_cli.commands.update_cmd.resolve_templates_dir", return_value=TEMPLATES)
+    return cfg, proj
+
+
+def test_update_cancelled_at_the_prompt_leaves_the_config_dir_and_project_untouched(mocker, tmp_path):
+    cfg, proj = _stale_config_and_project(mocker, tmp_path)
+    before_cfg, before_proj = _snapshot(cfg), _snapshot(proj)
+
+    result = runner.invoke(app, ["update"], input="n\n")
+
+    assert result.exit_code == 0, result.output
+    assert _snapshot(cfg) == before_cfg
+    assert _snapshot(proj) == before_proj
+    assert "rules/goodvibes.md" in result.output
+
+
+def test_update_asks_once_before_changing_the_config_dir(mocker, tmp_path):
+    cfg, proj = _stale_config_and_project(mocker, tmp_path)
+    before_cfg = _snapshot(cfg)
+    seen = []
+
+    def confirm(question, **kwargs):
+        seen.append(_snapshot(cfg) == before_cfg)
+        return True
+
+    mocker.patch("goodvibes_cli.commands.update_cmd.typer.confirm", side_effect=confirm)
+
+    result = runner.invoke(app, ["update"])
+
+    assert result.exit_code == 0, result.output
+    assert seen == [True]
+    assert (cfg / "rules" / "goodvibes.md").read_text(encoding="utf-8").startswith("<!-- goodvibes:start -->")
+    assert (proj / "AGENTS.md").read_text(encoding="utf-8") != "old agents\n"
