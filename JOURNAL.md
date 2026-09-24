@@ -1439,3 +1439,17 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 **Next time:** Push tag v1.9.0 on df152e8 from a maintainer machine. On npmjs.com set Publishing access to require 2FA and disallow tokens, then delete the NPM_TOKEN repo secret. Human UAT: context7 trust prompt, Windows Git Bash, caveman ultra style. Known follow-ups: journal gate matches commit-like text anywhere in a command; hooks do not run on Windows without Git Bash; pip installs inside a virtualenv are invisible to Claude Code sessions; stale verify-phase1/2 scripts; 143 pre-existing tsc errors; a test appears to reach the telemetry endpoint (seen as proxy denials, test not yet identified); this repo's own CLAUDE.md block is still v1.7.0.
 
 **Docs updated:** STATE.md, JOURNAL.md.
+
+---
+
+## 2026-09-24 · pip tests no longer post to the telemetry endpoint
+
+**What I did:** `tests/test_main.py` ran `init` through CliRunner with telemetry live, so every local pip test run sent an install ping to goodvibes-telemetry (seen as agent-proxy denials; CI hid it because `CI=true` opts out). Added a regression test that clears the opt-out variables and asserts `_fire` is never called, then made the conftest autouse isolation fixture mock `start_telemetry_thread` for every test module except `test_telemetry.py`. The npm suite was checked the same way and does not reach the endpoint.
+
+**Files changed:** packages/pip/tests/test_main.py, packages/pip/tests/conftest.py, JOURNAL.md.
+
+**Why:** Tests must not touch the network, and test runs were inflating the install counter.
+
+**Tests run:** pip pytest (RED then GREEN); proxy denial timestamps unchanged across a full pip run after the fix.
+
+**Docs updated:** JOURNAL.md.
