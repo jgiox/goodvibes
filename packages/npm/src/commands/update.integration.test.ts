@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { mkdtempSync, writeFileSync, readFileSync, rmSync, mkdirSync, existsSync, symlinkSync, readdirSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
-import { join } from 'node:path'
+import { join, relative } from 'node:path'
 import { tmpdir } from 'node:os'
 import { createHash } from 'node:crypto'
 
@@ -489,5 +489,92 @@ describe('update command — symlinks and broken CLAUDE.md markers', () => {
     expect(readFileSync(join(projectDir, 'AGENTS.md'), 'utf-8')).toBe('tpl v2\n')
     expect(await said()).toMatch(/end line comes before the start line.*fix CLAUDE\.md by hand/)
     expect(existsSync(join(projectDir, '.goodvibes.json'))).toBe(true)
+  })
+})
+
+describe('update command — one plan, one prompt, nothing written before it', () => {
+  const realTemplates = fileURLToPath(new URL('../../../../templates', import.meta.url))
+  let projectDir: string
+  let cfg: string
+  let savedCfg: string | undefined
+  let cwdSpy: ReturnType<typeof vi.spyOn>
+  let exitSpy: ReturnType<typeof vi.spyOn>
+
+  const snapshot = (dir: string): Record<string, string> => {
+    const out: Record<string, string> = {}
+    const walk = (d: string) => {
+      for (const e of readdirSync(d, { withFileTypes: true })) {
+        const p = join(d, e.name)
+        if (e.isDirectory()) walk(p)
+        else out[relative(dir, p)] = readFileSync(p, 'utf-8')
+      }
+    }
+    walk(dir)
+    return out
+  }
+
+  async function runUpdate(...flags: string[]): Promise<void> {
+    const { resolveTemplatesDir } = await import('../steps/copy-templates.js')
+    vi.mocked(resolveTemplatesDir).mockReturnValue(realTemplates)
+    const { registerUpdateCommand } = await import('./update.js')
+    const { Command } = await import('commander')
+    const program = new Command()
+    program.exitOverride()
+    registerUpdateCommand(program)
+    await program.parseAsync(['node', 'goodvibes', 'update', ...flags])
+  }
+
+  beforeEach(async () => {
+    projectDir = mkdtempSync(join(tmpdir(), 'gv-plan-proj-'))
+    cfg = mkdtempSync(join(tmpdir(), 'gv-plan-cfg-'))
+    savedCfg = process.env.CLAUDE_CONFIG_DIR
+    process.env.CLAUDE_CONFIG_DIR = cfg
+    cwdSpy = vi.spyOn(process, 'cwd').mockReturnValue(projectDir)
+    exitSpy = vi.spyOn(process, 'exit').mockImplementation(((code?: number) => { throw new Error(`exit ${code}`) }) as never)
+    writeFileSync(join(cfg, '.goodvibes.json'), JSON.stringify({ version: '1.0.0', scope: 'global', files: {} }))
+    writeFileSync(join(cfg, 'settings.json'), JSON.stringify({ model: 'mine' }))
+    writeFileSync(join(projectDir, 'AGENTS.md'), 'old agents\n')
+    writeFileSync(join(projectDir, '.goodvibes.json'), JSON.stringify({ version: '1.0.0', scope: 'global', files: { 'AGENTS.md': sha256('old agents\n') } }))
+    const { note, confirm, cancel } = await import('@clack/prompts')
+    for (const f of [note, confirm, cancel]) vi.mocked(f).mockClear()
+  })
+
+  afterEach(async () => {
+    process.env.CLAUDE_CONFIG_DIR = savedCfg
+    cwdSpy.mockRestore()
+    exitSpy.mockRestore()
+    const { confirm } = await import('@clack/prompts')
+    vi.mocked(confirm).mockResolvedValue(true)
+    for (const d of [projectDir, cfg]) rmSync(d, { recursive: true, force: true })
+  })
+
+  it('cancelling the prompt leaves both the project and the Claude config untouched', async () => {
+    const { confirm } = await import('@clack/prompts')
+    vi.mocked(confirm).mockResolvedValue(false)
+    const beforeCfg = snapshot(cfg)
+    const beforeProject = snapshot(projectDir)
+
+    await expect(runUpdate()).rejects.toThrow('exit 0')
+
+    expect(vi.mocked(confirm)).toHaveBeenCalledTimes(1)
+    expect(snapshot(cfg)).toEqual(beforeCfg)
+    expect(snapshot(projectDir)).toEqual(beforeProject)
+  })
+
+  it('shows the global and project plan before the single prompt, then applies both', async () => {
+    const { confirm, note } = await import('@clack/prompts')
+    vi.mocked(confirm).mockResolvedValue(true)
+
+    await runUpdate()
+
+    expect(vi.mocked(confirm)).toHaveBeenCalledTimes(1)
+    const promptAt = vi.mocked(confirm).mock.invocationCallOrder[0]
+    const planned = vi.mocked(note).mock.calls
+      .filter((_, i) => vi.mocked(note).mock.invocationCallOrder[i] < promptAt)
+      .map(c => String(c[0])).join('\n')
+    expect(planned).toContain('rules/goodvibes.md')
+    expect(planned).toContain('AGENTS.md')
+    expect(existsSync(join(cfg, 'rules', 'goodvibes.md'))).toBe(true)
+    expect(readFileSync(join(projectDir, 'AGENTS.md'), 'utf-8')).not.toBe('old agents\n')
   })
 })

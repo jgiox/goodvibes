@@ -1655,3 +1655,4 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 - GREEN: fs-safe writeBlocked()/assertSafe() (lstat walk + real paths via path.relative); copyTemplates filter, CI rename, CLAUDE.md, update categorise/apply and writeManifest skip symlinked destinations and report '<path>: symlink, not written'; MarkerError reported by init ('Needs your attention') and update (exit 1 after the other files). init/update unit mocks gained problems/fs-safe (items 1, 3).
 - RED: re-running init must merge with the previous manifest and managed record (item 2).
 - GREEN: init reads the previous manifest first (broken one stops init with exit 1), keeps its entries for files not written this run and passes its managed record to managedRecord (item 2).
+- RED: update plans global + project changes, asks once, and cancel writes nothing anywhere (item 5).
