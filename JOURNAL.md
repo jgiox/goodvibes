@@ -1453,3 +1453,17 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 **Tests run:** pip pytest RED (1 failed) then GREEN (all pass); proxy denial timestamps unchanged across a full pip run after the fix.
 
 **Docs updated:** JOURNAL.md.
+
+---
+
+## 2026-09-24 · `goodvibes upgrade` now updates the CLI, then runs `update`
+
+**What I did:** `upgrade` predates `update` and kept its own template copy. In a global-scope project it merged the full rules block into the project's `CLAUDE.md` (so Claude Code loaded the rules twice), and on npm it rewrote `.goodvibes.json` with only the files it touched, dropping every other manifest entry so later updates treated them as the user's. It also installed the new version during `--dry-run`. Now `upgrade` checks the registry, installs a newer goodvibes (reporting only, under `--dry-run`), re-runs itself on the new version, and hands the files to `update`, which already handles scope, user edits, the JSON merges and the manifest. The old copy code is deleted in both packages. Added regression tests: global-scope project gets no skills and an unchanged `CLAUDE.md`; a user-edited skill survives; manifest entries survive.
+
+**Files changed:** packages/npm/src/commands/upgrade.ts, packages/npm/src/commands/update.ts, packages/npm/src/commands/upgrade.test.ts, packages/npm/src/commands/upgrade.integration.test.ts, packages/pip/src/goodvibes_cli/commands/upgrade_cmd.py, packages/pip/tests/test_upgrade_cmd.py, JOURNAL.md.
+
+**Why:** Keep one code path for refreshing project files, so every fix to `update` also applies to `upgrade`.
+
+**Tests run:** RED: npm upgrade integration 2 failed, 1 passed; pip upgrade 1 failed, 11 passed.
+
+**Docs updated:** JOURNAL.md.

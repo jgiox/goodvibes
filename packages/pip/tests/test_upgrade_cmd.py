@@ -1,4 +1,6 @@
 """Upgrade command tests — mirrors test_main.py pattern."""
+import hashlib
+import json
 import re
 from unittest.mock import patch
 
@@ -119,3 +121,35 @@ def test_format_change_summary_uses_english_labels():
     assert "unchanged ci.yml" in result
     assert "~" not in result
     assert "+" not in result
+
+
+@pytest.fixture
+def upgrade_dirs(mocker, tmp_path, monkeypatch):
+    tpl = tmp_path / "tpl"
+    (tpl / ".claude" / "skills" / "caveman").mkdir(parents=True)
+    (tpl / "CLAUDE.md").write_text("# CLAUDE.md\n\n<!-- goodvibes:start -->\n# goodvibes: v9.9.9\nrules\n<!-- goodvibes:end -->\n")
+    (tpl / ".claude" / "skills" / "caveman" / "SKILL.md").write_text("skill v2\n")
+    proj = tmp_path / "proj"
+    proj.mkdir()
+    monkeypatch.chdir(proj)
+    for mod in ("upgrade_cmd", "update_cmd"):
+        mocker.patch(f"goodvibes_cli.commands.{mod}.resolve_templates_dir", return_value=tpl, create=True)
+    return proj
+
+
+def test_upgrade_does_not_copy_skills_into_a_global_scope_project(upgrade_dirs):
+    (upgrade_dirs / "CLAUDE.md").write_text("# CLAUDE.md\n\n## Project\n")
+    (upgrade_dirs / ".goodvibes.json").write_text(json.dumps({"version": "1.8.0", "files": {"CLAUDE.md": "x"}, "scope": "global"}))
+    runner.invoke(app, ["upgrade"])
+    assert not (upgrade_dirs / ".claude" / "skills").exists()
+    assert (upgrade_dirs / "CLAUDE.md").read_text() == "# CLAUDE.md\n\n## Project\n"
+
+
+def test_upgrade_does_not_overwrite_a_skill_file_the_user_edited(upgrade_dirs):
+    skill = upgrade_dirs / ".claude" / "skills" / "caveman" / "SKILL.md"
+    skill.parent.mkdir(parents=True)
+    skill.write_text("my own edits\n")
+    sha = hashlib.sha256(b"skill v1\n").hexdigest()
+    (upgrade_dirs / ".goodvibes.json").write_text(json.dumps({"version": "1.0.0", "files": {".claude/skills/caveman/SKILL.md": sha}}))
+    runner.invoke(app, ["upgrade"])
+    assert skill.read_text() == "my own edits\n"
