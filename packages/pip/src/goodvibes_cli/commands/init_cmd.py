@@ -14,6 +14,7 @@ from goodvibes_cli.steps.install_headroom import install_headroom
 from goodvibes_cli.steps.telemetry import start_telemetry_thread
 from goodvibes_cli.steps.write_manifest import write_manifest
 from goodvibes_cli.utils.detect_project_type import detect_project_type
+from goodvibes_cli.utils.json_merge import managed_record
 
 console = Console()
 
@@ -130,7 +131,12 @@ def init_cmd(
         raise typer.Exit(1)
 
     _version = importlib.metadata.version("goodvibes-cli")
-    write_manifest(cwd, [f for f in created_files if f != ".goodvibes.json"], _version)
+    write_manifest(
+        cwd,
+        [f for f in created_files if f != ".goodvibes.json"],
+        _version,
+        managed=managed_record(cwd, template_dir),
+    )
 
     if tel_thread:
         tel_thread.join(timeout=1.0)

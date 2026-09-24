@@ -12,6 +12,7 @@ def write_manifest(
     written_files: list[str],
     version: str,
     preserved: dict[str, str] | None = None,
+    managed: dict[str, list[str]] | None = None,
 ) -> None:
     # Preserved hashes come only from the prior manifest, never re-read from dest,
     # so a skipped (user-modified) file can't be silently reclassified as unmodified.
@@ -19,7 +20,9 @@ def write_manifest(
     for rel in written_files:
         content = (dest_dir / rel).read_bytes()
         files[rel] = hashlib.sha256(content).hexdigest()
-    manifest = {"version": version, "files": files}
+    manifest: dict = {"version": version, "files": files}
+    if managed is not None:
+        manifest["managed"] = managed
     (dest_dir / MANIFEST_PATH).write_text(
         json.dumps(manifest, indent=2) + "\n", encoding="utf-8"
     )

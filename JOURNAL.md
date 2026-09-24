@@ -1249,3 +1249,19 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 **Tests run:** npm vitest 185 passed, 1 skipped, 2 todo; pip pytest 188 passed.
 
 **Docs updated:** JOURNAL.md.
+
+---
+
+## 2026-09-24 · Phase 16: JSON-aware `goodvibes update` merge (UPD-07)
+
+**What I did:** `update` now merges goodvibes-managed keys into a user-modified or user-owned `.claude/settings.json` / `.mcp.json` instead of skipping it whole. Managed keys: `permissions.ask` and `permissions.deny` entries (add-only, never `allow`), hook groups carrying a `: goodvibes-<id>;` marker (added, or replaced in place), and template MCP servers (added, or managed fields updated while user fields such as `headers` stay). `.goodvibes.json` gains a `managed` record of ids goodvibes has installed per file; an id recorded there but missing from the file was removed by the user and is not re-added, so deleting the hook to opt out survives updates. Dry-run lists every key change; invalid JSON is reported and left unchanged. Untouched files still overwrite whole-file. Journal-gate hook gets the `: goodvibes-journal-gate;` marker in both settings files. npm and pip.
+
+**Files changed:** packages/npm/src/utils/json-merge.ts (new), packages/npm/src/utils/json-merge.test.ts (new), packages/npm/src/commands/update.ts, packages/npm/src/commands/init.ts, packages/npm/src/steps/write-manifest.ts, packages/npm/src/commands/update.integration.test.ts, packages/npm/src/commands/update.test.ts, packages/npm/src/commands/init.test.ts, packages/pip/src/goodvibes_cli/utils/json_merge.py (new), packages/pip/tests/test_json_merge.py (new), packages/pip/src/goodvibes_cli/commands/update_cmd.py, packages/pip/src/goodvibes_cli/commands/init_cmd.py, packages/pip/src/goodvibes_cli/steps/write_manifest.py, packages/pip/tests/test_update_cmd.py, packages/pip/tests/conftest.py, templates/.claude/settings.json, .claude/settings.json, JOURNAL.md.
+
+**Why:** Without it, the journal gate, context7 and the D2 ask list only reach fresh `init`s; any project that customised either file was skipped forever.
+
+**Tests run:** npm vitest 201 passed, 1 skipped, 2 todo (10 json-merge unit, 6 new real-tmpdir update cases for SC1-SC4, opt-out, invalid JSON). pip pytest 204 passed (mirrors).
+
+**What I learned:** Running the built CLI showed published npm `goodvibes-cli@1.7.1` `init` exits 1 with `Cannot find module '../../package.json'` and never writes `.goodvibes.json`, so npm `update` has never worked since 1.7.0. Fixing next, regression first.
+
+**Docs updated:** JOURNAL.md (user docs follow with the Phase 16 docs commit).

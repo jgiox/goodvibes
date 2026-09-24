@@ -3,8 +3,9 @@ import { intro, outro, note, confirm, isCancel, cancel } from '@clack/prompts'
 import { listTemplateFiles, resolveTemplatesDir } from '../steps/copy-templates.js'
 import { readManifest, writeManifest } from '../steps/write-manifest.js'
 import { mergeClaude } from '../utils/sentinel-merge.js'
+import { MANAGED_JSON, mergeManagedJson, managedRecord } from '../utils/json-merge.js'
 import { detectProjectType } from '../utils/detect-project-type.js'
-import { readFile } from 'node:fs/promises'
+import { readFile, writeFile } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
 import { join, resolve, sep } from 'node:path'
 import { createHash } from 'node:crypto'
@@ -115,6 +116,28 @@ export function registerUpdateCommand(program: Command): void {
       const projectType = detectProjectType(cwd)
       const { overwrite, skip, netNew, kept } = await categorise(templateDir, cwd, manifest, projectType)
 
+      // User-modified settings.json / .mcp.json still receive goodvibes-managed keys.
+      const merges: { rel: string; merged: Record<string, unknown>; changes: string[] }[] = []
+      const mergeErrors: string[] = []
+      for (const rel of [...skip, ...kept].filter(r => MANAGED_JSON.includes(r))) {
+        const tplPath = join(templateDir, rel)
+        if (!existsSync(tplPath)) continue
+        let user: Record<string, unknown>
+        try {
+          user = JSON.parse(await readFile(join(cwd, rel), 'utf-8'))
+        } catch (e) {
+          mergeErrors.push(`${rel}: not valid JSON (${(e as Error).message}); left unchanged, fix it and re-run update`)
+          continue
+        }
+        const tpl = JSON.parse(await readFile(tplPath, 'utf-8'))
+        const { merged, changes } = mergeManagedJson(rel, tpl, user, manifest.managed?.[rel])
+        if (changes.length > 0) merges.push({ rel, merged, changes })
+      }
+      const mergeLines = [
+        ...merges.map(m => `Will merge goodvibes keys into ${m.rel}:\n  ${m.changes.join('\n  ')}`),
+        ...mergeErrors.map(e => `Cannot merge ${e}`),
+      ]
+
       if (dryRun) {
         note(
           [
@@ -128,6 +151,7 @@ export function registerUpdateCommand(program: Command): void {
             kept.length > 0
               ? `Will keep — already yours, not written by goodvibes (${kept.length}): ${kept.join(', ')}`
               : null,
+            ...mergeLines,
           ]
             .filter(Boolean)
             .join('\n'),
@@ -137,8 +161,10 @@ export function registerUpdateCommand(program: Command): void {
         return
       }
 
-      if (!force && overwrite.length > 0) {
-        const proceed = await confirm({ message: `Overwrite ${overwrite.length} managed file(s)?` })
+      if (!force && (overwrite.length > 0 || merges.length > 0)) {
+        const proceed = await confirm({
+          message: `Overwrite ${overwrite.length} managed file(s) and merge goodvibes keys into ${merges.length} file(s)?`,
+        })
         if (isCancel(proceed) || !proceed) {
           cancel('Update cancelled.')
           process.exit(0)
@@ -167,6 +193,10 @@ export function registerUpdateCommand(program: Command): void {
         }
       }
 
+      for (const m of merges) {
+        await writeFile(join(cwd, m.rel), JSON.stringify(m.merged, null, 2) + '\n', 'utf-8')
+      }
+
       // Preserve skipped (user-modified) files' prior hashes so they stay
       // protected on every later run instead of dropping out of the manifest.
       const preserved: Record<string, string> = {}
@@ -182,11 +212,16 @@ export function registerUpdateCommand(program: Command): void {
         [...overwrite, ...netNew].filter(rel => existsSync(join(cwd, rel))),
         getVersion(),
         preserved,
+        await managedRecord(cwd, templateDir, manifest.managed),
       )
 
       const applied = overwrite.length + netNew.length
       note(
-        `Applied ${applied} file(s). Skipped ${skip.length + kept.length} user-modified file(s).`,
+        [
+          `Applied ${applied} file(s). Skipped ${skip.length + kept.length} user-modified file(s).`,
+          ...merges.map(m => `Merged ${m.changes.length} goodvibes key(s) into ${m.rel}.`),
+          ...mergeErrors.map(e => `Not merged: ${e}`),
+        ].join('\n'),
         'Update complete',
       )
       outro('Done!')

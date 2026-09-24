@@ -165,6 +165,7 @@ describe('update command', () => {
       expect.any(Array),
       expect.any(String),
       expect.any(Object),
+      expect.any(Object),
     )
   })
 
@@ -191,6 +192,7 @@ describe('update command', () => {
       expect.any(String),
       [],
       expect.any(String),
+      expect.any(Object),
       expect.any(Object),
     )
   })

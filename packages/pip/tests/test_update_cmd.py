@@ -98,6 +98,7 @@ def test_update_skips_user_modified_files(mocker):
     # File exists with different content → real sha256 ≠ "expectedsha" → skip
     mocker.patch("pathlib.Path.exists", return_value=True)
     mocker.patch("pathlib.Path.read_bytes", return_value=b"user-modified content")
+    mocker.patch("goodvibes_cli.commands.update_cmd.managed_record", return_value={})
     mock_write = mocker.patch("goodvibes_cli.commands.update_cmd.write_manifest")
     result = runner.invoke(app, ["update", "--force"])
     assert result.exit_code == 0
@@ -225,3 +226,111 @@ def test_update_refreshes_claude_block_and_preserves_outside_content(mocker, tmp
     assert "Custom prose that must survive." in updated
     assert "new rules" in updated
     assert "old rules" not in updated
+
+
+_REPO_TEMPLATES = pathlib.Path(__file__).resolve().parents[3] / "templates"
+_TPL_SETTINGS = (_REPO_TEMPLATES / ".claude" / "settings.json").read_text(encoding="utf-8")
+_TPL_MCP = (_REPO_TEMPLATES / ".mcp.json").read_text(encoding="utf-8")
+
+
+@pytest.fixture
+def merge_dirs(mocker, tmp_path):
+    template_dir = tmp_path / "templates"
+    project_dir = tmp_path / "project"
+    for d in (template_dir, project_dir):
+        (d / ".claude").mkdir(parents=True)
+    (template_dir / ".claude" / "settings.json").write_text(_TPL_SETTINGS, encoding="utf-8")
+    (template_dir / ".mcp.json").write_text(_TPL_MCP, encoding="utf-8")
+    mocker.patch("goodvibes_cli.commands.update_cmd.resolve_templates_dir", return_value=template_dir)
+    mocker.patch("goodvibes_cli.commands.update_cmd.detect_project_type", return_value="both")
+    mocker.patch("pathlib.Path.cwd", return_value=project_dir)
+    return project_dir
+
+
+def _write_manifest(project_dir, files):
+    (project_dir / ".goodvibes.json").write_text(json.dumps({"version": "1.7.1", "files": files}), encoding="utf-8")
+
+
+def _sha(text):
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+def _read(project_dir, rel):
+    return json.loads((project_dir / rel).read_text(encoding="utf-8"))
+
+
+def test_update_merges_journal_gate_and_ask_rules_into_hand_edited_settings(merge_dirs):
+    v171 = json.dumps({"permissions": {"allow": ["Read(**)"], "deny": ["Bash(git reset --hard*)"]}}, indent=2)
+    user = {
+        "permissions": {"allow": ["Read(**)", "Bash(make*)"], "deny": ["Bash(git reset --hard*)"]},
+        "hooks": {"PostToolUse": [{"matcher": "Edit", "hooks": [{"type": "command", "command": "npx prettier --write ."}]}]},
+    }
+    (merge_dirs / ".claude" / "settings.json").write_text(json.dumps(user, indent=2), encoding="utf-8")
+    (merge_dirs / ".mcp.json").write_text(_TPL_MCP, encoding="utf-8")
+    _write_manifest(merge_dirs, {".claude/settings.json": _sha(v171), ".mcp.json": _sha(_TPL_MCP)})
+
+    assert runner.invoke(app, ["update", "--force"]).exit_code == 0
+
+    s = _read(merge_dirs, ".claude/settings.json")
+    assert s["permissions"]["allow"] == ["Read(**)", "Bash(make*)"]
+    assert s["hooks"]["PostToolUse"] == user["hooks"]["PostToolUse"]
+    assert s["hooks"]["PreToolUse"][0]["hooks"][0]["command"].startswith(": goodvibes-journal-gate;")
+    assert s["permissions"]["ask"] == json.loads(_TPL_SETTINGS)["permissions"]["ask"]
+
+
+def test_update_adds_context7_to_unrecorded_user_mcp_json_and_keeps_other_servers(merge_dirs):
+    (merge_dirs / ".mcp.json").write_text(json.dumps({"mcpServers": {"postgres": {"command": "pg-mcp"}}}), encoding="utf-8")
+    _write_manifest(merge_dirs, {})
+
+    assert runner.invoke(app, ["update", "--force"]).exit_code == 0
+
+    m = _read(merge_dirs, ".mcp.json")
+    assert m["mcpServers"]["postgres"] == {"command": "pg-mcp"}
+    assert m["mcpServers"]["context7"] == json.loads(_TPL_MCP)["mcpServers"]["context7"]
+
+
+def test_update_dry_run_lists_json_keys_it_would_add_without_writing(merge_dirs):
+    user_file = json.dumps({"permissions": {"allow": ["Bash(make*)"]}})
+    (merge_dirs / ".claude" / "settings.json").write_text(user_file, encoding="utf-8")
+    _write_manifest(merge_dirs, {".claude/settings.json": "old-hash"})
+
+    result = runner.invoke(app, ["update", "--dry-run"])
+
+    out = _ANSI.sub("", result.output)
+    assert "Will merge goodvibes keys into .claude/settings.json" in out
+    assert "+ hooks.PreToolUse: goodvibes-journal-gate" in out
+    assert (merge_dirs / ".claude" / "settings.json").read_text(encoding="utf-8") == user_file
+
+
+def test_update_still_overwrites_untouched_settings_whole_file(merge_dirs):
+    v171 = json.dumps({"permissions": {"allow": ["Read(**)"]}}, indent=2)
+    (merge_dirs / ".claude" / "settings.json").write_text(v171, encoding="utf-8")
+    _write_manifest(merge_dirs, {".claude/settings.json": _sha(v171)})
+
+    assert runner.invoke(app, ["update", "--force"]).exit_code == 0
+
+    assert (merge_dirs / ".claude" / "settings.json").read_text(encoding="utf-8") == _TPL_SETTINGS
+
+
+def test_update_does_not_readd_journal_gate_after_user_deleted_it(merge_dirs):
+    (merge_dirs / ".claude" / "settings.json").write_text(json.dumps({"permissions": {"allow": ["Bash(make*)"]}}), encoding="utf-8")
+    _write_manifest(merge_dirs, {".claude/settings.json": "old-hash"})
+    assert runner.invoke(app, ["update", "--force"]).exit_code == 0
+    after_first = _read(merge_dirs, ".claude/settings.json")
+    del after_first["hooks"]
+    (merge_dirs / ".claude" / "settings.json").write_text(json.dumps(after_first, indent=2), encoding="utf-8")
+
+    assert runner.invoke(app, ["update", "--force"]).exit_code == 0
+
+    assert "hooks" not in _read(merge_dirs, ".claude/settings.json")
+
+
+def test_update_leaves_invalid_settings_unchanged_and_reports_it(merge_dirs):
+    (merge_dirs / ".claude" / "settings.json").write_text("{ not json", encoding="utf-8")
+    _write_manifest(merge_dirs, {".claude/settings.json": "old-hash"})
+
+    result = runner.invoke(app, ["update", "--force"])
+
+    assert result.exit_code == 0
+    assert (merge_dirs / ".claude" / "settings.json").read_text(encoding="utf-8") == "{ not json"
+    assert ".claude/settings.json: not valid JSON" in _ANSI.sub("", result.output)
