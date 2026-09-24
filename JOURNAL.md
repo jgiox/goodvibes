@@ -1537,3 +1537,17 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 **Tests run:** `npm run typecheck` 0 errors; vitest 274 passed, 1 skipped, 2 todo; build OK; `npm ci` (npm 11) accepts the lockfile.
 
 **Docs updated:** JOURNAL.md.
+
+---
+
+## 2026-09-24 · This repo's CLAUDE.md carries the 1.9.0 rules
+
+**What I did:** Refreshed the goodvibes block in the repo's own `CLAUDE.md` from `templates/CLAUDE.md` with the package's `merge_claude` (v1.7.0 to v1.9.0: the directive rules from 1.8.0). Everything outside the sentinels, including the GSD sections, is byte-identical.
+
+**Files changed:** CLAUDE.md, JOURNAL.md.
+
+**Why:** Agents working on goodvibes itself were following older rules than the ones goodvibes ships.
+
+**Tests run:** Lines 1 to 217 diff clean against HEAD; one sentinel pair remains.
+
+**Docs updated:** CLAUDE.md, JOURNAL.md.
