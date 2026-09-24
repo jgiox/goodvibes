@@ -276,3 +276,27 @@ def test_still_blocks_commit_dash_f_with_message_from_heredoc(repo_dir):
 def test_still_blocks_commit_whose_multi_line_message_mentions_commit_dash_a(repo_dir):
     _commit_journal(repo_dir)
     assert _run_hook('git commit -m "x\nuse commit -a next time"', repo_dir).returncode == 2
+
+
+def test_still_blocks_commit_after_heredoc_with_punctuated_delimiter(repo_dir):
+    assert _run_hook('cat <<END-MARK\ntext\nEND-MARK\ngit commit -m x', repo_dir).returncode == 2
+
+
+def test_still_blocks_commit_inside_unterminated_heredoc(repo_dir):
+    assert _run_hook('cat <<EOF\ngit commit -m x', repo_dir).returncode == 2
+
+
+def test_allows_heredoc_piped_to_grep_bash_whose_body_mentions_git_commit(repo_dir):
+    assert _run_hook('cat <<EOF | grep bash\nremember to git commit\nEOF', repo_dir).returncode == 0
+
+
+def test_still_blocks_commit_in_heredoc_piped_to_bash(repo_dir):
+    assert _run_hook('cat <<EOF | bash\ngit commit -m x\nEOF', repo_dir).returncode == 2
+
+
+def test_still_blocks_commit_in_heredoc_fed_to_sudo_bash(repo_dir):
+    assert _run_hook('sudo -u me bash <<EOF\ngit commit -m x\nEOF', repo_dir).returncode == 2
+
+
+def test_still_blocks_commit_in_heredoc_fed_to_bash_without_space(repo_dir):
+    assert _run_hook('bash<<EOF\ngit commit -m x\nEOF', repo_dir).returncode == 2

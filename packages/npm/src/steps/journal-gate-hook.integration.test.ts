@@ -294,4 +294,34 @@ describe('journal-gate hook', () => {
     const { exitCode } = await runHook('git commit -m "x\nuse commit -a next time"', repoDir)
     expect(exitCode).toBe(2)
   })
+
+  it('still blocks a commit after a heredoc whose delimiter contains punctuation', async () => {
+    const { exitCode } = await runHook('cat <<END-MARK\ntext\nEND-MARK\ngit commit -m x', repoDir)
+    expect(exitCode).toBe(2)
+  })
+
+  it('still blocks a commit inside a heredoc that is never terminated', async () => {
+    const { exitCode } = await runHook('cat <<EOF\ngit commit -m x', repoDir)
+    expect(exitCode).toBe(2)
+  })
+
+  it('allows a heredoc piped to grep bash whose body mentions git commit', async () => {
+    const { exitCode } = await runHook('cat <<EOF | grep bash\nremember to git commit\nEOF', repoDir)
+    expect(exitCode).toBe(0)
+  })
+
+  it('still blocks a commit in a heredoc piped to bash', async () => {
+    const { exitCode } = await runHook('cat <<EOF | bash\ngit commit -m x\nEOF', repoDir)
+    expect(exitCode).toBe(2)
+  })
+
+  it('still blocks a commit in a heredoc fed to sudo -u someone bash', async () => {
+    const { exitCode } = await runHook('sudo -u me bash <<EOF\ngit commit -m x\nEOF', repoDir)
+    expect(exitCode).toBe(2)
+  })
+
+  it('still blocks a commit in a heredoc fed to bash with no space before <<', async () => {
+    const { exitCode } = await runHook('bash<<EOF\ngit commit -m x\nEOF', repoDir)
+    expect(exitCode).toBe(2)
+  })
 })

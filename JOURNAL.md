@@ -1551,3 +1551,17 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 **Tests run:** Lines 1 to 217 diff clean against HEAD; one sentinel pair remains.
 
 **Docs updated:** CLAUDE.md, JOURNAL.md.
+
+---
+
+## 2026-09-24 · Journal gate: full heredoc delimiters, fail closed, shells only in command position
+
+**What I did:** Codex review on PR #38 found two gaps in the heredoc handling added earlier today. (1) Fail-open: the delimiter pattern only took identifier characters, so `<<END-MARK` recorded `END`, the real terminator never matched, and every later line, including a `git commit`, was dropped as heredoc body. (2) False positive: any standalone `bash`/`sh`/`ssh` word on the opener line kept the body, e.g. `cat <<EOF | grep bash`. While checking I also found `bash<<EOF` (no space) was not seen as a shell, another fail-open. Now: the delimiter is the whole word up to whitespace or a shell metacharacter; a heredoc that never terminates (or was mis-parsed) puts its lines back, so a parsing mistake fails closed; the body is kept only when `sh`/`bash`/`zsh`/`dash`/`ksh`/`ssh`/`eval` is in command position (line start or after `|`, `;`, `&`, `(`, `$(` or a backtick, optionally behind `sudo`, `doas`, `env`, `exec`, `command`, `nohup`, `time`, `timeout`, `nice` or `xargs` and their arguments) and followed by a space, `<` or end of line.
+
+**Files changed:** templates/.claude/settings.json, .claude/settings.json, packages/npm/src/steps/journal-gate-hook.integration.test.ts, packages/pip/tests/test_journal_gate_hook.py, JOURNAL.md.
+
+**Why:** Review findings on PR #38 (P1 fail-open, P2 false positive).
+
+**Tests run:** RED: npm hook tests 4 failed, 40 passed; pip 4 failed, 40 passed.
+
+**Docs updated:** JOURNAL.md.
