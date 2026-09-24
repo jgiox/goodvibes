@@ -8,7 +8,7 @@
 **Constraints:**
 
 <!-- goodvibes:start -->
-# goodvibes: v1.7.1
+# goodvibes: v1.8.0
 
 ## Engineering Rules
 

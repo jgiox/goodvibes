@@ -25,7 +25,7 @@ See: .planning/PROJECT.md (updated 2026-07-03)
 ## Current Position
 
 Phase: v1.8.0 release
-Plan: Phases 15, 16, 17 complete; session-start doctor hook and model-regression skill shipped; next: v1.8.0 version bump and publish
+Plan: Phases 15-17 complete; versions bumped to 1.8.0 (npm, pip, template stamp); next: PR, green CI, merge, tag npm-v1.8.0 / pip-v1.8.0 / v1.8.0
 Status: all v1.8.0 phases complete; human UAT pending (MCP trust prompt, Windows Git Bash, installed-wheel update run, caveman ultra style)
 Last activity: 2026-09-24 -- Phase 15 final sign-off passed, phase marked complete; quick task 260924-mh9 completed (see .planning/quick/)
 

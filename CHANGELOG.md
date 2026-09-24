@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/2.0.0/),
 
 ## [Unreleased]
 
+## [1.8.0] - 2026-09-24
+
 ### Fixed
 
 - npm `goodvibes init` no longer exits 1 before writing `.goodvibes.json` (`Cannot find module '../../package.json'` in the built CLI since 1.7.0); `doctor`, `update` and `upgrade` now report the real version instead of "unknown"
@@ -44,6 +46,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/2.0.0/),
 
 - `goodvibes init` does not touch an existing `.claude/settings.json` or `.mcp.json`; run `goodvibes update` afterwards to merge the goodvibes keys in
 - The journal gate matches command text, so any Bash command that merely contains commit-like text (for example a heredoc that writes test code) is checked too
+- On Windows without Git Bash, Claude Code runs hooks in PowerShell, where the journal gate and the session check do not run (Claude Code shows a hook error and continues)
 
 ## [1.7.1] — 2026-08-06
 

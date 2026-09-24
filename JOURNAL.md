@@ -1349,3 +1349,17 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 **Tests run:** npm vitest 246 passed, 1 skipped, 2 todo; pip pytest 206 passed; verify-phase3/4/5 pass; verify-phase1/2 fail identically before and after (stale v1.0 checks, not in CI). Built CLI fresh init: stub present, JOURNAL.md and AGENTS.md carry the binding wording.
 
 **Docs updated:** getting-started (both copies), README.md, CHANGELOG.md, JOURNAL.md.
+
+---
+
+## 2026-09-24 · v1.8.0 version bump
+
+**What I did:** Bumped npm `package.json`/`package-lock.json`, pip `pyproject.toml` (and its `uv.lock` entry, which had drifted at 1.7.0) and the `templates/CLAUDE.md` stamp to 1.8.0. Rolled CHANGELOG `[Unreleased]` into `[1.8.0] - 2026-09-24` and added the Windows-without-Git-Bash limitation. Before the bump, ran the installed pip wheel end to end: init exit 0 with manifest and managed record, update merged both hooks, 22 ask rules and context7 into a hand-edited project while keeping `Bash(make*)` and the postgres server, `doctor --quick` exit 0.
+
+**Files changed:** packages/npm/package.json, packages/npm/package-lock.json, packages/pip/pyproject.toml, packages/pip/uv.lock, templates/CLAUDE.md, CHANGELOG.md, .planning/STATE.md, JOURNAL.md.
+
+**Why:** User asked to release v1.8.0. `mergeClaude` only refreshes a project's goodvibes block when the stamp is newer, so the bump is what delivers the new rules to existing projects.
+
+**Tests run:** npm vitest 246 passed, 1 skipped, 2 todo (built-CLI test sees 1.8.0); pip pytest 206 passed; verify-phase5 PASS; CI stamp check logic: 1.8.0 / 1.8.0 / 1.8.0.
+
+**Docs updated:** CHANGELOG.md, JOURNAL.md.
