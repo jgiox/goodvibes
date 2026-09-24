@@ -1464,6 +1464,6 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 
 **Why:** Keep one code path for refreshing project files, so every fix to `update` also applies to `upgrade`.
 
-**Tests run:** RED: npm upgrade integration 2 failed, 1 passed; pip upgrade 1 failed, 11 passed. GREEN: npm vitest 267 passed, 1 skipped, 2 todo; pip pytest 222 passed; npm build OK; built CLI `upgrade --dry-run` in a sandboxed global-scope project previews project files only (no skills, no rules block) and writes nothing.
+**Tests run:** RED: npm upgrade integration 2 failed, 1 passed; pip upgrade 1 failed, 11 passed. GREEN: npm vitest 267 passed, 1 skipped, 2 todo; pip pytest 222 passed; npm build OK; built CLI `upgrade --dry-run` in a sandboxed global-scope project previews project files only (no skills, no rules block) and writes nothing. `verify-phase5.sh` (run by CI) grepped `upgrade.ts` for `.claude/skills`, i.e. the deleted copy code; its check now asserts that both packages' upgrade delegates to update, and the gate passes (quick and full).
 
 **Docs updated:** JOURNAL.md.
