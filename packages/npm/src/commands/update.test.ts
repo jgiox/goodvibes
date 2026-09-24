@@ -80,6 +80,9 @@ describe('update command', () => {
       expect.stringContaining('goodvibes.json'),
       'No manifest',
     )
+    const text = vi.mocked(note).mock.calls.flat().join(' ')
+    expect(text).not.toContain('v1.2.0')
+    expect(text).toContain('goodvibes init')
     expect(vi.mocked(outro)).toHaveBeenCalledWith('Nothing updated.')
   })
 

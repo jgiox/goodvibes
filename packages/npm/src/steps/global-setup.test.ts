@@ -56,6 +56,14 @@ describe('ensureGlobalCli', () => {
     expect(vi.mocked(execa)).toHaveBeenCalledTimes(1)
   })
 
+  it('does not downgrade a newer global goodvibes when an older version runs init', async () => {
+    const { execa } = await import('execa')
+    vi.mocked(execa).mockResolvedValueOnce({ stdout: '{"dependencies":{"goodvibes-cli":{"version":"1.9.1"}}}' } as any)
+    const { ensureGlobalCli } = await import('./global-setup.js')
+    expect(await ensureGlobalCli('1.9.0', false)).toEqual({ status: 'already-installed' })
+    expect(vi.mocked(execa)).toHaveBeenCalledTimes(1)
+  })
+
   it('reports a permission failure with the npm fix link and the manual command', async () => {
     const { execa } = await import('execa')
     vi.mocked(execa).mockResolvedValueOnce({ stdout: '{}' } as any).mockRejectedValueOnce(new Error('npm ERR! code EACCES'))

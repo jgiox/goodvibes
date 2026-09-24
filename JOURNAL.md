@@ -1579,3 +1579,17 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 **Tests run:** stamps in sync (1.9.1 x3); npm typecheck 0, vitest 280 passed, 1 skipped, 2 todo, built CLI `--version` 1.9.1; pip pytest 236 passed, `goodvibes --version` 1.9.1; verify-phase1 to 5 PASS.
 
 **Docs updated:** CHANGELOG.md, JOURNAL.md.
+
+---
+
+## 2026-09-24 · `goodvibes upgrade` reported success while staying on the old version
+
+**What I did:** The maintainer ran `goodvibes upgrade` on a uv-tool install of 1.9.0 after 1.9.1 shipped. It printed "Updated to 1.9.1", then "Already up to date (v1.9.0)". Reproduced in a sandbox: pip `init` installs the CLI as `uv tool install goodvibes-cli==<version>`, uv stores that pin, and `uv tool upgrade goodvibes-cli` (what pip `upgrade` runs) then prints "Nothing to upgrade" forever; `upgrade` never checked the result. Fixes: pip `init` installs `goodvibes-cli>=<version>`, so later upgrades are allowed; pip `upgrade` installs `goodvibes-cli>=<latest>`, which replaces an existing pin (verified in the sandbox); both packages re-run on the new version with `_GV_UPGRADING=<target>` and the re-run fails loudly with the exact fix command when it is still older than the target, instead of claiming success; npm `init` no longer downgrades a newer global goodvibes when an older version runs; `update` with no manifest here or in `~/.claude` no longer claims the project predates v1.2.0 and says to run `goodvibes init`.
+
+**Files changed:** packages/pip/src/goodvibes_cli/steps/global_setup.py, packages/pip/src/goodvibes_cli/commands/upgrade_cmd.py, packages/pip/src/goodvibes_cli/commands/update_cmd.py, packages/npm/src/steps/global-setup.ts, packages/npm/src/commands/upgrade.ts, packages/npm/src/commands/update.ts, their tests, FAQ.md, CHANGELOG.md, JOURNAL.md.
+
+**Why:** Bug report from the maintainer's terminal. Existing 1.9.0 and 1.9.1 installs made by pip `init` stay pinned until reinstalled once with `uv tool install goodvibes-cli@latest` (verified: upgrades a `==1.9.0` pin and removes it).
+
+**Tests run:** RED: npm 4 failed, 18 passed (upgrade, update, global-setup); pip 7 failed, 35 passed (upgrade, global_setup, update).
+
+**Docs updated:** FAQ.md, CHANGELOG.md, JOURNAL.md.

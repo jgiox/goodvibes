@@ -37,7 +37,7 @@ describe('upgrade command', () => {
     await runUpgrade().catch(() => {})
 
     expect(vi.mocked(execa)).toHaveBeenCalledWith('npm', ['install', '-g', 'goodvibes-cli@1.0.1'], expect.objectContaining({ stdio: 'inherit' }))
-    expect(vi.mocked(execa)).toHaveBeenCalledWith(process.argv[1], expect.any(Array), expect.objectContaining({ env: expect.objectContaining({ _GV_UPGRADING: '1' }) }))
+    expect(vi.mocked(execa)).toHaveBeenCalledWith(process.argv[1], expect.any(Array), expect.objectContaining({ env: expect.objectContaining({ _GV_UPGRADING: '1.0.1' }) }))
   })
 
   it('does not install anything during --dry-run and previews the update instead', async () => {
@@ -86,5 +86,17 @@ describe('upgrade command', () => {
     const program = new Command()
     registerUpgradeCommand(program)
     expect(program.commands.find(c => c.name() === 'upgrade')!.aliases()).not.toContain('update')
+  })
+
+  it('fails loudly instead of claiming success when the re-run is still on the old version', async () => {
+    const { runUpdate } = await import('./update.js')
+    const { note } = await import('@clack/prompts')
+    process.env._GV_UPGRADING = '1.0.1'
+
+    await expect(runUpgrade()).rejects.toThrow('process.exit')
+
+    expect(exitSpy).toHaveBeenCalledWith(1)
+    expect(vi.mocked(runUpdate)).not.toHaveBeenCalled()
+    expect(vi.mocked(note).mock.calls.flat().join(' ')).toContain('npm install -g goodvibes-cli@1.0.1')
   })
 })
