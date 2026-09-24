@@ -13,6 +13,9 @@ import { copy } from 'fs-extra'
 
 const _require = createRequire(import.meta.url)
 
+// Not a hex digest, so the file always classifies as user-modified on later runs.
+const USER_OWNED = 'user-owned'
+
 function assertSafe(base: string, rel: string): void {
   const resolved = resolve(base, rel)
   if (!resolved.startsWith(resolve(base) + sep)) {
@@ -34,12 +37,13 @@ async function categorise(
   cwd: string,
   manifest: { files: Record<string, string> },
   projectType: string,
-): Promise<{ overwrite: string[]; skip: string[]; netNew: string[] }> {
+): Promise<{ overwrite: string[]; skip: string[]; netNew: string[]; kept: string[] }> {
   const ciVariants = ['ci-node.yml', 'ci-python.yml', 'ci-both.yml']
   const selectedVariantSrc = `ci-${projectType}.yml`
   const overwrite: string[] = []
   const skip: string[] = []
   const netNew: string[] = []
+  const kept: string[] = []
 
   // First pass: check manifest-tracked files — unmodified → overwrite, user-modified → skip
   for (const [rel, manifestSha] of Object.entries(manifest.files)) {
@@ -71,12 +75,16 @@ async function categorise(
     const destRel = templateFile.endsWith(selectedVariantSrc)
       ? '.github/workflows/ci.yml'
       : templateFile
-    if (!(destRel in manifest.files)) {
+    if (destRel in manifest.files) continue
+    // init only records files it wrote; a file already on disk is the user's own.
+    if (destRel !== 'CLAUDE.md' && existsSync(join(cwd, destRel))) {
+      kept.push(destRel)
+    } else {
       netNew.push(destRel)
     }
   }
 
-  return { overwrite, skip, netNew }
+  return { overwrite, skip, netNew, kept }
 }
 
 export function registerUpdateCommand(program: Command): void {
@@ -105,7 +113,7 @@ export function registerUpdateCommand(program: Command): void {
 
       const templateDir = resolveTemplatesDir()
       const projectType = detectProjectType(cwd)
-      const { overwrite, skip, netNew } = await categorise(templateDir, cwd, manifest, projectType)
+      const { overwrite, skip, netNew, kept } = await categorise(templateDir, cwd, manifest, projectType)
 
       if (dryRun) {
         note(
@@ -117,6 +125,9 @@ export function registerUpdateCommand(program: Command): void {
               ? `Will skip — user-modified (${skip.length}): ${skip.join(', ')}`
               : null,
             netNew.length > 0 ? `Will add net-new (${netNew.length}): ${netNew.join(', ')}` : null,
+            kept.length > 0
+              ? `Will keep — already yours, not written by goodvibes (${kept.length}): ${kept.join(', ')}`
+              : null,
           ]
             .filter(Boolean)
             .join('\n'),
@@ -162,6 +173,9 @@ export function registerUpdateCommand(program: Command): void {
       for (const rel of skip) {
         preserved[rel] = manifest.files[rel]
       }
+      for (const rel of kept) {
+        preserved[rel] = USER_OWNED
+      }
 
       await writeManifest(
         cwd,
@@ -172,7 +186,7 @@ export function registerUpdateCommand(program: Command): void {
 
       const applied = overwrite.length + netNew.length
       note(
-        `Applied ${applied} file(s). Skipped ${skip.length} user-modified file(s).`,
+        `Applied ${applied} file(s). Skipped ${skip.length + kept.length} user-modified file(s).`,
         'Update complete',
       )
       outro('Done!')

@@ -18,6 +18,9 @@ from goodvibes_cli.utils.sentinel_merge import merge_claude
 
 console = Console()
 
+# Not a hex digest, so the file always classifies as user-modified on later runs.
+USER_OWNED = "user-owned"
+
 
 def _assert_safe(base: pathlib.Path, rel: str) -> None:
     resolved = (base / rel).resolve()
@@ -49,6 +52,7 @@ def update_cmd(
     overwrite: list[str] = []
     skip: list[str] = []
     net_new: list[str] = []
+    kept: list[str] = []
     ci_variants = {"ci-node.yml", "ci-python.yml", "ci-both.yml"}
     selected_variant_src = f"ci-{project_type}.yml"
 
@@ -83,7 +87,12 @@ def update_cmd(
             dest_rel = ".github/workflows/ci.yml"  # map selected variant to dest name
         else:
             dest_rel = tf
-        if dest_rel not in managed_keys:
+        if dest_rel in managed_keys:
+            continue
+        # init only records files it wrote; a file already on disk is the user's own.
+        if dest_rel != "CLAUDE.md" and (cwd / dest_rel).exists():
+            kept.append(dest_rel)
+        else:
             net_new.append(dest_rel)
 
     if dry_run:
@@ -92,6 +101,8 @@ def update_cmd(
             f"Will skip — user-modified ({len(skip)}): {', '.join(skip)}" if skip else "Will skip — user-modified (0): (none)",
             f"Will add net-new ({len(net_new)}): {', '.join(net_new)}" if net_new else "Will add net-new (0): (none)",
         ]
+        if kept:
+            lines.append(f"Will keep — already yours, not written by goodvibes ({len(kept)}): {', '.join(kept)}")
         console.print(Panel("\n".join(lines), title="Dry run — no files written"))
         console.rule("Run without --dry-run to apply.")
         return
@@ -130,6 +141,7 @@ def update_cmd(
     # Preserve skipped (user-modified) files' prior hashes so they stay
     # protected on every later run instead of dropping out of the manifest.
     preserved = {rel: manifest["files"][rel] for rel in skip}
+    preserved.update({rel: USER_OWNED for rel in kept})
 
     _version = importlib.metadata.version("goodvibes-cli")
     write_manifest(cwd, applied, _version, preserved=preserved)

@@ -1235,3 +1235,17 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 **Tests run:** npm update.integration: 1 failed (new, expected), 2 passed. pip: new test fails as expected.
 
 **Docs updated:** JOURNAL.md.
+
+---
+
+## 2026-09-24 · update keeps pre-existing files missing from the manifest: GREEN (Phase 16)
+
+**What I did:** In both CLIs, a template file absent from the manifest but already on disk (other than CLAUDE.md, which is block-merged) is now "kept": listed in dry-run as "already yours", never copied, and recorded in the manifest as `user-owned` so every later run classifies it as user-modified.
+
+**Files changed:** packages/npm/src/commands/update.ts, packages/pip/src/goodvibes_cli/commands/update_cmd.py, JOURNAL.md.
+
+**Why:** Makes the RED tests pass; stops `update` destroying files the user had before `init`.
+
+**Tests run:** npm vitest 185 passed, 1 skipped, 2 todo; pip pytest 188 passed.
+
+**Docs updated:** JOURNAL.md.
