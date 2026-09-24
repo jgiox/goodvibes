@@ -7,7 +7,7 @@ import { installHeadroom, type HeadroomResult } from '../steps/install-headroom.
 import { configureMcp, type McpResult } from '../steps/configure-mcp.js'
 import { detectProjectType } from '../utils/detect-project-type.js'
 import { sendTelemetry, telemetryOptedOut } from '../steps/telemetry.js'
-import { writeManifest } from '../steps/write-manifest.js'
+import { readManifest, writeManifest, type Manifest } from '../steps/write-manifest.js'
 import { managedRecord } from '../utils/json-merge.js'
 import { applyGlobalConfig, ensureGlobalCli, registerContext7, formatGlobal, type GlobalResult, type CliStatus, type McpStatus } from '../steps/global-setup.js'
 import { GLOBAL_OWNED, type Scope } from '../utils/scope.js'
@@ -98,6 +98,17 @@ export function registerInitCommand(program: Command): void {
         return
       }
 
+      // Read before writing anything: a broken manifest must stop init, not be silently replaced.
+      let prevManifest: Manifest | null = null
+      if (inProject) {
+        try {
+          prevManifest = await readManifest(cwd)
+        } catch (e) {
+          cancel((e as Error).message)
+          process.exit(1)
+        }
+      }
+
       const telemetryPromise = sendTelemetry()
 
       const createdFiles: string[] = []
@@ -180,7 +191,15 @@ export function registerInitCommand(program: Command): void {
 
       const _ver = packageVersion()
       if (inProject) {
-        const blocked = await writeManifest(cwd, createdFiles.filter(f => f !== '.goodvibes.json'), _ver, undefined, await managedRecord(cwd, templateDir), scope)
+        // Earlier entries survive a re-run: files kept this time are still goodvibes', and removed hooks stay removed.
+        const blocked = await writeManifest(
+          cwd,
+          createdFiles.filter(f => f !== '.goodvibes.json'),
+          _ver,
+          prevManifest?.files,
+          await managedRecord(cwd, templateDir, prevManifest?.managed),
+          scope,
+        )
         if (blocked) skippedFiles.push(blocked)
       }
 
