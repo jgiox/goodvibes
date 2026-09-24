@@ -20,13 +20,15 @@ pip install goodvibes-cli
 goodvibes init
 ```
 
+This sets goodvibes up for every project on your computer and adds the project files to the current folder. Add `--scope project` to keep everything inside this one project; see [Global or one project](#global-or-one-project).
+
 [![demo](docs/demo.gif)](docs/demo.gif)
 
 ## What you get
 
 `goodvibes init` sets up seven things in your project:
 
-1. **CLAUDE.md** — Engineering rules that Claude reads automatically on every session: think before coding, simplicity first, fail loud, keep a journal, update tests
+1. **Engineering rules for Claude** — think before coding, simplicity first, fail loud, keep a journal, update tests. By default in `~/.claude/rules/goodvibes.md` so every project gets them; with `--scope project`, in this project's `CLAUDE.md`
 2. **IDE rule files** — The same rules, adapted for your AI coding tool. Supports 14 AI coding tools out of the box: Claude Code, Cursor, GitHub Copilot, Windsurf, Devin Desktop, Kiro, Antigravity, Cline, Amazon Q, Continue.dev, OpenAI Codex CLI, Lovable, Replit Agent, and Bolt.new
 3. **caveman skill** — Compresses Claude's output so you get more done per context window (defaults to `ultra`; type `/caveman full` or `stop caveman` if replies get too terse). Also ships a `model-regression` skill that Claude Code loads only when a change touches model, scoring or metric code: baseline first, same evaluation before and after, revert on degradation
 4. **ponytail rules** — Keeps code minimal; no over-engineering
@@ -38,11 +40,35 @@ Running it a second time is safe — existing files are not overwritten, and CLA
 
 `goodvibes update` brings an existing project up to date. Files you never edited are replaced with the new version. Files you edited are left alone, except `.claude/settings.json` and `.mcp.json`: for those, update adds only the goodvibes parts (the journal check, the ask-before-publish rules, context7) and keeps everything you added. `goodvibes update --dry-run` shows each change first. If you delete one of those goodvibes parts on purpose, update will not put it back.
 
+## Global or one project
+
+By default `goodvibes init` sets goodvibes up for every project on your computer, then adds the project files to the folder you ran it in:
+
+| Where | What |
+|---|---|
+| Your computer | The `goodvibes` command, installed globally (npm, or `uv tool` for Python) so the session check can run |
+| `~/.claude/rules/goodvibes.md` | The engineering rules, loaded by Claude Code in every project |
+| `~/.claude/skills/` | caveman, goodvibes-hygiene, model-regression and the other skills |
+| `~/.claude/settings.json` | The journal check, the session check, ask-before-push/publish/deploy rules, and deny rules for force-push and hard reset. Your own settings are kept, and goodvibes never adds "allow" rules here |
+| Claude Code user MCP settings | context7 |
+| This folder | `JOURNAL.md`, `CHANGELOG.md`, CI workflows, rule files for other AI tools, `.claude/settings.json`, and a `CLAUDE.md` with just a project section to fill in |
+
+What this changes in your other projects: Claude Code asks before `git push`, publishing or deploying, and refuses force-push and `git reset --hard`. The journal check only acts in repos that have a `JOURNAL.md`, and the session check stays silent outside goodvibes projects. Running `goodvibes init` in your home folder does the global part only.
+
+To keep everything inside one project instead, with nothing written outside it:
+
+```sh
+npx goodvibes-cli init --scope project
+```
+
+To undo the global part: delete `~/.claude/rules/goodvibes.md` and the goodvibes skills from `~/.claude/skills/`, remove the goodvibes entries from `~/.claude/settings.json`, and run `claude mcp remove context7 -s user`. `goodvibes update` does not put back anything you removed.
+
 ## Flags
 
 ```sh
 goodvibes init --dry-run    # Preview files without writing anything
 goodvibes init --minimal    # Skip headroom install, all .github/ files, and docs/
+goodvibes init --scope project   # Everything inside this project only (default: global)
 ```
 
 `--minimal` skips: `.github/` (workflows, issue templates, PR template, dependabot, Copilot instructions) and `docs/`. All IDE rule files (Cursor, Windsurf, Devin Desktop, Kiro, Antigravity, AGENTS.md, Cline, Amazon Q, Continue.dev, replit.md, .bolt/prompt) are written by `--minimal` — they are AI configuration, not scaffolding.

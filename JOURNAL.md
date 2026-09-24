@@ -1379,3 +1379,19 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 **Next time:** Maintainer must refresh the `NPM_TOKEN` repository secret (an npm automation or granular token with publish rights on `goodvibes-cli`), then re-run "Publish npm package" on main, and push the three tags from a machine that is allowed to.
 
 **Docs updated:** JOURNAL.md, STATE.md.
+
+---
+
+## 2026-09-24 · Global vs project install scope (global default)
+
+**What I did:** Added `goodvibes init --scope global|project`, default `global`, in npm and pip. Global: installs the CLI globally (npm `install -g goodvibes-cli@<ver>` unless `npm ls -g` already has that version; pip: `uv tool install` when `goodvibes` is not on PATH), writes `~/.claude/rules/goodvibes.md` (the goodvibes block) and `~/.claude/skills/`, merges hooks and ask/deny rules into `~/.claude/settings.json` (never `allow`), registers context7 with `claude mcp add --transport http --scope user`, and keeps a global `.goodvibes.json` (hashes plus managed ids) so re-runs refresh untouched files, keep edited ones, and never re-add removed keys. Honors `CLAUDE_CONFIG_DIR`. The project gets its templates minus the rules block, skills and `.mcp.json` (a new `CLAUDE.md` is the project stub only), and its manifest records `scope`. Init in the home folder does the global part only. `update` refreshes global config for global-scope projects and excludes those files from the project. The journal gate exits 0 in repos with no `JOURNAL.md`; `doctor` checks the global rules file in global-scope projects and `--quick` is silent about CLAUDE.md outside goodvibes projects.
+
+**Files changed:** packages/npm/src/steps/global-setup.ts (new), packages/npm/src/utils/scope.ts (new), packages/npm/src/commands/{init,update,doctor}.ts, packages/npm/src/steps/{copy-templates,write-manifest}.ts, packages/pip/src/goodvibes_cli/steps/global_setup.py (new), packages/pip/src/goodvibes_cli/utils/scope.py (new), packages/pip/src/goodvibes_cli/commands/{init_cmd,update_cmd,doctor_cmd}.py, packages/pip/src/goodvibes_cli/steps/{copy_templates,write_manifest}.py, templates/.claude/settings.json, .claude/settings.json, tests in both packages (new: global-setup.test.ts, global-setup.integration.test.ts, test_global_setup.py; extended: dist-cli, update integration, copy-templates, doctor, journal-gate, init/update unit), README.md, FAQ.md, CHANGELOG.md, docs/getting-started.md, templates/docs/getting-started.md, JOURNAL.md.
+
+**Why:** User asked for global install as the default with a single-project option, and chose "global CLI + global config". Claude Code docs (fetched 2026-09-24): `~/.claude/rules/*.md` load in every project; identical hooks from user and project settings run once; user-scope MCP lives in `~/.claude.json` and project `.mcp.json` wins on a name clash.
+
+**Tests run:** npm vitest 267 passed, 1 skipped, 2 todo; pip pytest 223 passed; verify-phase5 PASS. Hermetic built-CLI tests (temp CLAUDE_CONFIG_DIR, PATH with only node). Packed tarball in a sandboxed HOME: rules, both hooks and skills written, context7 registered at user scope in the sandbox config, npm global install failed with a clear message (1.8.0 not on npm yet), project got 17 files with a stub-only CLAUDE.md. Real `~/.claude` checked untouched after every run.
+
+**What I learned:** fs-extra's copy filter also sees directories, so `.claude/skills` without a trailing slash created an empty folder until the check matched the directory itself. The npm re-publish with the new token failed with `EOTP`: the token requires a 2FA code, so CI needs a 2FA-bypass granular/automation token or trusted publishing.
+
+**Docs updated:** README (quick start note, "Global or one project" section, `--scope` flag), FAQ, CHANGELOG `[Unreleased]`, getting-started (both copies; also stops teaching `git add .`), JOURNAL.md.

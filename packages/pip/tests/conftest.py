@@ -9,9 +9,22 @@ from .fixtures import SENTINEL_START, SENTINEL_END, TEMPLATE_CONTENT, TEMPLATE_C
 def _auto_mock_write_manifest(request, mocker):
     """Prevent write_manifest from touching disk in all init_cmd / main tests."""
     # Only mock when the test exercises init_cmd (not test_write_manifest.py itself)
-    if "test_write_manifest" not in request.module.__name__:
+    if not any(m in request.module.__name__ for m in ("test_write_manifest", "test_global_setup")):
         mocker.patch("goodvibes_cli.commands.init_cmd.write_manifest")
         mocker.patch("goodvibes_cli.commands.init_cmd.managed_record", return_value={})
+
+
+@pytest.fixture(autouse=True)
+def _isolate_global_setup(request, mocker, tmp_path, monkeypatch):
+    """No test may touch the real ~/.claude, npm/uv global installs, or the claude CLI."""
+    monkeypatch.setenv("CLAUDE_CONFIG_DIR", str(tmp_path / "claude-config"))
+    if "test_global_setup" in request.module.__name__:
+        return
+    result = {"config_dir": str(tmp_path / "claude-config"), "written": [], "kept": [], "settings_changes": [], "settings_error": None}
+    for mod in ("init_cmd", "update_cmd"):
+        mocker.patch(f"goodvibes_cli.commands.{mod}.apply_global_config", return_value=result)
+    mocker.patch("goodvibes_cli.commands.init_cmd.ensure_global_cli", return_value={"status": "already-installed"})
+    mocker.patch("goodvibes_cli.commands.init_cmd.register_context7", return_value={"status": "already-registered"})
 
 
 @pytest.fixture

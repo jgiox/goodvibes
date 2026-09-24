@@ -43,6 +43,15 @@ vi.mock('../steps/telemetry.js', () => ({
   sendTelemetry: vi.fn().mockResolvedValue(undefined),
 }))
 
+// Mock global-setup — unit tests must never touch the real ~/.claude, npm -g, or claude CLI
+vi.mock('../steps/global-setup.js', () => ({
+  applyGlobalConfig: vi.fn().mockResolvedValue({ configDir: '/fake/.claude', written: [], kept: [], settingsChanges: [] }),
+  ensureGlobalCli: vi.fn().mockResolvedValue({ status: 'already-installed' }),
+  registerContext7: vi.fn().mockResolvedValue({ status: 'already-registered' }),
+  claudeConfigDir: vi.fn().mockReturnValue('/fake/.claude'),
+  formatGlobal: vi.fn().mockReturnValue('already up to date'),
+}))
+
 // Mock write-manifest — prevents real file I/O in command-level unit tests
 vi.mock('../steps/write-manifest.js', () => ({
   writeManifest: vi.fn().mockResolvedValue(undefined),
@@ -133,7 +142,8 @@ describe('init command', () => {
       expect.any(String),
       false,
       true,
-      expect.any(String)
+      expect.any(String),
+      'global',
     )
   })
 
@@ -170,7 +180,8 @@ describe('init command', () => {
       expect.any(String),
       false,
       false,
-      expect.any(String)
+      expect.any(String),
+      'global',
     )
     expect(vi.mocked(installHeadroom)).toHaveBeenCalled()
     expect(vi.mocked(configureMcp)).toHaveBeenCalled()
@@ -209,6 +220,7 @@ describe('init command', () => {
       expect.any(String),
       undefined,
       expect.any(Object),
+      'global',
     )
   })
 
@@ -540,7 +552,7 @@ describe('MIN-02: dry-run + minimal', () => {
     await program.parseAsync(['node', 'goodvibes', 'init', '--dry-run', '--minimal'])
 
     const noteCalls = vi.mocked(note).mock.calls
-    const dryRunCall = noteCalls.find(c => String(c[1]).toLowerCase().includes('dry run'))
+    const dryRunCall = noteCalls.find(c => String(c[1]).toLowerCase().includes('no files written'))
     expect(dryRunCall).toBeDefined()
     const content = String(dryRunCall![0])
     expect(content).not.toContain('.github')

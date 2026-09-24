@@ -202,6 +202,11 @@ def test_allows_commit_from_staged_cwd_whose_message_merely_contains_adjacent_gi
     assert result.returncode == 0
 
 
+def test_allows_commit_in_repo_without_journal_which_is_not_a_goodvibes_project(repo_dir):
+    (repo_dir / "JOURNAL.md").unlink()
+    assert _run_hook('git commit -am "fix"', repo_dir).returncode == 0
+
+
 def _commit_journal(repo_dir):
     subprocess.run(["git", "add", "JOURNAL.md"], cwd=repo_dir, check=True, capture_output=True)
     subprocess.run(["git", "-c", "commit.gpgsign=false", "commit", "-m", "init"], cwd=repo_dir, check=True, capture_output=True)

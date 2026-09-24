@@ -203,6 +203,12 @@ describe('journal-gate hook', () => {
     expect(exitCode).toBe(0)
   })
 
+  it('allows a commit in a repo with no JOURNAL.md, which is not a goodvibes project (global install)', async () => {
+    rmSync(join(repoDir, 'JOURNAL.md'))
+    const { exitCode } = await runHook('git commit -am "fix"', repoDir)
+    expect(exitCode).toBe(0)
+  })
+
   async function commitJournal(): Promise<void> {
     await execa('git', ['add', 'JOURNAL.md'], { cwd: repoDir })
     await execa('git', ['-c', 'commit.gpgsign=false', 'commit', '-m', 'init'], { cwd: repoDir })

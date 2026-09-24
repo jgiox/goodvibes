@@ -326,11 +326,24 @@ describe('doctor command', () => {
       expect(exitSpy).not.toHaveBeenCalled()
     })
 
-    it('prints one line per failed check with its fix and still does not exit non-zero', async () => {
+    it('stays silent about CLAUDE.md outside a goodvibes project (no .goodvibes.json)', async () => {
       const { execa } = await import('execa')
       vi.mocked(execa).mockResolvedValue({ stdout: 'value' } as any)
       const { existsSync } = await import('node:fs')
       vi.mocked(existsSync).mockReturnValue(false)
+
+      const { logs, exitSpy } = await runQuick()
+
+      expect(logs).toEqual([])
+      expect(exitSpy).not.toHaveBeenCalled()
+    })
+
+    it('prints one line per failed check with its fix in a project-scope goodvibes project and does not exit non-zero', async () => {
+      const { execa } = await import('execa')
+      vi.mocked(execa).mockResolvedValue({ stdout: 'value' } as any)
+      const { existsSync, readFileSync } = await import('node:fs')
+      vi.mocked(existsSync).mockImplementation(p => String(p).endsWith('.goodvibes.json'))
+      vi.mocked(readFileSync).mockReturnValue('{"version":"1.8.0","files":{},"scope":"project"}')
 
       const { logs, exitSpy } = await runQuick()
 
@@ -339,6 +352,18 @@ describe('doctor command', () => {
         'goodvibes doctor: ✗ goodvibes sentinel block. Run: goodvibes init',
       ])
       expect(exitSpy).not.toHaveBeenCalled()
+    })
+
+    it('checks the rules file in the Claude config, not the project CLAUDE.md, in a global-scope project', async () => {
+      const { execa } = await import('execa')
+      vi.mocked(execa).mockResolvedValue({ stdout: 'value' } as any)
+      const { existsSync, readFileSync } = await import('node:fs')
+      vi.mocked(existsSync).mockImplementation(p => String(p).endsWith('.goodvibes.json'))
+      vi.mocked(readFileSync).mockReturnValue('{"version":"1.8.0","files":{},"scope":"global"}')
+
+      const { logs } = await runQuick()
+
+      expect(logs).toEqual(['goodvibes doctor: ✗ goodvibes rules in Claude config. Run: goodvibes init'])
     })
   })
 })

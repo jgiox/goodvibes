@@ -169,7 +169,33 @@ def test_doctor_quick_prints_nothing_and_skips_headroom_when_all_quick_checks_pa
     assert all(c.args[0][0] != "headroom" for c in run.call_args_list)
 
 
+def test_doctor_quick_is_silent_about_claude_md_outside_a_goodvibes_project(mocker, tmp_path):
+    mocker.patch("pathlib.Path.cwd", return_value=tmp_path)
+    mocker.patch(
+        "goodvibes_cli.commands.doctor_cmd.subprocess.run",
+        return_value=subprocess.CompletedProcess(args=[], returncode=0, stdout="value", stderr=""),
+    )
+    from goodvibes_cli.main import app
+    result = runner.invoke(app, ["doctor", "--quick"])
+    assert result.exit_code == 0
+    assert result.output == ""
+
+
+def test_doctor_quick_checks_claude_config_rules_in_a_global_scope_project(mocker, tmp_path):
+    (tmp_path / ".goodvibes.json").write_text('{"version": "1.8.0", "files": {}, "scope": "global"}', encoding="utf-8")
+    mocker.patch("pathlib.Path.cwd", return_value=tmp_path)
+    mocker.patch(
+        "goodvibes_cli.commands.doctor_cmd.subprocess.run",
+        return_value=subprocess.CompletedProcess(args=[], returncode=0, stdout="value", stderr=""),
+    )
+    from goodvibes_cli.main import app
+    result = runner.invoke(app, ["doctor", "--quick"])
+    assert result.exit_code == 0
+    assert result.output.splitlines() == ["goodvibes doctor: ✗ goodvibes rules in Claude config. Run: goodvibes init"]
+
+
 def test_doctor_quick_prints_one_line_per_failure_and_exits_0(mocker, tmp_path):
+    (tmp_path / ".goodvibes.json").write_text('{"version": "1.8.0", "files": {}, "scope": "project"}', encoding="utf-8")
     mocker.patch("pathlib.Path.cwd", return_value=tmp_path)
     mocker.patch(
         "goodvibes_cli.commands.doctor_cmd.subprocess.run",

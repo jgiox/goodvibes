@@ -16,6 +16,8 @@ from goodvibes_cli.steps.copy_templates import list_template_files, resolve_temp
 from goodvibes_cli.steps.write_manifest import read_manifest, write_manifest
 from goodvibes_cli.utils.detect_project_type import detect_project_type
 from goodvibes_cli.utils.json_merge import MANAGED_JSON, managed_record, merge_managed_json
+from goodvibes_cli.steps.global_setup import apply_global_config, claude_config_dir, format_global
+from goodvibes_cli.utils.scope import global_owned
 from goodvibes_cli.utils.sentinel_merge import merge_claude
 
 console = Console()
@@ -38,7 +40,8 @@ def update_cmd(
     console.rule("[bold]goodvibes update[/bold]")
     cwd = pathlib.Path.cwd()
     manifest = read_manifest(cwd)
-    if manifest is None:
+    global_manifest = read_manifest(claude_config_dir())
+    if manifest is None and global_manifest is None:
         console.print(Panel(
             "No .goodvibes.json found. This project was initialised before v1.2.0.\n"
             "Run 'goodvibes init' once to create the manifest, then use 'goodvibes update' to keep files current.",
@@ -48,7 +51,18 @@ def update_cmd(
         return  # exit 0 — UPD-05: no typer.Exit(), returning yields exit code 0
 
     template_dir = resolve_templates_dir()
+    if global_manifest is not None or (manifest or {}).get("scope") == "global":
+        g = apply_global_config(template_dir, importlib.metadata.version("goodvibes-cli"), dry_run=dry_run)
+        console.print(Panel(format_global(g, None, None), title=f"{'Dry run — ' if dry_run else ''}Global setup ({g['config_dir']})"))
+    if manifest is None:
+        console.rule("Run without --dry-run to apply." if dry_run else "[green]Update complete![/green]")
+        return
     project_type = detect_project_type(cwd)
+    scope = manifest.get("scope") or "project"
+
+    def excluded(rel: str) -> bool:
+        # In global scope the rules block, skills and context7 live in the user config, never in the project.
+        return scope == "global" and (rel == "CLAUDE.md" or global_owned(rel))
 
     # Categorise managed files into overwrite / skip / net_new
     overwrite: list[str] = []
@@ -60,6 +74,8 @@ def update_cmd(
 
     # First pass: manifest files → overwrite (SHA unchanged or absent) / skip (user-modified)
     for rel, manifest_sha in manifest["files"].items():
+        if excluded(rel):
+            continue
         _assert_safe(cwd, rel)
         dest_path = cwd / rel
         if not dest_path.exists():
@@ -89,7 +105,7 @@ def update_cmd(
             dest_rel = ".github/workflows/ci.yml"  # map selected variant to dest name
         else:
             dest_rel = tf
-        if dest_rel in managed_keys:
+        if dest_rel in managed_keys or excluded(dest_rel):
             continue
         # init only records files it wrote; a file already on disk is the user's own.
         if dest_rel != "CLAUDE.md" and (cwd / dest_rel).exists():
@@ -174,6 +190,7 @@ def update_cmd(
     write_manifest(
         cwd, applied, _version, preserved=preserved,
         managed=managed_record(cwd, template_dir, manifest.get("managed")),
+        scope=scope,
     )
 
     summary = applied + [f"{rel} (merged {len(ch)} goodvibes key(s))" for rel, _, ch in merges]

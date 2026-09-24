@@ -6,6 +6,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/2.0.0/),
 
 ## [Unreleased]
 
+### Added
+
+- `goodvibes init --scope global|project`, default `global`. Global installs the `goodvibes` CLI globally (npm `install -g`, or `uv tool install` for Python) and writes the rules to `~/.claude/rules/goodvibes.md`, the skills to `~/.claude/skills/`, the hooks and ask/deny rules into `~/.claude/settings.json` (never `allow`), and context7 as a user-scope MCP server; the project gets its files minus the rules block, skills and `.mcp.json`, so nothing loads twice. Honors `CLAUDE_CONFIG_DIR`. Running init in the home folder does the global part only. `--scope project` keeps the 1.8.0 behaviour
+- `.goodvibes.json` records the scope; `update` refreshes the global config for global-scope projects and never adds the rules block, skills or `.mcp.json` to them
+
+### Changed
+
+- The journal gate exits 0 in repos without a `JOURNAL.md`, so the global hook never blocks commits in unrelated repos
+- `goodvibes doctor` (and `--quick`) checks the global rules file in global-scope projects, and `--quick` stays silent about CLAUDE.md outside goodvibes projects
+- Getting-started no longer teaches `git add .`
+
 ## [1.8.0] - 2026-09-24
 
 ### Fixed

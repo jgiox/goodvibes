@@ -6,6 +6,7 @@ export interface Manifest {
   version: string
   files: Record<string, string>
   managed?: Record<string, string[]>
+  scope?: 'global' | 'project'
 }
 
 export const MANIFEST_PATH = '.goodvibes.json'
@@ -16,6 +17,7 @@ export async function writeManifest(
   version: string,
   preserved?: Record<string, string>,
   managed?: Record<string, string[]>,
+  scope?: 'global' | 'project',
 ): Promise<void> {
   // Preserved hashes come only from the prior manifest, never re-read from dest,
   // so a skipped (user-modified) file can't be silently reclassified as unmodified.
@@ -24,7 +26,7 @@ export async function writeManifest(
     const content = await readFile(join(destDir, rel), 'utf-8')
     files[rel] = createHash('sha256').update(content, 'utf8').digest('hex')
   }
-  const manifest: Manifest = managed ? { version, files, managed } : { version, files }
+  const manifest: Manifest = { version, files, ...(managed ? { managed } : {}), ...(scope ? { scope } : {}) }
   await writeFile(join(destDir, MANIFEST_PATH), JSON.stringify(manifest, null, 2) + '\n', 'utf-8')
 }
 
