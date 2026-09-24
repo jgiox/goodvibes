@@ -1450,6 +1450,6 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 
 **Why:** Tests must not touch the network, and test runs were inflating the install counter.
 
-**Tests run:** pip pytest (RED then GREEN); proxy denial timestamps unchanged across a full pip run after the fix.
+**Tests run:** pip pytest RED (1 failed) then GREEN (all pass); proxy denial timestamps unchanged across a full pip run after the fix.
 
 **Docs updated:** JOURNAL.md.

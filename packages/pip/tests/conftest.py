@@ -16,8 +16,10 @@ def _auto_mock_write_manifest(request, mocker):
 
 @pytest.fixture(autouse=True)
 def _isolate_global_setup(request, mocker, tmp_path, monkeypatch):
-    """No test may touch the real ~/.claude, npm/uv global installs, or the claude CLI."""
+    """No test may touch the real ~/.claude, npm/uv global installs, the claude CLI, or telemetry."""
     monkeypatch.setenv("CLAUDE_CONFIG_DIR", str(tmp_path / "claude-config"))
+    if "test_telemetry" not in request.module.__name__:
+        mocker.patch("goodvibes_cli.commands.init_cmd.start_telemetry_thread", return_value=None)
     if "test_global_setup" in request.module.__name__:
         return
     result = {"config_dir": str(tmp_path / "claude-config"), "written": [], "kept": [], "settings_changes": [], "settings_error": None}
