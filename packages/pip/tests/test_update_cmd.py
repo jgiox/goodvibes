@@ -401,3 +401,23 @@ def test_update_reports_broken_claude_md_markers_updates_the_rest_and_exits_non_
     assert (project_dir / "CLAUDE.md").read_text(encoding="utf-8") == broken
     assert (project_dir / "AGENTS.md").read_text(encoding="utf-8") == "agents v2\n"
     assert "fix CLAUDE.md by hand" in " ".join(_ANSI.sub("", result.output).split())
+
+
+def test_update_reports_settings_that_are_not_a_json_object_and_leaves_them_unchanged(merge_dirs):
+    (merge_dirs / ".claude" / "settings.json").write_text("[]", encoding="utf-8")
+    _write_manifest(merge_dirs, {".claude/settings.json": "old-hash"})
+
+    result = runner.invoke(app, ["update", "--force"])
+
+    assert result.exit_code == 0, result.output
+    assert (merge_dirs / ".claude" / "settings.json").read_text(encoding="utf-8") == "[]"
+    assert ".claude/settings.json: not a JSON object; left unchanged" in _ANSI.sub("", result.output)
+
+
+def test_update_merge_keeps_non_ascii_text_in_settings(merge_dirs):
+    (merge_dirs / ".claude" / "settings.json").write_text(json.dumps({"env": {"GREETING": "héllo"}}, ensure_ascii=False), encoding="utf-8")
+    _write_manifest(merge_dirs, {".claude/settings.json": "old-hash"})
+
+    assert runner.invoke(app, ["update", "--force"]).exit_code == 0
+
+    assert "héllo" in (merge_dirs / ".claude" / "settings.json").read_text(encoding="utf-8")

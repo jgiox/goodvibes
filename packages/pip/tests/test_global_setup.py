@@ -185,3 +185,12 @@ def test_update_in_global_scope_project_refreshes_config_and_leaves_project_clau
     assert (proj / "CLAUDE.md").read_text(encoding="utf-8") == "# CLAUDE.md\n\n## Project\n"
     assert not (proj / ".claude" / "skills").exists()
     assert (_cfg() / "rules" / "goodvibes.md").exists()
+
+
+def test_apply_global_config_reports_settings_that_are_not_a_json_object():
+    cfg = _cfg()
+    cfg.mkdir(parents=True)
+    (cfg / "settings.json").write_text("[]", encoding="utf-8")
+    r = apply_global_config(TEMPLATES, "1.8.0", dry_run=False)
+    assert (cfg / "settings.json").read_text(encoding="utf-8") == "[]"
+    assert "not a JSON object; left unchanged" in r["settings_error"]
