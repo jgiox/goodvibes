@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { mkdtempSync, writeFileSync, readFileSync, rmSync } from 'fs'
-import { join } from 'path'
+import { mkdtempSync, writeFileSync, readFileSync, rmSync, mkdirSync } from 'fs'
+import { join, sep } from 'path'
 import { tmpdir } from 'os'
 import { createHash } from 'node:crypto'
 import { writeManifest, readManifest } from './write-manifest.js'
@@ -29,10 +29,43 @@ describe('writeManifest / readManifest', () => {
     expect(result).toBeNull()
   })
 
-  it('readManifest returns null when .goodvibes.json is malformed JSON', async () => {
+  it('readManifest throws a clear error naming the file when .goodvibes.json is malformed JSON', async () => {
     writeFileSync(join(tmpDir, '.goodvibes.json'), 'not json')
-    const result = await readManifest(tmpDir)
-    expect(result).toBeNull()
+    const err = await readManifest(tmpDir).catch((e: Error) => e)
+    expect(err).toBeInstanceOf(Error)
+    const msg = (err as Error).message
+    expect(msg.startsWith(`${join(tmpDir, '.goodvibes.json')} is not valid JSON (`)).toBe(true)
+    expect(msg.endsWith('); fix it or delete it and run goodvibes init')).toBe(true)
+  })
+
+  it('readManifest throws when .goodvibes.json holds merge conflict markers', async () => {
+    writeFileSync(join(tmpDir, '.goodvibes.json'), '<<<<<<< HEAD\n{"version":"1.0.0","files":{}}\n=======\n{}\n>>>>>>> main\n')
+    await expect(readManifest(tmpDir)).rejects.toThrow(/is not valid JSON/)
+  })
+
+  it('readManifest throws when .goodvibes.json is JSON but not an object', async () => {
+    writeFileSync(join(tmpDir, '.goodvibes.json'), '[]')
+    await expect(readManifest(tmpDir)).rejects.toThrow(/is not valid JSON \(not a JSON object\)/)
+  })
+
+  it('readManifest turns backslash keys from a Windows manifest into forward slashes', async () => {
+    writeFileSync(join(tmpDir, '.goodvibes.json'), JSON.stringify({
+      version: '1.0.0',
+      files: { '.github\\workflows\\ci.yml': 'a', 'docs\\x.md': 'b' },
+      managed: { '.claude\\settings.json': ['ask:x'] },
+    }))
+    const m = await readManifest(tmpDir)
+    expect(m!.files).toEqual({ '.github/workflows/ci.yml': 'a', 'docs/x.md': 'b' })
+    expect(m!.managed).toEqual({ '.claude/settings.json': ['ask:x'] })
+  })
+
+  it('writeManifest stores forward-slash keys for written, preserved and managed paths', async () => {
+    mkdirSync(join(tmpDir, 'docs'))
+    writeFileSync(join(tmpDir, 'docs', 'a.md'), 'a')
+    await writeManifest(tmpDir, [`docs${sep}a.md`], '1.0.0', { 'docs\\b.md': 'user-owned' }, { '.claude\\settings.json': [] })
+    const data = JSON.parse(readFileSync(join(tmpDir, '.goodvibes.json'), 'utf-8'))
+    expect(Object.keys(data.files).sort()).toEqual(['docs/a.md', 'docs/b.md'])
+    expect(Object.keys(data.managed)).toEqual(['.claude/settings.json'])
   })
 
   it('writeManifest hashes the actual dest content, not the path string', async () => {

@@ -1647,3 +1647,4 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 - GREEN: telemetryOptedOut() shared by init and sendTelemetry (item 14).
 - RED: headroom install timeout 15 min with a heads-up; MCP registered with '-- <path> mcp serve', broken entries repaired, first line of where (items 7, 8).
 - GREEN: install commands get a 15-minute timeout (probes stay 10 s); MCP add passes '-- <path> mcp serve', 'claude mcp get' detects and repairs old entries; first non-empty line of where (items 7, 8).
+- RED: broken .goodvibes.json is an error (update/doctor exit 1); backslash manifest keys normalised (items 9, 11).

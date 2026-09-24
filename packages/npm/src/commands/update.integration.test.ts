@@ -279,3 +279,88 @@ describe('update command — JSON-aware merge of settings.json and .mcp.json (UP
     expect(out).toContain('.claude/settings.json: not valid JSON')
   })
 })
+
+describe('update command — broken manifests and Windows keys', () => {
+  let templateDir: string
+  let projectDir: string
+  let cwdSpy: ReturnType<typeof vi.spyOn>
+  let exitSpy: ReturnType<typeof vi.spyOn>
+
+  async function runUpdate(...flags: string[]): Promise<void> {
+    const { resolveTemplatesDir } = await import('../steps/copy-templates.js')
+    vi.mocked(resolveTemplatesDir).mockReturnValue(templateDir)
+    const { registerUpdateCommand } = await import('./update.js')
+    const { Command } = await import('commander')
+    const program = new Command()
+    program.exitOverride()
+    registerUpdateCommand(program)
+    await program.parseAsync(['node', 'goodvibes', 'update', ...flags])
+  }
+
+  const said = async () => {
+    const { note, cancel, outro } = await import('@clack/prompts')
+    return [note, cancel, outro].flatMap(f => vi.mocked(f).mock.calls.map(c => String(c[0]))).join('\n')
+  }
+
+  beforeEach(async () => {
+    templateDir = mkdtempSync(join(tmpdir(), 'gv-bm-tpl-'))
+    projectDir = mkdtempSync(join(tmpdir(), 'gv-bm-proj-'))
+    cwdSpy = vi.spyOn(process, 'cwd').mockReturnValue(projectDir)
+    exitSpy = vi.spyOn(process, 'exit').mockImplementation(((code?: number) => { throw new Error(`exit ${code}`) }) as never)
+    const { note, cancel, outro } = await import('@clack/prompts')
+    for (const f of [note, cancel, outro]) vi.mocked(f).mockClear()
+  })
+
+  afterEach(() => {
+    cwdSpy.mockRestore()
+    exitSpy.mockRestore()
+    rmSync(templateDir, { recursive: true, force: true })
+    rmSync(projectDir, { recursive: true, force: true })
+  })
+
+  it('exits 1 with a fix-it message when .goodvibes.json has merge conflict markers', async () => {
+    writeFileSync(join(templateDir, 'AGENTS.md'), 'tpl\n')
+    const broken = '<<<<<<< HEAD\n{"version":"1.0.0","files":{}}\n=======\n{}\n>>>>>>> main\n'
+    writeFileSync(join(projectDir, '.goodvibes.json'), broken)
+
+    await expect(runUpdate('--force')).rejects.toThrow('exit 1')
+
+    const out = await said()
+    expect(out).toContain(`${join(projectDir, '.goodvibes.json')} is not valid JSON (`)
+    expect(out).toContain('fix it or delete it and run goodvibes init')
+    expect(out).not.toContain('not set up')
+    expect(readFileSync(join(projectDir, '.goodvibes.json'), 'utf-8')).toBe(broken)
+    expect(existsSync(join(projectDir, 'AGENTS.md'))).toBe(false)
+  })
+
+  it('exits 1 when the global manifest in the Claude config is not valid JSON', async () => {
+    const cfg = process.env.CLAUDE_CONFIG_DIR!
+    writeFileSync(join(cfg, '.goodvibes.json'), '{ broken')
+    try {
+      await expect(runUpdate('--force')).rejects.toThrow('exit 1')
+      expect(await said()).toContain(`${join(cfg, '.goodvibes.json')} is not valid JSON (`)
+    } finally {
+      rmSync(join(cfg, '.goodvibes.json'))
+    }
+  })
+
+  it('treats backslash manifest keys as the same files: refreshes untouched ones and keeps edited ones protected', async () => {
+    mkdirSync(join(templateDir, 'docs'), { recursive: true })
+    mkdirSync(join(projectDir, 'docs'), { recursive: true })
+    writeFileSync(join(templateDir, 'docs', 'a.md'), 'a v2\n')
+    writeFileSync(join(templateDir, 'docs', 'b.md'), 'b v2\n')
+    writeFileSync(join(projectDir, 'docs', 'a.md'), 'a v1\n')
+    writeFileSync(join(projectDir, 'docs', 'b.md'), 'b edited by me\n')
+    writeFileSync(join(projectDir, '.goodvibes.json'), JSON.stringify({
+      version: '1.0.0',
+      files: { 'docs\\a.md': sha256('a v1\n'), 'docs\\b.md': sha256('b v1\n') },
+    }))
+
+    await runUpdate('--force')
+
+    expect(readFileSync(join(projectDir, 'docs', 'a.md'), 'utf-8')).toBe('a v2\n')
+    expect(readFileSync(join(projectDir, 'docs', 'b.md'), 'utf-8')).toBe('b edited by me\n')
+    const files = JSON.parse(readFileSync(join(projectDir, '.goodvibes.json'), 'utf-8')).files
+    expect(files).toEqual({ 'docs/a.md': sha256('a v2\n'), 'docs/b.md': sha256('b v1\n') })
+  })
+})

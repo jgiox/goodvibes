@@ -265,6 +265,34 @@ describe('doctor command', () => {
     })
   })
 
+  describe('broken manifest', () => {
+    it('fails with the fix-it message and exits 1 when .goodvibes.json is not valid JSON', async () => {
+      const { execa } = await import('execa')
+      vi.mocked(execa).mockResolvedValue({ stdout: 'value' } as any)
+      const { existsSync, readFileSync } = await import('node:fs')
+      vi.mocked(existsSync).mockReturnValue(true)
+      vi.mocked(readFileSync).mockImplementation(p => (String(p).endsWith('.goodvibes.json') ? '{ nope' : '<!-- goodvibes:start -->\n<!-- goodvibes:end -->'))
+      const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never)
+      const { note } = await import('@clack/prompts')
+
+      const { registerDoctorCommand } = await import('./doctor.js')
+      let capturedAction: () => Promise<void> = async () => {}
+      const program = {
+        command: vi.fn().mockReturnThis(),
+        description: vi.fn().mockReturnThis(),
+        option: vi.fn().mockReturnThis(),
+        action: vi.fn((fn) => { capturedAction = fn; return { command: vi.fn() } }),
+      }
+      registerDoctorCommand(program as any)
+      await capturedAction()
+
+      const out = vi.mocked(note).mock.calls.map(c => String(c[0])).join('\n')
+      expect(out).toMatch(/\.goodvibes\.json is not valid JSON \(.+\); fix it or delete it and run goodvibes init/)
+      expect(exitSpy).toHaveBeenCalledWith(1)
+      exitSpy.mockRestore()
+    })
+  })
+
   describe('version line', () => {
     it('doctor output includes goodvibes version as first line', async () => {
       const { execa } = await import('execa')
@@ -351,6 +379,19 @@ describe('doctor command', () => {
         'goodvibes doctor: ✗ CLAUDE.md present. Run: goodvibes init',
         'goodvibes doctor: ✗ goodvibes sentinel block. Run: goodvibes init',
       ])
+      expect(exitSpy).not.toHaveBeenCalled()
+    })
+
+    it('prints the broken-manifest message and still does not exit non-zero when .goodvibes.json is not valid JSON', async () => {
+      const { execa } = await import('execa')
+      vi.mocked(execa).mockResolvedValue({ stdout: 'value' } as any)
+      const { existsSync, readFileSync } = await import('node:fs')
+      vi.mocked(existsSync).mockReturnValue(true)
+      vi.mocked(readFileSync).mockImplementation(p => (String(p).endsWith('.goodvibes.json') ? '<<<<<<< HEAD' : '<!-- goodvibes:start -->\n<!-- goodvibes:end -->'))
+
+      const { logs, exitSpy } = await runQuick()
+
+      expect(logs.join('\n')).toMatch(/\.goodvibes\.json is not valid JSON \(.+\); fix it or delete it and run goodvibes init/)
       expect(exitSpy).not.toHaveBeenCalled()
     })
 
