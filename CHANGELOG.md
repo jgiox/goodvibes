@@ -8,6 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/2.0.0/),
 
 ### Fixed
 
+- npm `goodvibes init` no longer exits 1 before writing `.goodvibes.json` (`Cannot find module '../../package.json'` in the built CLI since 1.7.0); `doctor`, `update` and `upgrade` now report the real version instead of "unknown"
+- `goodvibes update` no longer overwrites a file that existed before `init` (and so was never recorded in the manifest); it is kept and recorded as user-owned
 - Journal gate no longer blocks `git add JOURNAL.md && git commit`, exact-path adds that include `JOURNAL.md`, `git add -A && git commit`, or `git commit -a` when `JOURNAL.md` has changes; `-C` targets and unparseable commands still fail closed
 - `permissions.ask` now also covers publish/deploy forms that slipped past the prefix rules: `npx -y`/`--yes`, `npx wrangler@<version>`, `npx netlify-cli`, `npx firebase-tools`, `uv run twine`, `npm run deploy|release|publish`, `node node_modules/.bin/*`
 - Onboarding no longer teaches `git add -A`, which the agent rules forbid; it now shows staging exact paths
@@ -17,6 +19,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/2.0.0/),
 
 ### Added
 
+- `goodvibes update` merges goodvibes-managed keys into a hand-edited `.claude/settings.json` / `.mcp.json`: ask/deny rules (add-only, never `allow`), marker-tagged hooks, and the context7 server; user keys are kept, `--dry-run` lists each key change, and a key you delete stays deleted (npm and pip)
 - `ruff check` lint step in the Python CI templates (`ci-python.yml`, `ci-both.yml`)
 - `gitleaks` secret-scan job in `security.yml`, alongside CodeQL
 - Definition-of-done, `.env.example`, no-fabricated-data, and documentation-lookup-data-handling rules across every shipped agent-instruction template (`CLAUDE.md`, `AGENTS.md`, every per-IDE rule file, `replit.md`, `.bolt/prompt`)
@@ -31,7 +34,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/2.0.0/),
 
 ### Known limitations
 
-- `goodvibes init` does not overwrite an existing `.claude/settings.json`, so projects that already have one do not receive the hook until JSON-aware `goodvibes update` merge ships (Phase 16)
+- `goodvibes init` does not touch an existing `.claude/settings.json` or `.mcp.json`; run `goodvibes update` afterwards to merge the goodvibes keys in
 - The journal gate matches command text, so any Bash command that merely contains commit-like text (for example a heredoc that writes test code) is checked too
 
 ## [1.7.1] — 2026-08-06

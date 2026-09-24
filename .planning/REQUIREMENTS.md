@@ -33,7 +33,7 @@
 
 ### Update Command
 
-- [ ] **UPD-07**: `goodvibes update` gains JSON-aware merge for `settings.json` and `.mcp.json` — preserves user-added keys while adding/updating only the specific keys goodvibes manages (hook block, context7 server entry)
+- [x] **UPD-07**: `goodvibes update` gains JSON-aware merge for `settings.json` and `.mcp.json` — preserves user-added keys while adding/updating only the specific keys goodvibes manages (marker-tagged hook groups, `permissions.ask`/`deny` entries add-only, context7 server entry); widened 2026-09-24 to cover the D2 ask list
 
 ## Deferred to v1.8.x
 
@@ -127,4 +127,4 @@ All prior requirements from v1.0–v1.1.0 are validated. See ROADMAP.md phases 0
 | CTX7-03 | Phase 15 | Complete |
 | CAVE-01 | Phase 17 | Planned |
 | CAVE-02 | Phase 17 | Planned |
-| UPD-07 | Phase 16 | Planned |
+| UPD-07 | Phase 16 | Complete |

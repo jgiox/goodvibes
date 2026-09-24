@@ -1293,3 +1293,17 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 **Tests run:** npm vitest 203 passed, 1 skipped, 2 todo. `npm pack` tarball installed into a temp prefix: `init --minimal` exit 0, manifest version 1.7.1 with `managed` record; `--version` prints 1.7.1; `update` on a hand-edited 1.7.1-style project kept `Bash(make*)` and the postgres server, and added the hook, 20 ask rules and context7.
 
 **Docs updated:** JOURNAL.md.
+
+---
+
+## 2026-09-24 · Phase 16 docs and sign-off
+
+**What I did:** README explains what `update` does to edited files and that init leaves an existing settings.json for update to merge; new FAQ entry on settings.json/.mcp.json; CHANGELOG Fixed/Added entries for the merge, the kept-file fix and the npm init crash; UPD-07 widened and marked complete; ROADMAP, STATE, and Phase 16 PLAN/SUMMARY/VERIFICATION written.
+
+**Files changed:** README.md, FAQ.md, CHANGELOG.md, .planning/REQUIREMENTS.md, .planning/ROADMAP.md, .planning/STATE.md, .planning/phases/16-goodvibes-update-json-aware-merge/ (3 files), JOURNAL.md.
+
+**Why:** Phase 16 success criteria 1-4 verified (16-VERIFICATION.md); docs must describe the new update behaviour before release.
+
+**Tests run:** None new (docs); suites green at ea17b0e.
+
+**Docs updated:** as listed.
