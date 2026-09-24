@@ -1650,3 +1650,4 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 - item 7 RED: headroom installers need a 900 s timeout (probe stays 10 s), a several-minutes warning first, and bytes stderr from TimeoutExpired decoded (3 failed).
 - item 7 GREEN: install commands use a 900 s timeout (probe keeps 10 s), a several-minutes notice is logged first, TimeoutExpired bytes stderr is decoded (264 passed).
 - item 8 RED: headroom must be registered as 'headroom -- <path> mcp serve', and a registration without mcp serve repaired via claude mcp remove + add (3 failed).
+- item 8 GREEN: claude mcp add -s user headroom -- <path> mcp serve; when claude mcp get headroom succeeds without mcp serve, remove + re-add and report repaired (266 passed).
