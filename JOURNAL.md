@@ -1033,3 +1033,19 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 **Tests run:** None (documentation-only change; no code touched).
 
 **Docs updated:** `15-06-SUMMARY.md`, JOURNAL.md.
+
+---
+
+## 2026-09-24 · Phase 15 final sign-off; parallel branch reconciled
+
+**What I did:** Asked to "complete phase", I started from a stale clone (`e729eba`) that did not have the 15-01 to 15-06 work on main, and built Phase 15 a second time on `claude/jolly-thompson-vb6qyd` (commits 5d539f4, 6562868, b9f9c0c). Found the duplication at push time, pushed those commits unchanged so nothing was lost, then merged `origin/main` with every conflict resolved to main. From the parallel build I kept two copy-templates tests plus doc additions (README items 6 and 7; hook opt-out, "Pending approval" and `claude mcp reset-project-choices` in getting-started; CHANGELOG entry). Then ran the goal-backward sign-off against main's hook: 8/8, phase marked complete.
+
+**Files changed:** README.md, CHANGELOG.md, docs/getting-started.md, templates/docs/getting-started.md, packages/npm/src/steps/copy-templates.integration.test.ts, .planning/phases/15-journal-gate-hook-context7-mcp/15-VERIFICATION.md, .planning/ROADMAP.md, .planning/REQUIREMENTS.md, .planning/STATE.md, JOURNAL.md.
+
+**Why:** STATE.md said only the phase-level sign-off was left. HOOK-04 names README, which had no mention of the hook.
+
+**What I learned:** The hook reads the index before the Bash command runs, so `git add JOURNAL.md && git commit` is blocked and the whole command, `git add` included, never executes. Reproduced live in Claude Code, and it hit this session too once the dogfooded hook loaded. Recorded as a follow-up in 15-VERIFICATION.md rather than changed, because 15-01 locks the hook logic. CR-01 (`-C` target) independently re-reproduced as fixed.
+
+**Tests run:** npm vitest 170 passed, 1 skipped, 2 todo; pip pytest 176 passed; verify-phase5 --quick 10/10; npm build ok; wheel and `npm pack --dry-run` contain the hook and `.mcp.json`; live `claude -p`: blocked without journal, blocked on compound add (false block), passed with journal staged first.
+
+**Docs updated:** README.md, CHANGELOG.md, getting-started (both copies), 15-VERIFICATION.md, JOURNAL.md.

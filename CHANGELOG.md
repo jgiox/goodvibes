@@ -6,6 +6,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/2.0.0/),
 
 ## [Unreleased]
 
+### Added
+
+- Journal-gate hook in `templates/.claude/settings.json` (also dogfooded in this repo's `.claude/settings.json`): a `PreToolUse` Bash hook, one inline shell command with no `jq` and no script file, that blocks Claude Code from running `git commit` unless `JOURNAL.md` is staged. Exempts `--amend` and in-progress merge/rebase; honors `git -C <path>`; blocks `git -C` combined with `&&`, `||`, `;` or `|` as ambiguous. Only gates commits made through Claude Code's own Bash tool
+- `templates/.mcp.json`: context7 MCP server at the free public HTTP endpoint (`https://mcp.context7.com/mcp`), no key and no signup
+- Getting-started docs: journal-gate scope, context7 trust prompt, and the optional `${CONTEXT7_API_KEY}` upgrade
+
+### Known limitations
+
+- `goodvibes init` does not overwrite an existing `.claude/settings.json`, so projects that already have one do not receive the hook until JSON-aware `goodvibes update` merge ships (Phase 16)
+- The hook checks the staged file list before the command runs, so `git add JOURNAL.md && git commit ...` and `git commit -a` are blocked even when the journal was updated; stage `JOURNAL.md` in a separate command first
+
 ## [1.7.1] — 2026-08-06
 
 ### Fixed

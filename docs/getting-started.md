@@ -34,6 +34,8 @@ headroom compresses the AI's memory of your project so you spend fewer tokens pe
 
 The journal-gate hook only gates `git commit` when it runs through Claude Code's own Bash tool — it does not intercept a commit you type directly in a terminal. Other AI coding tools or IDEs (Cursor, Copilot, and others) have no equivalent hook mechanism, so this enforcement does not apply there.
 
+To turn the hook off, delete the `"hooks"` section from `.claude/settings.json`. Commits made from your editor's Source Control or Git panel are not gated either.
+
 ## What is context7?
 
 context7 is an MCP server that gives Claude Code live, up-to-date library documentation lookups, so the AI stops guessing at APIs from stale training data. It works out of the box with no signup or API key.
@@ -55,3 +57,5 @@ If you hit rate limits, you can set a `CONTEXT7_API_KEY` environment variable an
 ```
 
 Never commit a literal key — only the `${CONTEXT7_API_KEY}` reference. Claude Code shows a one-time "trust this project's MCP servers" prompt the first time it loads a project with an `.mcp.json`; approving it is what enables context7 tool calls.
+
+Until you approve it, `claude mcp list` shows context7 as "Pending approval" and it stays off. If you declined by mistake, run `claude mcp reset-project-choices` and open Claude Code again.
