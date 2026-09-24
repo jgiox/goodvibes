@@ -1075,3 +1075,17 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 **Tests run:** `npx vitest run src/steps/write-manifest.test.ts src/commands/update.test.ts src/commands/update.integration.test.ts` (15 passed); `npx vitest run` (171 passed, 1 skipped, 2 todo — full suite); `uv run pytest tests/test_write_manifest.py tests/test_update_cmd.py -v -o addopts=""` (15 passed); `uv run pytest tests/` (179 passed — full suite).
 
 **Docs updated:** JOURNAL.md only.
+
+---
+
+## 2026-09-24 — Permissions ask-list + CI fail-loud: RED test (260924-mh9 task 2)
+
+**What I did:** Wrote a failing test asserting `templates/.claude/settings.json`'s `permissions.ask` array contains all 11 push/publish/deploy patterns from D2 (git push, npm/npx-npm/uv publish, twine/python-m-twine upload, wrangler deploy/pages-deploy, vercel, netlify deploy, firebase deploy), plus a sanity-guard test confirming `permissions.allow`, `permissions.deny`, and `hooks.PreToolUse` are still present (so the GREEN edit can be checked for not touching the hooks block). Ran against the current settings.json (no `ask` key) and confirmed the first test fails for the expected reason (`ask` is `undefined`, not an array) while the sanity-guard test passes.
+
+**Files changed:** `packages/npm/src/steps/settings-permissions.test.ts` (new), JOURNAL.md.
+
+**Why:** D2 from the cross-repo gap review — `templates/.claude/settings.json` auto-allows `Bash(npx*)`/`Bash(uv*)`, which lets deploy and publish commands run without a human in the loop, contradicting the template's own Action tiers rule.
+
+**Tests run:** `npx vitest run src/steps/settings-permissions.test.ts` (1 failed as expected — `ask` missing; 1 passed — sanity guard).
+
+**Docs updated:** JOURNAL.md only.
