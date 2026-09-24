@@ -158,15 +158,87 @@ def test_merge_claude_case_d_skips_write_when_version_is_v1_3_0(tmp_dir):
     assert dest.read_text() == existing
 
 
-def test_merge_claude_malformed_start_without_end_does_not_corrupt(tmp_dir):
+def _bad_markers(tmp_dir, content):
     from goodvibes_cli.utils.sentinel_merge import merge_claude
     dest = tmp_dir / "CLAUDE.md"
-    dest.write_text("# User content\n\n<!-- goodvibes:start -->\norphaned start")
+    dest.write_bytes(content.encode("utf-8"))
+    with pytest.raises(ValueError) as e:
+        merge_claude(dest, TEMPLATE_CONTENT)
+    assert dest.read_bytes() == content.encode("utf-8")
+    assert "fix CLAUDE.md by hand" in str(e.value)
+    return str(e.value)
+
+
+def test_merge_claude_refuses_a_start_marker_without_an_end_marker_and_keeps_the_text(tmp_dir):
+    msg = _bad_markers(tmp_dir, "# User content\n\n<!-- goodvibes:start -->\norphaned start\nmy notes after it\n")
+    assert "no <!-- goodvibes:end --> line" in msg
+
+
+def test_merge_claude_refuses_an_end_marker_before_the_start_marker(tmp_dir):
+    msg = _bad_markers(tmp_dir, f"# Mine\n{SENTINEL_END}\nkeep me\n{SENTINEL_START}\nrules\n")
+    assert "before" in msg
+
+
+def test_merge_claude_refuses_two_start_markers(tmp_dir):
+    msg = _bad_markers(tmp_dir, f"{SENTINEL_START}\na\n{SENTINEL_START}\nb\n{SENTINEL_END}\nmine\n")
+    assert "2" in msg
+
+
+def test_merge_claude_refuses_two_end_markers(tmp_dir):
+    _bad_markers(tmp_dir, f"{SENTINEL_START}\na\n{SENTINEL_END}\nmine\n{SENTINEL_END}\n")
+
+
+def test_merge_claude_ignores_markers_that_are_not_alone_on_their_line(tmp_dir):
+    from goodvibes_cli.utils.sentinel_merge import merge_claude
+    dest = tmp_dir / "CLAUDE.md"
+    mention = f"Never edit between `{SENTINEL_START}` and `{SENTINEL_END}` by hand.\n"
+    dest.write_text("# Mine\n" + mention, encoding="utf-8")
     merge_claude(dest, TEMPLATE_CONTENT)
-    content = dest.read_text()
-    assert "# User content" in content
-    assert SENTINEL_END in content
-    assert content.count(SENTINEL_START) == 1
-    # No garbage must appear after the sentinel end marker (corruption check)
-    after_end = content.split(SENTINEL_END, 1)[-1]
-    assert after_end.strip() == "", f"Content after sentinel end must be empty, got: {repr(after_end)}"
+    content = dest.read_text(encoding="utf-8")
+    assert content.startswith("# Mine\n" + mention)
+    assert "# goodvibes: v1.0.0" in content
+
+
+def test_merge_claude_accepts_marker_lines_with_trailing_whitespace(tmp_dir):
+    from goodvibes_cli.utils.sentinel_merge import merge_claude
+    dest = tmp_dir / "CLAUDE.md"
+    dest.write_text(f"# Mine\n{SENTINEL_START}   \n# goodvibes: v0.1.0\nold\n{SENTINEL_END}\t\nafter\n", encoding="utf-8")
+    merge_claude(dest, TEMPLATE_CONTENT)
+    content = dest.read_text(encoding="utf-8")
+    assert "old" not in content
+    assert content.startswith("# Mine\n")
+    assert content.endswith("after\n")
+    assert "# goodvibes: v1.0.0" in content
+
+
+def test_merge_claude_keeps_crlf_line_endings_when_replacing_the_block(tmp_dir):
+    from goodvibes_cli.utils.sentinel_merge import merge_claude
+    dest = tmp_dir / "CLAUDE.md"
+    dest.write_bytes(f"# Mine\r\n{SENTINEL_START}\r\n# goodvibes: v0.1.0\r\nold\r\n{SENTINEL_END}\r\nafter\r\n".encode())
+    merge_claude(dest, TEMPLATE_CONTENT)
+    raw = dest.read_bytes()
+    assert b"old" not in raw
+    assert b"# goodvibes: v1.0.0" in raw
+    assert raw.count(b"\n") == raw.count(b"\r\n")
+    assert raw.startswith(b"# Mine\r\n") and raw.endswith(b"after\r\n")
+
+
+def test_merge_claude_keeps_crlf_line_endings_when_appending_the_block(tmp_dir):
+    from goodvibes_cli.utils.sentinel_merge import merge_claude
+    dest = tmp_dir / "CLAUDE.md"
+    dest.write_bytes(b"# Mine\r\nnotes\r\n")
+    merge_claude(dest, TEMPLATE_CONTENT)
+    raw = dest.read_bytes()
+    assert b"# goodvibes: v1.0.0" in raw
+    assert raw.count(b"\n") == raw.count(b"\r\n")
+
+
+def test_merge_claude_gives_a_clear_error_for_a_claude_md_that_is_not_utf8(tmp_dir):
+    from goodvibes_cli.utils.sentinel_merge import merge_claude
+    dest = tmp_dir / "CLAUDE.md"
+    dest.write_bytes(b"# caf\xe9 notes\n")
+    with pytest.raises(ValueError) as e:
+        merge_claude(dest, TEMPLATE_CONTENT)
+    assert not isinstance(e.value, UnicodeDecodeError)
+    assert "UTF-8" in str(e.value)
+    assert dest.read_bytes() == b"# caf\xe9 notes\n"

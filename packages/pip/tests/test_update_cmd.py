@@ -378,3 +378,26 @@ def test_update_matches_backslash_manifest_keys_written_on_windows(mocker, tmp_p
     assert result.exit_code == 0, result.output
     assert (project_dir / "docs" / "onboarding.md").read_text(encoding="utf-8") == "v2\n"
     assert list(_read(project_dir, ".goodvibes.json")["files"]) == ["docs/onboarding.md"]
+
+
+def test_update_reports_broken_claude_md_markers_updates_the_rest_and_exits_non_zero(mocker, tmp_path):
+    template_dir = tmp_path / "templates"
+    template_dir.mkdir()
+    (template_dir / "CLAUDE.md").write_text("<!-- goodvibes:start -->\n# goodvibes: v2.0.0\nnew\n<!-- goodvibes:end -->\n", encoding="utf-8")
+    (template_dir / "AGENTS.md").write_text("agents v2\n", encoding="utf-8")
+    project_dir = tmp_path / "project"
+    project_dir.mkdir()
+    broken = "# Mine\n<!-- goodvibes:start -->\nno end marker, my notes\n"
+    (project_dir / "CLAUDE.md").write_text(broken, encoding="utf-8")
+    (project_dir / "AGENTS.md").write_text("agents v1\n", encoding="utf-8")
+    _write_manifest(project_dir, {"CLAUDE.md": "x", "AGENTS.md": _sha("agents v1\n")})
+    mocker.patch("goodvibes_cli.commands.update_cmd.resolve_templates_dir", return_value=template_dir)
+    mocker.patch("goodvibes_cli.commands.update_cmd.detect_project_type", return_value="both")
+    mocker.patch("pathlib.Path.cwd", return_value=project_dir)
+
+    result = runner.invoke(app, ["update", "--force"])
+
+    assert result.exit_code != 0
+    assert (project_dir / "CLAUDE.md").read_text(encoding="utf-8") == broken
+    assert (project_dir / "AGENTS.md").read_text(encoding="utf-8") == "agents v2\n"
+    assert "fix CLAUDE.md by hand" in " ".join(_ANSI.sub("", result.output).split())

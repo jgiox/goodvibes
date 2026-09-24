@@ -481,3 +481,16 @@ def test_resolve_templates_dir_prefers_the_bundled_templates(mocker, tmp_path):
     (tmp_path / "templates").mkdir()
     mocker.patch("goodvibes_cli.steps.copy_templates.importlib.resources.files", return_value=tmp_path)
     assert resolve_templates_dir() == tmp_path / "templates"
+
+
+def test_copy_templates_reports_broken_claude_md_markers_and_keeps_copying(tmp_path, template_dir):
+    from goodvibes_cli.steps.copy_templates import copy_templates
+    dest = tmp_path / "proj"
+    dest.mkdir()
+    broken = "# Mine\n<!-- goodvibes:start -->\nno end\n"
+    (dest / "CLAUDE.md").write_text(broken, encoding="utf-8")
+    written, skipped = copy_templates(template_dir, dest)
+    assert (dest / "CLAUDE.md").read_text(encoding="utf-8") == broken
+    assert "CLAUDE.md" not in written
+    assert "CONTRIBUTING.md" in written
+    assert any(s.startswith("CLAUDE.md:") and "fix CLAUDE.md by hand" in s for s in skipped)

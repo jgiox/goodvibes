@@ -1657,3 +1657,4 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 - item 11 GREEN: read_manifest raises ManifestError for invalid or non-object JSON; update and init print it and exit 1; doctor reports it as a failed check (exit 1; --quick prints it, exit 0) (276 passed).
 - item 9 RED: manifest keys must be forward-slash on write and read, so update matches keys a Windows run wrote with backslashes (3 failed).
 - item 9 GREEN: posix_key() normalises manifest keys on write_manifest and read_manifest; list_template_files and copy_templates return forward-slash paths (279 passed).
+- item 3 RED: CLAUDE.md markers count only alone on their line; unmatched/misordered/duplicate markers must raise a fix-by-hand error and leave the file alone; CRLF kept; non-UTF-8 is a clear error; init and update report it and continue, update exits non-zero (10 failed).
