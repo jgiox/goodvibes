@@ -28,7 +28,7 @@ goodvibes init
 
 1. **CLAUDE.md** — Engineering rules that Claude reads automatically on every session: think before coding, simplicity first, fail loud, keep a journal, update tests
 2. **IDE rule files** — The same rules, adapted for your AI coding tool. Supports 14 AI coding tools out of the box: Claude Code, Cursor, GitHub Copilot, Windsurf, Devin Desktop, Kiro, Antigravity, Cline, Amazon Q, Continue.dev, OpenAI Codex CLI, Lovable, Replit Agent, and Bolt.new
-3. **caveman skill** — Compresses Claude's output so you get more done per context window
+3. **caveman skill** — Compresses Claude's output so you get more done per context window. Also ships a `model-regression` skill that Claude Code loads only when a change touches model, scoring or metric code: baseline first, same evaluation before and after, revert on degradation
 4. **ponytail rules** — Keeps code minimal; no over-engineering
 5. **headroom** — Compresses what Claude reads, so context lasts longer (requires Python 3.10+; skipped gracefully if absent)
 6. **Journal check (Claude Code only)**: A hook in `.claude/settings.json` stops Claude Code from running `git commit` until `JOURNAL.md` is staged. It only gates commits made through Claude Code's own Bash tool. It does not gate commits you type in a terminal, commits from your editor's Git panel, or commits made by any other AI tool or IDE. If your project already had a `.claude/settings.json`, `goodvibes init` leaves it alone; run `goodvibes update` afterwards to add the hook without touching your own settings

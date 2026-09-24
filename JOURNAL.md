@@ -1321,3 +1321,17 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 **Tests run:** npm vitest 208 passed, 1 skipped, 2 todo; pip pytest 206 passed. Built CLI: `doctor --quick` 172-188 ms, silent when passing, two fix lines and exit 0 with CLAUDE.md removed.
 
 **Docs updated:** getting-started (both copies), CHANGELOG.md, JOURNAL.md.
+
+---
+
+## 2026-09-24 · model-regression skill
+
+**What I did:** Added `templates/.claude/skills/model-regression/SKILL.md`. It records a baseline file before any change (metrics, data hash, seeds, command, SHA, date, declared tolerance), runs the same evaluation after, never changes model and evaluation together, uses 3+ seeds when results are noisy, never tunes on the test set, reverts on degradation, keeps a frozen-fixture regression test, and reports a before/after table with only measured numbers. README and CHANGELOG mention it; a copy-templates test asserts it ships.
+
+**Files changed:** templates/.claude/skills/model-regression/SKILL.md (new), README.md, CHANGELOG.md, packages/npm/src/steps/copy-templates.integration.test.ts, JOURNAL.md.
+
+**Why:** User decision: the ML regression rule (gap-review rule 2) ships as an on-demand skill, not base-template text, so non-ML users pay no token cost. Only Claude Code loads skills.
+
+**Tests run:** copy-templates integration 56 passed.
+
+**Docs updated:** README.md, CHANGELOG.md, JOURNAL.md.
