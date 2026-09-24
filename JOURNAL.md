@@ -1662,3 +1662,4 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 - RED: upgrade re-runs via process.execPath and turns npm install -g failures into an actionable message with exit 1 (item 12).
 - GREEN: upgrade re-runs with process.execPath + argv[1]; npm install -g failure prints the EACCES docs link or the first npm error line and exits 1 (item 12).
 - RED: Node gate (>=22.12) must run before any dependency loads; engines.node >=22.12.0 (item 13).
+- GREEN: src/node-check.ts gate runs first in src/index.ts, CLI body moved to src/cli.ts and loaded by dynamic import (tsup emits dist/index.js + one chunk, both in npm pack); engines.node >=22.12.0 (lockfile root engines synced with npm@11, one line), tsup target node22 (item 13).

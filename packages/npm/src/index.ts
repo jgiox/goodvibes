@@ -1,30 +1,11 @@
 #!/usr/bin/env node
-const [major] = process.version.replace('v', '').split('.').map(Number)
-if (major < 20) {
-  process.stderr.write(
-    `goodvibes requires Node.js 20 or higher.\nYou are running Node.js ${process.version}.\nInstall the latest LTS from https://nodejs.org\n`
-  )
+import { nodeVersionError } from './node-check.js'
+
+const tooOld = nodeVersionError(process.version)
+if (tooOld) {
+  process.stderr.write(tooOld)
   process.exit(1)
 }
 
-import { packageVersion } from './utils/version.js'
-import { Command } from 'commander'
-import { registerInitCommand } from './commands/init.js'
-import { registerUpgradeCommand } from './commands/upgrade.js'
-import { registerDoctorCommand } from './commands/doctor.js'
-import { registerUpdateCommand } from './commands/update.js'
-
-
-const program = new Command()
-
-program
-  .name('goodvibes')
-  .version(packageVersion())
-  .description('One-command bootstrap for vibe coding projects')
-
-registerInitCommand(program)
-registerUpgradeCommand(program)
-registerUpdateCommand(program)
-registerDoctorCommand(program)
-
-await program.parseAsync(process.argv)
+// Loaded only after the check: execa and commander crash on import under Node < 22.12.
+await import('./cli.js')
