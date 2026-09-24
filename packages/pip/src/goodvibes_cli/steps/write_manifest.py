@@ -7,8 +7,15 @@ import pathlib
 MANIFEST_PATH = ".goodvibes.json"
 
 
-def write_manifest(dest_dir: pathlib.Path, written_files: list[str], version: str) -> None:
-    files: dict[str, str] = {}
+def write_manifest(
+    dest_dir: pathlib.Path,
+    written_files: list[str],
+    version: str,
+    preserved: dict[str, str] | None = None,
+) -> None:
+    # Preserved hashes come only from the prior manifest, never re-read from dest,
+    # so a skipped (user-modified) file can't be silently reclassified as unmodified.
+    files: dict[str, str] = dict(preserved or {})
     for rel in written_files:
         content = (dest_dir / rel).read_bytes()
         files[rel] = hashlib.sha256(content).hexdigest()

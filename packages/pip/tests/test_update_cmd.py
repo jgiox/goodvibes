@@ -1,4 +1,6 @@
 """Tests for update_cmd."""
+import hashlib
+import json
 import re
 import pathlib
 
@@ -83,8 +85,12 @@ def test_update_calls_write_manifest_after_applying_changes(mocker):
 
 
 def test_update_skips_user_modified_files(mocker):
-    """Files with a different SHA than the manifest are categorised as skip and excluded from write_manifest."""
-    manifest = {"version": "1.0.0", "files": {"CLAUDE.md": "expectedsha"}}
+    """Files with a different SHA than the manifest are categorised as skip and excluded from write_manifest.
+
+    Uses a non-CLAUDE.md fixture — CLAUDE.md is always routed to overwrite via
+    merge_claude regardless of whole-file hash; see test_update_refreshes_claude_block_*.
+    """
+    manifest = {"version": "1.0.0", "files": {"docs/onboarding.md": "expectedsha"}}
     mocker.patch("goodvibes_cli.commands.update_cmd.read_manifest", return_value=manifest)
     mocker.patch("goodvibes_cli.commands.update_cmd.resolve_templates_dir")
     mocker.patch("goodvibes_cli.commands.update_cmd.detect_project_type", return_value="both")
@@ -97,7 +103,7 @@ def test_update_skips_user_modified_files(mocker):
     assert result.exit_code == 0
     assert mock_write.called
     written_files = mock_write.call_args[0][1]
-    assert "CLAUDE.md" not in written_files
+    assert "docs/onboarding.md" not in written_files
 
 
 def test_update_uses_merge_claude_for_claude_md(mocker, tmp_path):
@@ -122,3 +128,78 @@ def test_update_uses_merge_claude_for_claude_md(mocker, tmp_path):
     assert result.exit_code == 0
     mock_merge.assert_called_once()
     mock_copy.assert_not_called()
+
+
+def test_update_keeps_user_modified_file_across_two_runs(mocker, tmp_path):
+    """A file skipped as user-modified on run 1 must not be reclassified as net-new (and overwritten) on run 2."""
+    template_dir = tmp_path / "templates"
+    template_dir.mkdir()
+    original_content = "template content v1\n"
+    (template_dir / "tracked.md").write_text(original_content, encoding="utf-8")
+
+    project_dir = tmp_path / "project"
+    project_dir.mkdir()
+    user_content = "user edited this file\n"
+    (project_dir / "tracked.md").write_text(user_content, encoding="utf-8")
+    (project_dir / ".goodvibes.json").write_text(
+        json.dumps(
+            {
+                "version": "1.0.0",
+                "files": {"tracked.md": hashlib.sha256(original_content.encode("utf-8")).hexdigest()},
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    mocker.patch("goodvibes_cli.commands.update_cmd.resolve_templates_dir", return_value=template_dir)
+    mocker.patch("goodvibes_cli.commands.update_cmd.detect_project_type", return_value="both")
+    mocker.patch("pathlib.Path.cwd", return_value=project_dir)
+
+    result = runner.invoke(app, ["update", "--force"])
+    assert result.exit_code == 0
+    assert (project_dir / "tracked.md").read_text(encoding="utf-8") == user_content
+
+    result2 = runner.invoke(app, ["update", "--force"])
+    assert result2.exit_code == 0
+    assert (project_dir / "tracked.md").read_text(encoding="utf-8") == user_content
+
+
+def test_update_refreshes_claude_block_and_preserves_outside_content(mocker, tmp_path):
+    """CLAUDE.md's sentinel block refreshes via update even when the whole-file hash never matches."""
+    template_dir = tmp_path / "templates"
+    template_dir.mkdir()
+    template_claude_md = (
+        "<!-- goodvibes:start -->\n# goodvibes: v2.0.0\n\nnew rules\n<!-- goodvibes:end -->\n"
+    )
+    (template_dir / "CLAUDE.md").write_text(template_claude_md, encoding="utf-8")
+
+    project_dir = tmp_path / "project"
+    project_dir.mkdir()
+    # Manifest records the hash as written by init (block only, no custom prose yet).
+    initial_claude_md = (
+        "<!-- goodvibes:start -->\n# goodvibes: v1.0.0\n\nold rules\n<!-- goodvibes:end -->\n"
+    )
+    # The user then appended custom prose outside the block — the whole-file hash no
+    # longer matches the manifest even though the sentinel block itself is untouched.
+    existing_claude_md = "# My Project\n\nCustom prose that must survive.\n\n" + initial_claude_md
+    (project_dir / "CLAUDE.md").write_text(existing_claude_md, encoding="utf-8")
+    (project_dir / ".goodvibes.json").write_text(
+        json.dumps(
+            {
+                "version": "1.0.0",
+                "files": {"CLAUDE.md": hashlib.sha256(initial_claude_md.encode("utf-8")).hexdigest()},
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    mocker.patch("goodvibes_cli.commands.update_cmd.resolve_templates_dir", return_value=template_dir)
+    mocker.patch("goodvibes_cli.commands.update_cmd.detect_project_type", return_value="both")
+    mocker.patch("pathlib.Path.cwd", return_value=project_dir)
+
+    result = runner.invoke(app, ["update", "--force"])
+    assert result.exit_code == 0
+    updated = (project_dir / "CLAUDE.md").read_text(encoding="utf-8")
+    assert "Custom prose that must survive." in updated
+    assert "new rules" in updated
+    assert "old rules" not in updated
