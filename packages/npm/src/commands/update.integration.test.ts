@@ -266,6 +266,34 @@ describe('update command — JSON-aware merge of settings.json and .mcp.json (UP
     }
   })
 
+  it('leaves a settings.json or .mcp.json that is JSON but not an object unchanged and reports it', async () => {
+    writeFileSync(join(projectDir, '.claude', 'settings.json'), '[]')
+    writeFileSync(join(projectDir, '.mcp.json'), 'null')
+    writeManifestFile({ '.claude/settings.json': 'old-hash', '.mcp.json': 'old-hash' })
+    const { note } = await import('@clack/prompts')
+    vi.mocked(note).mockClear()
+
+    await runUpdate('--force')
+
+    expect(readFileSync(join(projectDir, '.claude', 'settings.json'), 'utf-8')).toBe('[]')
+    expect(readFileSync(join(projectDir, '.mcp.json'), 'utf-8')).toBe('null')
+    const out = vi.mocked(note).mock.calls.map(c => String(c[0])).join('\n')
+    expect(out).toContain('.claude/settings.json: not a JSON object; left unchanged')
+    expect(out).toContain('.mcp.json: not a JSON object; left unchanged')
+  })
+
+  it('leaves no temp files next to the JSON files it writes', async () => {
+    writeFileSync(join(projectDir, '.claude', 'settings.json'), JSON.stringify({ model: 'x' }))
+    writeManifestFile({ '.claude/settings.json': 'old-hash' })
+
+    await runUpdate('--force')
+
+    const { readdirSync } = await import('node:fs')
+    expect(readdirSync(join(projectDir, '.claude'))).toEqual(['settings.json'])
+    expect(readdirSync(projectDir).filter(f => f.includes('tmp'))).toEqual([])
+    expect(readJson('.claude/settings.json').model).toBe('x')
+  })
+
   it('leaves an invalid settings.json unchanged and reports it instead of crashing', async () => {
     writeFileSync(join(projectDir, '.claude', 'settings.json'), '{ not json')
     writeManifestFile({ '.claude/settings.json': 'old-hash' })

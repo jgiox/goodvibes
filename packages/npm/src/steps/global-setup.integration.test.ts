@@ -90,4 +90,12 @@ describe('applyGlobalConfig (real temp CLAUDE_CONFIG_DIR)', () => {
     expect(readFileSync(join(cfg, 'settings.json'), 'utf-8')).toBe('{ nope')
     expect(r.settingsError).toContain('not valid JSON')
   })
+
+  it('reports a global settings.json that is JSON but not an object and leaves it unchanged', async () => {
+    mkdirSync(cfg, { recursive: true })
+    writeFileSync(join(cfg, 'settings.json'), '[]')
+    const r = await applyGlobalConfig(templateDir, '1.8.0', false)
+    expect(readFileSync(join(cfg, 'settings.json'), 'utf-8')).toBe('[]')
+    expect(r.settingsError).toContain('not a JSON object; left unchanged')
+  })
 })
