@@ -1409,3 +1409,17 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 **Tests run:** YAML parses; verify-phase3/4/5 PASS; no other file references NPM_TOKEN. The workflow itself can only be proven by a real run after the trusted publisher is configured on npmjs.com.
 
 **Docs updated:** JOURNAL.md.
+
+---
+
+## 2026-09-24 · v1.9.0 version bump (not published)
+
+**What I did:** Bumped npm `package.json`/`package-lock.json`, pip `pyproject.toml`/`uv.lock` and the `templates/CLAUDE.md` stamp to 1.9.0; CHANGELOG `[Unreleased]` became `[1.9.0] - 2026-09-24`, and `[1.8.0]` notes it reached PyPI only.
+
+**Files changed:** packages/npm/package.json, packages/npm/package-lock.json, packages/pip/pyproject.toml, packages/pip/uv.lock, templates/CLAUDE.md, CHANGELOG.md, JOURNAL.md.
+
+**Why:** The npm publish must run from main, and main will carry the global-scope default. Publishing that as npm 1.8.0 would give npm and PyPI different code under one version number. Global-by-default changes behaviour, so it is a minor bump; npm goes 1.7.1 → 1.9.0 and both registries match again. Nothing is published until the user confirms.
+
+**Tests run:** npm vitest 267 passed, 1 skipped, 2 todo (built-CLI test sees 1.9.0); pip pytest 223 passed; verify-phase5 PASS.
+
+**Docs updated:** CHANGELOG.md, JOURNAL.md.
