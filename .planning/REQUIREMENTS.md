@@ -8,10 +8,10 @@
 
 ### Journal-Gate Enforcement
 
-- [ ] **HOOK-01**: `.claude/settings.json` ships a `PreToolUse` hook, implemented as an inline shell command (no separate script file), that blocks `git commit` unless `JOURNAL.md` is in the staged file list
-- [ ] **HOOK-02**: The hook exempts `--amend`, in-progress merge/rebase (`.git/MERGE_HEAD`, `.git/rebase-merge`, `.git/rebase-apply` present), and the bootstrap commit that adds `JOURNAL.md` itself
-- [ ] **HOOK-03**: On block, the hook's stderr message states exactly what's missing (`JOURNAL.md` not staged) and how to fix it
-- [ ] **HOOK-04**: README/onboarding docs state explicitly that the hook only gates commits Claude Code's own Bash tool runs — not manual `git commit`, not other agents/IDEs
+- [x] **HOOK-01**: `.claude/settings.json` ships a `PreToolUse` hook, implemented as an inline shell command (no separate script file), that blocks `git commit` unless `JOURNAL.md` is in the staged file list
+- [x] **HOOK-02**: The hook exempts `--amend`, in-progress merge/rebase (`.git/MERGE_HEAD`, `.git/rebase-merge`, `.git/rebase-apply` present), and the bootstrap commit that adds `JOURNAL.md` itself
+- [x] **HOOK-03**: On block, the hook's stderr message states exactly what's missing (`JOURNAL.md` not staged) and how to fix it
+- [x] **HOOK-04**: README/onboarding docs state explicitly that the hook only gates commits Claude Code's own Bash tool runs — not manual `git commit`, not other agents/IDEs
 
 ### Cross-Agent Handoff & Binding Wording
 
@@ -22,9 +22,9 @@
 
 ### context7 MCP
 
-- [ ] **CTX7-01**: `.mcp.json` template ships with `context7` configured at the free/public endpoint (`type: "http"`, no key, no signup)
-- [ ] **CTX7-02**: Docs cover the optional `${CONTEXT7_API_KEY}` upgrade path for higher rate limits; no literal key is ever committed
-- [ ] **CTX7-03**: Onboarding docs mention the one-time "trust this project's MCP servers" prompt Claude Code shows on first use
+- [x] **CTX7-01**: `.mcp.json` template ships with `context7` configured at the free/public endpoint (`type: "http"`, no key, no signup)
+- [x] **CTX7-02**: Docs cover the optional `${CONTEXT7_API_KEY}` upgrade path for higher rate limits; no literal key is ever committed
+- [x] **CTX7-03**: Onboarding docs mention the one-time "trust this project's MCP servers" prompt Claude Code shows on first use
 
 ### Caveman Default
 
@@ -114,17 +114,17 @@ All prior requirements from v1.0–v1.1.0 are validated. See ROADMAP.md phases 0
 | UPD-04 | Phase 14 | Complete |
 | UPD-05 | Phase 14 | Complete |
 | UPD-06 | Phase 14 | Complete |
-| HOOK-01 | Phase 15 | Planned |
-| HOOK-02 | Phase 15 | Planned |
-| HOOK-03 | Phase 15 | Planned |
-| HOOK-04 | Phase 15 | Planned |
+| HOOK-01 | Phase 15 | Complete |
+| HOOK-02 | Phase 15 | Complete |
+| HOOK-03 | Phase 15 | Complete |
+| HOOK-04 | Phase 15 | Complete |
 | AGENT-01 | Phase 17 | Planned |
 | AGENT-02 | Phase 17 | Planned |
 | AGENT-03 | Phase 17 | Planned |
 | AGENT-04 | Phase 17 | Planned |
-| CTX7-01 | Phase 15 | Planned |
-| CTX7-02 | Phase 15 | Planned |
-| CTX7-03 | Phase 15 | Planned |
+| CTX7-01 | Phase 15 | Complete |
+| CTX7-02 | Phase 15 | Complete |
+| CTX7-03 | Phase 15 | Complete |
 | CAVE-01 | Phase 17 | Planned |
 | CAVE-02 | Phase 17 | Planned |
 | UPD-07 | Phase 16 | Planned |
