@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import importlib.metadata
+import json
 import pathlib
 import subprocess
 from dataclasses import dataclass, field
@@ -10,6 +11,8 @@ from typing import Annotated
 import typer
 from rich.console import Console
 from rich.panel import Panel
+
+from goodvibes_cli.steps.global_setup import claude_config_dir
 
 # ponytail: not imported from sentinel_merge — define locally to avoid coupling
 SENTINEL_START = "<!-- goodvibes:start -->"
@@ -91,6 +94,26 @@ def _check_sentinel(cwd: pathlib.Path) -> CheckResult:
     )
 
 
+def _project_scope(cwd: pathlib.Path) -> str | None:
+    path = cwd / ".goodvibes.json"
+    if not path.exists():
+        return None
+    try:
+        return "global" if json.loads(path.read_text(encoding="utf-8")).get("scope") == "global" else "project"
+    except ValueError:
+        return "project"  # unreadable manifest: fall back to the project CLAUDE.md checks, which report the real problem
+
+
+def _check_global_rules() -> CheckResult:
+    ok = (claude_config_dir() / "rules" / "goodvibes.md").exists()
+    return CheckResult(label="goodvibes rules in Claude config", passed=ok, remedy="" if ok else "Run: goodvibes init")
+
+
+def _rule_checks(cwd: pathlib.Path, scope: str | None) -> list[CheckResult]:
+    # Global-scope projects keep the rules in the Claude config, not in the project CLAUDE.md.
+    return [_check_global_rules()] if scope == "global" else [_check_claude_md(cwd), _check_sentinel(cwd)]
+
+
 def doctor_cmd(
     quick: Annotated[bool, typer.Option("--quick", help="Fast local checks only; silent when all pass, always exits 0 (used by the session-start hook)")] = False,
 ) -> None:
@@ -99,7 +122,9 @@ def doctor_cmd(
 
     if quick:
         # Exit 2 from a SessionStart hook blocks the session, so quick mode reports and always exits 0.
-        checks = [_check_git_config("user.name"), _check_git_config("user.email"), _check_claude_md(cwd), _check_sentinel(cwd)]
+        # Outside a goodvibes project (no manifest) only the machine-wide git checks apply.
+        scope = _project_scope(cwd)
+        checks = [_check_git_config("user.name"), _check_git_config("user.email"), *(_rule_checks(cwd, scope) if scope else [])]
         for r in checks:
             if not r.passed:
                 typer.echo(f"goodvibes doctor: ✗ {r.label}." + (f" {r.remedy}" if r.remedy else ""))
@@ -109,8 +134,7 @@ def doctor_cmd(
         _check_headroom(),
         _check_git_config("user.name"),
         _check_git_config("user.email"),
-        _check_claude_md(cwd),
-        _check_sentinel(cwd),
+        *_rule_checks(cwd, _project_scope(cwd)),
     ]
 
     version = _installed_version()

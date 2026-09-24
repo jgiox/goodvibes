@@ -1363,3 +1363,63 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 **Tests run:** npm vitest 246 passed, 1 skipped, 2 todo (built-CLI test sees 1.8.0); pip pytest 206 passed; verify-phase5 PASS; CI stamp check logic: 1.8.0 / 1.8.0 / 1.8.0.
 
 **Docs updated:** CHANGELOG.md, JOURNAL.md.
+
+---
+
+## 2026-09-24 · v1.8.0 release: PyPI published, npm blocked on NPM_TOKEN
+
+**What I did:** Merged PR #35 (merge commit 7660cc5) after all 12 CI checks passed. Pushing release tags `v1.8.0`, `npm-v1.8.0`, `pip-v1.8.0` returned HTTP 403 from the session's git proxy (policy denial, not retried), so both publish workflows were started by `workflow_dispatch` on main. PyPI run 36062117526 succeeded: `goodvibes-cli` 1.8.0 wheel and sdist are live; `pip install goodvibes-cli==1.8.0` then `init --minimal` in a blank dir exits 0 with manifest version 1.8.0 and stamp v1.8.0. npm run 36062115333 passed build, tests and the pack check, then `npm publish` failed with `E404 Not Found - PUT https://registry.npmjs.org/goodvibes-cli`, the registry's response to a token without publish rights for the package; dispatch run 8 (v1.6.2) failed the same way. npm `latest` is still 1.7.1, whose `init` crashes.
+
+**Files changed:** JOURNAL.md, .planning/STATE.md.
+
+**Why:** Record the release state for the next session.
+
+**Tests run:** PyPI install smoke test as above; registry checks: PyPI latest 1.8.0, npm latest 1.7.1.
+
+**Next time:** Maintainer must refresh the `NPM_TOKEN` repository secret (an npm automation or granular token with publish rights on `goodvibes-cli`), then re-run "Publish npm package" on main, and push the three tags from a machine that is allowed to.
+
+**Docs updated:** JOURNAL.md, STATE.md.
+
+---
+
+## 2026-09-24 · Global vs project install scope (global default)
+
+**What I did:** Added `goodvibes init --scope global|project`, default `global`, in npm and pip. Global: installs the CLI globally (npm `install -g goodvibes-cli@<ver>` unless `npm ls -g` already has that version; pip: `uv tool install` when `goodvibes` is not on PATH), writes `~/.claude/rules/goodvibes.md` (the goodvibes block) and `~/.claude/skills/`, merges hooks and ask/deny rules into `~/.claude/settings.json` (never `allow`), registers context7 with `claude mcp add --transport http --scope user`, and keeps a global `.goodvibes.json` (hashes plus managed ids) so re-runs refresh untouched files, keep edited ones, and never re-add removed keys. Honors `CLAUDE_CONFIG_DIR`. The project gets its templates minus the rules block, skills and `.mcp.json` (a new `CLAUDE.md` is the project stub only), and its manifest records `scope`. Init in the home folder does the global part only. `update` refreshes global config for global-scope projects and excludes those files from the project. The journal gate exits 0 in repos with no `JOURNAL.md`; `doctor` checks the global rules file in global-scope projects and `--quick` is silent about CLAUDE.md outside goodvibes projects.
+
+**Files changed:** packages/npm/src/steps/global-setup.ts (new), packages/npm/src/utils/scope.ts (new), packages/npm/src/commands/{init,update,doctor}.ts, packages/npm/src/steps/{copy-templates,write-manifest}.ts, packages/pip/src/goodvibes_cli/steps/global_setup.py (new), packages/pip/src/goodvibes_cli/utils/scope.py (new), packages/pip/src/goodvibes_cli/commands/{init_cmd,update_cmd,doctor_cmd}.py, packages/pip/src/goodvibes_cli/steps/{copy_templates,write_manifest}.py, templates/.claude/settings.json, .claude/settings.json, tests in both packages (new: global-setup.test.ts, global-setup.integration.test.ts, test_global_setup.py; extended: dist-cli, update integration, copy-templates, doctor, journal-gate, init/update unit), README.md, FAQ.md, CHANGELOG.md, docs/getting-started.md, templates/docs/getting-started.md, JOURNAL.md.
+
+**Why:** User asked for global install as the default with a single-project option, and chose "global CLI + global config". Claude Code docs (fetched 2026-09-24): `~/.claude/rules/*.md` load in every project; identical hooks from user and project settings run once; user-scope MCP lives in `~/.claude.json` and project `.mcp.json` wins on a name clash.
+
+**Tests run:** npm vitest 267 passed, 1 skipped, 2 todo; pip pytest 223 passed; verify-phase5 PASS. Hermetic built-CLI tests (temp CLAUDE_CONFIG_DIR, PATH with only node). Packed tarball in a sandboxed HOME: rules, both hooks and skills written, context7 registered at user scope in the sandbox config, npm global install failed with a clear message (1.8.0 not on npm yet), project got 17 files with a stub-only CLAUDE.md. Real `~/.claude` checked untouched after every run.
+
+**What I learned:** fs-extra's copy filter also sees directories, so `.claude/skills` without a trailing slash created an empty folder until the check matched the directory itself. The npm re-publish with the new token failed with `EOTP`: the token requires a 2FA code, so CI needs a 2FA-bypass granular/automation token or trusted publishing.
+
+**Docs updated:** README (quick start note, "Global or one project" section, `--scope` flag), FAQ, CHANGELOG `[Unreleased]`, getting-started (both copies; also stops teaching `git add .`), JOURNAL.md.
+
+---
+
+## 2026-09-24 · npm publish via trusted publishing (OIDC)
+
+**What I did:** `publish-npm.yml` no longer uses `NPM_TOKEN`: the publish job gets `id-token: write`, runs on Node 24, upgrades npm to `^11.5.1`, and publishes with `--provenance`. Dropped `registry-url` from setup-node, because it writes an `_authToken=${NODE_AUTH_TOKEN}` line to `.npmrc` that makes npm skip the OIDC exchange and fail with ENEEDAUTH/E404 (actions/setup-node#1551, npm/documentation#1960). The smoke test now takes the version from the publish job's output instead of `${GITHUB_REF_NAME#npm-v}`, which resolved to `main` on manual runs, and runs `init --dry-run --scope project` so it never touches the runner's global config.
+
+**Files changed:** .github/workflows/publish-npm.yml, JOURNAL.md.
+
+**Why:** The re-run with the user's new token failed with `EOTP` (token requires a 2FA code). The user is enabling npm Trusted Publishing for this workflow instead, which needs no secret. Requirements (npm >= 11.5.1, Node >= 22.14, `id-token: write`) confirmed across the npm docs listing, the GitHub changelog, and setup-node issues; docs.npmjs.com itself is blocked from this sandbox.
+
+**Tests run:** YAML parses; verify-phase3/4/5 PASS; no other file references NPM_TOKEN. The workflow itself can only be proven by a real run after the trusted publisher is configured on npmjs.com.
+
+**Docs updated:** JOURNAL.md.
+
+---
+
+## 2026-09-24 · v1.9.0 version bump (not published)
+
+**What I did:** Bumped npm `package.json`/`package-lock.json`, pip `pyproject.toml`/`uv.lock` and the `templates/CLAUDE.md` stamp to 1.9.0; CHANGELOG `[Unreleased]` became `[1.9.0] - 2026-09-24`, and `[1.8.0]` notes it reached PyPI only.
+
+**Files changed:** packages/npm/package.json, packages/npm/package-lock.json, packages/pip/pyproject.toml, packages/pip/uv.lock, templates/CLAUDE.md, CHANGELOG.md, JOURNAL.md.
+
+**Why:** The npm publish must run from main, and main will carry the global-scope default. Publishing that as npm 1.8.0 would give npm and PyPI different code under one version number. Global-by-default changes behaviour, so it is a minor bump; npm goes 1.7.1 → 1.9.0 and both registries match again. Nothing is published until the user confirms.
+
+**Tests run:** npm vitest 267 passed, 1 skipped, 2 todo (built-CLI test sees 1.9.0); pip pytest 223 passed; verify-phase5 PASS.
+
+**Docs updated:** CHANGELOG.md, JOURNAL.md.

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { mkdtempSync, writeFileSync, readFileSync, rmSync, mkdirSync } from 'node:fs'
+import { mkdtempSync, writeFileSync, readFileSync, rmSync, mkdirSync, existsSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
@@ -18,6 +18,9 @@ vi.mock('../steps/copy-templates.js', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../steps/copy-templates.js')>()
   return { ...actual, resolveTemplatesDir: vi.fn() }
 })
+
+// No test here may read or write the real ~/.claude.
+process.env.CLAUDE_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'gv-update-cfg-'))
 
 function sha256(content: string): string {
   return createHash('sha256').update(content, 'utf8').digest('hex')
@@ -237,6 +240,30 @@ describe('update command — JSON-aware merge of settings.json and .mcp.json (UP
     await runUpdate('--force')
 
     expect(readJson('.claude/settings.json').hooks).toBeUndefined()
+  })
+
+  it('in a global-scope project, refreshes the Claude config and never adds the rules block, skills or .mcp.json to the project', async () => {
+    const cfg = mkdtempSync(join(tmpdir(), 'gv-update-gcfg-'))
+    const savedCfg = process.env.CLAUDE_CONFIG_DIR
+    process.env.CLAUDE_CONFIG_DIR = cfg
+    try {
+      writeFileSync(join(templateDir, 'CLAUDE.md'), '# CLAUDE.md\n\n<!-- goodvibes:start -->\n# goodvibes: v9.9.9\nrules\n<!-- goodvibes:end -->\n')
+      mkdirSync(join(templateDir, '.claude', 'skills', 'caveman'), { recursive: true })
+      writeFileSync(join(templateDir, '.claude', 'skills', 'caveman', 'SKILL.md'), 'skill\n')
+      writeFileSync(join(projectDir, 'CLAUDE.md'), '# CLAUDE.md\n\n## Project\n')
+      writeFileSync(join(projectDir, '.goodvibes.json'), JSON.stringify({ version: '1.8.0', files: { 'CLAUDE.md': 'x' }, scope: 'global' }))
+
+      await runUpdate('--force')
+
+      expect(readFileSync(join(projectDir, 'CLAUDE.md'), 'utf-8')).toBe('# CLAUDE.md\n\n## Project\n')
+      expect(existsSync(join(projectDir, '.claude', 'skills'))).toBe(false)
+      expect(existsSync(join(projectDir, '.mcp.json'))).toBe(false)
+      expect(readFileSync(join(cfg, 'rules', 'goodvibes.md'), 'utf-8')).toContain('v9.9.9')
+      expect(JSON.parse(readFileSync(join(projectDir, '.goodvibes.json'), 'utf-8')).scope).toBe('global')
+    } finally {
+      process.env.CLAUDE_CONFIG_DIR = savedCfg
+      rmSync(cfg, { recursive: true, force: true })
+    }
   })
 
   it('leaves an invalid settings.json unchanged and reports it instead of crashing', async () => {

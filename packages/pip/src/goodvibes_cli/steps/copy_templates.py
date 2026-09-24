@@ -5,6 +5,7 @@ import importlib.resources
 import pathlib
 import shutil
 
+from goodvibes_cli.utils.scope import global_owned, project_stub
 from goodvibes_cli.utils.sentinel_merge import merge_claude
 
 
@@ -33,6 +34,7 @@ def copy_templates(
     dry_run: bool = False,
     minimal: bool = False,
     project_type: str = "both",
+    scope: str = "project",
 ) -> tuple[list[str], list[str]]:
     """Copy template files to dest_dir, handling CLAUDE.md via sentinel merge.
 
@@ -46,6 +48,7 @@ def copy_templates(
         all_files = [
             p for p in list_template_files(template_dir)
             if not any(p.endswith(v) and v != selected_variant for v in ci_variants)
+            and (scope == "project" or not global_owned(p))
         ]
         return (all_files, [])
 
@@ -70,6 +73,8 @@ def copy_templates(
                 continue
             if name == "CLAUDE.md":
                 ignored.add(name)  # sentinel merge handles it separately
+            if scope == "global" and global_owned(str(rel)):
+                ignored.add(name)
             if minimal and (".github" in rel.parts or "docs" in rel.parts):
                 ignored.add(name)  # ponytail: MIN-01
             # Skip CI variants not matching the detected project type
@@ -116,8 +121,11 @@ def copy_templates(
     if claude_src.exists():
         claude_dest = dest_dir / "CLAUDE.md"
         template_content = claude_src.read_text(encoding="utf-8")
-        merge_claude(claude_dest, template_content)
-        claude_merged = True
+        if scope == "project":
+            merge_claude(claude_dest, template_content)
+            claude_merged = True
+        elif not claude_dest.exists():
+            claude_dest.write_text(project_stub(template_content), encoding="utf-8")
 
     # Walk destDir so return shows ci.yml (not ci-node.yml) — per RESEARCH.md Pitfall 6
     all_dest = sorted(str(f.relative_to(dest_dir)) for f in dest_dir.rglob("*") if f.is_file())

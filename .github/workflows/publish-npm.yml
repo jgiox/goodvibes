@@ -11,13 +11,20 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      id-token: write  # npm trusted publishing (OIDC): no NPM_TOKEN secret, provenance attached
+    outputs:
+      version: ${{ steps.version.outputs.version }}
     steps:
       - uses: actions/checkout@v7
 
+      # No registry-url: setup-node would write an _authToken line to .npmrc that stops npm from using OIDC (actions/setup-node#1551).
       - uses: actions/setup-node@v7
         with:
-          node-version: '22'
-          registry-url: 'https://registry.npmjs.org'
+          node-version: '24'
+
+      # Trusted publishing needs npm >= 11.5.1.
+      - name: Upgrade npm
+        run: npm install -g npm@^11.5.1
 
       - name: Install dependencies
         working-directory: packages/npm
@@ -38,11 +45,14 @@ jobs:
           npm pack --dry-run 2>&1 | grep -E "dist/|templates/"
           npm pack --dry-run 2>&1 | grep "src/" | wc -l | grep "^0$"
 
+      - name: Read version
+        id: version
+        working-directory: packages/npm
+        run: echo "version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
+
       - name: Publish
         working-directory: packages/npm
-        run: npm publish --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --access public --provenance
 
   smoke-test:
     needs: publish
@@ -56,14 +66,13 @@ jobs:
         with:
           node-version: '22'
 
+      # Version comes from the publish job, so manual runs from main work as well as tag pushes.
       - name: Install from npm
-        run: |
-          VERSION=${GITHUB_REF_NAME#npm-v}
-          npm install -g goodvibes-cli@$VERSION
+        run: npm install -g goodvibes-cli@${{ needs.publish.outputs.version }}
 
       - name: Smoke test
         run: |
           TMPDIR=$(mktemp -d)
           cd $TMPDIR
-          goodvibes init --dry-run 2>&1 | tee /tmp/gv-out.txt
+          goodvibes init --dry-run --scope project 2>&1 | tee /tmp/gv-out.txt
           grep -q "CLAUDE.md" /tmp/gv-out.txt

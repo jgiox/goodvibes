@@ -4,6 +4,8 @@ import { listTemplateFiles, resolveTemplatesDir } from '../steps/copy-templates.
 import { readManifest, writeManifest } from '../steps/write-manifest.js'
 import { mergeClaude } from '../utils/sentinel-merge.js'
 import { MANAGED_JSON, mergeManagedJson, managedRecord } from '../utils/json-merge.js'
+import { applyGlobalConfig, claudeConfigDir, formatGlobal } from '../steps/global-setup.js'
+import { GLOBAL_OWNED, type Scope } from '../utils/scope.js'
 import { detectProjectType } from '../utils/detect-project-type.js'
 import { readFile, writeFile } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
@@ -27,7 +29,10 @@ async function categorise(
   cwd: string,
   manifest: { files: Record<string, string> },
   projectType: string,
+  scope: Scope = 'project',
 ): Promise<{ overwrite: string[]; skip: string[]; netNew: string[]; kept: string[] }> {
+  // In global scope the rules block, skills and context7 live in the user config, never in the project.
+  const excluded = (rel: string) => scope === 'global' && (rel === 'CLAUDE.md' || GLOBAL_OWNED(rel))
   const ciVariants = ['ci-node.yml', 'ci-python.yml', 'ci-both.yml']
   const selectedVariantSrc = `ci-${projectType}.yml`
   const overwrite: string[] = []
@@ -37,6 +42,7 @@ async function categorise(
 
   // First pass: check manifest-tracked files — unmodified → overwrite, user-modified → skip
   for (const [rel, manifestSha] of Object.entries(manifest.files)) {
+    if (excluded(rel)) continue
     assertSafe(cwd, rel)
     const destPath = join(cwd, rel)
     if (!existsSync(destPath)) {
@@ -65,7 +71,7 @@ async function categorise(
     const destRel = templateFile.endsWith(selectedVariantSrc)
       ? '.github/workflows/ci.yml'
       : templateFile
-    if (destRel in manifest.files) continue
+    if (destRel in manifest.files || excluded(destRel)) continue
     // init only records files it wrote; a file already on disk is the user's own.
     if (destRel !== 'CLAUDE.md' && existsSync(join(cwd, destRel))) {
       kept.push(destRel)
@@ -91,7 +97,8 @@ export function registerUpdateCommand(program: Command): void {
       intro('goodvibes update')
 
       const manifest = await readManifest(cwd)
-      if (!manifest) {
+      const globalManifest = await readManifest(claudeConfigDir())
+      if (!manifest && !globalManifest) {
         note(
           "No .goodvibes.json found. This project was initialised before v1.2.0.\n" +
             "Run 'goodvibes init' once to create the manifest, then use 'goodvibes update' to keep files current.",
@@ -102,8 +109,18 @@ export function registerUpdateCommand(program: Command): void {
       }
 
       const templateDir = resolveTemplatesDir()
+      if (globalManifest || manifest?.scope === 'global') {
+        const g = await applyGlobalConfig(templateDir, packageVersion(), dryRun)
+        note(formatGlobal(g, undefined, undefined), `${dryRun ? 'Dry run — ' : ''}Global setup (${g.configDir})`)
+      }
+      if (!manifest) {
+        outro(dryRun ? 'Run without --dry-run to apply changes.' : 'Done!')
+        return
+      }
+
       const projectType = detectProjectType(cwd)
-      const { overwrite, skip, netNew, kept } = await categorise(templateDir, cwd, manifest, projectType)
+      const scope: Scope = manifest.scope ?? 'project'
+      const { overwrite, skip, netNew, kept } = await categorise(templateDir, cwd, manifest, projectType, scope)
 
       // User-modified settings.json / .mcp.json still receive goodvibes-managed keys.
       const merges: { rel: string; merged: Record<string, unknown>; changes: string[] }[] = []
@@ -202,6 +219,7 @@ export function registerUpdateCommand(program: Command): void {
         packageVersion(),
         preserved,
         await managedRecord(cwd, templateDir, manifest.managed),
+        scope,
       )
 
       const applied = overwrite.length + netNew.length

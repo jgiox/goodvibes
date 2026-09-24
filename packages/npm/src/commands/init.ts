@@ -9,6 +9,10 @@ import { detectProjectType } from '../utils/detect-project-type.js'
 import { sendTelemetry } from '../steps/telemetry.js'
 import { writeManifest } from '../steps/write-manifest.js'
 import { managedRecord } from '../utils/json-merge.js'
+import { applyGlobalConfig, ensureGlobalCli, registerContext7, formatGlobal, type GlobalResult, type CliStatus, type McpStatus } from '../steps/global-setup.js'
+import { GLOBAL_OWNED, type Scope } from '../utils/scope.js'
+import { homedir } from 'node:os'
+import { resolve, parse } from 'node:path'
 
 // ponytail: inline helper — too small to justify a separate module
 function formatHeadroomStatus(hr: HeadroomResult | undefined, mr: McpResult | undefined): string {
@@ -40,10 +44,18 @@ export function registerInitCommand(program: Command): void {
     .description('Bootstrap a project with goodvibes configuration')
     .option('--dry-run', 'Preview files without writing to disk')
     .option('--minimal', 'Skip headroom install and CI workflows')
-    .action(async (options: { dryRun: boolean; minimal: boolean }) => {
+    .option('--scope <scope>', 'global (default): set up Claude Code for every project and install goodvibes globally; project: this folder only', 'global')
+    .action(async (options: { dryRun: boolean; minimal: boolean; scope?: string }) => {
       const dryRun = options.dryRun ?? false
       const minimal = options.minimal ?? false
+      const scope = (options.scope ?? 'global') as Scope
+      if (scope !== 'global' && scope !== 'project') {
+        cancel(`Unknown --scope "${options.scope}". Use --scope global (the default) or --scope project.`)
+        process.exit(1)
+      }
       const cwd = process.cwd()
+      // Running init from the home folder (or a drive root) sets up global config only, never scatters project files there.
+      const inProject = !(scope === 'global' && (resolve(cwd) === resolve(homedir()) || resolve(cwd) === parse(resolve(cwd)).root))
       const projectType = detectProjectType(cwd)
       const templateDir = resolveTemplatesDir()
 
@@ -62,11 +74,16 @@ export function registerInitCommand(program: Command): void {
       }
 
       if (dryRun) {
-        const allFiles = await listTemplateFiles(templateDir)
+        if (scope === 'global') {
+          const g = await applyGlobalConfig(templateDir, packageVersion(), true)
+          const cli = await ensureGlobalCli(packageVersion(), true)
+          note(formatGlobal(g, cli, undefined), `Dry run — global setup (${g.configDir})`)
+        }
+        const allFiles = inProject ? (await listTemplateFiles(templateDir)).filter(f => scope === 'project' || !GLOBAL_OWNED(f)) : []
         const files = minimal
           ? allFiles.filter(f => !f.startsWith('.github') && !f.startsWith('docs'))
           : allFiles.filter(f => !ciVariants.some((v: string) => f.endsWith(v) && v !== selectedVariant))
-        note(files.map(f => `  Would write: ${f}`).join('\n'), 'Dry run — no files written')
+        note(files.map(f => `  Would write: ${f}`).join('\n') || '  (no project files: run init inside a project folder)', 'Dry run — no files written')
         note(
           [
             '1. Open this project in your AI coding tool',
@@ -87,18 +104,33 @@ export function registerInitCommand(program: Command): void {
       const skippedFiles: string[] = []
       let headroomResult: HeadroomResult | undefined
       let mcpResult: McpResult | undefined
+      let globalResult: GlobalResult | undefined
+      let cliResult: CliStatus | undefined
+      let context7Result: McpStatus | undefined
 
-      const taskList: Array<{ title: string; task: (message: (msg: string) => void) => Promise<string> }> = [
-        {
+      const taskList: Array<{ title: string; task: (message: (msg: string) => void) => Promise<string> }> = []
+      if (scope === 'global') {
+        taskList.push({
+          title: 'Setting up goodvibes for all your projects',
+          task: async () => {
+            globalResult = await applyGlobalConfig(templateDir, packageVersion(), false)
+            context7Result = await registerContext7(false)
+            cliResult = await ensureGlobalCli(packageVersion(), false)
+            return `Global setup in ${globalResult.configDir}`
+          },
+        })
+      }
+      if (inProject) {
+        taskList.push({
           title: 'Copying template files',
-          task: async (message) => {
-            const { written, skipped } = await copyTemplates(templateDir, cwd, false, minimal, projectType)
+          task: async () => {
+            const { written, skipped } = await copyTemplates(templateDir, cwd, false, minimal, projectType, scope)
             createdFiles.push(...written)
             skippedFiles.push(...skipped)
             return `Copied ${written.length} files`
           },
-        },
-      ]
+        })
+      }
 
       if (!minimal) {
         // ponytail: inline label tables — too small to justify a separate module
@@ -144,11 +176,15 @@ export function registerInitCommand(program: Command): void {
       }
 
       const _ver = packageVersion()
-      await writeManifest(cwd, createdFiles.filter(f => f !== '.goodvibes.json'), _ver, undefined, await managedRecord(cwd, templateDir))
+      if (inProject) {
+        await writeManifest(cwd, createdFiles.filter(f => f !== '.goodvibes.json'), _ver, undefined, await managedRecord(cwd, templateDir), scope)
+      }
 
       await Promise.race([telemetryPromise.catch(() => {}), sleep(1_000)])
 
-      note(createdFiles.join('\n') || '(none)', `Files written (${createdFiles.length})`)
+      if (globalResult) note(formatGlobal(globalResult, cliResult, context7Result), `Global setup (${globalResult.configDir})`)
+      if (inProject) note(createdFiles.join('\n') || '(none)', `Files written (${createdFiles.length})`)
+      else note(`No project files written: ${cwd} is your home folder.\nRun goodvibes init inside a project folder to add JOURNAL.md, CI and IDE rule files.`, 'Project files')
       if (skippedFiles.length > 0) {
         note(skippedFiles.join('\n'), `Files skipped (${skippedFiles.length})`)
       }

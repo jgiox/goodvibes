@@ -97,6 +97,12 @@ package it came from. Version 1.7.0 or higher means you are on `goodvibes-cli`.
 
 ---
 
+## Where did goodvibes put its files?
+
+By default, in two places. Things that should apply to every project go into your Claude Code settings folder (`~/.claude`): the rules (`rules/goodvibes.md`), the skills, the hooks and ask/deny rules in `settings.json`, and context7. Things that belong to one project go into the folder where you ran `goodvibes init`: `JOURNAL.md`, `CHANGELOG.md`, CI workflows, rule files for other AI tools, and a `CLAUDE.md` with a project section to fill in.
+
+If you ran `goodvibes init --scope project`, everything is inside the project and nothing was written to `~/.claude` (headroom's MCP registration aside, which has always been user-level). The project's `.goodvibes.json` records which scope it uses, and `goodvibes update` follows it.
+
 ## Will `goodvibes update` overwrite my `.claude/settings.json` or `.mcp.json`?
 
 No. If you never edited them, update replaces them with the new version. If you edited them, or they were yours before `goodvibes init`, update only adds or refreshes the goodvibes parts: the journal check hook, the ask-before-publish and deny rules, and the context7 server. Your own permissions, hooks and MCP servers stay exactly as they are. It never adds "allow" rules to a file you edited.

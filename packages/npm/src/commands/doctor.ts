@@ -4,6 +4,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { execa } from 'execa'
 import { packageVersion } from '../utils/version.js'
+import { claudeConfigDir } from '../steps/global-setup.js'
 
 // ponytail: not imported from sentinel-merge.ts — those constants are module-private
 const SENTINEL_START = '<!-- goodvibes:start -->'
@@ -69,6 +70,26 @@ function checkSentinel(cwd: string): CheckResult {
   }
 }
 
+function projectScope(cwd: string): 'global' | 'project' | null {
+  const path = join(cwd, '.goodvibes.json')
+  if (!existsSync(path)) return null
+  try {
+    return JSON.parse(readFileSync(path, 'utf-8')).scope === 'global' ? 'global' : 'project'
+  } catch {
+    return 'project' // unreadable manifest: fall back to the project CLAUDE.md checks, which report the real problem
+  }
+}
+
+function checkGlobalRules(): CheckResult {
+  const ok = existsSync(join(claudeConfigDir(), 'rules', 'goodvibes.md'))
+  return { label: 'goodvibes rules in Claude config', pass: ok, remedy: ok ? undefined : 'Run: goodvibes init' }
+}
+
+// Global-scope projects keep the rules in the Claude config, not in the project CLAUDE.md.
+function ruleChecks(cwd: string, scope: 'global' | 'project' | null): CheckResult[] {
+  return scope === 'global' ? [checkGlobalRules()] : [checkClaudeMd(cwd), checkSentinel(cwd)]
+}
+
 export function registerDoctorCommand(program: Command): void {
   program
     .command('doctor')
@@ -79,17 +100,16 @@ export function registerDoctorCommand(program: Command): void {
 
       if (options.quick) {
         // Exit 2 from a SessionStart hook blocks the session, so quick mode reports and always exits 0.
-        const quick = [...(await checkGit()), checkClaudeMd(cwd), checkSentinel(cwd)].filter(r => !r.pass)
+        // Outside a goodvibes project (no manifest) only the machine-wide git checks apply.
+        const scope = projectScope(cwd)
+        const quick = [...(await checkGit()), ...(scope ? ruleChecks(cwd, scope) : [])].filter(r => !r.pass)
         for (const r of quick) console.log(`goodvibes doctor: ✗ ${r.label}.${r.remedy ? ` ${r.remedy}` : ''}`)
         return
       }
 
       const headroomResult = await checkHeadroom()
       const gitResults = await checkGit()
-      const claudeMdResult = checkClaudeMd(cwd)
-      const sentinelResult = checkSentinel(cwd)
-
-      const all: CheckResult[] = [headroomResult, ...gitResults, claudeMdResult, sentinelResult]
+      const all: CheckResult[] = [headroomResult, ...gitResults, ...ruleChecks(cwd, projectScope(cwd))]
 
       const version = packageVersion()
       const lines = [`goodvibes v${version}`, ...all.map(r => `${r.pass ? '✓' : '✗'} ${r.label}`)]

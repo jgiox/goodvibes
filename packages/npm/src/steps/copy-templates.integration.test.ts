@@ -311,6 +311,24 @@ describe('copyTemplates — IDE rule files', () => {
     expect(existsSync(join(tmpDir, '.mcp.json'))).toBe(true)
   })
 
+  it('global scope writes project files but not skills, .mcp.json or the rules block', async () => {
+    const { written } = await copyTemplates(templateDir, tmpDir, false, false, 'both', 'global')
+    expect(existsSync(join(tmpDir, '.claude', 'skills'))).toBe(false)
+    expect(existsSync(join(tmpDir, '.mcp.json'))).toBe(false)
+    expect(existsSync(join(tmpDir, 'JOURNAL.md'))).toBe(true)
+    expect(existsSync(join(tmpDir, '.claude', 'settings.json'))).toBe(true)
+    const claude = readFileSync(join(tmpDir, 'CLAUDE.md'), 'utf-8')
+    expect(claude).toContain('**What this is:**')
+    expect(claude).not.toContain('goodvibes:start')
+    expect(written).toContain('CLAUDE.md')
+  })
+
+  it('global scope leaves an existing project CLAUDE.md untouched', async () => {
+    writeFileSync(join(tmpDir, 'CLAUDE.md'), '# mine\n')
+    await copyTemplates(templateDir, tmpDir, false, false, 'both', 'global')
+    expect(readFileSync(join(tmpDir, 'CLAUDE.md'), 'utf-8')).toBe('# mine\n')
+  })
+
   it('writes GEMINI.md on fresh init', async () => {
     const { written } = await copyTemplates(templateDir, tmpDir, false, false)
     expect(existsSync(join(tmpDir, 'GEMINI.md'))).toBe(true)

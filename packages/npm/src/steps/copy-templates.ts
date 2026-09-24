@@ -1,11 +1,12 @@
 import { copy } from 'fs-extra'
-import { readFile, rename } from 'node:fs/promises'
+import { readFile, rename, writeFile } from 'node:fs/promises'
 import { readdir } from 'fs/promises'
 import { existsSync } from 'fs'
 import { join, relative, sep } from 'path'
 import { fileURLToPath } from 'url'
 import { mergeClaude } from '../utils/sentinel-merge.js'
 import { type ProjectType } from '../utils/detect-project-type.js'
+import { GLOBAL_OWNED, projectStub, type Scope } from '../utils/scope.js'
 
 export function resolveTemplatesDir(): string {
   // tsup bundles everything into dist/index.js so import.meta.url at runtime points to
@@ -58,13 +59,14 @@ export async function copyTemplates(
   dryRun: boolean,
   minimal: boolean,
   projectType: ProjectType = 'both',
+  scope: Scope = 'project',
 ): Promise<{ written: string[]; skipped: string[] }> {
   const ciVariants = ['ci-node.yml', 'ci-python.yml', 'ci-both.yml']
   const selectedVariant = `ci-${projectType}.yml`
 
   if (dryRun) {
     // Return template files excluding non-selected CI variants (preserves --dry-run NPM-07 behaviour)
-    const all = await listTemplateFiles(templateDir)
+    const all = (await listTemplateFiles(templateDir)).filter(p => scope === 'project' || !GLOBAL_OWNED(p))
     return { written: all.filter(p => !ciVariants.some(v => p.endsWith(v) && v !== selectedVariant)), skipped: [] }
   }
 
@@ -93,6 +95,7 @@ export async function copyTemplates(
         if (minimal && (rel.startsWith('.github') || rel.startsWith('docs'))) return false
         // ponytail: path traversal guard per T-02-02-A (templates are repo-controlled but belt-and-suspenders)
         if (rel.includes('..')) return false
+        if (scope === 'global' && GLOBAL_OWNED(rel)) return false
         // Skip selected CI variant on re-runs where ci.yml already exists (prevents orphaned variant file)
         if (src.endsWith(selectedVariant) && existsSync(destCiYml)) return false
         // Skip CI variants not matching the detected project type
@@ -129,14 +132,18 @@ export async function copyTemplates(
   const claudeSrc = join(templateDir, 'CLAUDE.md')
   const claudeDest = join(destDir, 'CLAUDE.md')
   const templateContent = await readFile(claudeSrc, 'utf-8')
-  await mergeClaude(claudeDest, templateContent)
+  if (scope === 'project') {
+    await mergeClaude(claudeDest, templateContent)
+  } else if (!existsSync(claudeDest)) {
+    await writeFile(claudeDest, projectStub(templateContent), 'utf-8')
+  }
 
   // Walk destDir so return shows ci.yml (not ci-node.yml) — per RESEARCH.md Pitfall 6
   const destFiles = await walkDir(destDir, destDir)
   const allDestFiles = destFiles.sort()
   const written = allDestFiles.filter(f => !existingBefore.has(f))
   // CLAUDE.md is always in 'written' — sentinel merge runs regardless (per RESEARCH.md note)
-  const writtenWithClaude = written.includes('CLAUDE.md') ? written : ['CLAUDE.md', ...written]
+  const writtenWithClaude = written.includes('CLAUDE.md') || scope === 'global' ? written : ['CLAUDE.md', ...written]
   const skipped = [...allDestFiles.filter(f => existingBefore.has(f) && f !== 'CLAUDE.md'), ...skippedFiles]
   return { written: writtenWithClaude.sort(), skipped: skipped.sort() }
 }

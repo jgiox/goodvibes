@@ -4,14 +4,14 @@ You ran `goodvibes init`. Here is what happens next.
 
 ## What was set up
 
-goodvibes wrote several files into your project: `CLAUDE.md` with engineering rules and the ponytail minimalism ruleset, AI rule files for your coding tool (Cursor, Windsurf, Kiro, GitHub Copilot, and others), CI workflows for automated quality checks, and docs templates including this one. Everything runs automatically — no configuration needed.
+goodvibes put its engineering rules and the ponytail minimalism ruleset where Claude Code reads them in every project (`~/.claude/rules/goodvibes.md`), or in this project's `CLAUDE.md` if you used `--scope project`. It also wrote AI rule files for your coding tool (Cursor, Windsurf, Kiro, GitHub Copilot, and others), CI workflows for automated quality checks, and docs templates including this one. Everything runs automatically — no configuration needed.
 
 ## Your first change
 
 1. **Open your project in your AI coding tool.** Cursor, Windsurf, Kiro, and GitHub Copilot all pick up the goodvibes rules automatically. The AI will follow minimal-code and fail-loud principles from the first message.
 2. **Tell the AI what you want to build.** Describe the feature in plain language — the rules guide the AI to keep code simple and surgical.
 3. **Review the diff before you commit.** Check that the AI only changed what you asked. The rules encourage narrow diffs — if the change looks too large, ask the AI to trim it.
-4. **Run `git add . && git commit -m "feat: your change here"`.** This saves a checkpoint in your project history so you can always go back.
+4. **Run `git add path/to/changed/file JOURNAL.md` and then `git commit -m "feat: your change here"`.** Name each file you changed; this saves a checkpoint in your project history so you can always go back, without sweeping in stray files such as a `.env` with passwords.
 5. **Run `git push`.** This sends your work to GitHub, where it is safe even if your machine breaks.
 
 ## Check your setup
