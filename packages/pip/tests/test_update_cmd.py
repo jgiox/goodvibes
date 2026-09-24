@@ -18,7 +18,9 @@ def test_update_shows_no_manifest_message_and_exits_0_when_goodvibes_json_absent
     result = runner.invoke(app, ["update"])
     assert result.exit_code == 0
     output = _ANSI.sub("", result.output)
-    assert "manifest" in output.lower() or "v1.2.0" in output
+    assert "manifest" in output.lower()
+    assert "v1.2.0" not in output
+    assert "goodvibes init" in output
 
 
 def test_update_dry_run_prints_three_categories_without_writing(mocker):

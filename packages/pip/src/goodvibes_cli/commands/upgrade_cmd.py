@@ -4,6 +4,7 @@ from __future__ import annotations
 import importlib.metadata
 import json
 import os
+import pathlib
 import subprocess
 import sys
 import urllib.request
@@ -36,15 +37,24 @@ def _check_pypi_version() -> str | None:
         return None
 
 
-def _self_update_pip() -> None:
-    # try uv tool upgrade first; fall back to pip install --upgrade
-    try:
-        subprocess.run(["uv", "tool", "upgrade", "goodvibes-cli"], check=True)
-    except (subprocess.CalledProcessError, FileNotFoundError):
-        subprocess.run(
-            [sys.executable, "-m", "pip", "install", "--upgrade", "goodvibes-cli"],
-            check=True,
-        )
+def _self_update_pip(latest: str) -> None:
+    """Upgrade the installation that is running, not some other copy."""
+    req = f"goodvibes-cli>={latest}"
+    if (pathlib.Path(sys.prefix) / "uv-receipt.toml").exists():
+        # `uv tool upgrade` keeps a pinned requirement (init pinned ==version before 1.9.2); install replaces it.
+        attempts = [["uv", "tool", "install", req]]
+    else:
+        # uv-made venvs usually have no pip, so fall back to uv pip for this same interpreter.
+        attempts = [[sys.executable, "-m", "pip", "install", "--upgrade", req],
+                    ["uv", "pip", "install", "--python", sys.executable, "--upgrade", req]]
+    for cmd in attempts:
+        try:
+            subprocess.run(cmd, check=True)
+            return
+        except (subprocess.CalledProcessError, FileNotFoundError):
+            continue
+    console.print(f"[red]Could not upgrade goodvibes.[/red] Run: {' '.join(attempts[0])}")
+    raise typer.Exit(1)
 
 
 def upgrade_cmd(
@@ -53,9 +63,16 @@ def upgrade_cmd(
     """Install the newest goodvibes, then update this project with it."""
     console.rule("[bold]goodvibes upgrade[/bold]")
 
-    # _GV_UPGRADING prevents infinite re-exec if the new binary still sees itself as outdated.
-    if not os.environ.get(_UPGRADING_ENV):
-        current = _get_package_version()
+    # The re-run carries the version it should now be; if it is not, the install did not take effect.
+    target = os.environ.get(_UPGRADING_ENV)
+    current = _get_package_version()
+    if target and current and not version_gte(current, target):
+        console.print(
+            f"[red]Still running goodvibes {current} after installing {target}.[/red] The goodvibes on your PATH is not the one "
+            "that was upgraded. Run: uv tool install goodvibes-cli@latest (or pip install --upgrade goodvibes-cli), then goodvibes --version."
+        )
+        raise typer.Exit(1)
+    if not target:
         latest = _check_pypi_version()
         if latest and current and not version_gte(current, latest):
             if dry_run:
@@ -63,8 +80,8 @@ def upgrade_cmd(
             else:
                 console.print(f"New version available: [bold]{latest}[/bold] (installed: {current})")
                 with console.status(f"Updating goodvibes {current} → {latest}…"):
-                    _self_update_pip()
+                    _self_update_pip(latest)
                 # Re-run on the new version so the project gets its templates, not this process's.
-                os.execve(sys.argv[0], sys.argv, {**os.environ, _UPGRADING_ENV: "1"})
+                os.execve(sys.argv[0], sys.argv, {**os.environ, _UPGRADING_ENV: latest})
 
     update_cmd(dry_run=dry_run, force=False)

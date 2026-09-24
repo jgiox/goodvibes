@@ -74,6 +74,23 @@ package; follow the steps above to switch to `goodvibes-cli` first.
 
 ---
 
+## `goodvibes upgrade` said "Updated" but `goodvibes --version` still shows the old version
+
+On 1.9.1 and earlier, `goodvibes init` installed the `goodvibes` command pinned to its own
+version, and `uv tool upgrade` never moves past a pin. `upgrade` did not check the result, so it
+printed "Updated" anyway. Run this once:
+
+```
+uv tool install goodvibes-cli@latest
+goodvibes --version
+```
+
+That installs the newest version and removes the pin, so later upgrades work. From 1.9.2,
+`goodvibes upgrade` replaces the pin itself, and if the new version still does not take effect it
+stops with an error and the exact command to run instead of saying "Updated".
+
+---
+
 ## Why does `goodvibes update` say "Already up to date" when I just installed?
 
 This is normal. goodvibes compares files by their content (using SHA-256 hashes), not by

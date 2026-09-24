@@ -1579,3 +1579,47 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 **Tests run:** stamps in sync (1.9.1 x3); npm typecheck 0, vitest 280 passed, 1 skipped, 2 todo, built CLI `--version` 1.9.1; pip pytest 236 passed, `goodvibes --version` 1.9.1; verify-phase1 to 5 PASS.
 
 **Docs updated:** CHANGELOG.md, JOURNAL.md.
+
+---
+
+## 2026-09-24 · `goodvibes upgrade` reported success while staying on the old version
+
+**What I did:** The maintainer ran `goodvibes upgrade` on a uv-tool install of 1.9.0 after 1.9.1 shipped. It printed "Updated to 1.9.1", then "Already up to date (v1.9.0)". Reproduced in a sandbox: pip `init` installs the CLI as `uv tool install goodvibes-cli==<version>`, uv stores that pin, and `uv tool upgrade goodvibes-cli` (what pip `upgrade` runs) then prints "Nothing to upgrade" forever; `upgrade` never checked the result. Fixes: pip `init` installs `goodvibes-cli>=<version>`, so later upgrades are allowed; pip `upgrade` installs `goodvibes-cli>=<latest>`, which replaces an existing pin (verified in the sandbox); both packages re-run on the new version with `_GV_UPGRADING=<target>` and the re-run fails loudly with the exact fix command when it is still older than the target, instead of claiming success; npm `init` no longer downgrades a newer global goodvibes when an older version runs; `update` with no manifest here or in `~/.claude` no longer claims the project predates v1.2.0 and says to run `goodvibes init`.
+
+**Files changed:** packages/pip/src/goodvibes_cli/steps/global_setup.py, packages/pip/src/goodvibes_cli/commands/upgrade_cmd.py, packages/pip/src/goodvibes_cli/commands/update_cmd.py, packages/npm/src/steps/global-setup.ts, packages/npm/src/commands/upgrade.ts, packages/npm/src/commands/update.ts, their tests, FAQ.md, CHANGELOG.md, JOURNAL.md.
+
+**Why:** Bug report from the maintainer's terminal. Existing 1.9.0 and 1.9.1 installs made by pip `init` stay pinned until reinstalled once with `uv tool install goodvibes-cli@latest` (verified: upgrades a `==1.9.0` pin and removes it).
+
+**Tests run:** RED: npm 4 failed, 18 passed (upgrade, update, global-setup); pip 7 failed, 35 passed (upgrade, global_setup, update). GREEN: npm typecheck 0, vitest 282 passed, 1 skipped, 2 todo; pip pytest 239 passed; verify-phase1 to 5 PASS. Sandbox: `uv tool install "goodvibes-cli>=1.9.1"` over a `==1.9.0` tool gives 1.9.1 with receipt `>=1.9.1`; the CLI built from this branch, installed as a uv tool, exits 1 with the fix command when re-run with `_GV_UPGRADING=9.9.9`, and `update` in an empty folder says goodvibes is not set up there. Also: the npm re-run now passes its exit code through (execa would otherwise throw on exit 1).
+
+**Docs updated:** FAQ.md, CHANGELOG.md, JOURNAL.md.
+
+---
+
+## 2026-09-24 · v1.9.1 released to npm and PyPI
+
+**What I did:** Merged the release PR #39 (main 928fd23) and ran both publish workflows. PyPI run 36070071675 succeeded including its smoke test; npm run 36070069674 published 1.9.1 through trusted publishing and its smoke test then failed: all 20 install attempts got ETARGET. The first attempt (22:56) ran before the CDN served 1.9.1, and the registry sends `cache-control: max-age=300`, so npm reused that cached package list for the whole 5-minute retry window. A clean-cache install at 22:58 worked. The smoke install now uses `--prefer-online` (in the 1.9.2 PR), which revalidates on every attempt; the same cause explains the first failed smoke run for 1.9.0. Both registries report 1.9.1. Sandboxed installs from each registry: `--version` 1.9.1, `init --minimal --scope project` exits 0 with manifest 1.9.1, the shipped journal-gate hook carries the heredoc fix, npm `upgrade --dry-run` exits 0; real `~/.claude` untouched. The maintainer pushed annotated tag v1.9.1 on 928fd23 (verified with `git ls-remote`).
+
+**Files changed:** .planning/STATE.md, .github/workflows/publish-npm.yml, JOURNAL.md.
+
+**Why:** Ship the post-1.9.0 fixes (journal-gate fail-opens, `upgrade` scope and manifest bugs, virtualenv global install) and the updated package pages.
+
+**Tests run:** registry version checks; sandboxed installs above; publish workflow runs above.
+
+**Next time:** Human UAT: the journal gate on macOS (BWK awk, untested in the sandbox), context7 trust prompt, Windows Git Bash, caveman ultra style. npm Publishing access: require 2FA and disallow tokens, then delete the NPM_TOKEN secret, if not done yet.
+
+**Docs updated:** STATE.md, JOURNAL.md.
+
+---
+
+## 2026-09-24 · pip `upgrade` upgrades the install that is running
+
+**What I did:** Codex review on PR #40 (P1): `_self_update_pip` always tried `uv tool install` first, so for a `pip install goodvibes-cli` user who also has uv, it created a second, uv-managed copy and never touched the pip install being run; the re-run then failed the new version check every time. It now checks whether the running environment is a uv tool (`uv-receipt.toml` in `sys.prefix`, verified in a sandbox: present for `uv tool install`, absent for a venv). A uv tool gets `uv tool install goodvibes-cli>=<latest>`; anything else gets `python -m pip install --upgrade` for the running interpreter, then `uv pip install --python <interpreter>` when that environment has no pip (uv-made venvs usually do not). If every installer fails it stops with exit 1 and the command to run.
+
+**Files changed:** packages/pip/src/goodvibes_cli/commands/upgrade_cmd.py, packages/pip/tests/test_upgrade_cmd.py, JOURNAL.md.
+
+**Why:** Review finding on PR #40.
+
+**Tests run:** RED: pip upgrade tests 3 failed, 11 passed. GREEN: pip pytest 242 passed. Sandbox: a uv-made venv without pip holding goodvibes 1.9.0 went to 1.9.1 through `_self_update_pip("1.9.1")` from this branch, with no uv tool created.
+
+**Docs updated:** JOURNAL.md.
