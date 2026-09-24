@@ -62,7 +62,7 @@ describe('doctor command', () => {
 
       // verify probe used functional compress --help with timeout
       const execaCalls = vi.mocked(execa).mock.calls
-      const headroomProbe = execaCalls[0]
+      const headroomProbe = execaCalls[0] as unknown[]
       expect(headroomProbe[0]).toBe('headroom')
       expect(headroomProbe[1]).toEqual(['--version'])
       expect(headroomProbe[2]).toMatchObject({ timeout: 10_000 })

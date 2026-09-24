@@ -5,7 +5,7 @@ Bolt.new does not read project files for AI rules. You activate ponytail discipl
 ## One-time setup
 
 1. Open your Bolt.new project.
-2. In the chat, paste: "Please follow these engineering rules for all code you write:" then copy the text from `CLAUDE.md` between `<!-- goodvibes:start -->` and `<!-- goodvibes:end -->`.
+2. In the chat, paste: "Please follow these engineering rules for all code you write:" then paste the whole of `AGENTS.md` from your project (goodvibes writes the same rules there).
 3. Bolt.new will acknowledge and apply the rules for the rest of the session.
 4. Repeat this at the start of each new session, or save it as a pinned message if Bolt.new supports it.
 

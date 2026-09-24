@@ -1439,3 +1439,129 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 **Next time:** Push tag v1.9.0 on df152e8 from a maintainer machine. On npmjs.com set Publishing access to require 2FA and disallow tokens, then delete the NPM_TOKEN repo secret. Human UAT: context7 trust prompt, Windows Git Bash, caveman ultra style. Known follow-ups: journal gate matches commit-like text anywhere in a command; hooks do not run on Windows without Git Bash; pip installs inside a virtualenv are invisible to Claude Code sessions; stale verify-phase1/2 scripts; 143 pre-existing tsc errors; a test appears to reach the telemetry endpoint (seen as proxy denials, test not yet identified); this repo's own CLAUDE.md block is still v1.7.0.
 
 **Docs updated:** STATE.md, JOURNAL.md.
+
+---
+
+## 2026-09-24 · pip tests no longer post to the telemetry endpoint
+
+**What I did:** `tests/test_main.py` ran `init` through CliRunner with telemetry live, so every local pip test run sent an install ping to goodvibes-telemetry (seen as agent-proxy denials; CI hid it because `CI=true` opts out). Added a regression test that clears the opt-out variables and asserts `_fire` is never called, then made the conftest autouse isolation fixture mock `start_telemetry_thread` for every test module except `test_telemetry.py`. The npm suite was checked the same way and does not reach the endpoint.
+
+**Files changed:** packages/pip/tests/test_main.py, packages/pip/tests/conftest.py, JOURNAL.md.
+
+**Why:** Tests must not touch the network, and test runs were inflating the install counter.
+
+**Tests run:** pip pytest RED (1 failed) then GREEN (all pass); proxy denial timestamps unchanged across a full pip run after the fix.
+
+**Docs updated:** JOURNAL.md.
+
+---
+
+## 2026-09-24 · `goodvibes upgrade` now updates the CLI, then runs `update`
+
+**What I did:** `upgrade` predates `update` and kept its own template copy. In a global-scope project it merged the full rules block into the project's `CLAUDE.md` (so Claude Code loaded the rules twice), and on npm it rewrote `.goodvibes.json` with only the files it touched, dropping every other manifest entry so later updates treated them as the user's. It also installed the new version during `--dry-run`. Now `upgrade` checks the registry, installs a newer goodvibes (reporting only, under `--dry-run`), re-runs itself on the new version, and hands the files to `update`, which already handles scope, user edits, the JSON merges and the manifest. The old copy code is deleted in both packages. Added regression tests: global-scope project gets no skills and an unchanged `CLAUDE.md`; a user-edited skill survives; manifest entries survive.
+
+**Files changed:** packages/npm/src/commands/upgrade.ts, packages/npm/src/commands/update.ts, packages/npm/src/commands/upgrade.test.ts, packages/npm/src/commands/upgrade.integration.test.ts, packages/pip/src/goodvibes_cli/commands/upgrade_cmd.py, packages/pip/tests/test_upgrade_cmd.py, JOURNAL.md.
+
+**Why:** Keep one code path for refreshing project files, so every fix to `update` also applies to `upgrade`.
+
+**Tests run:** RED: npm upgrade integration 2 failed, 1 passed; pip upgrade 1 failed, 11 passed. GREEN: npm vitest 267 passed, 1 skipped, 2 todo; pip pytest 222 passed; npm build OK; built CLI `upgrade --dry-run` in a sandboxed global-scope project previews project files only (no skills, no rules block) and writes nothing. `verify-phase5.sh` (run by CI) grepped `upgrade.ts` for `.claude/skills`, i.e. the deleted copy code; its check now asserts that both packages' upgrade delegates to update, and the gate passes (quick and full).
+
+**Docs updated:** JOURNAL.md.
+
+---
+
+## 2026-09-24 · Public docs brought up to 1.9.0
+
+**What I did:** Swept every public doc for claims 1.9.0 made untrue. README: eight parts (session check added), journal check and context7 described for both scopes, new Commands table, Claude Code row points at `~/.claude/rules/goodvibes.md`, ChatGPT and Base44 pages linked. npm and PyPI package READMEs (the registry pages) were still at 1.6-era "five things" with no scope, update, upgrade or doctor; rewritten to match, with the telemetry opt-out. FAQ: `upgrade` does exist (it said it did not), what it now does, how to remove a rules block an old `upgrade` wrote into a global-scope project, and what telemetry sends. getting-started (both copies): turning the journal and session checks off in `~/.claude/settings.json`, adding a context7 key at user scope, doctor checks by scope, corrected commands table (it listed `upgrade --dry-run` as previewing `update`). CONTRIBUTING (both copies) taught `git add -A`, which the rules forbid; now named files, JOURNAL.md, `feat/`/`fix/` branches. Bolt and Replit pages pasted the `CLAUDE.md` block, which global-scope projects no longer have; they now paste `AGENTS.md`. `docs/onboarding.md` gained the troubleshooting section the template copy already had. CHANGELOG `[Unreleased]` lists this and the upgrade and telemetry-test fixes. Telemetry wording checked against both implementations: empty POST, random per-run ID, skipped when `CI=true`.
+
+**Files changed:** README.md, FAQ.md, CHANGELOG.md, CONTRIBUTING.md, templates/CONTRIBUTING.md, docs/getting-started.md, templates/docs/getting-started.md, docs/onboarding.md, docs/platform-setup/bolt.md, docs/platform-setup/replit.md, templates/docs/platform-setup/bolt.md, templates/docs/platform-setup/replit.md, packages/npm/README.md, packages/pip/README.md, JOURNAL.md.
+
+**Why:** User request: update all public-facing docs. The package pages and CONTRIBUTING contradicted the shipped behaviour and the rules.
+
+**Tests run:** npm vitest 267 passed, 1 skipped, 2 todo; pip pytest 222 passed; verify-phase4 and phase5 PASS. verify-phase1, 2 and 3 fail identically with and without these edits (stale checks, tracked separately).
+
+**Docs updated:** all of the above.
+
+---
+
+## 2026-09-24 · Journal gate reads multi-line commands line by line
+
+**What I did:** The gate saw a Bash command as one line with literal `\n` escapes (it is JSON-encoded), which broke it both ways. Fail-open: a `git commit` on any line after the first was not detected at all, because `git` was preceded by the `n` of `\n` instead of whitespace, so `echo hi` + newline + `git commit -m x` committed with no journal. False positive: `git` on one line and the word `commit` anywhere later (including inside a heredoc body, e.g. writing a note that says "git commit") was treated as a commit. The hook now drops heredoc bodies (except when the heredoc feeds `sh`/`bash`/`zsh`/`dash`/`ksh`/`ssh`/`eval`, which would run it; `<<<` here-strings are not heredocs), strips quoted strings as before, then splits the command into real lines for every check. A `git -C` commit in a multi-line command is blocked as ambiguous, like `&&`. Regression tests in npm and pip cover both directions plus `git commit -F -` with a heredoc message and a multi-line `-m` message that mentions `commit -a`.
+
+**Files changed:** templates/.claude/settings.json, .claude/settings.json, packages/npm/src/steps/journal-gate-hook.integration.test.ts, packages/pip/tests/test_journal_gate_hook.py, JOURNAL.md.
+
+**Why:** Follow-up from the 1.9.0 release: the gate blocked legitimate commands and, worse, missed real commits.
+
+**Tests run:** RED: npm hook tests 5 failed, 33 passed; pip 5 failed, 33 passed. GREEN: hook tests 38 passed in each; full npm vitest 274 passed, 1 skipped, 2 todo (after prebuild and build); pip pytest 229 passed; verify-phase5 PASS. Probed by hand under dash + mawk: `/bin/bash` heredocs, `<<-` with tabs, `<<"EOF"`, a `.sh` file written by heredoc, and an escaped `\\n` inside a quoted printf. Not tested: macOS BWK awk (download blocked by the sandbox proxy); the program sticks to POSIX awk features BWK implements.
+
+**Docs updated:** JOURNAL.md.
+
+---
+
+## 2026-09-24 · pip init installs goodvibes globally when it is only in a virtualenv
+
+**What I did:** `ensure_global_cli` treated any `goodvibes` on PATH as a global install. After `pip install goodvibes-cli` inside an active virtualenv, that binary is on PATH only while the venv is active, so the session check silently skipped in every other shell and Claude Code session. A `goodvibes` found under the running interpreter's virtualenv (`sys.prefix != sys.base_prefix`) no longer counts; init installs it with `uv tool install` as it does for `uvx`/`pipx run`. Added a regression test.
+
+**Files changed:** packages/pip/src/goodvibes_cli/steps/global_setup.py, packages/pip/tests/test_global_setup.py, CHANGELOG.md, JOURNAL.md.
+
+**Why:** Follow-up from the 1.9.0 release.
+
+**Tests run:** RED: test_global_setup 1 failed, 14 passed. GREEN: pip pytest 230 passed. ruff reports 22 pre-existing findings in untouched lines (ruff is not run in CI); none added here.
+
+**Docs updated:** CHANGELOG.md, JOURNAL.md.
+
+---
+
+## 2026-09-24 · Phase 1 to 3 verify scripts match the current package
+
+**What I did:** Seven checks still expected pre-rename or v1.0.0 facts: npm package name `goodvibes` (now `goodvibes-cli`), README `npx goodvibes init` (now `npx goodvibes-cli init`), wheel `jgiox_goodvibes-*.whl` (now `goodvibes_cli-*.whl`), CLAUDE.md stamp `v1.0.0` (now must equal the npm package version) and an 80 to 100 line CLAUDE.md (now a 200-line ceiling; the directive rules added in 1.8.0 put it at 160). Updated each to the current invariant.
+
+**Files changed:** scripts/verify-phase1.sh, scripts/verify-phase2.sh, scripts/verify-phase3.sh, JOURNAL.md.
+
+**Why:** A gate that always fails trains everyone to ignore it.
+
+**Tests run:** verify-phase1 through phase5: all PASS.
+
+**Docs updated:** JOURNAL.md.
+
+---
+
+## 2026-09-24 · npm package typechecks clean, and CI keeps it that way
+
+**What I did:** `tsc --noEmit` reported 191 errors. 180 came from TypeScript 7 no longer loading `@types/node` by default; `"types": ["node"]` in `tsconfig.json` fixed them. Three came from `fs-extra` having no types; added `@types/fs-extra` as a dev dependency (MIT, types only, for a package already in use; installed with npm 11 so the lockfile diff is just that package). Three were test mocks of execa's overloaded signature, fixed with narrow casts in the tests. The rest resolved with the Node types. Added `npm run typecheck` and a Typecheck step in the CI npm job so errors cannot pile up again. No runtime code changed.
+
+**Files changed:** packages/npm/tsconfig.json, packages/npm/package.json, packages/npm/package-lock.json, packages/npm/src/commands/doctor.test.ts, packages/npm/src/steps/install-headroom.test.ts, .github/workflows/ci.yml, JOURNAL.md.
+
+**Why:** Type errors were invisible (tsup does not typecheck) and hid real mistakes among 191 false alarms.
+
+**Tests run:** `npm run typecheck` 0 errors; vitest 274 passed, 1 skipped, 2 todo; build OK; `npm ci` (npm 11) accepts the lockfile.
+
+**Docs updated:** JOURNAL.md.
+
+---
+
+## 2026-09-24 · This repo's CLAUDE.md carries the 1.9.0 rules
+
+**What I did:** Refreshed the goodvibes block in the repo's own `CLAUDE.md` from `templates/CLAUDE.md` with the package's `merge_claude` (v1.7.0 to v1.9.0: the directive rules from 1.8.0). Everything outside the sentinels, including the GSD sections, is byte-identical.
+
+**Files changed:** CLAUDE.md, JOURNAL.md.
+
+**Why:** Agents working on goodvibes itself were following older rules than the ones goodvibes ships.
+
+**Tests run:** Lines 1 to 217 diff clean against HEAD; one sentinel pair remains.
+
+**Docs updated:** CLAUDE.md, JOURNAL.md.
+
+---
+
+## 2026-09-24 · Journal gate: full heredoc delimiters, fail closed, shells only in command position
+
+**What I did:** Codex review on PR #38 found two gaps in the heredoc handling added earlier today. (1) Fail-open: the delimiter pattern only took identifier characters, so `<<END-MARK` recorded `END`, the real terminator never matched, and every later line, including a `git commit`, was dropped as heredoc body. (2) False positive: any standalone `bash`/`sh`/`ssh` word on the opener line kept the body, e.g. `cat <<EOF | grep bash`. While checking I also found `bash<<EOF` (no space) was not seen as a shell, another fail-open. Now: the delimiter is the whole word up to whitespace or a shell metacharacter; a heredoc that never terminates (or was mis-parsed) puts its lines back, so a parsing mistake fails closed; the body is kept only when `sh`/`bash`/`zsh`/`dash`/`ksh`/`ssh`/`eval` is in command position (line start or after `|`, `;`, `&`, `(`, `$(` or a backtick, optionally behind `sudo`, `doas`, `env`, `exec`, `command`, `nohup`, `time`, `timeout`, `nice` or `xargs` and their arguments) and followed by a space, `<` or end of line.
+
+**Files changed:** templates/.claude/settings.json, .claude/settings.json, packages/npm/src/steps/journal-gate-hook.integration.test.ts, packages/pip/tests/test_journal_gate_hook.py, JOURNAL.md.
+
+**Why:** Review findings on PR #38 (P1 fail-open, P2 false positive).
+
+**Tests run:** RED: npm hook tests 4 failed, 40 passed; pip 4 failed, 40 passed. GREEN: hook tests 44 passed in each; full npm vitest 280 passed, 1 skipped, 2 todo; typecheck 0; pip pytest 236 passed; verify-phase5 PASS. Probed by hand under dash + mawk: `$((1<<2))` then a commit (fails closed, blocked), `$(bash <<EOF ...)`, `ssh host <<EOF`, `<<"END.X"`, `/bin/bash`, `<<-` with tabs.
+
+**Docs updated:** JOURNAL.md.

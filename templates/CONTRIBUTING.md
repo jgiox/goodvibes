@@ -17,29 +17,31 @@ Thanks for wanting to improve this project. Every contribution helps, no matter 
 3. **Create a branch for your change.** A branch is a separate workspace that keeps your work isolated from the main codebase:
 
    ```
-   git checkout -b my-fix
+   git checkout -b fix/my-fix
    ```
 
-   Give the branch a short name that describes what you are changing — for example, `fix-login-bug` or `add-dark-mode`.
+   Start the name with `feat/`, `fix/`, `docs/` or `chore/`, then a few words that describe the change: for example, `fix/login-bug` or `feat/dark-mode`.
 
 4. **Make your changes.** Edit the files you want to change and save them.
 
 5. **Stage and commit your changes.** This saves a snapshot of your work with a message:
 
    ```
-   git add -A
+   git add path/to/changed-file JOURNAL.md
    git commit -m "Describe what you changed"
    ```
+
+   Name each file you changed instead of using `git add -A` or `git add .`, which stage everything, including stray files such as a `.env` with passwords. If the project has a `JOURNAL.md`, add a short entry saying what you changed and why, and stage it too.
 
    Write the commit message in the present tense: "Fix typo in README" not "fixed stuff".
 
 6. **Push your branch to GitHub.** This sends your local branch to your fork:
 
    ```
-   git push origin my-fix
+   git push origin fix/my-fix
    ```
 
-   Replace `my-fix` with your actual branch name.
+   Replace `fix/my-fix` with your actual branch name.
 
 7. **Open a pull request.** Go to your fork on GitHub. You will usually see a banner at the top saying "You recently pushed a branch — open a pull request." Click the button. If the banner is not there, click the "Pull requests" tab, then "New pull request", and select your branch.
 

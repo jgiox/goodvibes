@@ -93,3 +93,21 @@ A maintainer will look at your PR and either approve it, request changes, or ask
 ---
 
 That is the full loop: clone → branch → commit → push → pull request. Every contribution, large or small, follows this same pattern.
+
+---
+
+## Troubleshooting IDE rules
+
+**Cursor — rules appear inactive in agent mode**
+
+Cursor 3.0.x has a known bug where `alwaysApply: true` rules are silently downgraded in agent mode. If your goodvibes rules seem to have no effect in Cursor:
+
+1. Open Settings (Cmd/Ctrl + ,) and search for "Rules".
+2. Verify that `goodvibes` is listed under "Always Active" rules.
+3. If it appears as "Requestable" instead, toggle it to "Always Active" manually.
+
+This is an upstream Cursor issue — the `goodvibes.mdc` file format is correct.
+
+**Using multiple AI coding tools?**
+
+`goodvibes init` writes an `AGENTS.md` file at your project root. This is a cross-tool standard natively read by Zed, Aider, JetBrains Junie (IntelliJ, PyCharm, WebStorm), Jules, Amp, Codex CLI, and many others — without any extra setup. If you switch to a new AI coding tool, check whether it reads `AGENTS.md` before creating a separate rules file.

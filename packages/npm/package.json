@@ -37,6 +37,7 @@
   "scripts": {
     "prebuild": "node -e \"const{cpSync}=require('fs');cpSync('../../templates','./templates',{recursive:true,force:true})\"",
     "build": "tsup",
+    "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest"
   },
@@ -50,6 +51,7 @@
     "tsup": "^8",
     "typescript": "^7",
     "@types/node": "^26",
+    "@types/fs-extra": "^11.0.4",
     "vitest": "^5"
   },
   "overrides": {

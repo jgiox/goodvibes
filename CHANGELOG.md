@@ -6,6 +6,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/2.0.0/),
 
 ## [Unreleased]
 
+### Fixed
+
+- `goodvibes upgrade` now installs the newest goodvibes and then runs `goodvibes update`. Its old copy step wrote the full rules block into global-scope projects (so Claude Code loaded the rules twice), rewrote `.goodvibes.json` with only the files it touched (npm), and installed the new version even under `--dry-run`
+- pip test runs no longer send an install count to the telemetry endpoint
+- Journal gate: a commit on any line after the first of a multi-line command was not detected and went through without a journal entry; the gate now checks each line. It also no longer treats the word "commit" inside a heredoc body (or on a later line of an unrelated command) as a commit. Heredocs that feed a shell or `ssh` are still checked, and `git -C` in a multi-line command is blocked as ambiguous. `goodvibes update` brings the new hook into existing projects and `~/.claude/settings.json`
+- pip `goodvibes init` installs `goodvibes` with `uv tool install` when the only copy on PATH is inside the active virtualenv, so the session check works outside that venv
+
+### Changed
+
+- Public docs describe the 1.9.0 global default: where each part lives, how to turn the journal and session checks off in `~/.claude/settings.json`, adding a context7 key at user scope, and what `update` vs `upgrade` do. The npm and PyPI package pages list all eight parts and the `update`, `upgrade` and `doctor` commands, and document the telemetry opt-out
+- CONTRIBUTING (and the copy goodvibes installs) stages named files instead of `git add -A` and uses `feat/`/`fix/` branch names, matching the rules
+- Bolt.new and Replit setup pages paste `AGENTS.md`, which every project has, instead of the `CLAUDE.md` block, which global-scope projects no longer carry
+
 ## [1.9.0] - 2026-09-24
 
 ### Added

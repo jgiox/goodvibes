@@ -247,3 +247,56 @@ def test_allows_commit_all_when_tracked_journal_modified_in_working_tree(repo_di
 def test_blocks_commit_without_all_when_tracked_journal_modified_but_unstaged(repo_dir):
     _commit_journal(repo_dir)
     assert _run_hook('git commit -m "log"', repo_dir).returncode == 2
+
+
+def test_allows_heredoc_whose_body_mentions_git_commit(repo_dir):
+    assert _run_hook("cat > notes.md <<'EOF'\nremember to git commit later\nEOF", repo_dir).returncode == 0
+
+
+def test_allows_multi_line_command_with_git_and_commit_on_different_lines(repo_dir):
+    assert _run_hook("git status\necho commit", repo_dir).returncode == 0
+
+
+def test_still_blocks_commit_fed_to_a_shell_through_a_heredoc(repo_dir):
+    assert _run_hook("bash <<'EOF'\ngit commit -m x\nEOF", repo_dir).returncode == 2
+
+
+def test_still_blocks_commit_on_the_line_after_a_here_string(repo_dir):
+    assert _run_hook("cat <<< hi\ngit commit -m x", repo_dir).returncode == 2
+
+
+def test_still_blocks_commit_on_the_line_after_a_heredoc_ends(repo_dir):
+    assert _run_hook("cat > n.md <<'EOF'\nhi\nEOF\ngit commit -m x", repo_dir).returncode == 2
+
+
+def test_still_blocks_commit_dash_f_with_message_from_heredoc(repo_dir):
+    assert _run_hook("git commit -F - <<'EOF'\nmsg\nEOF", repo_dir).returncode == 2
+
+
+def test_still_blocks_commit_whose_multi_line_message_mentions_commit_dash_a(repo_dir):
+    _commit_journal(repo_dir)
+    assert _run_hook('git commit -m "x\nuse commit -a next time"', repo_dir).returncode == 2
+
+
+def test_still_blocks_commit_after_heredoc_with_punctuated_delimiter(repo_dir):
+    assert _run_hook('cat <<END-MARK\ntext\nEND-MARK\ngit commit -m x', repo_dir).returncode == 2
+
+
+def test_still_blocks_commit_inside_unterminated_heredoc(repo_dir):
+    assert _run_hook('cat <<EOF\ngit commit -m x', repo_dir).returncode == 2
+
+
+def test_allows_heredoc_piped_to_grep_bash_whose_body_mentions_git_commit(repo_dir):
+    assert _run_hook('cat <<EOF | grep bash\nremember to git commit\nEOF', repo_dir).returncode == 0
+
+
+def test_still_blocks_commit_in_heredoc_piped_to_bash(repo_dir):
+    assert _run_hook('cat <<EOF | bash\ngit commit -m x\nEOF', repo_dir).returncode == 2
+
+
+def test_still_blocks_commit_in_heredoc_fed_to_sudo_bash(repo_dir):
+    assert _run_hook('sudo -u me bash <<EOF\ngit commit -m x\nEOF', repo_dir).returncode == 2
+
+
+def test_still_blocks_commit_in_heredoc_fed_to_bash_without_space(repo_dir):
+    assert _run_hook('bash<<EOF\ngit commit -m x\nEOF', repo_dir).returncode == 2

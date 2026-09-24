@@ -16,15 +16,16 @@ goodvibes put its engineering rules and the ponytail minimalism ruleset where Cl
 
 ## Check your setup
 
-Run `goodvibes doctor` to verify everything is working. It checks that headroom is installed, your git identity is configured, and the goodvibes rules are in place.
+Run `goodvibes doctor` to verify everything is working. It checks that headroom is installed, your git identity is configured, and the goodvibes rules are in place (`~/.claude/rules/goodvibes.md`, or the goodvibes block in `CLAUDE.md` if you used `--scope project`).
 
 ## Useful commands
 
 | Command | What it does |
 |---------|--------------|
-| `goodvibes update` | Re-sync goodvibes files to the latest version |
+| `goodvibes update` | Bring goodvibes files up to date with the version you have installed; keeps your edits |
+| `goodvibes update --dry-run` | Show what `goodvibes update` would change, without writing anything |
+| `goodvibes upgrade` | Install the newest goodvibes, then run `goodvibes update` |
 | `goodvibes doctor` | Check that headroom, git, and rules are all working |
-| `goodvibes upgrade --dry-run` | Preview what `goodvibes update` would change |
 
 ## Why Claude's replies are so short (caveman)
 
@@ -46,19 +47,28 @@ headroom compresses the AI's memory of your project so you spend fewer tokens pe
 
 The journal-gate hook only gates `git commit` when it runs through Claude Code's own Bash tool — it does not intercept a commit you type directly in a terminal. Other AI coding tools or IDEs (Cursor, Copilot, and others) have no equivalent hook mechanism, so this enforcement does not apply there.
 
-To turn the hook off, delete the `"hooks"` section from `.claude/settings.json`. Commits made from your editor's Source Control or Git panel are not gated either.
+The hook lives in `~/.claude/settings.json` (or this project's `.claude/settings.json` if you used `--scope project`) and only acts in repos that have a `JOURNAL.md`. To turn it off, delete the `PreToolUse` entry whose command starts with `: goodvibes-journal-gate` from that file; `goodvibes update` will not add it back. Commits made from your editor's Source Control or Git panel are not gated either.
 
 ## Session-start check (Claude Code only)
 
-When you open Claude Code in this project, goodvibes runs `goodvibes doctor --quick` once. It checks that git knows your name and email and that `CLAUDE.md` still has its goodvibes block. If everything is fine it prints nothing. If something is wrong, Claude sees a one-line note with the fix and can tell you about it. It takes about a fifth of a second and never stops Claude Code from starting.
+When you open Claude Code in this project, goodvibes runs `goodvibes doctor --quick` once. It checks that git knows your name and email and that the goodvibes rules are in place. If everything is fine it prints nothing. If something is wrong, Claude sees a one-line note with the fix and can tell you about it. It takes about a fifth of a second and never stops Claude Code from starting.
 
-If goodvibes is not installed on your computer (for example you only ever used `npx`), the check skips itself. To install it: `npm install -g goodvibes-cli` or `uv tool install goodvibes-cli`. To turn the check off, delete the `"SessionStart"` entry from `.claude/settings.json`; `goodvibes update` will not add it back.
+`goodvibes init` installs the `goodvibes` command globally so this check can run. If it is missing (for example you used `--scope project` with `npx`), the check skips itself; to install it, run `npm install -g goodvibes-cli` or `uv tool install goodvibes-cli`. To turn the check off, delete the `"SessionStart"` entry from `~/.claude/settings.json` (or `.claude/settings.json` with `--scope project`); `goodvibes update` will not add it back.
 
 ## What is context7?
 
 context7 is an MCP server that gives Claude Code live, up-to-date library documentation lookups, so the AI stops guessing at APIs from stale training data. It works out of the box with no signup or API key.
 
-If you hit rate limits, you can set a `CONTEXT7_API_KEY` environment variable and add a `headers` block to your `.mcp.json` for higher limits:
+By default goodvibes adds context7 to your Claude Code user settings, so it works in every project with no prompt. Run `claude mcp list` to see it. If the `claude` command was not installed when you ran `goodvibes init`, it printed the one command to run later.
+
+If you hit rate limits, get a free key from context7 and re-add the server with it (the key is stored in your Claude Code user settings, not in any project):
+
+```sh
+claude mcp remove context7 -s user
+claude mcp add --transport http --scope user --header "Authorization: Bearer YOUR_KEY" context7 https://mcp.context7.com/mcp
+```
+
+With `--scope project`, context7 is in this project's `.mcp.json` instead. Set a `CONTEXT7_API_KEY` environment variable and add a `headers` block for higher limits:
 
 ```json
 {
@@ -74,6 +84,6 @@ If you hit rate limits, you can set a `CONTEXT7_API_KEY` environment variable an
 }
 ```
 
-Never commit a literal key — only the `${CONTEXT7_API_KEY}` reference. Claude Code shows a one-time "trust this project's MCP servers" prompt the first time it loads a project with an `.mcp.json`; approving it is what enables context7 tool calls.
+Never commit a literal key — only the `${CONTEXT7_API_KEY}` reference. For a project `.mcp.json`, Claude Code shows a one-time "trust this project's MCP servers" prompt the first time it loads a project with an `.mcp.json`; approving it is what enables context7 tool calls.
 
 Until you approve it, `claude mcp list` shows context7 as "Pending approval" and it stays off. If you declined by mistake, run `claude mcp reset-project-choices` and open Claude Code again.

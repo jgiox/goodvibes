@@ -54,15 +54,23 @@ terminal, then run `goodvibes --version` again.
 
 ## What is the difference between `goodvibes update` and `goodvibes upgrade`?
 
-`goodvibes update` is the current command. It checks the template files in your project and
-writes any newer versions from the installed package.
+`goodvibes update` brings your project's goodvibes files (and the global setup in `~/.claude`,
+if you use it) up to date with the goodvibes version you have installed. Files you edited are
+kept.
 
-`goodvibes upgrade` was an older alias that existed only in `jgiox-goodvibes`. If you see
-**"goodvibes upgrade"** in the command output header, you are still running the old package.
-Follow the steps in Q2 to switch to `goodvibes-cli`.
+`goodvibes upgrade` first installs the newest goodvibes from npm or PyPI, then runs
+`goodvibes update` with it. Use it when you want the latest release in one step.
+`goodvibes upgrade --dry-run` tells you whether a newer version exists and previews the update
+without installing or writing anything.
 
-After migrating, only `goodvibes update` exists. There is no `goodvibes upgrade` in the
-current package.
+In 1.9.0 and earlier, `upgrade` used its own copy step that ignored the install scope. If you
+ran `goodvibes upgrade` in a project set up with the global default, its `CLAUDE.md` may now
+contain the full rules block as well, so Claude Code reads the rules twice. Open `CLAUDE.md` and
+delete everything from `<!-- goodvibes:start -->` to `<!-- goodvibes:end -->`; your own project
+section above it stays.
+
+If `goodvibes --version` prints **1.6.1**, you are still on the old `jgiox-goodvibes`
+package; follow the steps above to switch to `goodvibes-cli` first.
 
 ---
 
@@ -105,11 +113,19 @@ If you ran `goodvibes init --scope project`, everything is inside the project an
 
 ## Will `goodvibes update` overwrite my `.claude/settings.json` or `.mcp.json`?
 
-No. If you never edited them, update replaces them with the new version. If you edited them, or they were yours before `goodvibes init`, update only adds or refreshes the goodvibes parts: the journal check hook, the ask-before-publish and deny rules, and the context7 server. Your own permissions, hooks and MCP servers stay exactly as they are. It never adds "allow" rules to a file you edited.
+No. If you never edited them, update replaces them with the new version. If you edited them, or they were yours before `goodvibes init`, update only adds or refreshes the goodvibes parts: the journal check hook, the session check, the ask-before-publish and deny rules, and the context7 server. Your own permissions, hooks and MCP servers stay exactly as they are. It never adds "allow" rules to a file you edited.
 
 Run `goodvibes update --dry-run` first to see every key it would add or change. If one of your JSON files is not valid JSON, update leaves it unchanged and tells you.
 
 If you delete a goodvibes part on purpose (for example the journal check hook), update remembers that in `.goodvibes.json` and does not add it back.
+
+## Does goodvibes collect any data?
+
+`goodvibes init` sends one anonymous install count: an empty request carrying a random ID made
+fresh for that run. Nothing about you, your machine or your code is included, though like any
+web request the server sees your IP address. It is skipped when `CI=true` (set by GitHub Actions
+and most CI services). To turn it off, set `GOODVIBES_NO_TELEMETRY=1` or `DO_NOT_TRACK=1` in
+your environment before running `goodvibes init`.
 
 ## Still stuck?
 

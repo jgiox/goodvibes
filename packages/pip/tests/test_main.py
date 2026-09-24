@@ -89,3 +89,15 @@ def test_next_steps_in_output(mocker):
     mocker.patch("goodvibes_cli.commands.init_cmd.configure_mcp")
     result = runner.invoke(app, ["init"])
     assert "ponytail" in result.output
+
+
+def test_init_in_tests_does_not_post_to_the_telemetry_endpoint(mocker, monkeypatch):
+    for var in ("DO_NOT_TRACK", "GOODVIBES_NO_TELEMETRY", "CI"):
+        monkeypatch.delenv(var, raising=False)
+    fire = mocker.patch("goodvibes_cli.steps.telemetry._fire")
+    mocker.patch("goodvibes_cli.commands.init_cmd.copy_templates", return_value=([], []))
+    mocker.patch("goodvibes_cli.commands.init_cmd.resolve_templates_dir", return_value=None)
+    mocker.patch("goodvibes_cli.commands.init_cmd.install_headroom")
+    mocker.patch("goodvibes_cli.commands.init_cmd.configure_mcp")
+    runner.invoke(app, ["init"])
+    assert fire.call_count == 0
