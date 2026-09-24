@@ -85,8 +85,12 @@ def test_update_calls_write_manifest_after_applying_changes(mocker):
 
 
 def test_update_skips_user_modified_files(mocker):
-    """Files with a different SHA than the manifest are categorised as skip and excluded from write_manifest."""
-    manifest = {"version": "1.0.0", "files": {"CLAUDE.md": "expectedsha"}}
+    """Files with a different SHA than the manifest are categorised as skip and excluded from write_manifest.
+
+    Uses a non-CLAUDE.md fixture — CLAUDE.md is always routed to overwrite via
+    merge_claude regardless of whole-file hash; see test_update_refreshes_claude_block_*.
+    """
+    manifest = {"version": "1.0.0", "files": {"docs/onboarding.md": "expectedsha"}}
     mocker.patch("goodvibes_cli.commands.update_cmd.read_manifest", return_value=manifest)
     mocker.patch("goodvibes_cli.commands.update_cmd.resolve_templates_dir")
     mocker.patch("goodvibes_cli.commands.update_cmd.detect_project_type", return_value="both")
@@ -99,7 +103,7 @@ def test_update_skips_user_modified_files(mocker):
     assert result.exit_code == 0
     assert mock_write.called
     written_files = mock_write.call_args[0][1]
-    assert "CLAUDE.md" not in written_files
+    assert "docs/onboarding.md" not in written_files
 
 
 def test_update_uses_merge_claude_for_claude_md(mocker, tmp_path):

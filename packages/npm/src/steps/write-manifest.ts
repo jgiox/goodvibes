@@ -13,8 +13,11 @@ export async function writeManifest(
   destDir: string,
   writtenFiles: string[],
   version: string,
+  preserved?: Record<string, string>,
 ): Promise<void> {
-  const files: Record<string, string> = {}
+  // Preserved hashes come only from the prior manifest, never re-read from dest,
+  // so a skipped (user-modified) file can't be silently reclassified as unmodified.
+  const files: Record<string, string> = { ...preserved }
   for (const rel of writtenFiles) {
     const content = await readFile(join(destDir, rel), 'utf-8')
     files[rel] = createHash('sha256').update(content, 'utf8').digest('hex')

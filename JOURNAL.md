@@ -1061,3 +1061,17 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 **Tests run:** `npx vitest run src/steps/write-manifest.test.ts src/commands/update.integration.test.ts` (1 new + 2 new failing as expected, rest passing); `uv run pytest tests/test_write_manifest.py tests/test_update_cmd.py -v -o addopts=""` (3 failed as expected — `write_manifest() got an unexpected keyword argument 'preserved'`, and both two-runs/CLAUDE.md-refresh assertions failing with the exact data-loss/stale-block symptoms — 12 passed).
 
 **Docs updated:** JOURNAL.md only (no user-facing docs yet — GREEN commit follows).
+
+---
+
+## 2026-09-24 — D1 update-data-loss fix: GREEN implementation (260924-mh9 task 1)
+
+**What I did:** Implemented the fix that makes the RED tests pass, in both CLIs. `writeManifest`/`write_manifest` now accept an optional `preserved` map that is merged into the manifest's `files` object before the newly-hashed `writtenFiles` entries are added — preserved hashes are sourced only from the *prior* manifest (never re-read from dest), so a user-modified file can't be silently reclassified as unmodified by the fix itself. In `update.ts`/`update_cmd.py`, `categorise()`'s first-pass loop now routes `CLAUDE.md` unconditionally to the `overwrite` list whenever the dest file exists, skipping the whole-file hash comparison entirely — `mergeClaude`/`merge_claude` is inherently safe since it only ever replaces the sentinel block. The action handler builds `preserved` from the `skip` list using the manifest's existing hash for each skipped file, and passes it through to `writeManifest`/`write_manifest`. Updated two pre-existing npm tests whose `writeManifest` call-signature assertions broke from the new 4th arg (added `expect.any(Object)`), and swapped the CLAUDE.md fixture in the npm `update.test.ts` skip-category test and the pip `test_update_skips_user_modified_files` test for a non-CLAUDE.md file (`docs/onboarding.md`), since CLAUDE.md is no longer a valid "skip" example.
+
+**Files changed:** `packages/npm/src/steps/write-manifest.ts`, `packages/npm/src/commands/update.ts`, `packages/npm/src/commands/update.test.ts`, `packages/pip/src/goodvibes_cli/steps/write_manifest.py`, `packages/pip/src/goodvibes_cli/commands/update_cmd.py`, `packages/pip/tests/test_update_cmd.py`, JOURNAL.md.
+
+**Why:** Closes D1 from the cross-repo governance gap review — `update` was destroying user edits on its second run and never refreshing CLAUDE.md's goodvibes block once custom prose existed outside it.
+
+**Tests run:** `npx vitest run src/steps/write-manifest.test.ts src/commands/update.test.ts src/commands/update.integration.test.ts` (15 passed); `npx vitest run` (171 passed, 1 skipped, 2 todo — full suite); `uv run pytest tests/test_write_manifest.py tests/test_update_cmd.py -v -o addopts=""` (15 passed); `uv run pytest tests/` (179 passed — full suite).
+
+**Docs updated:** JOURNAL.md only.
