@@ -288,3 +288,38 @@ def test_init_exits_1_and_leaves_a_broken_project_manifest_alone(runner, real_pr
     assert result.exit_code == 1
     assert "is not valid JSON" in result.output
     assert (real_project / ".goodvibes.json").read_text(encoding="utf-8") == "{ broken"
+
+
+def test_init_does_not_write_through_symlinked_claude_md_or_docs(runner, real_project, tmp_path):
+    from goodvibes_cli.main import app as main_app
+    outside = tmp_path / "external"
+    (outside / "docs").mkdir(parents=True)
+    (outside / "CLAUDE.md").write_text("outside claude\n", encoding="utf-8")
+    (real_project / "CLAUDE.md").symlink_to(outside / "CLAUDE.md")
+    (real_project / "docs").symlink_to(outside / "docs", target_is_directory=True)
+
+    result = runner.invoke(main_app, ["init", "--scope", "project"])
+
+    assert result.exit_code == 0, result.output
+    assert (outside / "CLAUDE.md").read_text(encoding="utf-8") == "outside claude\n"
+    assert list((outside / "docs").iterdir()) == []
+    out = " ".join(result.output.split())
+    assert "CLAUDE.md: symlink, not written" in out
+    assert "docs: symlink, not written" in out
+    assert "CLAUDE.md" not in _manifest_files(real_project)
+
+
+def test_init_skips_dangling_symlinks_instead_of_writing_through_them(runner, real_project, tmp_path):
+    from goodvibes_cli.main import app as main_app
+    target = tmp_path / "external" / "agents.md"
+    target.parent.mkdir()
+    (real_project / "AGENTS.md").symlink_to(target)
+    manifest_target = tmp_path / "external" / "manifest.json"
+    (real_project / ".goodvibes.json").symlink_to(manifest_target)
+
+    result = runner.invoke(main_app, ["init", "--minimal"])
+
+    assert result.exit_code == 0, result.output
+    assert not target.exists()
+    assert not manifest_target.exists()
+    assert ".goodvibes.json: symlink, not written" in " ".join(result.output.split())

@@ -1665,3 +1665,4 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 - item 0 GREEN: copy_templates records files through copytree's copy_function (plus the ci.yml rename and CLAUDE.md) instead of every file under the project, so the manifest never claims src/, .git/ or the user's own files (298 passed).
 - item 2 RED: a second init must keep every manifest entry and the managed record (a deleted hook stays deleted after update), and refuse a broken project manifest (3 failed).
 - item 2 GREEN: init reads the previous manifest before writing anything, keeps its entries for files this run did not write and passes its managed record to managed_record (301 passed).
+- item 1 RED: init and update must never write through a symlinked (or dangling) destination or parent: .claude -> outside, CLAUDE.md -> outside, docs -> outside, dangling AGENTS.md and .goodvibes.json; _assert_safe must work at a drive root (5 failed).

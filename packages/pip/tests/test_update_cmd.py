@@ -421,3 +421,36 @@ def test_update_merge_keeps_non_ascii_text_in_settings(merge_dirs):
     assert runner.invoke(app, ["update", "--force"]).exit_code == 0
 
     assert "héllo" in (merge_dirs / ".claude" / "settings.json").read_text(encoding="utf-8")
+
+
+@pytest.mark.parametrize("recorded", ["unchanged", "user-edited"])
+def test_update_does_not_write_through_a_symlinked_claude_dir(mocker, tmp_path, recorded):
+    template_dir = tmp_path / "templates"
+    (template_dir / ".claude" / "skills" / "x").mkdir(parents=True)
+    (template_dir / ".claude" / "settings.json").write_text(_TPL_SETTINGS, encoding="utf-8")
+    (template_dir / ".claude" / "skills" / "x" / "SKILL.md").write_text("skill\n", encoding="utf-8")
+    outside = tmp_path / "external" / "claude"
+    outside.mkdir(parents=True)
+    theirs = json.dumps({"permissions": {"allow": ["Bash(make*)"]}})
+    (outside / "settings.json").write_text(theirs, encoding="utf-8")
+    project_dir = tmp_path / "project"
+    project_dir.mkdir()
+    (project_dir / ".claude").symlink_to(outside, target_is_directory=True)
+    _write_manifest(project_dir, {".claude/settings.json": _sha(theirs) if recorded == "unchanged" else "old-hash"})
+    mocker.patch("goodvibes_cli.commands.update_cmd.resolve_templates_dir", return_value=template_dir)
+    mocker.patch("goodvibes_cli.commands.update_cmd.detect_project_type", return_value="both")
+    mocker.patch("pathlib.Path.cwd", return_value=project_dir)
+
+    result = runner.invoke(app, ["update", "--force"])
+
+    assert (outside / "settings.json").read_text(encoding="utf-8") == theirs
+    assert sorted(p.name for p in outside.iterdir()) == ["settings.json"]
+    assert ".claude/settings.json: symlink, not written" in _ANSI.sub("", result.output)
+    assert "Traceback" not in result.output
+
+
+def test_assert_safe_accepts_paths_inside_a_drive_root_and_rejects_escapes(tmp_path):
+    from goodvibes_cli.commands.update_cmd import _assert_safe
+    _assert_safe(pathlib.Path(tmp_path.anchor), tmp_path.relative_to(tmp_path.anchor).as_posix())
+    with pytest.raises(ValueError):
+        _assert_safe(tmp_path, "../outside.txt")
