@@ -65,10 +65,11 @@ jobs:
 
       # Version comes from the publish job, so manual runs from main work as well as tag pushes.
       # A fresh version can take minutes to reach npm's CDN (ETARGET until then), so retry instead of a fixed sleep.
+      # --prefer-online: the registry sends max-age=300, so without it every retry reuses the package list cached by the first miss.
       - name: Install from npm
         run: |
           for i in $(seq 1 20); do
-            npm install -g goodvibes-cli@${{ needs.publish.outputs.version }} && exit 0
+            npm install -g --prefer-online goodvibes-cli@${{ needs.publish.outputs.version }} && exit 0
             echo "attempt $i: goodvibes-cli@${{ needs.publish.outputs.version }} not installable yet, retrying in 15s"
             sleep 15
           done

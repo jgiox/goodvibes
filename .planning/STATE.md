@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.8.0
 milestone_name: Agent Governance & Cross-Tool Enforcement
 status: complete
-last_updated: "2026-09-24T22:15:00.000Z"
-last_activity: 2026-09-24 -- v1.9.0 published to npm (trusted publishing) and PyPI; milestone v1.8.0 closed
+last_updated: "2026-09-24T23:05:00.000Z"
+last_activity: 2026-09-24 -- v1.9.1 published to npm and PyPI (post-1.9.0 fixes and docs)
 progress:
   total_phases: 17
   completed_phases: 6
@@ -20,14 +20,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-07-03)
 
 **Core value:** One command gives a vibe coder a fully configured project — token efficiency and engineering discipline happen automatically in the background.
-**Current focus:** milestone v1.8.0 closed (shipped as 1.9.0 on npm and PyPI); next milestone not started
+**Current focus:** v1.9.1 released (patch on milestone v1.8.0); next milestone not started
 
 ## Current Position
 
 Phase: none (milestone v1.8.0 complete)
-Plan: 1.9.0 live on npm and PyPI from main df152e8 (PR #36). PyPI also has 1.8.0; npm skipped 1.8.0. Tag v1.9.0 still to push from a maintainer machine (session git proxy refuses tag pushes)
-Status: released; human UAT pending (context7 trust prompt, Windows Git Bash, caveman ultra style); follow-ups listed in JOURNAL.md 2026-09-24 release entry
-Last activity: 2026-09-24 -- v1.9.0 released to npm and PyPI
+Plan: 1.9.1 live on npm and PyPI from main 928fd23 (PRs #38, #39); tag v1.9.1 pushed by the maintainer
+Status: released; human UAT pending (macOS awk for the journal gate, context7 trust prompt, Windows Git Bash, caveman ultra style)
+Last activity: 2026-09-24 -- v1.9.1 released to npm and PyPI
 
 ## Performance Metrics
 

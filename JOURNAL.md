@@ -1593,3 +1593,19 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 **Tests run:** RED: npm 4 failed, 18 passed (upgrade, update, global-setup); pip 7 failed, 35 passed (upgrade, global_setup, update). GREEN: npm typecheck 0, vitest 282 passed, 1 skipped, 2 todo; pip pytest 239 passed; verify-phase1 to 5 PASS. Sandbox: `uv tool install "goodvibes-cli>=1.9.1"` over a `==1.9.0` tool gives 1.9.1 with receipt `>=1.9.1`; the CLI built from this branch, installed as a uv tool, exits 1 with the fix command when re-run with `_GV_UPGRADING=9.9.9`, and `update` in an empty folder says goodvibes is not set up there. Also: the npm re-run now passes its exit code through (execa would otherwise throw on exit 1).
 
 **Docs updated:** FAQ.md, CHANGELOG.md, JOURNAL.md.
+
+---
+
+## 2026-09-24 · v1.9.1 released to npm and PyPI
+
+**What I did:** Merged the release PR #39 (main 928fd23) and ran both publish workflows. PyPI run 36070071675 succeeded including its smoke test; npm run 36070069674 published 1.9.1 through trusted publishing and its smoke test then failed: all 20 install attempts got ETARGET. The first attempt (22:56) ran before the CDN served 1.9.1, and the registry sends `cache-control: max-age=300`, so npm reused that cached package list for the whole 5-minute retry window. A clean-cache install at 22:58 worked. The smoke install now uses `--prefer-online` (in the 1.9.2 PR), which revalidates on every attempt; the same cause explains the first failed smoke run for 1.9.0. Both registries report 1.9.1. Sandboxed installs from each registry: `--version` 1.9.1, `init --minimal --scope project` exits 0 with manifest 1.9.1, the shipped journal-gate hook carries the heredoc fix, npm `upgrade --dry-run` exits 0; real `~/.claude` untouched. The maintainer pushed annotated tag v1.9.1 on 928fd23 (verified with `git ls-remote`).
+
+**Files changed:** .planning/STATE.md, .github/workflows/publish-npm.yml, JOURNAL.md.
+
+**Why:** Ship the post-1.9.0 fixes (journal-gate fail-opens, `upgrade` scope and manifest bugs, virtualenv global install) and the updated package pages.
+
+**Tests run:** registry version checks; sandboxed installs above; publish workflow runs above.
+
+**Next time:** Human UAT: the journal gate on macOS (BWK awk, untested in the sandbox), context7 trust prompt, Windows Git Bash, caveman ultra style. npm Publishing access: require 2FA and disallow tokens, then delete the NPM_TOKEN secret, if not done yet.
+
+**Docs updated:** STATE.md, JOURNAL.md.
