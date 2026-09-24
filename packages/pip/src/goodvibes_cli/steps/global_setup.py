@@ -57,6 +57,8 @@ def ensure_global_cli(version: str, dry_run: bool) -> dict[str, str]:
         return {"status": "skipped", "reason": f'dry run; would run uv tool install "goodvibes-cli>={version}"'}
     try:
         subprocess.run(["uv", "tool", "install", f"goodvibes-cli>={version}"], capture_output=True, text=True, timeout=120, check=True)
+        if shutil.which("goodvibes") is None:
+            return {"status": "installed", "reason": "goodvibes is not on your PATH yet: run uv tool update-shell, then open a new terminal"}
         return {"status": "installed"}
     except FileNotFoundError:
         return {"status": "failed", "reason": f"uv not found. {manual} (or pip install goodvibes-cli)"}

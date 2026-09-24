@@ -53,7 +53,7 @@ def test_ensure_global_cli_skips_when_goodvibes_is_on_path(mocker):
 def test_ensure_global_cli_installs_unpinned_so_uv_tool_upgrade_can_upgrade_it_later(mocker):
     mocker.patch("goodvibes_cli.steps.global_setup.shutil.which", return_value=None)
     run = mocker.patch("goodvibes_cli.steps.global_setup.subprocess.run", return_value=_done())
-    assert ensure_global_cli("1.8.0", dry_run=False) == {"status": "installed"}
+    assert ensure_global_cli("1.8.0", dry_run=False)["status"] == "installed"
     assert run.call_args.args[0] == ["uv", "tool", "install", "goodvibes-cli>=1.8.0"]
 
 
