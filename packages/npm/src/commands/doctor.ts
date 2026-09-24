@@ -73,8 +73,16 @@ export function registerDoctorCommand(program: Command): void {
   program
     .command('doctor')
     .description('Check goodvibes setup is complete')
-    .action(async () => {
+    .option('--quick', 'Fast local checks only; silent when all pass, always exits 0 (used by the session-start hook)')
+    .action(async (options: { quick?: boolean } = {}) => {
       const cwd = process.cwd()
+
+      if (options.quick) {
+        // Exit 2 from a SessionStart hook blocks the session, so quick mode reports and always exits 0.
+        const quick = [...(await checkGit()), checkClaudeMd(cwd), checkSentinel(cwd)].filter(r => !r.pass)
+        for (const r of quick) console.log(`goodvibes doctor: ✗ ${r.label}.${r.remedy ? ` ${r.remedy}` : ''}`)
+        return
+      }
 
       const headroomResult = await checkHeadroom()
       const gitResults = await checkGit()

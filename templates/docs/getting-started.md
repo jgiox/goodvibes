@@ -36,6 +36,12 @@ The journal-gate hook only gates `git commit` when it runs through Claude Code's
 
 To turn the hook off, delete the `"hooks"` section from `.claude/settings.json`. Commits made from your editor's Source Control or Git panel are not gated either.
 
+## Session-start check (Claude Code only)
+
+When you open Claude Code in this project, goodvibes runs `goodvibes doctor --quick` once. It checks that git knows your name and email and that `CLAUDE.md` still has its goodvibes block. If everything is fine it prints nothing. If something is wrong, Claude sees a one-line note with the fix and can tell you about it. It takes about a fifth of a second and never stops Claude Code from starting.
+
+If goodvibes is not installed on your computer (for example you only ever used `npx`), the check skips itself. To install it: `npm install -g goodvibes-cli` or `uv tool install goodvibes-cli`. To turn the check off, delete the `"SessionStart"` entry from `.claude/settings.json`; `goodvibes update` will not add it back.
+
 ## What is context7?
 
 context7 is an MCP server that gives Claude Code live, up-to-date library documentation lookups, so the AI stops guessing at APIs from stale training data. It works out of the box with no signup or API key.

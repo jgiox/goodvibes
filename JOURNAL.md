@@ -1307,3 +1307,17 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 **Tests run:** None new (docs); suites green at ea17b0e.
 
 **Docs updated:** as listed.
+
+---
+
+## 2026-09-24 · Session-start `goodvibes doctor` hook
+
+**What I did:** Added `goodvibes doctor --quick` (npm and pip): git name/email, CLAUDE.md and sentinel checks only, prints one line per failure with its fix, prints nothing on success, always exits 0. Added a `SessionStart` hook (matcher `startup`, `timeout: 10`, marker `: goodvibes-doctor;`) that runs it only when `command -v goodvibes` succeeds, to both the template and this repo's settings. The Phase 16 merge picks it up automatically through the marker.
+
+**Files changed:** packages/npm/src/commands/doctor.ts, packages/npm/src/commands/doctor.test.ts, packages/npm/src/steps/session-doctor-hook.integration.test.ts (new), packages/pip/src/goodvibes_cli/commands/doctor_cmd.py, packages/pip/tests/test_doctor_cmd.py, templates/.claude/settings.json, .claude/settings.json, docs/getting-started.md, templates/docs/getting-started.md, CHANGELOG.md, JOURNAL.md.
+
+**Why:** Gap-review deferred item. Claude Code docs (fetched 2026-09-24): SessionStart exit-0 stdout is added to Claude's context, exit 2 blocks the session, default timeout is 600 s; hence always-0 and a 10 s cap.
+
+**Tests run:** npm vitest 208 passed, 1 skipped, 2 todo; pip pytest 206 passed. Built CLI: `doctor --quick` 172-188 ms, silent when passing, two fix lines and exit 0 with CLAUDE.md removed.
+
+**Docs updated:** getting-started (both copies), CHANGELOG.md, JOURNAL.md.

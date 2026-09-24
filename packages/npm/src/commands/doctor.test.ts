@@ -25,7 +25,8 @@ describe('doctor command', () => {
   describe('registerDoctorCommand', () => {
     it('registers a command named doctor on the program', async () => {
       const { registerDoctorCommand } = await import('./doctor.js')
-      const program = { command: vi.fn().mockReturnThis(), description: vi.fn().mockReturnThis(), action: vi.fn().mockReturnThis() }
+      const program = { command: vi.fn().mockReturnThis(), description: vi.fn().mockReturnThis(),
+        option: vi.fn().mockReturnThis(), action: vi.fn().mockReturnThis() }
       registerDoctorCommand(program as any)
       expect(program.command).toHaveBeenCalledWith('doctor')
     })
@@ -53,6 +54,7 @@ describe('doctor command', () => {
       const program = {
         command: vi.fn().mockReturnThis(),
         description: vi.fn().mockReturnThis(),
+        option: vi.fn().mockReturnThis(),
         action: vi.fn((fn) => { capturedAction = fn; return { command: vi.fn() } }),
       }
       registerDoctorCommand(program as any)
@@ -90,6 +92,7 @@ describe('doctor command', () => {
       const program = {
         command: vi.fn().mockReturnThis(),
         description: vi.fn().mockReturnThis(),
+        option: vi.fn().mockReturnThis(),
         action: vi.fn((fn) => { capturedAction = fn; return { command: vi.fn() } }),
       }
       registerDoctorCommand(program as any)
@@ -124,6 +127,7 @@ describe('doctor command', () => {
       const program = {
         command: vi.fn().mockReturnThis(),
         description: vi.fn().mockReturnThis(),
+        option: vi.fn().mockReturnThis(),
         action: vi.fn((fn) => { capturedAction = fn; return { command: vi.fn() } }),
       }
       registerDoctorCommand(program as any)
@@ -154,6 +158,7 @@ describe('doctor command', () => {
       const program = {
         command: vi.fn().mockReturnThis(),
         description: vi.fn().mockReturnThis(),
+        option: vi.fn().mockReturnThis(),
         action: vi.fn((fn) => { capturedAction = fn; return { command: vi.fn() } }),
       }
       registerDoctorCommand(program as any)
@@ -184,6 +189,7 @@ describe('doctor command', () => {
       const program = {
         command: vi.fn().mockReturnThis(),
         description: vi.fn().mockReturnThis(),
+        option: vi.fn().mockReturnThis(),
         action: vi.fn((fn) => { capturedAction = fn; return { command: vi.fn() } }),
       }
       registerDoctorCommand(program as any)
@@ -214,6 +220,7 @@ describe('doctor command', () => {
       const program = {
         command: vi.fn().mockReturnThis(),
         description: vi.fn().mockReturnThis(),
+        option: vi.fn().mockReturnThis(),
         action: vi.fn((fn) => { capturedAction = fn; return { command: vi.fn() } }),
       }
       registerDoctorCommand(program as any)
@@ -243,6 +250,7 @@ describe('doctor command', () => {
       const program = {
         command: vi.fn().mockReturnThis(),
         description: vi.fn().mockReturnThis(),
+        option: vi.fn().mockReturnThis(),
         action: vi.fn((fn) => { capturedAction = fn; return { command: vi.fn() } }),
       }
       registerDoctorCommand(program as any)
@@ -275,6 +283,7 @@ describe('doctor command', () => {
       const program = {
         command: vi.fn().mockReturnThis(),
         description: vi.fn().mockReturnThis(),
+        option: vi.fn().mockReturnThis(),
         action: vi.fn((fn) => { capturedAction = fn; return { command: vi.fn() } }),
       }
       registerDoctorCommand(program as any)
@@ -282,6 +291,54 @@ describe('doctor command', () => {
 
       const firstNoteArg = vi.mocked(note).mock.calls[0][0] as string
       expect(firstNoteArg.split('\n')[0]).toBe('goodvibes v1.6.2')
+    })
+  })
+
+  describe('--quick', () => {
+    async function runQuick(): Promise<{ logs: string[]; exitSpy: ReturnType<typeof vi.spyOn> }> {
+      const logs: string[] = []
+      vi.spyOn(console, 'log').mockImplementation((m: string) => { logs.push(m) })
+      const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never)
+      const { registerDoctorCommand } = await import('./doctor.js')
+      let capturedAction: (o: { quick?: boolean }) => Promise<void> = async () => {}
+      const program = {
+        command: vi.fn().mockReturnThis(),
+        description: vi.fn().mockReturnThis(),
+        option: vi.fn().mockReturnThis(),
+        action: vi.fn((fn) => { capturedAction = fn; return { command: vi.fn() } }),
+      }
+      registerDoctorCommand(program as any)
+      await capturedAction({ quick: true })
+      return { logs, exitSpy }
+    }
+
+    it('prints nothing, never probes headroom, and does not exit when every quick check passes', async () => {
+      const { execa } = await import('execa')
+      vi.mocked(execa).mockResolvedValue({ stdout: 'value' } as any)
+      const { existsSync, readFileSync } = await import('node:fs')
+      vi.mocked(existsSync).mockReturnValue(true)
+      vi.mocked(readFileSync).mockReturnValue('<!-- goodvibes:start -->\nx\n<!-- goodvibes:end -->')
+
+      const { logs, exitSpy } = await runQuick()
+
+      expect(logs).toEqual([])
+      expect(vi.mocked(execa).mock.calls.some(c => c[0] === 'headroom')).toBe(false)
+      expect(exitSpy).not.toHaveBeenCalled()
+    })
+
+    it('prints one line per failed check with its fix and still does not exit non-zero', async () => {
+      const { execa } = await import('execa')
+      vi.mocked(execa).mockResolvedValue({ stdout: 'value' } as any)
+      const { existsSync } = await import('node:fs')
+      vi.mocked(existsSync).mockReturnValue(false)
+
+      const { logs, exitSpy } = await runQuick()
+
+      expect(logs).toEqual([
+        'goodvibes doctor: ✗ CLAUDE.md present. Run: goodvibes init',
+        'goodvibes doctor: ✗ goodvibes sentinel block. Run: goodvibes init',
+      ])
+      expect(exitSpy).not.toHaveBeenCalled()
     })
   })
 })

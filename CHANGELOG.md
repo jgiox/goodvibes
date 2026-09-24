@@ -19,6 +19,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/2.0.0/),
 
 ### Added
 
+- `goodvibes doctor --quick`: local checks only (no headroom probe), silent when all pass, always exits 0; a `SessionStart` hook (matcher `startup`, 10 s timeout) runs it when Claude Code opens the project, and skips itself when goodvibes is not installed
 - `goodvibes update` merges goodvibes-managed keys into a hand-edited `.claude/settings.json` / `.mcp.json`: ask/deny rules (add-only, never `allow`), marker-tagged hooks, and the context7 server; user keys are kept, `--dry-run` lists each key change, and a key you delete stays deleted (npm and pip)
 - `ruff check` lint step in the Python CI templates (`ci-python.yml`, `ci-both.yml`)
 - `gitleaks` secret-scan job in `security.yml`, alongside CodeQL
