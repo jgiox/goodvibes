@@ -1645,3 +1645,4 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 - GREEN: replace only the marked hook object inside a user group (item 4).
 - RED: DO_NOT_TRACK / GOODVIBES_NO_TELEMETRY accept 1, true, yes (item 14).
 - GREEN: telemetryOptedOut() shared by init and sendTelemetry (item 14).
+- RED: headroom install timeout 15 min with a heads-up; MCP registered with '-- <path> mcp serve', broken entries repaired, first line of where (items 7, 8).

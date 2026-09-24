@@ -50,7 +50,7 @@ describe('installHeadroom', () => {
     const result = await installHeadroom(log)
 
     expect(result).toEqual({ status: 'installed' })
-    expect(vi.mocked(execa)).toHaveBeenCalledWith('uv', ['tool', 'install', 'headroom-ai[all]'], expect.objectContaining({ timeout: 10_000 }))
+    expect(vi.mocked(execa)).toHaveBeenCalledWith('uv', ['tool', 'install', 'headroom-ai[all]'], expect.objectContaining({ timeout: 15 * 60_000 }))
   })
 
   it('falls back to pipx when uv is ENOENT', async () => {
@@ -69,8 +69,8 @@ describe('installHeadroom', () => {
     const log = vi.fn()
     await installHeadroom(log)
 
-    expect(vi.mocked(execa)).toHaveBeenNthCalledWith(2, 'uv', ['tool', 'install', 'headroom-ai[all]'], expect.objectContaining({ timeout: 10_000 }))
-    expect(vi.mocked(execa)).toHaveBeenNthCalledWith(3, 'pipx', ['install', 'headroom-ai[all]'], expect.objectContaining({ timeout: 10_000 }))
+    expect(vi.mocked(execa)).toHaveBeenNthCalledWith(2, 'uv', ['tool', 'install', 'headroom-ai[all]'], expect.objectContaining({ timeout: 15 * 60_000 }))
+    expect(vi.mocked(execa)).toHaveBeenNthCalledWith(3, 'pipx', ['install', 'headroom-ai[all]'], expect.objectContaining({ timeout: 15 * 60_000 }))
   })
 
   it('falls back to pip --user when uv and pipx are ENOENT', async () => {
@@ -90,7 +90,7 @@ describe('installHeadroom', () => {
     const log = vi.fn()
     await installHeadroom(log)
 
-    expect(vi.mocked(execa)).toHaveBeenNthCalledWith(4, 'python3', ['-m', 'pip', 'install', '--user', 'headroom-ai[all]'], expect.objectContaining({ timeout: 10_000 }))
+    expect(vi.mocked(execa)).toHaveBeenNthCalledWith(4, 'python3', ['-m', 'pip', 'install', '--user', 'headroom-ai[all]'], expect.objectContaining({ timeout: 15 * 60_000 }))
   })
 
   it('prints ONNX model warning before running the install subprocess', async () => {
@@ -119,6 +119,24 @@ describe('installHeadroom', () => {
     expect(uvInstallCalled).toBe(true)
     expect(logCalls.some(msg => msg.includes('model'))).toBe(true)
     expect(logCalls.some(msg => msg.includes('minutes'))).toBe(true)
+  })
+
+  it('says the first install can take several minutes before the installer starts', async () => {
+    const { detectPython } = await import('../utils/detect-python.js')
+    vi.mocked(detectPython).mockResolvedValueOnce('python3')
+    const { execa } = await import('execa')
+    const logCalls: string[] = []
+    const enoentError = Object.assign(new Error('ENOENT'), { code: 'ENOENT' })
+    let loggedBeforeInstall = false
+    vi.mocked(execa as (...args: unknown[]) => Promise<unknown>)
+      .mockRejectedValueOnce(enoentError)
+      .mockImplementationOnce(async () => {
+        loggedBeforeInstall = logCalls.some(m => m.includes('first install can take several minutes'))
+        return { exitCode: 0 }
+      })
+    const { installHeadroom } = await import('./install-headroom.js')
+    await installHeadroom((m) => { logCalls.push(m) })
+    expect(loggedBeforeInstall).toBe(true)
   })
 
   it('logs a warning and returns without throwing when all three installers are ENOENT', async () => {
