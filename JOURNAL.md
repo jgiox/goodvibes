@@ -1634,3 +1634,4 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 
 **Commits:**
 - 1: publish-npm.yml and publish-pip.yml: `guard` job (main, or an `npm-v*`/`pip-v*` tag whose commit is on origin/main and whose version matches the package), publish job in `environment: release`. Tests: YAML load, actionlint 1.7.12, guard script run against a fake clone (main/side branch, matching/mismatching tags): 12/12 as expected.
+- 2: publish jobs need a `test` job (npm: Node 22/24, `npm ci`, prebuild, typecheck, build, `npm test`; pip: Python 3.10/3.11/3.12, the ci.yml pytest command); pre-publish smoke tests of the packed tarball (installed into a temp prefix) and the built wheel (fresh `uv venv`, zipfile check for `goodvibes_cli/templates/CLAUDE.md`). Tests: YAML load, actionlint, both smoke steps extracted and run locally: rc=0; wheel check on a wheel without templates: rc=1.

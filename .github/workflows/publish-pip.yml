@@ -41,8 +41,28 @@ jobs:
               ;;
           esac
 
-  publish:
+  test:
+    name: pip tests (Python ${{ matrix.python }})
     needs: guard
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python: ['3.10', '3.11', '3.12']
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: astral-sh/setup-uv@v7
+        with:
+          python-version: ${{ matrix.python }}
+
+      - name: Test
+        working-directory: packages/pip
+        run: uv run --extra dev pytest tests/ -x -q
+
+  publish:
+    needs: [guard, test]
     runs-on: ubuntu-latest
     environment: release  # needs a required reviewer; the PyPI trusted publisher is bound to this environment
     permissions:
@@ -56,16 +76,31 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v7
 
-      - name: Test
-        working-directory: packages/pip
-        run: uv run --extra dev pytest tests/ -x -q
-
       - name: Build wheel
         working-directory: packages/pip
         run: uv build --no-sources
 
       - name: Verify wheel name (PKG-01 — goodvibes-cli)
         run: test -f packages/pip/dist/goodvibes_cli-*.whl
+
+      - name: Smoke test the built wheel
+        working-directory: packages/pip
+        run: |
+          set -euo pipefail
+          WHEEL=$(ls dist/goodvibes_cli-*.whl)
+          python3 - "$WHEEL" <<'PY'
+          import sys, zipfile
+          names = set(zipfile.ZipFile(sys.argv[1]).namelist())
+          missing = [f for f in ("goodvibes_cli/templates/CLAUDE.md",) if f not in names]
+          if missing:
+              sys.exit(f"::error::{sys.argv[1]} is missing {missing}")
+          PY
+          VENV="$(mktemp -d)/venv"
+          uv venv "$VENV"
+          uv pip install --python "$VENV/bin/python" "$WHEEL"
+          cd "$(mktemp -d)"
+          "$VENV/bin/goodvibes" init --dry-run --scope project 2>&1 | tee "$RUNNER_TEMP/gv-wheel-out.txt"
+          grep -q "CLAUDE.md" "$RUNNER_TEMP/gv-wheel-out.txt"
 
       - name: Read version
         id: version

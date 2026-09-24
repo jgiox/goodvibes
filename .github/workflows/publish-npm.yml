@@ -41,8 +41,45 @@ jobs:
               ;;
           esac
 
-  publish:
+  test:
+    name: npm tests (Node ${{ matrix.node }})
     needs: guard
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node: ['22', '24']
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ matrix.node }}
+
+      - name: Install dependencies
+        working-directory: packages/npm
+        run: npm ci
+
+      - name: Sync templates
+        working-directory: packages/npm
+        run: npm run prebuild
+
+      - name: Typecheck
+        working-directory: packages/npm
+        run: npm run typecheck
+
+      # Build first: dist-cli.integration.test.ts runs the built CLI.
+      - name: Build
+        working-directory: packages/npm
+        run: npm run build
+
+      - name: Test
+        working-directory: packages/npm
+        run: npm test
+
+  publish:
+    needs: [guard, test]
     runs-on: ubuntu-latest
     environment: release  # needs a required reviewer; the npm trusted publisher is bound to this environment
     permissions:
@@ -66,20 +103,26 @@ jobs:
         working-directory: packages/npm
         run: npm ci
 
-      # Build first: dist-cli.integration.test.ts runs the built CLI.
       - name: Build
         working-directory: packages/npm
         run: npm run build
-
-      - name: Test
-        working-directory: packages/npm
-        run: npm test
 
       - name: Verify package contents
         working-directory: packages/npm
         run: |
           npm pack --dry-run 2>&1 | grep -E "dist/|templates/"
           npm pack --dry-run 2>&1 | grep "src/" | wc -l | grep "^0$"
+
+      - name: Smoke test the packed tarball
+        working-directory: packages/npm
+        run: |
+          set -euo pipefail
+          npm pack
+          PREFIX=$(mktemp -d)
+          npm install -g --prefix "$PREFIX" ./goodvibes-cli-*.tgz
+          cd "$(mktemp -d)"
+          "$PREFIX/bin/goodvibes" init --dry-run --scope project 2>&1 | tee "$RUNNER_TEMP/gv-pack-out.txt"
+          grep -q "CLAUDE.md" "$RUNNER_TEMP/gv-pack-out.txt"
 
       - name: Read version
         id: version
