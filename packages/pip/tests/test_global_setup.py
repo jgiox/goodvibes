@@ -194,3 +194,26 @@ def test_apply_global_config_reports_settings_that_are_not_a_json_object():
     r = apply_global_config(TEMPLATES, "1.8.0", dry_run=False)
     assert (cfg / "settings.json").read_text(encoding="utf-8") == "[]"
     assert "not a JSON object; left unchanged" in r["settings_error"]
+
+
+def test_update_does_not_recreate_a_skill_the_user_deleted_from_the_config_dir():
+    cfg = _cfg()
+    apply_global_config(TEMPLATES, "1.8.0", dry_run=False)
+    (cfg / "skills" / "caveman" / "SKILL.md").unlink()
+
+    r = apply_global_config(TEMPLATES, "1.8.1", dry_run=False, restore=False)
+
+    assert not (cfg / "skills" / "caveman" / "SKILL.md").exists()
+    assert "skills/caveman/SKILL.md" in r["removed"]
+    assert "skills/caveman/SKILL.md" not in json.loads((cfg / ".goodvibes.json").read_text(encoding="utf-8"))["files"]
+    assert "skills/caveman/SKILL.md: removed by you, not re-added (run goodvibes init to restore)" in format_global(r, None, None)
+
+
+def test_init_restores_a_skill_the_user_deleted_from_the_config_dir():
+    cfg = _cfg()
+    apply_global_config(TEMPLATES, "1.8.0", dry_run=False)
+    (cfg / "skills" / "caveman" / "SKILL.md").unlink()
+
+    apply_global_config(TEMPLATES, "1.8.1", dry_run=False)
+
+    assert (cfg / "skills" / "caveman" / "SKILL.md").exists()

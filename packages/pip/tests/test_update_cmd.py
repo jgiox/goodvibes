@@ -56,13 +56,14 @@ def test_update_force_skips_confirm_prompt(mocker):
     mock_confirm.assert_not_called()
 
 
-def test_update_prompts_confirm_before_overwriting_without_force(mocker):
+def test_update_prompts_confirm_before_overwriting_without_force(mocker, tmp_path):
     manifest = {"version": "1.0.0", "files": {"CLAUDE.md": "abc123"}}
+    (tmp_path / "CLAUDE.md").write_text("# mine\n", encoding="utf-8")
+    mocker.patch("pathlib.Path.cwd", return_value=tmp_path)
     mocker.patch("goodvibes_cli.commands.update_cmd.read_manifest", return_value=manifest)
     mocker.patch("goodvibes_cli.commands.update_cmd.resolve_templates_dir")
     mocker.patch("goodvibes_cli.commands.update_cmd.detect_project_type", return_value="both")
     mocker.patch("goodvibes_cli.commands.update_cmd.list_template_files", return_value=[])
-    mocker.patch("pathlib.Path.exists", return_value=False)
     mock_confirm = mocker.patch("goodvibes_cli.commands.update_cmd.typer.confirm", return_value=True)
     # template_dir is a MagicMock so template_src.exists() is truthy; mock merge_claude to avoid real I/O
     mocker.patch("goodvibes_cli.commands.update_cmd.merge_claude")
@@ -116,13 +117,13 @@ def test_update_uses_merge_claude_for_claude_md(mocker, tmp_path):
     (template_dir / "CLAUDE.md").write_text("# Template\n", encoding="utf-8")
     project_dir = tmp_path / "project"
     project_dir.mkdir()
+    (project_dir / "CLAUDE.md").write_text("# mine\n", encoding="utf-8")
 
     manifest = {"version": "1.0.0", "files": {"CLAUDE.md": "abc123"}}
     mocker.patch("goodvibes_cli.commands.update_cmd.read_manifest", return_value=manifest)
     mocker.patch("goodvibes_cli.commands.update_cmd.resolve_templates_dir", return_value=template_dir)
     mocker.patch("goodvibes_cli.commands.update_cmd.detect_project_type", return_value="both")
     mocker.patch("goodvibes_cli.commands.update_cmd.list_template_files", return_value=[])
-    # cwd → project_dir (no CLAUDE.md) so dest doesn't exist → overwrite
     mocker.patch("pathlib.Path.cwd", return_value=project_dir)
     mock_copy = mocker.patch("goodvibes_cli.commands.update_cmd.shutil.copy2")
     mock_merge = mocker.patch("goodvibes_cli.commands.update_cmd.merge_claude")
@@ -454,3 +455,63 @@ def test_assert_safe_accepts_paths_inside_a_drive_root_and_rejects_escapes(tmp_p
     _assert_safe(pathlib.Path(tmp_path.anchor), tmp_path.relative_to(tmp_path.anchor).as_posix())
     with pytest.raises(ValueError):
         _assert_safe(tmp_path, "../outside.txt")
+
+
+def _tpl(template_dir, rels):
+    for rel in rels:
+        (template_dir / rel).parent.mkdir(parents=True, exist_ok=True)
+        (template_dir / rel).write_text(f"template {rel}\n", encoding="utf-8")
+
+
+@pytest.fixture
+def plain_dirs(mocker, tmp_path):
+    template_dir, project_dir = tmp_path / "templates", tmp_path / "project"
+    template_dir.mkdir()
+    project_dir.mkdir()
+    mocker.patch("goodvibes_cli.commands.update_cmd.resolve_templates_dir", return_value=template_dir)
+    mocker.patch("goodvibes_cli.commands.update_cmd.detect_project_type", return_value="both")
+    mocker.patch("pathlib.Path.cwd", return_value=project_dir)
+    return template_dir, project_dir
+
+
+def test_update_does_not_recreate_a_tracked_file_the_user_deleted(plain_dirs):
+    template_dir, project_dir = plain_dirs
+    _tpl(template_dir, ["docs/onboarding.md", "JOURNAL.md"])
+    (project_dir / "JOURNAL.md").write_text("template JOURNAL.md\n", encoding="utf-8")
+    _write_manifest(project_dir, {"docs/onboarding.md": _sha("template docs/onboarding.md\n"), "JOURNAL.md": _sha("template JOURNAL.md\n")})
+
+    result = runner.invoke(app, ["update", "--force"])
+
+    assert result.exit_code == 0, result.output
+    assert not (project_dir / "docs" / "onboarding.md").exists()
+    out = " ".join(_ANSI.sub("", result.output).split())
+    assert "docs/onboarding.md: removed by you, not re-added (run goodvibes init to restore)" in out
+    assert list(_read(project_dir, ".goodvibes.json")["files"]) == ["JOURNAL.md"]
+
+
+def test_update_adds_new_github_and_docs_files_only_to_groups_the_manifest_already_tracks(plain_dirs):
+    template_dir, project_dir = plain_dirs
+    _tpl(template_dir, ["JOURNAL.md", "NEW.md", ".github/workflows/security.yml", ".github/dependabot.yml", "docs/onboarding.md"])
+    (project_dir / "JOURNAL.md").write_text("template JOURNAL.md\n", encoding="utf-8")
+    _write_manifest(project_dir, {"JOURNAL.md": _sha("template JOURNAL.md\n")})
+
+    assert runner.invoke(app, ["update", "--force"]).exit_code == 0
+
+    assert (project_dir / "NEW.md").exists()
+    assert not (project_dir / ".github").exists()
+    assert not (project_dir / "docs").exists()
+
+
+def test_update_adds_a_new_workflow_when_the_manifest_tracks_a_workflow_but_not_other_github_files(plain_dirs):
+    template_dir, project_dir = plain_dirs
+    _tpl(template_dir, [".github/workflows/ci-both.yml", ".github/workflows/security.yml", ".github/dependabot.yml", "docs/onboarding.md"])
+    ci = project_dir / ".github" / "workflows" / "ci.yml"
+    ci.parent.mkdir(parents=True)
+    ci.write_text("template .github/workflows/ci-both.yml\n", encoding="utf-8")
+    _write_manifest(project_dir, {".github/workflows/ci.yml": _sha("template .github/workflows/ci-both.yml\n")})
+
+    assert runner.invoke(app, ["update", "--force"]).exit_code == 0
+
+    assert (project_dir / ".github" / "workflows" / "security.yml").exists()
+    assert not (project_dir / ".github" / "dependabot.yml").exists()
+    assert not (project_dir / "docs").exists()
