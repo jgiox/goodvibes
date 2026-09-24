@@ -578,3 +578,97 @@ describe('update command — one plan, one prompt, nothing written before it', (
     expect(readFileSync(join(projectDir, 'AGENTS.md'), 'utf-8')).not.toBe('old agents\n')
   })
 })
+
+describe('update command — respects files the user removed and layers init skipped', () => {
+  let templateDir: string
+  let projectDir: string
+  let cwdSpy: ReturnType<typeof vi.spyOn>
+
+  async function runUpdate(...flags: string[]): Promise<void> {
+    const { resolveTemplatesDir } = await import('../steps/copy-templates.js')
+    vi.mocked(resolveTemplatesDir).mockReturnValue(templateDir)
+    const { registerUpdateCommand } = await import('./update.js')
+    const { Command } = await import('commander')
+    const program = new Command()
+    program.exitOverride()
+    registerUpdateCommand(program)
+    await program.parseAsync(['node', 'goodvibes', 'update', ...flags])
+  }
+
+  const put = (dir: string, rel: string, content: string) => {
+    mkdirSync(join(dir, rel, '..'), { recursive: true })
+    writeFileSync(join(dir, rel), content)
+  }
+  const manifestFiles = () => JSON.parse(readFileSync(join(projectDir, '.goodvibes.json'), 'utf-8')).files
+
+  beforeEach(async () => {
+    templateDir = mkdtempSync(join(tmpdir(), 'gv-rm-tpl-'))
+    projectDir = mkdtempSync(join(tmpdir(), 'gv-rm-proj-'))
+    cwdSpy = vi.spyOn(process, 'cwd').mockReturnValue(projectDir)
+    const { note } = await import('@clack/prompts')
+    vi.mocked(note).mockClear()
+  })
+
+  afterEach(() => {
+    cwdSpy.mockRestore()
+    rmSync(templateDir, { recursive: true, force: true })
+    rmSync(projectDir, { recursive: true, force: true })
+  })
+
+  it('does not re-create a tracked file the user deleted, reports it and drops it from the manifest', async () => {
+    put(templateDir, 'AGENTS.md', 'agents v2\n')
+    put(templateDir, 'GEMINI.md', 'gemini v2\n')
+    put(projectDir, 'GEMINI.md', 'gemini v1\n')
+    writeFileSync(join(projectDir, '.goodvibes.json'), JSON.stringify({
+      version: '1.0.0',
+      files: { 'AGENTS.md': sha256('agents v1\n'), 'GEMINI.md': sha256('gemini v1\n') },
+    }))
+
+    await runUpdate('--force')
+
+    expect(existsSync(join(projectDir, 'AGENTS.md'))).toBe(false)
+    expect(readFileSync(join(projectDir, 'GEMINI.md'), 'utf-8')).toBe('gemini v2\n')
+    const { note } = await import('@clack/prompts')
+    const out = vi.mocked(note).mock.calls.map(c => String(c[0])).join('\n')
+    expect(out).toContain('AGENTS.md: removed by you, not re-added (run goodvibes init to restore)')
+    expect(Object.keys(manifestFiles())).toEqual(['GEMINI.md'])
+  })
+
+  it('adds no workflows, other .github files or docs when the manifest tracks none from that group', async () => {
+    put(templateDir, 'AGENTS.md', 'agents\n')
+    put(templateDir, '.github/workflows/security.yml', 'sec\n')
+    put(templateDir, '.github/ISSUE_TEMPLATE/bug.md', 'bug\n')
+    put(templateDir, 'docs/guide.md', 'guide\n')
+    put(projectDir, '.github/workflows/mine.yml', 'my own ci\n')
+    put(projectDir, 'AGENTS.md', 'agents\n')
+    writeFileSync(join(projectDir, '.goodvibes.json'), JSON.stringify({ version: '1.0.0', files: { 'AGENTS.md': sha256('agents\n') } }))
+
+    await runUpdate('--force')
+
+    expect(existsSync(join(projectDir, '.github', 'workflows', 'security.yml'))).toBe(false)
+    expect(existsSync(join(projectDir, '.github', 'ISSUE_TEMPLATE', 'bug.md'))).toBe(false)
+    expect(existsSync(join(projectDir, 'docs'))).toBe(false)
+    expect(Object.keys(manifestFiles())).toEqual(['AGENTS.md'])
+  })
+
+  it('adds a new workflow and a new doc when the manifest already tracks a file in that group, but not other .github files', async () => {
+    put(templateDir, '.github/workflows/security.yml', 'sec\n')
+    put(templateDir, '.github/workflows/ci-node.yml', 'ci\n')
+    put(templateDir, '.github/ISSUE_TEMPLATE/bug.md', 'bug\n')
+    put(templateDir, 'docs/a.md', 'a\n')
+    put(templateDir, 'docs/new.md', 'new\n')
+    put(projectDir, 'package.json', '{}')
+    put(projectDir, '.github/workflows/ci.yml', 'ci\n')
+    put(projectDir, 'docs/a.md', 'a\n')
+    writeFileSync(join(projectDir, '.goodvibes.json'), JSON.stringify({
+      version: '1.0.0',
+      files: { '.github/workflows/ci.yml': sha256('ci\n'), 'docs/a.md': sha256('a\n') },
+    }))
+
+    await runUpdate('--force')
+
+    expect(readFileSync(join(projectDir, '.github', 'workflows', 'security.yml'), 'utf-8')).toBe('sec\n')
+    expect(readFileSync(join(projectDir, 'docs', 'new.md'), 'utf-8')).toBe('new\n')
+    expect(existsSync(join(projectDir, '.github', 'ISSUE_TEMPLATE', 'bug.md'))).toBe(false)
+  })
+})

@@ -98,4 +98,18 @@ describe('applyGlobalConfig (real temp CLAUDE_CONFIG_DIR)', () => {
     expect(readFileSync(join(cfg, 'settings.json'), 'utf-8')).toBe('[]')
     expect(r.settingsError).toContain('not a JSON object; left unchanged')
   })
+
+  it('does not rewrite a tracked rules file the user deleted and reports it', async () => {
+    await applyGlobalConfig(templateDir, '1.8.0', false)
+    rmSync(join(cfg, 'rules', 'goodvibes.md'))
+
+    const r = await applyGlobalConfig(templateDir, '1.8.0', false)
+
+    expect(existsSync(join(cfg, 'rules', 'goodvibes.md'))).toBe(false)
+    expect(r.removed).toEqual(['rules/goodvibes.md'])
+    expect(r.written).not.toContain('rules/goodvibes.md')
+    const { formatGlobal } = await import('./global-setup.js')
+    expect(formatGlobal(r, undefined, undefined)).toContain('rules/goodvibes.md: removed by you, not re-added (run goodvibes init to restore)')
+    expect(readJson('.goodvibes.json').files['rules/goodvibes.md']).toBeUndefined()
+  })
 })
