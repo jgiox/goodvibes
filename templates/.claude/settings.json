@@ -28,5 +28,19 @@
       "Bash(git push --force*)",
       "Bash(git reset --hard*)"
     ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "if": "Bash(git commit*)",
+            "command": "i=$(cat); case $i in *'git commit'*) ;; *) exit 0;; esac; cd \"${CLAUDE_PROJECT_DIR:-.}\" 2>/dev/null || exit 0; g=$(git rev-parse --git-dir 2>/dev/null) || exit 0; git rev-parse -q --verify HEAD >/dev/null || exit 0; for f in MERGE_HEAD rebase-merge rebase-apply; do [ -e \"$g/$f\" ] && exit 0; done; case $i in *--amend*) exit 0;; esac; git diff --cached --quiet -- JOURNAL.md || exit 0; if printf '%s' \"$i\" | grep -Eq -- 'git add|--all| -[A-Za-z]*a'; then git diff --quiet HEAD -- JOURNAL.md || exit 0; [ -n \"$(git ls-files -o --exclude-standard -- JOURNAL.md)\" ] && exit 0; fi; echo 'goodvibes: commit blocked because JOURNAL.md is not staged. Add a JOURNAL.md entry for this task (date, summary, files changed, why, tests run, docs updated), run: git add JOURNAL.md, then commit again.' >&2; exit 2"
+          }
+        ]
+      }
+    ]
   }
 }
