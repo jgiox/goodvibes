@@ -594,3 +594,59 @@ describe('MIN-02: dry-run + minimal', () => {
     expect(content).toContain('CLAUDE.md')
   })
 })
+
+describe('init re-run keeps the previous manifest', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  async function runInit(...args: string[]) {
+    const { tasks } = await import('@clack/prompts')
+    const { copyTemplates, resolveTemplatesDir } = await import('../steps/copy-templates.js')
+    vi.mocked(resolveTemplatesDir).mockReturnValue('/fake/templates')
+    vi.mocked(copyTemplates).mockResolvedValue({ written: ['CLAUDE.md'], skipped: ['AGENTS.md'], problems: [] })
+    vi.mocked(tasks).mockImplementation(async (taskList: any[]) => {
+      for (const t of taskList) await t.task(vi.fn())
+    })
+    const { registerInitCommand } = await import('./init.js')
+    const { Command } = await import('commander')
+    const program = new Command()
+    program.exitOverride()
+    registerInitCommand(program)
+    await program.parseAsync(['node', 'goodvibes', 'init', '--minimal', ...args])
+  }
+
+  it('passes every previous entry for files this run did not write, and the previous managed record', async () => {
+    const { readManifest, writeManifest } = await import('../steps/write-manifest.js')
+    const hook = 'hook:PreToolUse:goodvibes-journal-gate'
+    vi.mocked(readManifest).mockResolvedValue({
+      version: '1.8.0',
+      files: { 'AGENTS.md': 'hash-a', 'docs/x.md': 'user-owned', 'CLAUDE.md': 'old' },
+      managed: { '.claude/settings.json': [hook] },
+    })
+
+    await runInit('--scope', 'project')
+
+    const call = vi.mocked(writeManifest).mock.calls[0]
+    expect(call[1]).toEqual(['CLAUDE.md'])
+    expect(call[3]).toEqual({ 'AGENTS.md': 'hash-a', 'docs/x.md': 'user-owned', 'CLAUDE.md': 'old' })
+    expect(call[4]!['.claude/settings.json']).toContain(hook)
+  })
+
+  it('stops with the fix-it message and exit 1 when the existing .goodvibes.json is not valid JSON', async () => {
+    const { readManifest, writeManifest } = await import('../steps/write-manifest.js')
+    const { cancel } = await import('@clack/prompts')
+    const { copyTemplates } = await import('../steps/copy-templates.js')
+    vi.mocked(readManifest).mockRejectedValue(new Error('/p/.goodvibes.json is not valid JSON (x); fix it or delete it and run goodvibes init'))
+    const exitSpy = vi.spyOn(process, 'exit').mockImplementation(((code?: number) => { throw new Error(`exit ${code}`) }) as never)
+    try {
+      await expect(runInit('--scope', 'project')).rejects.toThrow('exit 1')
+      expect(vi.mocked(cancel)).toHaveBeenCalledWith(expect.stringContaining('is not valid JSON'))
+      expect(vi.mocked(copyTemplates)).not.toHaveBeenCalled()
+      expect(vi.mocked(writeManifest)).not.toHaveBeenCalled()
+    } finally {
+      exitSpy.mockRestore()
+      vi.mocked(readManifest).mockResolvedValue(null)
+    }
+  })
+})

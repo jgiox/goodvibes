@@ -91,4 +91,24 @@ describe('built CLI (dist/index.js)', () => {
       rmSync(outsideDir, { recursive: true, force: true })
     }
   })
+
+  it('a second init keeps every goodvibes file in the manifest and does not re-add a hook the user deleted', async () => {
+    await run('init', '--minimal', '--scope', 'project')
+    const manifestPath = join(projectDir, '.goodvibes.json')
+    const first = JSON.parse(readFileSync(manifestPath, 'utf-8'))
+    expect(Object.keys(first.files)).toContain('AGENTS.md')
+
+    const settingsPath = join(projectDir, '.claude', 'settings.json')
+    const settings = JSON.parse(readFileSync(settingsPath, 'utf-8'))
+    settings.hooks.PreToolUse = settings.hooks.PreToolUse.filter((g: any) => !JSON.stringify(g).includes('goodvibes-journal-gate'))
+    writeFileSync(settingsPath, JSON.stringify(settings, null, 2))
+
+    await run('init', '--minimal', '--scope', 'project')
+    const second = JSON.parse(readFileSync(manifestPath, 'utf-8'))
+    expect(Object.keys(second.files).sort()).toEqual(Object.keys(first.files).sort())
+
+    const upd = await run('update', '--force')
+    expect(upd.exitCode).toBe(0)
+    expect(readFileSync(settingsPath, 'utf-8')).not.toContain('goodvibes-journal-gate')
+  })
 })
