@@ -1033,3 +1033,17 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 **Tests run:** None (documentation-only change; no code touched).
 
 **Docs updated:** `15-06-SUMMARY.md`, JOURNAL.md.
+
+---
+
+## 2026-09-24 — Cross-repo governance gap review: report + quick-task plan (260924-mh9)
+
+**What I did:** Reviewed agent-instruction files (CLAUDE.md, AGENTS.md, settings.json, hooks) across 16 private repos and compared them with what goodvibes v1.7.1 ships. Wrote an anonymised report (repo is public, so no private repo or client names) and a GSD quick-task plan to act on it. Found three goodvibes defects: `update` drops user-modified files from the manifest so a second run overwrites them; the permissions template auto-approves deploy/publish via `Bash(npx*)`/`Bash(uv*)`; CI templates hide errors and have no lint or secret scan.
+
+**Files changed:** `.planning/research/2026-09-24-cross-repo-gap-review.md` (new), `.planning/quick/260924-mh9-cross-repo-governance-gap-review-follow-/260924-mh9-PLAN.md` (new), JOURNAL.md.
+
+**Why:** Rules that real projects had to invent independently (definition of done, doc sweep + CHANGELOG, .env.example, no fabricated data, verify CI after push) belong in the default template. A first-draft claim (version-stamp mismatch as evidence of the update bug) was checked and retracted in the report — it was a release-ordering artifact.
+
+**Tests run:** None yet (planning only). Verified externally: Claude Code permission order is deny → ask → allow (Claude Code docs via context7); gitleaks v8.30.1 Docker image exits 0 on a clean repo and 1 on a committed GitHub-token-shaped string (local run).
+
+**Docs updated:** Report, PLAN.md, JOURNAL.md.
