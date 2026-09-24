@@ -1644,3 +1644,4 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 - item 15 RED: DO_NOT_TRACK / GOODVIBES_NO_TELEMETRY = true/yes (any case) must opt out, in telemetry and the init privacy panel (9 failed).
 - item 15 GREEN: telemetry.opted_out() accepts 1/true/yes in any case for DO_NOT_TRACK and GOODVIBES_NO_TELEMETRY; init's privacy panel reuses it (258 passed).
 - item 14 RED: resolve_templates_dir must fall back to the repo templates/ in a source checkout (1 failed).
+- item 14 GREEN: resolve_templates_dir walks up from the package to the first templates/CLAUDE.md when no bundled copy exists (260 passed).

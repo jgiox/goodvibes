@@ -10,13 +10,17 @@ from goodvibes_cli.utils.sentinel_merge import merge_claude
 
 
 def resolve_templates_dir() -> pathlib.Path:
-    """Return the bundled templates directory from the installed wheel."""
+    """Return the bundled templates directory, or the repo's templates/ when running from a source checkout."""
     ref = importlib.resources.files("goodvibes_cli").joinpath("templates")
     # Wrap with Path(str(...)) for str/PathLike compatibility (RESEARCH.md Pitfall 2)
     path = pathlib.Path(str(ref))
-    if not path.exists():
-        raise FileNotFoundError("goodvibes template files not found in installed package")
-    return path
+    if path.exists():
+        return path
+    # Editable/dev installs have no bundled copy; the build hook only adds it to wheels.
+    for parent in pathlib.Path(__file__).resolve().parents:
+        if (parent / "templates" / "CLAUDE.md").is_file():
+            return parent / "templates"
+    raise FileNotFoundError("goodvibes template files not found in installed package")
 
 
 def list_template_files(template_dir: pathlib.Path) -> list[str]:
