@@ -6,6 +6,9 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: read
+
 jobs:
   test:
     name: Python tests (Python ${{ matrix.python }})
@@ -15,12 +18,15 @@ jobs:
         python: ['3.10', '3.11', '3.12']
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
       # python-version must be explicit — setup-uv does not auto-read matrix.python (Pitfall 4)
-      - uses: astral-sh/setup-uv@v8.2.0
+      - uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
         with:
           python-version: ${{ matrix.python }}
 
+      # uv sync installs the dev group by default; --all-extras adds dev deps kept under optional-dependencies
       - name: Install dependencies
         run: |
           if [ -f "pyproject.toml" ]; then
@@ -35,7 +41,7 @@ jobs:
       - name: Run tests
         run: |
           if find . -name "test_*.py" -not -path "./.venv/*" | grep -q .; then
-            uv run --extra dev pytest -x -q
+            uv run pytest -x -q
           else
             echo "::warning::No tests found — add a tests/ directory to get started"
           fi

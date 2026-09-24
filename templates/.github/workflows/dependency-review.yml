@@ -9,7 +9,11 @@ permissions:
 
 jobs:
   dependency-review:
+    # Private repos need GitHub Advanced Security for dependency review; without it the job always fails.
+    if: github.event.repository.private != true
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - uses: actions/dependency-review-action@v5

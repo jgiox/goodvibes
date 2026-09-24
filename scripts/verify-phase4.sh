@@ -39,7 +39,7 @@ check "DEPENDABOT-YML"   "test -f templates/.github/dependabot.yml"
 # -----------------------------------------------------------------------
 
 check "CI-NODE-IF-PRESENT"   "grep -q '\-\-if-present' templates/.github/workflows/ci-node.yml"
-check "CI-PYTHON-EXTRA-DEV"  "grep -q '\-\-extra dev' templates/.github/workflows/ci-python.yml"
+check "CI-PYTHON-UV-RUN"     "grep -q 'uv run pytest' templates/.github/workflows/ci-python.yml && ! grep -q '\-\-extra dev' templates/.github/workflows/ci-python.yml"
 check "CI-PYTHON-MATRIX"     "grep -q 'python-version:' templates/.github/workflows/ci-python.yml"
 check "SECURITY-EXTENDED"    "grep -q 'queries: security-extended' templates/.github/workflows/security.yml"
 check "DEP-REVIEW-PR"        "grep -q 'pull_request' templates/.github/workflows/dependency-review.yml"
