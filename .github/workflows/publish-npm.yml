@@ -112,6 +112,7 @@ jobs:
         run: |
           npm pack --dry-run 2>&1 | grep -E "dist/|templates/"
           npm pack --dry-run 2>&1 | grep "src/" | wc -l | grep "^0$"
+          npm pack --dry-run 2>&1 | grep -E " (LICENSE|NOTICE)$" | wc -l | grep "^2$"
 
       - name: Smoke test the packed tarball
         working-directory: packages/npm

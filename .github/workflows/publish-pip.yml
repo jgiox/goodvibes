@@ -83,6 +83,9 @@ jobs:
       - name: Verify wheel name (PKG-01 — goodvibes-cli)
         run: test -f packages/pip/dist/goodvibes_cli-*.whl
 
+      - name: Verify sdist carries LICENSE and NOTICE
+        run: tar -tzf packages/pip/dist/goodvibes_cli-*.tar.gz | grep -cE '^goodvibes_cli-[^/]+/(LICENSE|NOTICE)$' | grep -q '^2$'
+
       - name: Smoke test the built wheel
         working-directory: packages/pip
         run: |
@@ -90,8 +93,9 @@ jobs:
           WHEEL=$(ls dist/goodvibes_cli-*.whl)
           python3 - "$WHEEL" <<'PY'
           import sys, zipfile
-          names = set(zipfile.ZipFile(sys.argv[1]).namelist())
-          missing = [f for f in ("goodvibes_cli/templates/CLAUDE.md",) if f not in names]
+          names = zipfile.ZipFile(sys.argv[1]).namelist()
+          required = ("goodvibes_cli/templates/CLAUDE.md", ".dist-info/licenses/LICENSE", ".dist-info/licenses/NOTICE")
+          missing = [f for f in required if not any(n.endswith(f) for n in names)]
           if missing:
               sys.exit(f"::error::{sys.argv[1]} is missing {missing}")
           PY
