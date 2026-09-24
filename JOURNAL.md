@@ -1623,3 +1623,18 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 **Tests run:** RED: pip upgrade tests 3 failed, 11 passed. GREEN: pip pytest 242 passed. Sandbox: a uv-made venv without pip holding goodvibes 1.9.0 went to 1.9.1 through `_self_update_pip("1.9.1")` from this branch, with no uv tool created.
 
 **Docs updated:** JOURNAL.md.
+
+---
+
+## 2026-09-24 · Template security and correctness fixes (permissions, CI, skills, journal safety)
+
+**What I did:** Hardened what goodvibes ships into projects, one RED/GREEN pair per testable item. Commit log for this entry:
+- RED: tests pinning that the shipped allow list no longer auto-approves node, python, npx, uv, npm run/install, pip install or `git restore`, and that new ask/deny rules for destructive git commands and every force-push form exist (npm settings-permissions.test.ts, pip test_settings_permissions.py).
+
+**Files changed:** packages/npm/src/steps/settings-permissions.test.ts, packages/pip/tests/test_settings_permissions.py, JOURNAL.md (more listed per commit below).
+
+**Why:** The allow list let any `node -e`/`uvx` command run unprompted, which made every ask and deny rule meaningless.
+
+**Tests run:** RED: vitest settings-permissions 11 failed, 3 passed; pytest test_settings_permissions 2 failed.
+
+**Docs updated:** JOURNAL.md.

@@ -32,7 +32,62 @@ const BYPASS_ASK_PATTERNS = [
   'Bash(node node_modules/.bin/*)',
 ]
 
+// Each runs arbitrary code, installs unvetted packages, or discards work, bypassing every ask and deny rule.
+const REMOVED_ALLOW = [
+  'Bash(node*)',
+  'Bash(python*)',
+  'Bash(npx*)',
+  'Bash(uv*)',
+  'Bash(npm run*)',
+  'Bash(npm install*)',
+  'Bash(pip install*)',
+  'Bash(git restore *)',
+]
+
+const NEW_ASK = [
+  'Bash(git restore*)',
+  'Bash(git branch -D*)',
+  'Bash(git branch --delete*)',
+  'Bash(git stash drop*)',
+  'Bash(git stash clear*)',
+  'Bash(git clean*)',
+  'Bash(git push --force-with-lease*)',
+]
+
+const NEW_DENY = [
+  'Bash(git push --force*)',
+  'Bash(git push -f*)',
+  'Bash(git push * -f*)',
+  'Bash(git push * --force*)',
+  'Bash(git push * +*)',
+  'Bash(git reset --hard*)',
+]
+
+const loadSettings = async () =>
+  JSON.parse(await readFile(join(resolveTemplatesDir(), '.claude', 'settings.json'), 'utf-8'))
+
 describe('templates/.claude/settings.json permissions', () => {
+  it.each(REMOVED_ALLOW)('does not auto-approve %s', async pattern => {
+    expect((await loadSettings()).permissions.allow).not.toContain(pattern)
+  })
+
+  it('still runs tests unprompted through npm test, pytest, uv run pytest and python -m pytest', async () => {
+    const { allow } = (await loadSettings()).permissions
+    for (const p of ['Bash(npm test*)', 'Bash(pytest*)', 'Bash(uv run pytest*)', 'Bash(python -m pytest*)']) {
+      expect(allow).toContain(p)
+    }
+  })
+
+  it('asks before git commands that delete branches, stashes, untracked files or uncommitted work', async () => {
+    const { ask } = (await loadSettings()).permissions
+    for (const p of NEW_ASK) expect(ask).toContain(p)
+  })
+
+  it('denies force pushes written with -f, a flag after the remote, or a + refspec', async () => {
+    const { deny } = (await loadSettings()).permissions
+    for (const p of NEW_DENY) expect(deny).toContain(p)
+  })
+
   it('requires explicit ask approval for push, publish, and deploy commands', async () => {
     const templateDir = resolveTemplatesDir()
     const raw = await readFile(join(templateDir, '.claude', 'settings.json'), 'utf-8')
