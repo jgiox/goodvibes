@@ -1103,3 +1103,17 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 **Tests run:** `npx vitest run src/steps/settings-permissions.test.ts` (2 passed); `npx vitest run` (173 passed, 1 skipped, 2 todo — full suite); `bash scripts/verify-phase4.sh --quick` (15 passed, 0 failed, including CI-PYTHON-EXTRA-DEV / CI-PYTHON-MATRIX / SECURITY-EXTENDED).
 
 **Docs updated:** JOURNAL.md only.
+
+---
+
+## 2026-09-24 — Governance rules across every template + CHANGELOG (260924-mh9 task 3)
+
+**What I did:** Backfilled the review's rules 1, 3, 4, 7, 8, 9, 12 across every shipped agent-instruction template. `templates/CLAUDE.md`: inserted a "### Definition of done" section (5 bullets: tests pass with pasted output; every stale Markdown file plus CHANGELOG.md/JOURNAL.md updated; stage exact paths, never `git add -A`/`.`; confirm CI green and report branch/SHA after a push; blockers reported as what/why/risk/next-step) between Proof of work and Action tiers, without touching the `# goodvibes: v1.7.1` stamp; appended two bullets to Security (`.env`/`.env.example` discipline; never send secrets/PII/private code to context7 or web search) and one to Fail loud (never fabricate data — missing data is an error, not a placeholder). Applied the same three additions, condensed to `AGENTS.md`'s terse paragraph style. Copied that exact AGENTS.md body into the byte-identical group (`.windsurfrules`, `GEMINI.md`, `.clinerules/goodvibes.md`, `.amazonq/rules/goodvibes.md`, `.continue/rules/goodvibes.md`, `.devin/rules/goodvibes.md`) and confirmed via `diff` they remain byte-identical to `AGENTS.md`. Applied the same content, worded to match each file's own phrasing, to `.github/copilot-instructions.md`, `.cursor/rules/goodvibes.mdc`, and `.kiro/steering/goodvibes.md`. Added one compact sentence each (definition-of-done + no-fabricated-data + `.env.example`) to `replit.md` and `.bolt/prompt`, matching their existing prose style. Ran `npm run prebuild` to resync the gitignored `packages/npm/templates/` mirror (not staged). Added Fixed/Added/Changed entries to `CHANGELOG.md`'s `[Unreleased]` section summarising D1/D2/D3 and the new template rules. No deviation from the research report's "Changes shipped with this review" table, so left it unchanged.
+
+**Files changed:** `templates/CLAUDE.md`, `templates/AGENTS.md`, `templates/.windsurfrules`, `templates/GEMINI.md`, `templates/.clinerules/goodvibes.md`, `templates/.amazonq/rules/goodvibes.md`, `templates/.continue/rules/goodvibes.md`, `templates/.devin/rules/goodvibes.md`, `templates/.github/copilot-instructions.md`, `templates/.cursor/rules/goodvibes.mdc`, `templates/.kiro/steering/goodvibes.md`, `templates/replit.md`, `templates/.bolt/prompt`, `CHANGELOG.md`, JOURNAL.md.
+
+**Why:** These are the rules the highest number of the 16 reviewed repositories had independently invented (definition of done, `.env.example`, no-fabricated-data, doc-lookup data handling) — shipping them by default closes the gap for every new and existing goodvibes-managed project once they receive the next version bump.
+
+**Tests run:** None (documentation-only change; no code touched). Verified: `diff templates/AGENTS.md templates/<each byte-identical-group file>` clean for all six; `grep -l "Definition of done"` matches `CLAUDE.md`, `AGENTS.md`, `copilot-instructions.md`, `goodvibes.mdc`, `goodvibes.md` (kiro); `grep -q "goodvibes: v1.7.1" templates/CLAUDE.md` still true.
+
+**Docs updated:** All template files listed above, `CHANGELOG.md`, JOURNAL.md.

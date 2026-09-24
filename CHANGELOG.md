@@ -6,6 +6,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/2.0.0/),
 
 ## [Unreleased]
 
+### Fixed
+
+- `goodvibes update` no longer drops user-modified (skipped) files from `.goodvibes.json` on write-back, so a second `update` run no longer reclassifies them as net-new and overwrites them — npm and pip
+- `goodvibes update` now always refreshes the goodvibes sentinel block in a project's `CLAUDE.md`, even when the file has custom prose outside the block that previously kept its whole-file hash from ever matching
+- `templates/.claude/settings.json` no longer auto-approves `git push`, npm/uv/twine publish, or wrangler/vercel/netlify/firebase deploy commands — closed via a new `permissions.ask` list
+
+### Added
+
+- `ruff check` lint step in the Python CI templates (`ci-python.yml`, `ci-both.yml`)
+- `gitleaks` secret-scan job in `security.yml`, alongside CodeQL
+- Definition-of-done, `.env.example`, no-fabricated-data, and documentation-lookup-data-handling rules across every shipped agent-instruction template (`CLAUDE.md`, `AGENTS.md`, every per-IDE rule file, `replit.md`, `.bolt/prompt`)
+
+### Changed
+
+- CI templates no longer hide `uv sync` errors behind `2>/dev/null`
+- CI templates emit a visible `::warning::` instead of silently passing when no tests or no lint script are found
+
 ## [1.7.1] — 2026-08-06
 
 ### Fixed
