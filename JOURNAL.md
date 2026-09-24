@@ -1423,3 +1423,19 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 **Tests run:** npm vitest 267 passed, 1 skipped, 2 todo (built-CLI test sees 1.9.0); pip pytest 223 passed; verify-phase5 PASS.
 
 **Docs updated:** CHANGELOG.md, JOURNAL.md.
+
+---
+
+## 2026-09-24 · v1.9.0 released to npm and PyPI; milestone v1.8.0 closed
+
+**What I did:** Ran both publish workflows on main (df152e8, PR #36). PyPI run 36065820367 succeeded. npm run 36065818422 published 1.9.0 through trusted publishing (publish step green, `npm view` shows latest 1.9.0), then its smoke test failed with `ETARGET`: it installed after a fixed 30 s sleep, before npm's CDN served the new version; the re-run of that job was started to confirm. Both workflows' smoke tests now retry a pinned install for up to 5 minutes instead of sleeping; the pip one was unpinned before, so it could pass against the previous release. Sandboxed check from the registries: npm 1.9.0 global `init` exits 0, installs the CLI globally (sandbox prefix, `--version` 1.9.0), registers context7 at user scope and writes the global rules; PyPI 1.9.0 `init --scope project` exits 0 with manifest 1.9.0 and the goodvibes block in CLAUDE.md. Real `~/.claude` untouched.
+
+**Files changed:** .github/workflows/publish-npm.yml, .github/workflows/publish-pip.yml, .planning/STATE.md, JOURNAL.md.
+
+**Why:** Close the release and stop the smoke tests reporting false failures (npm) or false passes (pip).
+
+**Tests run:** workflow YAML parses; the retry loop passes `bash -n`; registry checks and sandboxed installs above.
+
+**Next time:** Push tag v1.9.0 on df152e8 from a maintainer machine. On npmjs.com set Publishing access to require 2FA and disallow tokens, then delete the NPM_TOKEN repo secret. Human UAT: context7 trust prompt, Windows Git Bash, caveman ultra style. Known follow-ups: journal gate matches commit-like text anywhere in a command; hooks do not run on Windows without Git Bash; pip installs inside a virtualenv are invisible to Claude Code sessions; stale verify-phase1/2 scripts; 143 pre-existing tsc errors; a test appears to reach the telemetry endpoint (seen as proxy denials, test not yet identified); this repo's own CLAUDE.md block is still v1.7.0.
+
+**Docs updated:** STATE.md, JOURNAL.md.
