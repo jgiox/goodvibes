@@ -1570,7 +1570,7 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 
 ## 2026-09-24 · v1.9.1 version bump
 
-**What I did:** Bumped npm `package.json`/`package-lock.json`, pip `pyproject.toml`/`uv.lock`, the `templates/CLAUDE.md` stamp and this repo's `CLAUDE.md` block to 1.9.1; CHANGELOG `[Unreleased]` became `[1.9.1] - 2026-09-24` (the fixes and docs from PR #38), with the heredoc end-marker and shell-consumer details from the Codex review added. `verify-phase3.sh` now accepts more than one wheel in `dist/` (a leftover 1.9.0 wheel made `test -f` fail locally).
+**What I did:** Bumped npm `package.json`/`package-lock.json`, pip `pyproject.toml`/`uv.lock`, the `templates/CLAUDE.md` stamp and this repo's `CLAUDE.md` block to 1.9.1; CHANGELOG `[Unreleased]` became `[1.9.1] - 2026-09-24` (the fixes and docs from PR #38), with the heredoc end-marker and shell-consumer details from the Codex review added. `verify-phase3.sh` builds the wheel into `dist/verify`, which it clears first, and both wheel checks read only that directory. A leftover 1.9.0 wheel in `dist/` had made `test -f` fail locally; the first fix (accept any wheel) let `PIP-DOTFILES` inspect a stale wheel, as the Codex review on PR #39 pointed out.
 
 **Files changed:** packages/npm/package.json, packages/npm/package-lock.json, packages/pip/pyproject.toml, packages/pip/uv.lock, templates/CLAUDE.md, CLAUDE.md, CHANGELOG.md, scripts/verify-phase3.sh, JOURNAL.md.
 
