@@ -20,9 +20,21 @@ def test_read_manifest_returns_none_when_file_absent(tmp_dir):
     assert read_manifest(tmp_dir) is None
 
 
-def test_read_manifest_returns_none_when_json_is_malformed(tmp_dir):
+def test_read_manifest_raises_a_clear_error_when_json_is_malformed(tmp_dir):
+    import pytest
     (tmp_dir / ".goodvibes.json").write_text("not json", encoding="utf-8")
-    assert read_manifest(tmp_dir) is None
+    with pytest.raises(ValueError) as e:
+        read_manifest(tmp_dir)
+    msg = str(e.value)
+    assert msg.startswith(f"{tmp_dir / '.goodvibes.json'} is not valid JSON (")
+    assert msg.endswith("); fix it or delete it and run goodvibes init")
+
+
+def test_read_manifest_rejects_a_manifest_that_is_not_a_json_object(tmp_dir):
+    import pytest
+    (tmp_dir / ".goodvibes.json").write_text("[]", encoding="utf-8")
+    with pytest.raises(ValueError, match="is not valid JSON"):
+        read_manifest(tmp_dir)
 
 
 def test_write_manifest_sets_version(tmp_dir):

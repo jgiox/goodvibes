@@ -192,3 +192,14 @@ def test_does_not_show_privacy_panel_when_do_not_track_is_true(runner, app, mock
     result = runner.invoke(app, ["--minimal"])
     assert result.exit_code == 0
     assert "Anonymous usage stats are collected" not in result.output
+
+
+def test_init_exits_1_with_a_clear_message_when_the_global_manifest_is_broken(runner, app, mocker, tmp_path):
+    from goodvibes_cli.steps.write_manifest import ManifestError
+    mocker.patch("goodvibes_cli.commands.init_cmd.resolve_templates_dir", return_value=tmp_path)
+    mocker.patch("goodvibes_cli.commands.init_cmd.detect_project_type", return_value="both")
+    mocker.patch("goodvibes_cli.commands.init_cmd.apply_global_config", side_effect=ManifestError("/x/.goodvibes.json is not valid JSON (oops); fix it or delete it and run goodvibes init"))
+    mocker.patch("pathlib.Path.iterdir", return_value=iter([]))
+    result = runner.invoke(app, ["--minimal"])
+    assert result.exit_code == 1
+    assert "is not valid JSON" in result.output

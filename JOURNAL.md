@@ -1653,3 +1653,4 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 - item 8 GREEN: claude mcp add -s user headroom -- <path> mcp serve; when claude mcp get headroom succeeds without mcp serve, remove + re-add and report repaired (266 passed).
 - item 12 RED: upgrade must re-exec as sys.executable -m goodvibes_cli, skip installing under uvx, and say when PyPI cannot be reached (4 failed).
 - item 12 GREEN: upgrade re-execs via os.execve(sys.executable, [sys.executable, -m, goodvibes_cli, ...]) with _GV_UPGRADING, installs nothing under uvx (archive-v* in sys.prefix), and prints the PyPI failure reason (270 passed).
+- item 11 RED: a broken .goodvibes.json must be a clear 'is not valid JSON (...); fix it or delete it and run goodvibes init' error, with update/doctor (and init for the global manifest) exiting 1 (7 failed).

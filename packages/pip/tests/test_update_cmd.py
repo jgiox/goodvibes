@@ -336,3 +336,26 @@ def test_update_leaves_invalid_settings_unchanged_and_reports_it(merge_dirs):
     assert result.exit_code == 0
     assert (merge_dirs / ".claude" / "settings.json").read_text(encoding="utf-8") == "{ not json"
     assert ".claude/settings.json: not valid JSON" in _ANSI.sub("", result.output)
+
+
+def test_update_exits_1_with_a_clear_message_when_goodvibes_json_is_broken(mocker, tmp_path):
+    (tmp_path / ".goodvibes.json").write_text("{ broken", encoding="utf-8")
+    mocker.patch("pathlib.Path.cwd", return_value=tmp_path)
+    result = runner.invoke(app, ["update", "--force"])
+    out = " ".join(_ANSI.sub("", result.output).split())
+    assert result.exit_code == 1
+    assert "is not valid JSON" in out
+    assert "fix it or delete it and run goodvibes init" in out
+    assert "not set up" not in out
+
+
+def test_update_exits_1_when_the_global_manifest_is_broken(mocker, tmp_path, monkeypatch):
+    cfg = tmp_path / "claude-config"
+    cfg.mkdir()
+    (cfg / ".goodvibes.json").write_text("{ broken", encoding="utf-8")
+    proj = tmp_path / "proj"
+    proj.mkdir()
+    mocker.patch("pathlib.Path.cwd", return_value=proj)
+    result = runner.invoke(app, ["update", "--force"])
+    assert result.exit_code == 1
+    assert "is not valid JSON" in _ANSI.sub("", result.output)
