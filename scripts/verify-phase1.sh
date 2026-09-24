@@ -16,8 +16,8 @@ check() {
 }
 
 check "CLAUDEMD-01" "test -f templates/CLAUDE.md"
-check "CLAUDEMD-02" "[ \$(wc -l < templates/CLAUDE.md) -le 100 ] && [ \$(wc -l < templates/CLAUDE.md) -ge 80 ]"
-check "CLAUDEMD-03" "grep -q 'goodvibes: v1.0.0' templates/CLAUDE.md"
+check "CLAUDEMD-02" "[ \$(wc -l < templates/CLAUDE.md) -le 200 ]"
+check "CLAUDEMD-03" "grep -q \"goodvibes: v\$(node -p \"require('./packages/npm/package.json').version\")\" templates/CLAUDE.md"
 check "CLAUDEMD-04" "grep -q 'goodvibes:start' templates/CLAUDE.md"
 check "CLAUDEMD-05" "grep -q 'Think before' templates/CLAUDE.md && grep -q 'Simplicity' templates/CLAUDE.md"
 check "CAV-01"      "test -d templates/.claude/skills/caveman"
@@ -33,7 +33,7 @@ check "DOCS-06"     "test -f templates/.github/PULL_REQUEST_TEMPLATE.md"
 check "DOCS-07"     "test -f templates/docs/onboarding.md"
 check "REPO-01"     "test -f LICENSE"
 check "REPO-02"     "test -f NOTICE"
-check "REPO-03"     "grep -q 'npx goodvibes init' README.md"
+check "REPO-03"     "grep -q 'npx goodvibes-cli init' README.md"
 
 echo ""
 echo "Results: $pass passed, $fail failed"

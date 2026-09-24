@@ -30,7 +30,7 @@ check() {
 check "NPM-PKG-01" "test -f packages/npm/package.json"
 
 # NPM-11: name field is "goodvibes"
-check "NPM-PKG-02" "node -e \"const p=JSON.parse(require('fs').readFileSync('packages/npm/package.json','utf8'));process.exit(p.name==='goodvibes'?0:1)\""
+check "NPM-PKG-02" "node -e \"const p=JSON.parse(require('fs').readFileSync('packages/npm/package.json','utf8'));process.exit(p.name==='goodvibes-cli'?0:1)\""
 
 # NPM-01: bin.goodvibes points to ./dist/index.js
 check "NPM-PKG-03" "node -e \"const p=JSON.parse(require('fs').readFileSync('packages/npm/package.json','utf8'));process.exit(p.bin&&p.bin.goodvibes==='./dist/index.js'?0:1)\""
@@ -103,7 +103,7 @@ check "NPM-04-TEST-STUB" "test -f packages/npm/src/commands/init.test.ts"
 check "NPM-05-TEST-STUB" "grep -q 'next-steps\|Next steps' packages/npm/src/commands/init.test.ts"
 
 # NPM-11: package name is "goodvibes" (publish target check)
-check "NPM-11-NAME" "node -e \"const p=JSON.parse(require('fs').readFileSync('packages/npm/package.json','utf8'));process.exit(p.name==='goodvibes'?0:1)\""
+check "NPM-11-NAME" "node -e \"const p=JSON.parse(require('fs').readFileSync('packages/npm/package.json','utf8'));process.exit(p.name==='goodvibes-cli'?0:1)\""
 
 # -----------------------------------------------------------------------
 # Build checks (only without --quick)

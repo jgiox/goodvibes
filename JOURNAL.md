@@ -1509,3 +1509,17 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 **Tests run:** RED: test_global_setup 1 failed, 14 passed. GREEN: pip pytest 230 passed. ruff reports 22 pre-existing findings in untouched lines (ruff is not run in CI); none added here.
 
 **Docs updated:** CHANGELOG.md, JOURNAL.md.
+
+---
+
+## 2026-09-24 · Phase 1 to 3 verify scripts match the current package
+
+**What I did:** Seven checks still expected pre-rename or v1.0.0 facts: npm package name `goodvibes` (now `goodvibes-cli`), README `npx goodvibes init` (now `npx goodvibes-cli init`), wheel `jgiox_goodvibes-*.whl` (now `goodvibes_cli-*.whl`), CLAUDE.md stamp `v1.0.0` (now must equal the npm package version) and an 80 to 100 line CLAUDE.md (now a 200-line ceiling; the directive rules added in 1.8.0 put it at 160). Updated each to the current invariant.
+
+**Files changed:** scripts/verify-phase1.sh, scripts/verify-phase2.sh, scripts/verify-phase3.sh, JOURNAL.md.
+
+**Why:** A gate that always fails trains everyone to ignore it.
+
+**Tests run:** verify-phase1 through phase5: all PASS.
+
+**Docs updated:** JOURNAL.md.
