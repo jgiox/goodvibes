@@ -98,8 +98,15 @@ def copy_templates(
                 skipped_files.append(dest_candidate.relative_to(dest_dir).as_posix())
         return ignored
 
+    # Only files copied here are goodvibes'; everything else in the project (src/, .git/, a user's own files) is not.
+    copied: list[str] = []
+
+    def copy_fn(src: str, dst: str) -> None:
+        shutil.copy2(src, dst)
+        copied.append(pathlib.Path(dst).relative_to(dest_dir).as_posix())
+
     try:
-        shutil.copytree(str(template_dir), str(dest_dir), ignore=ignore_fn, dirs_exist_ok=True)
+        shutil.copytree(str(template_dir), str(dest_dir), ignore=ignore_fn, dirs_exist_ok=True, copy_function=copy_fn)
     except PermissionError as e:
         raise PermissionError(
             f"Cannot write files to {dest_dir}.\n"
@@ -110,14 +117,14 @@ def copy_templates(
         raise OSError(f"Cannot copy template files: {e}. Check available disk space.") from e
 
     # Rename selected CI variant to ci.yml
-    if not minimal:
-        variant_path = dest_dir / ".github" / "workflows" / selected_variant
+    variant_rel = f".github/workflows/{selected_variant}"
+    if variant_rel in copied:
         ci_path = dest_dir / ".github" / "workflows" / "ci.yml"
-        if variant_path.exists():
-            if ci_path.exists():
-                skipped_files.append(".github/workflows/ci.yml")  # ponytail: UX-04
-            else:
-                variant_path.rename(ci_path)
+        if ci_path.exists():
+            skipped_files.append(".github/workflows/ci.yml")  # ponytail: UX-04
+        else:
+            (dest_dir / variant_rel).rename(ci_path)
+            copied[copied.index(variant_rel)] = ".github/workflows/ci.yml"
 
     # Handle CLAUDE.md via sentinel merge
     claude_src = template_dir / "CLAUDE.md"
@@ -133,11 +140,7 @@ def copy_templates(
                 skipped_files.append(str(e))
         elif not claude_dest.exists():
             claude_dest.write_text(project_stub(template_content), encoding="utf-8")
+            claude_merged = True
 
-    # Walk destDir so return shows ci.yml (not ci-node.yml) — per RESEARCH.md Pitfall 6
-    all_dest = sorted(f.relative_to(dest_dir).as_posix() for f in dest_dir.rglob("*") if f.is_file())
-    written = [f for f in all_dest if f not in skipped_files]
-    # Only inject CLAUDE.md into written if sentinel merge actually ran
-    if claude_merged and "CLAUDE.md" not in written:
-        written = ["CLAUDE.md"] + written
+    written = copied + (["CLAUDE.md"] if claude_merged else [])
     return (sorted(written), sorted(skipped_files))
