@@ -770,3 +770,19 @@ line count (105 < 120), and migration command presence with grep.
 **Tests run:** npm: 145 passed, 1 skipped. pip: 153 passed.
 
 **Docs updated:** CHANGELOG.md, JOURNAL.md.
+
+---
+
+## 2026-09-24 · Phase 15: journal-gate hook and context7 MCP
+
+**What I did:** Added a `PreToolUse` hook to `templates/.claude/settings.json` (matcher `Bash`, `if: "Bash(git commit*)"`, one inline POSIX `sh` command) that blocks Claude Code from running `git commit` unless `JOURNAL.md` is staged. It lets through `--amend`, in-progress merge/rebase, repos with no commits yet, and the bootstrap commit that adds `JOURNAL.md`; for `git add ... && git commit` and `git commit -a` it checks the working tree because the index is not updated yet when the hook fires. Added `templates/.mcp.json` with context7 at `https://mcp.context7.com/mcp` (HTTP, no key). Documented scope, trust prompt, opt-out, and the optional `${CONTEXT7_API_KEY}` upgrade in onboarding and README.
+
+**Files changed:** templates/.claude/settings.json, templates/.mcp.json (new), templates/docs/onboarding.md, packages/npm/src/journal-gate.integration.test.ts (new), packages/npm/src/steps/copy-templates.integration.test.ts, README.md, CHANGELOG.md, .planning/ (phase 15 plan, summary, verification; roadmap, requirements, state).
+
+**Why:** v1.8.0 goal: turn the "update JOURNAL.md every task" rule from advice into a check Claude Code cannot skip, and give the agent a docs lookup path. HOOK-01 requires inline shell: no `jq`, no Node, no script file whose exec bit could be lost in the wheel.
+
+**What I learned:** If an older Claude Code ignored the `if` field, the hook would run on every Bash call; the `-a` flag regex matched `ls -la` and blocked it. Added an in-command `git commit` guard and a test for it. Also, in an untrusted workspace `claude -p` ignored `permissions.allow` but still ran the hook.
+
+**Tests run:** npm vitest 167 passed, 1 skipped, 2 todo (20 new journal-gate tests, 2 new copy-templates tests); pip pytest 153 passed; verify-phase5 --quick 10/10; `npm run build` ok; wheel and `npm pack --dry-run` both contain `.mcp.json` and the hooked settings. Live `claude -p` in a temp repo: commit blocked without journal, commit succeeded with `git add JOURNAL.md && git commit`.
+
+**Docs updated:** templates/docs/onboarding.md, README.md, CHANGELOG.md, JOURNAL.md.
