@@ -180,6 +180,44 @@ describe('applyGlobalConfig (real temp CLAUDE_CONFIG_DIR)', () => {
     expect(readJson('.goodvibes.json').files).not.toHaveProperty('skills/cavecrew/SKILL.md')
   })
 
+  it('does not delete settings.json through a skills/../ key in the global manifest', async () => {
+    await applyGlobalConfig(templateDir, '1.8.0', false)
+    const settings = readFileSync(join(cfg, 'settings.json'), 'utf-8')
+    const m = readJson('.goodvibes.json')
+    m.files['skills/../settings.json'] = createHash('sha256').update(settings, 'utf8').digest('hex')
+    writeFileSync(join(cfg, '.goodvibes.json'), JSON.stringify(m))
+
+    await expect(applyGlobalConfig(templateDir, '1.8.0', false)).rejects.toThrow('"skills/../settings.json" is not a safe relative path')
+
+    expect(readFileSync(join(cfg, 'settings.json'), 'utf-8')).toBe(settings)
+  })
+
+  it('reports no file as written on a second run when nothing changed', async () => {
+    await applyGlobalConfig(templateDir, '1.8.0', false)
+    const r = await applyGlobalConfig(templateDir, '1.8.0', false)
+    expect(r.written).toEqual([])
+    expect(r.kept).toEqual([])
+  })
+
+  it('merges into a global settings.json whose hooks and permissions are null', async () => {
+    writeFileSync(join(cfg, 'settings.json'), '{"hooks": null, "permissions": null, "model": "opus"}')
+    const r = await applyGlobalConfig(templateDir, '1.8.0', false)
+    const settings = readJson('settings.json')
+    expect(r.settingsError).toBeUndefined()
+    expect(settings.model).toBe('opus')
+    expect(settings.hooks.SessionStart[0].hooks[0].command).toMatch(/^: goodvibes-doctor;/)
+    expect(settings.permissions.ask).toContain('Bash(git push*)')
+    expect(existsSync(join(cfg, '.goodvibes.json'))).toBe(true)
+  })
+
+  it('formatGlobal shows ? instead of terminal escape codes from the global settings file', async () => {
+    const { formatGlobal } = await import('./global-setup.js')
+    writeFileSync(join(cfg, 'settings.json'), '{"hooks": {"\\u001b[2J": 5}}')
+    const r = await applyGlobalConfig(templateDir, '1.8.0', true)
+    expect(r.settingsError).toContain('is not a JSON array')
+    expect(formatGlobal(r, undefined, undefined)).not.toMatch(/[\u0000-\u0009\u000b-\u001f]/)
+  })
+
   it('only reports a retired skill file in dry-run mode', async () => {
     await applyGlobalConfig(templateDir, '1.8.0', false)
     plantRetiredSkill('old skill\n', 'old skill\n')

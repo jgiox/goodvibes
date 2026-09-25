@@ -213,3 +213,22 @@ def test_shape_error_names_the_first_container_whose_type_the_merge_cannot_use()
     assert shape_error(".claude/settings.json", {"hooks": {"PreToolUse": {}}}) == '"hooks.PreToolUse" is not a JSON array'
     assert shape_error(".claude/settings.json", {"hooks": {"PreToolUse": ["x"]}}) == '"hooks.PreToolUse[0]" is not a JSON object'
     assert shape_error(".claude/settings.json", {"hooks": {"PreToolUse": [{"hooks": {}}]}}) == '"hooks.PreToolUse[0].hooks" is not a JSON array'
+
+
+
+def test_merge_treats_null_hooks_and_permissions_as_absent_and_creates_them():
+    merged, changes = merge_managed_json(".claude/settings.json", TPL_SETTINGS, {"hooks": None, "permissions": None, "model": "x"})
+    assert merged == {"hooks": {"PreToolUse": [GATE_V2]}, "permissions": {"ask": ["Bash(git push*)"], "deny": ["Bash(git reset --hard*)"]}, "model": "x"}
+    assert len(changes) == 3
+
+
+def test_merge_treats_null_mcp_servers_and_servers_as_absent_and_adds_context7():
+    assert merge_managed_json(".mcp.json", TPL_MCP, {"mcpServers": None})[0] == TPL_MCP
+    assert merge_managed_json(".cursor/mcp.json", TPL_CURSOR, {"mcpServers": None})[0] == TPL_CURSOR
+    assert merge_managed_json(".vscode/mcp.json", TPL_VSCODE, {"servers": None})[0] == TPL_VSCODE
+
+
+def test_merge_fills_an_empty_context7_entry_with_the_template_fields_even_when_it_was_installed():
+    merged, changes = merge_managed_json(".mcp.json", TPL_MCP, {"mcpServers": {"context7": {}}}, ["mcp:context7"])
+    assert merged == TPL_MCP
+    assert changes == ["~ mcpServers.context7"]

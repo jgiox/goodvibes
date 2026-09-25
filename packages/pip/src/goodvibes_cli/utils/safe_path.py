@@ -3,10 +3,16 @@ from __future__ import annotations
 
 import os
 import pathlib
+import re
 
 
 class SymlinkError(OSError):
     pass
+
+
+def printable(text: str) -> str:
+    # Repo files arrive with any clone; raw escape codes in them could rewrite what the terminal shows.
+    return re.sub(r"[\x00-\x1f\x7f-\x9f]", "?", text)
 
 
 def check_writable(root: pathlib.Path, dest: pathlib.Path) -> None:

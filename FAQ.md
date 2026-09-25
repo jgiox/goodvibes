@@ -255,6 +255,8 @@ goodvibes keeps its rules between a `<!-- goodvibes:start -->` line and a `<!-- 
 
 You can also delete the file and run `goodvibes init`, which recreates it. Your files are kept, but goodvibes then treats every file that is already there as yours, so `goodvibes update` stops refreshing them. Fixing the conflict avoids that.
 
+If the message says `is not a valid goodvibes manifest`, the file is valid JSON but one entry is wrong: a setting of the wrong type, or a file path that is not a plain path inside the folder (for example one that starts with `/` or contains `..`). goodvibes stops instead of guessing, because a `.goodvibes.json` that came with a cloned project could otherwise make `goodvibes update` delete files that goodvibes never wrote. The message names the entry. Fix it or delete the file as described above.
+
 ### Why did the File Size check fail on my pull request?
 
 goodvibes ships a CI check (an automatic test GitHub runs on every pull request) that keeps code files small, because AI tools read and edit small files more cheaply and more reliably. A code file may have at most 500 lines, and a file that is already longer may not grow. Ask your AI tool to move the new code into a new file.

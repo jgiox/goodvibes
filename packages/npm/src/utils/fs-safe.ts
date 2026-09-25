@@ -2,6 +2,9 @@ import { randomUUID } from 'node:crypto'
 import { chmod, lstat, readdir, realpath, rename, rm, rmdir, stat, writeFile } from 'node:fs/promises'
 import { basename, dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
 
+// Repo files arrive with any clone; raw escape codes in them could rewrite what the terminal shows.
+export const printable = (s: string): string => s.replace(/[\u0000-\u001f\u007f-\u009f]/g, '?')
+
 // path.relative, not a string prefix: "/proj-evil" must not count as inside "/proj".
 const inside = (root: string, p: string): boolean => {
   const r = relative(root, p)

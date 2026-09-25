@@ -11,6 +11,7 @@ from typing import Annotated
 import typer
 from rich.console import Console
 from rich.panel import Panel
+from rich.text import Text
 
 from goodvibes_cli.steps.copy_templates import FILE_SIZE_WORKFLOW, list_template_files, resolve_templates_dir
 from goodvibes_cli.steps.git_hook import KEEPS, REMOVED_LINE, hook_line, install_git_hook
@@ -18,13 +19,18 @@ from goodvibes_cli.steps.write_manifest import USER_OWNED, USER_REMOVED, Manifes
 from goodvibes_cli.utils.detect_project_type import detect_project_type
 from goodvibes_cli.utils.json_merge import MANAGED_JSON, managed_record, merge_managed_json, shape_error, write_json
 from goodvibes_cli.steps.global_setup import apply_global_config, claude_config_dir, format_global
-from goodvibes_cli.utils.safe_path import SymlinkError, check_writable, remove_retired
+from goodvibes_cli.utils.safe_path import SymlinkError, check_writable, printable, remove_retired
 from goodvibes_cli.utils.scope import global_owned
 from goodvibes_cli.utils.sentinel_merge import ClaudeMdError, merge_claude
 
 console = Console()
 
 REMOVED = "removed by you, not re-added (run goodvibes init to restore)"
+
+
+def _shown(lines: list[str]) -> Text:
+    # Keys and JSON errors come from repo files: keep our own line breaks, replace other control characters, and never parse Rich markup.
+    return Text("\n".join(printable(line) for line in "\n".join(lines).split("\n")))
 
 
 def _group(rel: str) -> str | None:
@@ -71,13 +77,13 @@ def update_cmd(
     g_plan = None
     if global_manifest is not None or (manifest or {}).get("scope") == "global":
         g_plan = apply_global_config(template_dir, version, dry_run=True, restore=False)
-        console.print(Panel(format_global(g_plan, None, None), title=f"{'Dry run — ' if dry_run else 'Planned — '}Global setup ({g_plan['config_dir']})"))
+        console.print(Panel(Text(format_global(g_plan, None, None)), title=f"{'Dry run — ' if dry_run else 'Planned — '}Global setup ({g_plan['config_dir']})"))
     global_changes = len(g_plan["written"]) + len(g_plan["retired"]) + len(g_plan["settings_changes"]) if g_plan else 0
 
     def apply_global() -> None:
         if g_plan is not None:
             g = apply_global_config(template_dir, version, dry_run=False, restore=False)
-            console.print(Panel(format_global(g, None, None), title=f"Global setup ({g['config_dir']})"))
+            console.print(Panel(Text(format_global(g, None, None)), title=f"Global setup ({g['config_dir']})"))
 
     if manifest is None:
         if dry_run:
@@ -222,19 +228,19 @@ def update_cmd(
             hook_notes.append(hook_line(hook_plan, True))
     hook_changes = hook_plan is not None and hook_plan["status"] in ("installed", "updated")
     if dry_run:
-        console.print(Panel("\n".join(lines), title="Dry run — no files written"))
+        console.print(Panel(_shown(lines), title="Dry run — no files written"))
         for note in hook_notes:
             console.print(note, markup=False)
         console.rule("Run without --dry-run to apply.")
         return
 
-    if not force and (overwrite or merges or retired or global_changes or hook_changes):
-        console.print(Panel("\n".join(lines), title="Planned — project files"))
+    if not force and (overwrite or net_new or merges or retired or global_changes or hook_changes):
+        console.print(Panel(_shown(lines), title="Planned — project files"))
         for note in hook_notes:
             console.print(note, markup=False)
         also_global = f" and apply {global_changes} change(s) to your Claude Code settings" if global_changes else ""
         confirmed = typer.confirm(
-            f"Overwrite {len(overwrite)} managed file(s) and merge goodvibes keys into {len(merges)} file(s){also_global}?"
+            f"Overwrite {len(overwrite)} managed file(s), add {len(net_new)}, merge goodvibes keys into {len(merges)} file(s){also_global}?"
         )
         if not confirmed:
             console.rule("Update cancelled.")
@@ -311,16 +317,16 @@ def update_cmd(
     summary = applied + [f"{rel} (merged {len(ch)} goodvibes key(s))" for rel, _, ch in merges]
     summary += [f"Not merged: {e}" for e in merge_errors]
     summary += [f"{rel}: removed, no longer shipped by goodvibes" for rel in retired]
-    console.print(Panel("\n".join(summary) or "(none)", title="Updated"))
+    console.print(Panel(_shown(summary or ["(none)"]), title="Updated"))
     if not_written:
-        console.print(Panel("\n".join(not_written), title="Not written (symlinks are never followed)"))
+        console.print(Panel(_shown(not_written), title="Not written (symlinks are never followed)"))
     for rel in removed:
-        console.print(f"{rel}: {REMOVED}", markup=False)
+        console.print(printable(f"{rel}: {REMOVED}"), markup=False)
     hook_msg = REMOVED_LINE if hook_removed else hook_line(hook_result, False) if hook_result else None
     if hook_msg:
         console.print(hook_msg, markup=False)
     if problems:
-        console.print(Panel("\n".join(problems), title="Not updated — needs your attention"))
+        console.print(Panel(_shown(problems), title="Not updated — needs your attention"))
         console.rule("[red]Update finished with problems.[/red]")
         raise typer.Exit(1)
     console.rule("[green]Update complete![/green]")

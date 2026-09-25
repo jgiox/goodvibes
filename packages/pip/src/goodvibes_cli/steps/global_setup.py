@@ -14,7 +14,7 @@ from goodvibes_cli.steps.copy_templates import list_template_files
 from goodvibes_cli.steps.write_manifest import MANIFEST_PATH, USER_OWNED, USER_REMOVED, read_manifest
 from goodvibes_cli.utils.json_merge import merge_managed_json, present_ids, shape_error, write_json
 from goodvibes_cli.utils.scope import goodvibes_block
-from goodvibes_cli.utils.safe_path import remove_retired
+from goodvibes_cli.utils.safe_path import printable, remove_retired
 
 CONTEXT7_URL = "https://mcp.context7.com/mcp"
 
@@ -164,4 +164,4 @@ def format_global(g: dict, cli: dict | None, c7: dict | None) -> str:
         lines.append(f"context7 MCP: {c7['status']}" + (f" ({c7['reason']})" if c7.get("reason") else ""))
     if cli:
         lines.append(f"goodvibes CLI: {cli['status']}" + (f" ({cli['reason']})" if cli.get("reason") else ""))
-    return "\n".join(lines) or "already up to date"
+    return "\n".join(map(printable, lines)) or "already up to date"

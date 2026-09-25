@@ -122,3 +122,10 @@ describe('assertSafe', () => {
     await expect(assertSafe('/proj', 'docs/x.md')).resolves.toBeUndefined()
   })
 })
+
+describe('printable', () => {
+  it('replaces terminal control characters with ? and keeps the rest of the text', async () => {
+    const { printable } = await import('./fs-safe.js')
+    expect(printable('a\u001b[2Jb\nc\u009bé')).toBe('a?[2Jb?c?é')
+  })
+})

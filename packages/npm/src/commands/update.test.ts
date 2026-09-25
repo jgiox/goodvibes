@@ -63,6 +63,7 @@ vi.mock('../utils/fs-safe.js', () => ({
   writeBlocked: vi.fn().mockResolvedValue(null),
   assertSafe: vi.fn().mockResolvedValue(undefined),
   writeFileAtomic: vi.fn().mockResolvedValue(undefined),
+  printable: (s: string) => s,
 }))
 
 vi.mock('fs-extra', () => ({

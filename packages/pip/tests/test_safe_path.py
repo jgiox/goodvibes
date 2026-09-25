@@ -30,3 +30,9 @@ def test_check_writable_rejects_a_path_that_escapes_the_root(tmp_path):
     proj.mkdir()
     with pytest.raises(SymlinkError, match="outside the project"):
         check_writable(proj, proj / ".." / "x.md")
+
+
+
+def test_printable_replaces_terminal_control_characters_with_a_question_mark_and_keeps_the_rest():
+    from goodvibes_cli.utils.safe_path import printable
+    assert printable("a\x1b[2Jb\nc\x9bé") == "a?[2Jb?c?é"

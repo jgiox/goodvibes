@@ -4,7 +4,7 @@ import { listTemplateFiles, resolveTemplatesDir } from '../steps/copy-templates.
 import { readManifest, writeManifest, posixKey, USER_OWNED, USER_REMOVED, type Manifest } from '../steps/write-manifest.js'
 import { mergeClaude, MarkerError } from '../utils/sentinel-merge.js'
 import { MANAGED_JSON, mergeManagedJson, managedRecord, isJsonObject, shapeError } from '../utils/json-merge.js'
-import { assertSafe, removeRetired, writeBlocked, writeFileAtomic } from '../utils/fs-safe.js'
+import { assertSafe, printable, removeRetired, writeBlocked, writeFileAtomic } from '../utils/fs-safe.js'
 import { applyGlobalConfig, claudeConfigDir, formatGlobal } from '../steps/global-setup.js'
 import { GLOBAL_OWNED, type Scope } from '../utils/scope.js'
 import { detectProjectType } from '../utils/detect-project-type.js'
@@ -17,6 +17,8 @@ import { copy } from 'fs-extra'
 import { gitHookLine, hookInPlace, installGitHook, type GitHookResult } from '../steps/git-hook.js'
 
 const removedNote = (rel: string) => `${rel}: removed by you, not re-added (run goodvibes init to restore)`
+// Keys and JSON errors come from repo files: keep our own line breaks, replace every other control character.
+const shown = (lines: (string | null | false | undefined)[]): string => lines.filter(Boolean).join('\n').split('\n').map(printable).join('\n')
 
 // init skips a whole layer (CI when the project had workflows, .github/docs under --minimal); update must not add it later.
 const layer = (rel: string) =>
@@ -184,7 +186,7 @@ export async function runUpdate(dryRun: boolean, force: boolean): Promise<void> 
 
   if (manifest) {
     note(
-      [
+      shown([
         overwrite.length > 0 ? `Will overwrite (${overwrite.length}): ${overwrite.join(', ')}` : null,
         skip.length > 0 ? `Will skip — user-modified (${skip.length}): ${skip.join(', ')}` : null,
         netNew.length > 0 ? `Will add net-new (${netNew.length}): ${netNew.join(', ')}` : null,
@@ -195,9 +197,7 @@ export async function runUpdate(dryRun: boolean, force: boolean): Promise<void> 
         ...removed.map(removedNote),
         ...Object.values(blocked),
         hookRemoved ? removedNote('.git/hooks/pre-commit') : hookPlan && gitHookLine(hookPlan, true),
-      ]
-        .filter(Boolean)
-        .join('\n') || 'Nothing to change in this project.',
+      ]) || 'Nothing to change in this project.',
       dryRun ? 'Dry run — no files written' : 'Plan',
     )
   }
@@ -299,7 +299,7 @@ export async function runUpdate(dryRun: boolean, force: boolean): Promise<void> 
 
   const applied = overwrite.length + netNew.length
   note(
-    [
+    shown([
       `Applied ${applied} file(s). Skipped ${skip.length + kept.length} user-modified file(s).`,
       ...merges.map(m => `Merged ${m.changes.length} goodvibes key(s) into ${m.rel}.`),
       ...retired.map(rel => `${rel}: removed, no longer shipped by goodvibes`),
@@ -309,7 +309,7 @@ export async function runUpdate(dryRun: boolean, force: boolean): Promise<void> 
       ...(manifestBlocked ? [manifestBlocked] : []),
       ...claudeProblems,
       hookRemoved ? removedNote('.git/hooks/pre-commit') : hookResult && gitHookLine(hookResult, false),
-    ].filter(Boolean).join('\n'),
+    ]),
     'Update complete',
   )
   if (claudeProblems.length > 0) {
