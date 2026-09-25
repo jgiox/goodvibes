@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import importlib.metadata
+import math
 import pathlib
 import shutil
 import subprocess
@@ -61,6 +62,18 @@ def _check_headroom() -> CheckResult:
         return CheckResult("headroom not installed (optional: compresses what Claude reads)", "warn", HEADROOM_REMEDY)
     except (subprocess.CalledProcessError, subprocess.TimeoutExpired):
         return CheckResult("headroom not working (optional: compresses what Claude reads)", "warn", HEADROOM_REMEDY)
+
+
+def _check_journal(cwd: pathlib.Path) -> list[CheckResult]:
+    path = cwd / "JOURNAL.md"
+    if not path.is_file() or path.stat().st_size <= 10 * 1024:
+        return []
+    kb = math.ceil(path.stat().st_size / 1024)
+    return [CheckResult(
+        f"JOURNAL.md is {kb} KB; agents read it every session",
+        "warn",
+        'Keep lasting decisions in its "Standing decisions" section and keep new entries short.',
+    )]
 
 
 def _check_goodvibes_cli() -> CheckResult:
@@ -143,7 +156,7 @@ def doctor_cmd(
         # Exit 2 from a SessionStart hook blocks the session, so quick mode reports and always exits 0.
         # Outside a goodvibes project (no manifest) only the machine-wide git checks apply.
         scope, manifest_checks = _project_scope(cwd)
-        checks = [_check_git_config("user.name"), _check_git_config("user.email"), *manifest_checks, *(_rule_checks(cwd, scope) if scope else [])]
+        checks = [_check_git_config("user.name"), _check_git_config("user.email"), *manifest_checks, *(_rule_checks(cwd, scope) if scope else []), *_check_journal(cwd)]
         for r in checks:
             if r.status in ("warn", "fail"):
                 typer.echo(f"goodvibes doctor: {SYMBOLS[r.status]} {r.label}." + (f" {r.remedy}" if r.remedy else ""))
@@ -157,6 +170,7 @@ def doctor_cmd(
         _check_git_config("user.email"),
         *manifest_checks,
         *_rule_checks(cwd, scope),
+        *_check_journal(cwd),
     ]
 
     version = _installed_version()

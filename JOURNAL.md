@@ -1863,3 +1863,4 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 - RED: regression test; rich read `[all]` in the headroom remedy as markup and dropped it (a server name in brackets would be read the same way).
 - GREEN: doctor panels render labels and remedies as plain `Text`, not markup.
 - RED: JOURNAL.md over 10 KB warns in doctor and doctor --quick; the file is not changed.
+- GREEN: `_check_journal` (size rounded up to whole KB, 1 KB = 1024 bytes); runs in both modes.
