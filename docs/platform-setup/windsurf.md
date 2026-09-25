@@ -4,7 +4,9 @@
 
 The git commit check also works here: `goodvibes init` adds a git hook that blocks any commit that leaves out `JOURNAL.md`.
 
-**What you do not get:** the Claude Code guard rails (the read guard, the session-start check and the permissions), the Claude Code skills such as caveman, `goodvibes usage`, and the Claude Code slash commands such as `/ponytail-review`. goodvibes sets up context7 and headroom for Claude Code only; you can add context7 to Windsurf yourself (see below). See [Getting started](../getting-started.md) for what each piece does.
+The journal check and the read guard run in Windsurf too: `goodvibes init` writes them to `.windsurf/hooks.json`, which runs the same two scripts as Claude Code before a command and before a file read. This was checked against Windsurf's documentation or source code, not by running Windsurf. See [Which AI tools run the hooks](../getting-started.md#which-ai-tools-run-the-hooks).
+
+**What you do not get:** the other Claude Code guard rails (the session-start check and the permissions), the Claude Code skills such as caveman, `goodvibes usage`, and the Claude Code slash commands such as `/ponytail-review`. goodvibes sets up context7 and headroom for Claude Code only; you can add context7 to Windsurf yourself (see below). See [Getting started](../getting-started.md) for what each piece does.
 
 ## Setup
 
@@ -37,4 +39,4 @@ Windsurf uses `serverUrl` here, not `url` as Cursor does. To remove context7 lat
 
 ## Turn it off
 
-Delete `.windsurfrules`. `goodvibes update` does not bring it back.
+Delete `.windsurfrules`. To turn off the hooks too, delete `.windsurf/hooks.json`. `goodvibes update` does not bring either back.

@@ -5,7 +5,8 @@ import { join } from 'node:path'
 // MCP files and the key each tool keeps its servers under.
 const MCP_KEY: Record<string, string> = { '.mcp.json': 'mcpServers', '.cursor/mcp.json': 'mcpServers', '.vscode/mcp.json': 'servers' }
 
-export const MANAGED_JSON = ['.claude/settings.json', ...Object.keys(MCP_KEY)]
+// Gemini CLI and Codex keep hooks in Claude Code's shape, so their files merge like settings.json.
+export const MANAGED_JSON = ['.claude/settings.json', '.gemini/settings.json', '.codex/hooks.json', ...Object.keys(MCP_KEY)]
 
 type Json = Record<string, any>
 
@@ -24,6 +25,24 @@ function hookId(group: Json): string | null {
 export const isJsonObject = (v: unknown): v is Json => typeof v === 'object' && v !== null && !Array.isArray(v)
 
 const same = (a: unknown, b: unknown): boolean => JSON.stringify(a) === JSON.stringify(b)
+
+// The merge reads and extends these containers, so a wrong type would crash it or corrupt the file.
+export function shapeError(rel: string, content: Json): string | null {
+  const obj = (v: unknown, path: string) => (v == null || isJsonObject(v) ? null : `"${path}" is not a JSON object`)
+  const arr = (v: unknown, path: string) => (v == null || Array.isArray(v) ? null : `"${path}" is not a JSON array`)
+  const key = MCP_KEY[rel]
+  if (key) {
+    const servers = content[key]
+    return obj(servers, key) ?? Object.entries<unknown>(servers ?? {}).map(([n, v]) => obj(v, `${key}.${n}`)).find(Boolean) ?? null
+  }
+  const problems = [obj(content.permissions, 'permissions'), obj(content.hooks, 'hooks')]
+  for (const list of ['allow', 'ask', 'deny']) problems.push(arr(content.permissions?.[list], `permissions.${list}`))
+  for (const [event, groups] of Object.entries<unknown>(isJsonObject(content.hooks) ? content.hooks : {})) {
+    problems.push(arr(groups, `hooks.${event}`))
+    if (Array.isArray(groups)) groups.forEach((g, i) => problems.push(obj(g, `hooks.${event}[${i}]`) ?? arr(g?.hooks, `hooks.${event}[${i}].hooks`)))
+  }
+  return problems.find(Boolean) ?? null
+}
 
 // Ids of every goodvibes-managed key the template defines for this file.
 export function managedIds(rel: string, tpl: Json): string[] {
@@ -151,7 +170,7 @@ export async function managedRecord(
     } catch {
       continue // unparseable user file: keep the previous record rather than guess
     }
-    if (!isJsonObject(content)) continue
+    if (!isJsonObject(content) || shapeError(rel, content)) continue
     const tpl = JSON.parse(await readFile(tplPath, 'utf-8'))
     record[rel] = [...new Set([...(prev[rel] ?? []), ...presentIds(rel, tpl, content)])]
   }

@@ -4,6 +4,8 @@ import { execa } from 'execa'
 import { versionGte } from '../utils/sentinel-merge.js'
 import { packageVersion } from '../utils/version.js'
 import { runUpdate } from './update.js'
+import { readManifest } from '../steps/write-manifest.js'
+import { claudeConfigDir } from '../steps/global-setup.js'
 
 const _GV_UPGRADING = '_GV_UPGRADING'
 
@@ -73,6 +75,17 @@ export function registerUpgradeCommand(program: Command): void {
         }
       }
 
+      // In a folder goodvibes never set up, update's "not set up here" reads like a failed upgrade.
+      const setUp = await Promise.all([readManifest(process.cwd()), readManifest(claudeConfigDir())]).then(([p, g]) => Boolean(p || g), () => true)
+      if (!setUp) {
+        note(
+          `goodvibes ${current} is installed. This folder has no goodvibes setup, so there is nothing to update here.\n` +
+            'To update a project, go into its folder and run: goodvibes update\n' +
+            'To set up a new project, go into its folder and run: goodvibes init',
+          'Nothing to update here',
+        )
+        return
+      }
       await runUpdate(dryRun, false)
     })
 }

@@ -1,7 +1,7 @@
 """Unit tests for json_merge (pure functions, no I/O)."""
 import copy
 
-from goodvibes_cli.utils.json_merge import managed_ids, merge_managed_json, present_ids
+from goodvibes_cli.utils.json_merge import managed_ids, merge_managed_json, present_ids, shape_error
 
 GATE = {"matcher": "Bash", "hooks": [{"type": "command", "command": ": goodvibes-journal-gate; exit 0"}]}
 GATE_V2 = {"matcher": "Bash", "hooks": [{"type": "command", "command": ": goodvibes-journal-gate; exit 2"}]}
@@ -195,3 +195,21 @@ def test_write_json_keeps_a_restrictive_0600_mode(tmp_path):
     os.chmod(f, 0o600)
     write_json(f, {"a": 1})
     assert stat.S_IMODE(f.stat().st_mode) == 0o600
+
+
+def test_shape_error_returns_none_for_well_formed_settings_and_mcp_files_and_for_files_without_those_keys():
+    assert shape_error(".claude/settings.json", TPL_SETTINGS) is None
+    assert shape_error(".claude/settings.json", {}) is None
+    assert shape_error(".cursor/mcp.json", {"mcpServers": {"context7": {"url": "https://mcp.context7.com/mcp"}}}) is None
+    assert shape_error(".vscode/mcp.json", {}) is None
+    assert shape_error(".claude/settings.json", {"hooks": None, "permissions": {"deny": None}}) is None
+    assert shape_error(".claude/settings.json", {"hooks": {"PreToolUse": [None]}}) is None
+
+
+def test_shape_error_names_the_first_container_whose_type_the_merge_cannot_use():
+    assert shape_error(".mcp.json", {"mcpServers": []}) == '"mcpServers" is not a JSON object'
+    assert shape_error(".vscode/mcp.json", {"servers": {"context7": "x"}}) == '"servers.context7" is not a JSON object'
+    assert shape_error(".claude/settings.json", {"permissions": {"ask": "Bash(git push*)"}}) == '"permissions.ask" is not a JSON array'
+    assert shape_error(".claude/settings.json", {"hooks": {"PreToolUse": {}}}) == '"hooks.PreToolUse" is not a JSON array'
+    assert shape_error(".claude/settings.json", {"hooks": {"PreToolUse": ["x"]}}) == '"hooks.PreToolUse[0]" is not a JSON object'
+    assert shape_error(".claude/settings.json", {"hooks": {"PreToolUse": [{"hooks": {}}]}}) == '"hooks.PreToolUse[0].hooks" is not a JSON array'

@@ -235,6 +235,25 @@ describe('update command — JSON-aware merge of settings.json and .mcp.json (UP
     expect(m.mcpServers.context7).toEqual(JSON.parse(tplMcp).mcpServers.context7)
   })
 
+  it('merges the goodvibes hooks into existing Gemini CLI and Codex hook files and keeps the user settings and hooks', async () => {
+    const userGroup = { matcher: 'write_file', hooks: [{ type: 'command', command: 'npx prettier --check .' }] }
+    for (const rel of ['.gemini/settings.json', '.codex/hooks.json']) {
+      mkdirSync(join(templateDir, rel, '..'), { recursive: true })
+      writeFileSync(join(templateDir, rel), readFileSync(join(realTemplates, rel), 'utf-8'))
+      mkdirSync(join(projectDir, rel, '..'), { recursive: true })
+    }
+    writeFileSync(join(projectDir, '.gemini', 'settings.json'), JSON.stringify({ theme: 'GitHub', hooks: { BeforeTool: [userGroup] } }))
+    writeFileSync(join(projectDir, '.codex', 'hooks.json'), JSON.stringify({ hooks: { PreToolUse: [userGroup] } }))
+    writeManifestFile({})
+
+    await runUpdate('--force')
+
+    const gemini = readJson('.gemini/settings.json')
+    expect(gemini.theme).toBe('GitHub')
+    expect(gemini.hooks.BeforeTool).toEqual([userGroup, ...JSON.parse(readFileSync(join(realTemplates, '.gemini', 'settings.json'), 'utf-8')).hooks.BeforeTool])
+    expect(readJson('.codex/hooks.json').hooks.PreToolUse).toEqual([userGroup, ...JSON.parse(readFileSync(join(realTemplates, '.codex', 'hooks.json'), 'utf-8')).hooks.PreToolUse])
+  })
+
   describe('context7 in the Cursor and VS Code MCP files', () => {
     const context7 = { type: 'http', url: 'https://mcp.context7.com/mcp' }
     const tpl = { '.cursor/mcp.json': { mcpServers: { context7: { url: context7.url } } }, '.vscode/mcp.json': { servers: { context7 } } }
@@ -361,6 +380,30 @@ describe('update command — JSON-aware merge of settings.json and .mcp.json (UP
     const out = vi.mocked(note).mock.calls.map(c => String(c[0])).join('\n')
     expect(out).toContain('.claude/settings.json: not a JSON object; left unchanged')
     expect(out).toContain('.mcp.json: not a JSON object; left unchanged')
+  })
+
+  it('leaves an MCP file or settings.json whose nested maps have the wrong type unchanged and reports each one', async () => {
+    for (const d of ['.cursor', '.vscode']) {
+      mkdirSync(join(templateDir, d), { recursive: true })
+      writeFileSync(join(templateDir, d, 'mcp.json'), readFileSync(join(realTemplates, d, 'mcp.json'), 'utf-8'))
+      mkdirSync(join(projectDir, d), { recursive: true })
+    }
+    writeFileSync(join(projectDir, '.cursor', 'mcp.json'), '{"mcpServers":[]}')
+    writeFileSync(join(projectDir, '.vscode', 'mcp.json'), '{"servers":"oops"}')
+    writeFileSync(join(projectDir, '.claude', 'settings.json'), '{"hooks":[]}')
+    writeManifestFile({ '.cursor/mcp.json': 'old-hash', '.vscode/mcp.json': 'old-hash', '.claude/settings.json': 'old-hash' })
+    const { note } = await import('@clack/prompts')
+    vi.mocked(note).mockClear()
+
+    await runUpdate('--force')
+
+    expect(readFileSync(join(projectDir, '.cursor', 'mcp.json'), 'utf-8')).toBe('{"mcpServers":[]}')
+    expect(readFileSync(join(projectDir, '.vscode', 'mcp.json'), 'utf-8')).toBe('{"servers":"oops"}')
+    expect(readFileSync(join(projectDir, '.claude', 'settings.json'), 'utf-8')).toBe('{"hooks":[]}')
+    const out = vi.mocked(note).mock.calls.map(c => String(c[0])).join('\n')
+    expect(out).toContain('.cursor/mcp.json: "mcpServers" is not a JSON object; left unchanged, fix it and re-run update')
+    expect(out).toContain('.vscode/mcp.json: "servers" is not a JSON object; left unchanged, fix it and re-run update')
+    expect(out).toContain('.claude/settings.json: "hooks" is not a JSON object; left unchanged, fix it and re-run update')
   })
 
   it('leaves no temp files next to the JSON files it writes', async () => {

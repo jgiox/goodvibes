@@ -495,6 +495,29 @@ def test_update_reports_settings_that_are_not_a_json_object_and_leaves_them_unch
     assert ".claude/settings.json: not a JSON object; left unchanged" in _ANSI.sub("", result.output)
 
 
+def test_update_reports_mcp_files_and_settings_whose_nested_maps_have_the_wrong_type_and_leaves_them_unchanged(merge_dirs):
+    tpl = merge_dirs.parent / "templates"
+    for d, key in ((".cursor", "mcpServers"), (".vscode", "servers")):
+        (tpl / d).mkdir()
+        (tpl / d / "mcp.json").write_text(json.dumps({key: {"context7": {"url": "https://mcp.context7.com/mcp"}}}), encoding="utf-8")
+        (merge_dirs / d).mkdir()
+    (merge_dirs / ".cursor" / "mcp.json").write_text('{"mcpServers":[]}', encoding="utf-8")
+    (merge_dirs / ".vscode" / "mcp.json").write_text('{"servers":"oops"}', encoding="utf-8")
+    (merge_dirs / ".claude" / "settings.json").write_text('{"hooks":[]}', encoding="utf-8")
+    _write_manifest(merge_dirs, {".cursor/mcp.json": "old-hash", ".vscode/mcp.json": "old-hash", ".claude/settings.json": "old-hash"})
+
+    result = runner.invoke(app, ["update", "--force"])
+
+    assert result.exit_code == 0, result.output
+    assert (merge_dirs / ".cursor" / "mcp.json").read_text(encoding="utf-8") == '{"mcpServers":[]}'
+    assert (merge_dirs / ".vscode" / "mcp.json").read_text(encoding="utf-8") == '{"servers":"oops"}'
+    assert (merge_dirs / ".claude" / "settings.json").read_text(encoding="utf-8") == '{"hooks":[]}'
+    out = " ".join(_ANSI.sub("", result.output).replace("│", " ").split())
+    assert '.cursor/mcp.json: "mcpServers" is not a JSON object; left unchanged, fix it and re-run update' in out
+    assert '.vscode/mcp.json: "servers" is not a JSON object; left unchanged, fix it and re-run update' in out
+    assert '.claude/settings.json: "hooks" is not a JSON object; left unchanged, fix it and re-run update' in out
+
+
 def test_update_merge_keeps_non_ascii_text_in_settings(merge_dirs):
     (merge_dirs / ".claude" / "settings.json").write_text(json.dumps({"env": {"GREETING": "héllo"}}, ensure_ascii=False), encoding="utf-8")
     _write_manifest(merge_dirs, {".claude/settings.json": "old-hash"})
@@ -789,3 +812,25 @@ def test_update_answering_no_leaves_the_git_hook_and_manifest_unchanged(plain_di
     confirm.assert_called_once()
     hook.assert_called_once_with(project_dir, True)
     assert (project_dir / ".goodvibes.json").read_text(encoding="utf-8") == before
+
+
+def test_update_merges_the_goodvibes_hooks_into_existing_gemini_and_codex_hook_files_and_keeps_the_user_settings_and_hooks(merge_dirs):
+    real = pathlib.Path(__file__).resolve().parents[3] / "templates"
+    tpl = merge_dirs.parent / "templates"
+    user_group = {"matcher": "write_file", "hooks": [{"type": "command", "command": "npx prettier --check ."}]}
+    for rel in (".gemini/settings.json", ".codex/hooks.json"):
+        (tpl / rel).parent.mkdir(parents=True, exist_ok=True)
+        (tpl / rel).write_text((real / rel).read_text(encoding="utf-8"), encoding="utf-8")
+        (merge_dirs / rel).parent.mkdir(parents=True, exist_ok=True)
+    (merge_dirs / ".gemini" / "settings.json").write_text(json.dumps({"theme": "GitHub", "hooks": {"BeforeTool": [user_group]}}), encoding="utf-8")
+    (merge_dirs / ".codex" / "hooks.json").write_text(json.dumps({"hooks": {"PreToolUse": [user_group]}}), encoding="utf-8")
+    _write_manifest(merge_dirs, {})
+
+    result = runner.invoke(app, ["update", "--force"])
+
+    assert result.exit_code == 0, result.output
+    gemini = json.loads((merge_dirs / ".gemini" / "settings.json").read_text(encoding="utf-8"))
+    assert gemini["theme"] == "GitHub"
+    assert gemini["hooks"]["BeforeTool"] == [user_group, *json.loads((real / ".gemini" / "settings.json").read_text(encoding="utf-8"))["hooks"]["BeforeTool"]]
+    codex = json.loads((merge_dirs / ".codex" / "hooks.json").read_text(encoding="utf-8"))
+    assert codex["hooks"]["PreToolUse"] == [user_group, *json.loads((real / ".codex" / "hooks.json").read_text(encoding="utf-8"))["hooks"]["PreToolUse"]]

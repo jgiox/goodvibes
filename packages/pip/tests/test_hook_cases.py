@@ -25,6 +25,12 @@ def _hook_command(hook_id: str, tool: str) -> str:
     raise AssertionError(f'no PreToolUse hook marked "{marker}" is registered for the {tool} tool')
 
 
+def _any_hook_command(hook_id: str) -> str:
+    # Another tool's config runs the same command, so a raw-payload case skips the Claude Code matcher.
+    marker = f": goodvibes-{hook_id};"
+    return next(h["command"] for g in SETTINGS["hooks"]["PreToolUse"] for h in g["hooks"] if h.get("command", "").startswith(marker))
+
+
 def _git(cwd: pathlib.Path, *args: str) -> None:
     subprocess.run(["git", "-c", "commit.gpgsign=false", *args], cwd=cwd, check=True, capture_output=True)
 
@@ -106,9 +112,11 @@ def test_hook_case(tmp_path, hook_id, case):
         FIXTURES[name](tmp_path, *args)
     env = {k: v for k, v in os.environ.items() if not k.startswith("GOODVIBES_READ_GUARD")}
     env.update(_fill(case.get("env") or {}, tmp_path))
-    payload = json.dumps({"tool_name": case["tool"], "tool_input": _fill(case["input"], tmp_path)})
+    raw = case.get("payload")
+    payload = json.dumps(_fill(raw, tmp_path) if raw else {"tool_name": case["tool"], "tool_input": _fill(case["input"], tmp_path)})
+    command = _any_hook_command(hook_id) if raw else _hook_command(hook_id, case["tool"])
     r = subprocess.run(
-        ["sh", "-c", _hook_command(hook_id, case["tool"])], input=payload, cwd=tmp_path, capture_output=True, text=True, env=env
+        ["sh", "-c", command], input=payload, cwd=tmp_path, capture_output=True, text=True, env=env
     )
     assert r.returncode == case["expect"], r.stderr
     if "stderr_contains" in case:

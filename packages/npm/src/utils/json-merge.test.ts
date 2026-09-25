@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { managedIds, presentIds, mergeManagedJson } from './json-merge.js'
+import { managedIds, presentIds, mergeManagedJson, shapeError } from './json-merge.js'
 
 const gate = { matcher: 'Bash', hooks: [{ type: 'command', command: ': goodvibes-journal-gate; exit 0' }] }
 const gateV2 = { matcher: 'Bash', hooks: [{ type: 'command', command: ': goodvibes-journal-gate; exit 2' }] }
@@ -165,5 +165,25 @@ describe('retiring allow rules older goodvibes versions shipped', () => {
   it('leaves allow rules alone when not retiring (the user-level settings file, where goodvibes never wrote allow rules)', () => {
     const { merged } = mergeManagedJson('.claude/settings.json', {}, user)
     expect(merged.permissions.allow).toEqual(user.permissions.allow)
+  })
+})
+
+describe('shapeError', () => {
+  it('returns null for well-formed settings and MCP files, and for files without those keys', () => {
+    expect(shapeError('.claude/settings.json', tplSettings)).toBeNull()
+    expect(shapeError('.claude/settings.json', {})).toBeNull()
+    expect(shapeError('.cursor/mcp.json', tplCursor)).toBeNull()
+    expect(shapeError('.vscode/mcp.json', {})).toBeNull()
+    expect(shapeError('.claude/settings.json', { hooks: null, permissions: { deny: null } })).toBeNull()
+    expect(shapeError('.claude/settings.json', { hooks: { PreToolUse: [null] } })).toBeNull()
+  })
+
+  it('names the first container whose type the merge cannot use', () => {
+    expect(shapeError('.mcp.json', { mcpServers: [] })).toBe('"mcpServers" is not a JSON object')
+    expect(shapeError('.vscode/mcp.json', { servers: { context7: 'x' } })).toBe('"servers.context7" is not a JSON object')
+    expect(shapeError('.claude/settings.json', { permissions: { ask: 'Bash(git push*)' } })).toBe('"permissions.ask" is not a JSON array')
+    expect(shapeError('.claude/settings.json', { hooks: { PreToolUse: {} } })).toBe('"hooks.PreToolUse" is not a JSON array')
+    expect(shapeError('.claude/settings.json', { hooks: { PreToolUse: ['x'] } })).toBe('"hooks.PreToolUse[0]" is not a JSON object')
+    expect(shapeError('.claude/settings.json', { hooks: { PreToolUse: [{ hooks: {} }] } })).toBe('"hooks.PreToolUse[0].hooks" is not a JSON array')
   })
 })

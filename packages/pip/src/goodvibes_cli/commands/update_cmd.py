@@ -16,7 +16,7 @@ from goodvibes_cli.steps.copy_templates import FILE_SIZE_WORKFLOW, list_template
 from goodvibes_cli.steps.git_hook import KEEPS, REMOVED_LINE, hook_line, install_git_hook
 from goodvibes_cli.steps.write_manifest import USER_OWNED, USER_REMOVED, ManifestError, read_manifest, write_manifest
 from goodvibes_cli.utils.detect_project_type import detect_project_type
-from goodvibes_cli.utils.json_merge import MANAGED_JSON, managed_record, merge_managed_json, write_json
+from goodvibes_cli.utils.json_merge import MANAGED_JSON, managed_record, merge_managed_json, shape_error, write_json
 from goodvibes_cli.steps.global_setup import apply_global_config, claude_config_dir, format_global
 from goodvibes_cli.utils.safe_path import SymlinkError, check_writable, remove_retired
 from goodvibes_cli.utils.scope import global_owned
@@ -183,6 +183,10 @@ def update_cmd(
             continue
         if not isinstance(user, dict):
             merge_errors.append(f"{rel}: not a JSON object; left unchanged, fix it and re-run update")
+            continue
+        shape = shape_error(rel, user)
+        if shape:
+            merge_errors.append(f"{rel}: {shape}; left unchanged, fix it and re-run update")
             continue
         tpl = json.loads(tpl_path.read_text(encoding="utf-8"))
         merged, changes = merge_managed_json(rel, tpl, user, (manifest.get("managed") or {}).get(rel), retire_allow=rel == ".claude/settings.json")

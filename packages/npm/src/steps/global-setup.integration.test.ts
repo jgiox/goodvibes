@@ -91,6 +91,14 @@ describe('applyGlobalConfig (real temp CLAUDE_CONFIG_DIR)', () => {
     expect(r.settingsError).toContain('not valid JSON')
   })
 
+  it('reports a global settings.json whose permissions lists have the wrong type and leaves it unchanged', async () => {
+    mkdirSync(cfg, { recursive: true })
+    writeFileSync(join(cfg, 'settings.json'), '{"permissions":{"deny":"Read(./.env)"}}')
+    const r = await applyGlobalConfig(templateDir, '1.8.0', false)
+    expect(readFileSync(join(cfg, 'settings.json'), 'utf-8')).toBe('{"permissions":{"deny":"Read(./.env)"}}')
+    expect(r.settingsError).toBe(`${join(cfg, 'settings.json')}: "permissions.deny" is not a JSON array; left unchanged, fix it and re-run`)
+  })
+
   it('reports a global settings.json that is JSON but not an object and leaves it unchanged', async () => {
     mkdirSync(cfg, { recursive: true })
     writeFileSync(join(cfg, 'settings.json'), '[]')

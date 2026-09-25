@@ -2,7 +2,7 @@
 
 **What you get:** the goodvibes rules (plan first, keep changes small, run the tests, record decisions in `JOURNAL.md`, ask before risky steps), for the AI in your Bolt.new project. If the project is also on GitHub, the GitHub checks run on it as for any other tool.
 
-**What you do not get:** the Claude Code guard rails (the journal check, the read guard, the session-start check and the permissions), the Claude Code skills such as caveman, `goodvibes usage`, and the Claude Code slash commands. goodvibes sets up context7 and headroom for Claude Code only, and does not install anything inside Bolt.new. See [Getting started](../getting-started.md) for what each piece does.
+**What you do not get:** the Claude Code guard rails (the journal check, the read guard, the session-start check and the permissions; Bolt.new has no hooks for them), the Claude Code skills such as caveman, `goodvibes usage`, and the Claude Code slash commands. goodvibes sets up context7 and headroom for Claude Code only, and does not install anything inside Bolt.new. See [Getting started](../getting-started.md) for what each piece does.
 
 ## Setup
 

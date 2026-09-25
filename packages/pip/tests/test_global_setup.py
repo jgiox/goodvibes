@@ -196,6 +196,15 @@ def test_apply_global_config_reports_settings_that_are_not_a_json_object():
     assert "not a JSON object; left unchanged" in r["settings_error"]
 
 
+def test_apply_global_config_reports_settings_whose_permissions_lists_have_the_wrong_type():
+    cfg = _cfg()
+    cfg.mkdir(parents=True)
+    (cfg / "settings.json").write_text('{"permissions":{"deny":"Read(./.env)"}}', encoding="utf-8")
+    r = apply_global_config(TEMPLATES, "1.8.0", dry_run=False)
+    assert (cfg / "settings.json").read_text(encoding="utf-8") == '{"permissions":{"deny":"Read(./.env)"}}'
+    assert r["settings_error"] == f'{cfg / "settings.json"}: "permissions.deny" is not a JSON array; left unchanged, fix it and re-run'
+
+
 def test_update_does_not_recreate_a_skill_the_user_deleted_from_the_config_dir():
     cfg = _cfg()
     apply_global_config(TEMPLATES, "1.8.0", dry_run=False)

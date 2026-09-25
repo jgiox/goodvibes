@@ -162,7 +162,7 @@ describe('secret files', () => {
 })
 
 describe('guard rails', () => {
-  const GUARD_ASK = ['Edit(./.claude/settings.json)', 'Edit(./.claude/settings.local.json)', 'Edit(./.mcp.json)', 'Edit(./.cursor/mcp.json)', 'Edit(./.vscode/mcp.json)', 'Edit(./.claude/hooks/**)']
+  const GUARD_ASK = ['Edit(./.claude/settings.json)', 'Edit(./.claude/settings.local.json)', 'Edit(./.mcp.json)', 'Edit(./.cursor/mcp.json)', 'Edit(./.vscode/mcp.json)', 'Edit(./.claude/hooks/**)', 'Edit(./.codex/hooks.json)', 'Edit(./.gemini/settings.json)', 'Edit(./.github/hooks/**)', 'Edit(./.windsurf/hooks.json)', 'Edit(./.kiro/hooks/**)', 'Edit(./.devin/hooks.v1.json)']
 
   it('asks before the agent edits its own settings, MCP servers or hooks', async () => {
     const { ask } = (await loadSettings()).permissions

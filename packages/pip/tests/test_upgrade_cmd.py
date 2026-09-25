@@ -19,6 +19,7 @@ def no_self_update(mocker):
     independent of how tests mock version_gte."""
     mocker.patch("goodvibes_cli.commands.upgrade_cmd._get_package_version", return_value="1.0.0")
     mocker.patch("goodvibes_cli.commands.upgrade_cmd._check_pypi_version", return_value=None)
+    mocker.patch("goodvibes_cli.commands.upgrade_cmd.read_manifest", return_value={"version": "1.0.0", "files": {}})
 
 
 def test_upgrade_help_has_dry_run():
@@ -209,3 +210,18 @@ def test_upgrade_says_it_could_not_reach_pypi_instead_of_silently_continuing(moc
     assert result.exit_code == 0
     assert "Could not check PyPI for a newer version (no network); updating with the installed version" in out
     mock_update.assert_called_once_with(dry_run=False, force=False)
+
+
+def test_upgrade_says_the_install_worked_and_how_to_update_a_project_instead_of_the_no_manifest_error_when_this_folder_has_no_goodvibes_setup(mocker):
+    mocker.patch("goodvibes_cli.commands.upgrade_cmd.read_manifest", return_value=None)
+    mock_update = mocker.patch("goodvibes_cli.commands.upgrade_cmd.update_cmd")
+    result = runner.invoke(app, ["upgrade"])
+    assert result.exit_code == 0, result.output
+    assert mock_update.call_count == 0
+    out = " ".join(_ANSI.sub("", result.output).replace("│", " ").split())
+    assert "Nothing to update here" in out
+    assert (
+        "goodvibes 1.0.0 is installed. This folder has no goodvibes setup, so there is nothing to update here. "
+        "To update a project, go into its folder and run: goodvibes update "
+        "To set up a new project, go into its folder and run: goodvibes init"
+    ) in out

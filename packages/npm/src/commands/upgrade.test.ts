@@ -4,6 +4,7 @@ vi.mock('@clack/prompts', () => ({ intro: vi.fn(), note: vi.fn() }))
 vi.mock('execa', () => ({ execa: vi.fn() }))
 vi.mock('./update.js', () => ({ runUpdate: vi.fn().mockResolvedValue(undefined) }))
 vi.mock('../utils/version.js', () => ({ packageVersion: () => '1.0.0' }))
+vi.mock('../steps/write-manifest.js', () => ({ readManifest: vi.fn().mockResolvedValue({ version: '1.0.0', files: {} }) }))
 
 async function runUpgrade(...args: string[]) {
   const { registerUpgradeCommand } = await import('./upgrade.js')
@@ -118,6 +119,25 @@ describe('upgrade command', () => {
     await runUpgrade()
 
     expect(vi.mocked(execa)).not.toHaveBeenCalled()
+  })
+
+  it('says the install worked and how to update a project, instead of the no-manifest error, when this folder has no goodvibes setup', async () => {
+    const { execa } = await import('execa')
+    const { note } = await import('@clack/prompts')
+    const { runUpdate } = await import('./update.js')
+    const { readManifest } = await import('../steps/write-manifest.js')
+    vi.mocked(execa).mockResolvedValue({ stdout: '1.0.0' } as never)
+    vi.mocked(readManifest).mockResolvedValue(null)
+
+    await runUpgrade()
+
+    expect(vi.mocked(runUpdate)).not.toHaveBeenCalled()
+    expect(vi.mocked(note)).toHaveBeenCalledWith(
+      'goodvibes 1.0.0 is installed. This folder has no goodvibes setup, so there is nothing to update here.\n' +
+        'To update a project, go into its folder and run: goodvibes update\n' +
+        'To set up a new project, go into its folder and run: goodvibes init',
+      'Nothing to update here',
+    )
   })
 
   it('registers upgrade without an update alias', async () => {

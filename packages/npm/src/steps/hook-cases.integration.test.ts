@@ -12,8 +12,10 @@ const settings = JSON.parse(readFileSync(join(ROOT, 'templates', '.claude', 'set
 
 type Case = {
   name: string
-  tool: string
-  input: Record<string, unknown>
+  tool?: string
+  input?: Record<string, unknown>
+  // Another tool's own stdin JSON; its config runs the same command, so the case skips the Claude Code matcher.
+  payload?: Record<string, unknown>
   setup?: string | string[]
   env?: Record<string, string>
   expect: number
@@ -29,6 +31,9 @@ function hookCommand(id: string, tool: string): string {
   if (!cmd) throw new Error(`no PreToolUse hook marked "${marker}" is registered for the ${tool} tool`)
   return cmd
 }
+
+const anyHookCommand = (id: string): string =>
+  (settings.hooks?.PreToolUse ?? []).flatMap((g: any) => g.hooks).find((h: any) => h.command?.startsWith(`: goodvibes-${id};`))?.command
 
 const git = (cwd: string, ...args: string[]) => execa('git', ['-c', 'commit.gpgsign=false', ...args], { cwd })
 
@@ -87,8 +92,8 @@ for (const file of readdirSync(CASES_DIR).filter(f => f.endsWith('.cases.json') 
           const env: Record<string, string> = {}
           for (const [k, v] of Object.entries(process.env)) if (v !== undefined && !k.startsWith('GOODVIBES_READ_GUARD')) env[k] = v
           Object.assign(env, fill(c.env ?? {}, dir))
-          const payload = JSON.stringify({ tool_name: c.tool, tool_input: fill(c.input, dir) })
-          const r = await execa('sh', ['-c', hookCommand(id, c.tool)], { input: payload, cwd: dir, env, extendEnv: false, reject: false })
+          const payload = JSON.stringify(c.payload ? fill(c.payload, dir) : { tool_name: c.tool, tool_input: fill(c.input, dir) })
+          const r = await execa('sh', ['-c', c.payload ? anyHookCommand(id) : hookCommand(id, c.tool!)], { input: payload, cwd: dir, env, extendEnv: false, reject: false })
           expect({ exitCode: r.exitCode, stderr: r.stderr }).toMatchObject({ exitCode: c.expect })
           if (c.stderr_contains !== undefined) expect(r.stderr).toContain(fill(c.stderr_contains, dir))
         } finally {

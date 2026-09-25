@@ -6,7 +6,7 @@ import { dirname, join } from 'node:path'
 import { execa } from 'execa'
 import { listTemplateFiles } from './copy-templates.js'
 import { readManifest, type Manifest, MANIFEST_PATH, USER_OWNED, USER_REMOVED } from './write-manifest.js'
-import { mergeManagedJson, presentIds, isJsonObject } from '../utils/json-merge.js'
+import { mergeManagedJson, presentIds, isJsonObject, shapeError } from '../utils/json-merge.js'
 import { removeRetired, writeFileAtomic } from '../utils/fs-safe.js'
 import { goodvibesBlock } from '../utils/scope.js'
 import { versionGte } from '../utils/sentinel-merge.js'
@@ -122,6 +122,13 @@ export async function applyGlobalConfig(templateDir: string, version: string, dr
   try {
     user = existsSync(settingsPath) ? JSON.parse(await readFile(settingsPath, 'utf-8')) : {}
     if (!isJsonObject(user)) result.settingsError = `${settingsPath}: not a JSON object; left unchanged, fix it and re-run`
+    else {
+      const shape = shapeError('.claude/settings.json', user)
+      if (shape) {
+        result.settingsError = `${settingsPath}: ${shape}; left unchanged, fix it and re-run`
+        user = undefined
+      }
+    }
   } catch (e) {
     result.settingsError = `${settingsPath}: not valid JSON (${(e as Error).message}); left unchanged, fix it and re-run`
   }

@@ -87,7 +87,7 @@ git init -b main
 npx goodvibes-cli init
 ```
 
-`git init -b main` starts a history in this folder, with `main` as the main branch (the goodvibes checks run on `main`). Before your first commit, tell git never to save your secrets file:
+Always run `goodvibes init` inside the project folder, as here, never in your home folder (the folder a new terminal starts in): with `--scope project` it would put the project files there. `git init -b main` starts a history in this folder, with `main` as the main branch (the goodvibes checks run on `main`). Before your first commit, tell git never to save your secrets file:
 
 ```sh
 echo ".env" >> .gitignore
