@@ -90,7 +90,9 @@ def _fill(v, d: pathlib.Path):
 
 CASES = [
     pytest.param(f.name.removesuffix(".cases.json"), c, id=f"{f.name.removesuffix('.cases.json')}: {c['name']}")
+    # git-*.cases.json are git hooks, not Claude Code hooks; test_git_hook_cases.py runs them.
     for f in sorted(CASES_DIR.glob("*.cases.json"))
+    if not f.name.startswith("git-")
     for c in json.loads(f.read_text(encoding="utf-8"))
 ]
 
