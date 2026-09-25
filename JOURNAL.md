@@ -1968,3 +1968,18 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 - GREEN: `usage_cmd.py` layout, messages, stderr reporting and `--days` check (also fixed a RED test that forgot to create the projects folder).
 - doctor MCP check: server names, keys, packages and hosts from .mcp.json (which arrives with any cloned repo) were printed raw, so escape codes such as ESC[2J reached the terminal (seen in an npm/pip parity run). RED tests in both packages; fix replaces C0/C1 control characters with ? in each MCP label and remedy.
 - GREEN: npm `printable()` in mcp-check.ts and pip `_printable()` in doctor_cmd.py. npm mcp-check 19/19, typecheck clean; pip 454 passed.
+
+## 2026-09-25 · Read guard hook and shared hook test cases
+
+**What I did:** Added a second PreToolUse hook, `: goodvibes-read-guard;` (matcher `Read|Bash`, placed after the journal gate). It blocks whole-file reads of big files (over 800 lines or 100 KB; `GOODVIBES_READ_GUARD_LINES` / `_KB` override) and any Read or Bash read of secret files (`.env*` except example/sample/template, `*.pem`, `id_rsa`/`id_ed25519`/`id_ecdsa`, `.ssh/`, `.aws/credentials`, `.git-credentials`, `.netrc`). `GOODVIBES_READ_GUARD=off` turns it off. Hook test cases now live in `tests/hooks/<id>.cases.json`, run by one vitest and one pytest runner against the real hook command in `templates/.claude/settings.json`.
+
+**Files changed:** tests/hooks/read-guard.cases.json, packages/npm/src/steps/hook-cases.integration.test.ts, packages/pip/tests/test_hook_cases.py, JOURNAL.md.
+
+**Why:** Whole-file reads of big files waste context tokens, and the Read deny rules do not cover `cat .env` through Bash.
+
+**Tests run:**
+- RED: read-guard cases and runners committed with the hook absent; all 132 read-guard cases fail in both runners.
+- GREEN: hook added to templates/.claude/settings.json and .claude/settings.json (hooks identical; global-setup test now expects 2 PreToolUse groups). vitest 570 passed, 1 skipped; pytest 490 passed; runners also pass under BWK awk, busybox awk and a busybox userland. json-merge needs no change: each marker is its own group.
+- Refactor: 59 of the 68 journal-gate cases moved to tests/hooks/journal-gate.cases.json; the 9 that need unusual setup (git -C into other repos, a -C target outside the temp repo, the fsmonitor bare repo) stay inline in the two journal-gate test files. 68 cases before and after; 200 hook cases pass in each runner.
+
+**Docs updated:** JOURNAL.md.

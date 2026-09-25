@@ -45,7 +45,7 @@ describe('applyGlobalConfig (real temp CLAUDE_CONFIG_DIR)', () => {
     const settings = readJson('settings.json')
     expect(settings.model).toBe('opus')
     expect(settings.permissions.allow).toEqual(['Bash(make*)'])
-    expect(settings.hooks.PreToolUse).toHaveLength(1)
+    expect(settings.hooks.PreToolUse).toHaveLength(2)
   })
 
   it('refreshes an untouched rules file and keeps one the user edited', async () => {
