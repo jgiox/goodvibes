@@ -143,8 +143,10 @@ Use vitest (TS) or pytest + pytest-mock (Python). Never run real uv/pip/claude/n
 ### Integration tests
 Integration tests run against a real temporary directory (no mocks for file I/O). They verify
 that multiple modules work together correctly — e.g. `copyTemplates` + `mergeClaude` end-to-end
-in a real tmpdir. Integration tests live in a separate `tests/integration/` directory.
-Run them with: `npm run test:integration` or `pytest tests/integration/`.
+in a real tmpdir. npm: they live next to the source as `*.integration.test.ts`
+(e.g. `src/steps/copy-templates.integration.test.ts`) and run with the unit tests:
+`cd packages/npm && npx vitest run`. pip: they sit in `packages/pip/tests/` beside the unit
+tests and run with `cd packages/pip && uv run pytest tests/`.
 
 ### Regression tests
 For every bug fix: write a failing test that reproduces the bug BEFORE writing the fix.
