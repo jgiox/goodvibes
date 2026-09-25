@@ -1,13 +1,13 @@
 import { copy } from 'fs-extra'
 import { readFile, rename, rm, writeFile } from 'node:fs/promises'
 import { readdir } from 'fs/promises'
-import { existsSync } from 'fs'
+import { existsSync, readdirSync, statSync } from 'fs'
 import { join, relative, sep } from 'path'
 import { fileURLToPath } from 'url'
 import { mergeClaude, MarkerError } from '../utils/sentinel-merge.js'
 import { writeBlocked } from '../utils/fs-safe.js'
 import { type ProjectType } from '../utils/detect-project-type.js'
-import { GLOBAL_OWNED, projectStub, type Scope } from '../utils/scope.js'
+import { GLOBAL_OWNED, MINIMAL_SKIPPED, projectStub, type Scope } from '../utils/scope.js'
 
 const FILE_SIZE_WORKFLOW = join('.github', 'workflows', 'file-size.yml')
 
@@ -49,20 +49,6 @@ export async function listTemplateFiles(templateDir: string): Promise<string[]> 
   return results.sort()
 }
 
-async function walkDir(dir: string, base: string): Promise<string[]> {
-  const results: string[] = []
-  const entries = await readdir(dir, { withFileTypes: true })
-  for (const entry of entries) {
-    const fullPath = join(dir, entry.name)
-    if (entry.isDirectory()) {
-      results.push(...await walkDir(fullPath, base))
-    } else {
-      results.push(relative(base, fullPath))
-    }
-  }
-  return results
-}
-
 export async function copyTemplates(
   templateDir: string,
   destDir: string,
@@ -80,20 +66,21 @@ export async function copyTemplates(
     return { written: all.filter(p => !ciVariants.some(v => p.endsWith(v) && v !== selectedVariant)), skipped: [], problems: [] }
   }
 
-  // Snapshot existing dest paths before copy for written/skipped classification
-  const existingBefore = new Set<string>()
-  if (existsSync(destDir)) {
-    const beforeFiles = await walkDir(destDir, destDir).catch(() => [])
-    for (const f of beforeFiles) existingBefore.add(f)
+  // Only goodvibes destinations are checked, never the whole project: an unreadable folder or node_modules must not matter.
+  const ours = [...await listTemplateFiles(templateDir), join('.github', 'workflows', 'ci.yml')]
+  const onDisk = async (): Promise<Set<string>> => {
+    const found = await Promise.all(ours.map(async f => existsSync(join(destDir, f)) && !(await writeBlocked(destDir, f))))
+    return new Set(ours.filter((_, i) => found[i]))
   }
+  const existingBefore = await onDisk()
 
   const skippedFiles: string[] = []
   const problems: string[] = []
   const destCiYml = join(destDir, '.github', 'workflows', 'ci.yml')
   const workflowPrefix = join('.github', 'workflows') + sep
-  const destHasWorkflows = [...existingBefore].some(
-    f => f.startsWith(workflowPrefix) && f.endsWith('.yml')
-  )
+  const destWorkflows = join(destDir, '.github', 'workflows')
+  const destHasWorkflows = existsSync(destWorkflows) && statSync(destWorkflows).isDirectory() &&
+    readdirSync(destWorkflows).some(f => f.endsWith('.yml') || f.endsWith('.yaml'))
 
   try {
     await copy(templateDir, destDir, {
@@ -103,8 +90,7 @@ export async function copyTemplates(
         if (src.endsWith('CLAUDE.md')) return false // handled by sentinel merge
         const rel = relative(templateDir, src)
         if (rel === '') return true
-        // ponytail: MIN-01 — .github/ and docs/ both skipped
-        if (minimal && (rel.startsWith('.github') || rel.startsWith('docs'))) return false
+        if (minimal && MINIMAL_SKIPPED(rel)) return false
         // ponytail: path traversal guard per T-02-02-A (templates are repo-controlled but belt-and-suspenders)
         if (rel.includes('..')) return false
         if (scope === 'global' && GLOBAL_OWNED(rel)) return false
@@ -167,11 +153,7 @@ export async function copyTemplates(
     await writeFile(claudeDest, projectStub(templateContent), 'utf-8')
   }
 
-  // Walk destDir so return shows ci.yml (not ci-node.yml) — per RESEARCH.md Pitfall 6
-  // Only goodvibes paths count: the project's own files (.git, node_modules) are neither written nor skipped by us.
-  const ours = new Set([...await listTemplateFiles(templateDir), '.github/workflows/ci.yml'])
-  const destFiles = await walkDir(destDir, destDir)
-  const allDestFiles = destFiles.filter(f => ours.has(f)).sort()
+  const allDestFiles = [...await onDisk()].sort()
   const written = allDestFiles.filter(f => !existingBefore.has(f))
   // CLAUDE.md is always in 'written' — sentinel merge runs regardless (per RESEARCH.md note)
   const writtenWithClaude = written.includes('CLAUDE.md') || !claudeMerged ? written : ['CLAUDE.md', ...written]

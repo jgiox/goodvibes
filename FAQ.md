@@ -82,7 +82,7 @@ The first time, goodvibes installs headroom, which compresses what Claude reads.
 npx goodvibes-cli init --minimal
 ```
 
-`--minimal` also skips `.github/` and `docs/`.
+`--minimal` also skips `docs/` and the CI files in `.github/` (workflows, scripts, Dependabot, issue and pull request templates). Copilot's rules (`.github/copilot-instructions.md`) and hooks (`.github/hooks/`) are still added.
 
 ### How do I remove goodvibes?
 
@@ -127,7 +127,7 @@ goodvibes is plain files, so removing it means deleting them. Do the steps that 
 goodvibes upgrade --dry-run
 ```
 
-If you run `goodvibes upgrade` in a folder goodvibes never set up, and you have no global setup in `~/.claude` either, it installs the new version and stops with "Nothing to update here". That is not an error. To update a project, go into its folder and run `goodvibes update`; for a new project, go into its folder and run `goodvibes init`. Never run `goodvibes init` in your home folder: with `--scope project` it would put the project files there.
+If you run `goodvibes upgrade` in a folder goodvibes never set up, and you have no global setup in `~/.claude` either, it installs the new version and stops with "Nothing to update here". That is not an error. To update a project, go into its folder and run `goodvibes update`; for a new project, go into its folder and run `goodvibes init`. Never run `goodvibes init` in your home folder: with `--scope project` it would put the project files there. In your Claude Code settings folder (`~/.claude`) `init` does the global part only and never adds project files.
 
 ### How does `goodvibes update` decide which files to change?
 

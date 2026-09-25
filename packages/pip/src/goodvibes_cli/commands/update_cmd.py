@@ -19,7 +19,7 @@ from goodvibes_cli.utils.detect_project_type import detect_project_type
 from goodvibes_cli.utils.json_merge import MANAGED_JSON, managed_record, merge_managed_json, shape_error, write_json
 from goodvibes_cli.steps.global_setup import apply_global_config, claude_config_dir, format_global
 from goodvibes_cli.utils.safe_path import SymlinkError, check_writable, remove_retired
-from goodvibes_cli.utils.scope import global_owned
+from goodvibes_cli.utils.scope import global_owned, minimal_skipped
 from goodvibes_cli.utils.sentinel_merge import ClaudeMdError, merge_claude
 
 console = Console()
@@ -31,9 +31,9 @@ def _group(rel: str) -> str | None:
     # file-size.yml travels with its script in .github/scripts, so it is in the .github group
     if rel.startswith(".github/workflows/") and rel != FILE_SIZE_WORKFLOW:
         return "workflows"
-    if rel.startswith(".github/"):
-        return ".github"
-    return "docs" if rel.startswith("docs/") else None
+    if not minimal_skipped(rel):
+        return None
+    return ".github" if rel.startswith(".github/") else "docs"
 
 
 def _assert_safe(base: pathlib.Path, rel: str) -> None:
@@ -45,7 +45,7 @@ def _assert_safe(base: pathlib.Path, rel: str) -> None:
 
 def update_cmd(
     dry_run: Annotated[bool, typer.Option("--dry-run", help="Preview changes without writing")] = False,
-    force: Annotated[bool, typer.Option("--force", help="Skip confirmation and overwrite")] = False,
+    force: Annotated[bool, typer.Option("--force", help="Skip the confirmation prompt (files you edited are still kept)")] = False,
 ) -> None:
     """Update goodvibes-managed files using the manifest."""
     console.rule("[bold]goodvibes update[/bold]")

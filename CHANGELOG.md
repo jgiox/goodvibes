@@ -19,6 +19,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/2.0.0/),
 
 ### Fixed
 
+- `goodvibes init` inside your Claude Code settings folder (`~/.claude`, or `CLAUDE_CONFIG_DIR`) now does the global part only. Before, it wrote project files there, including a `CLAUDE.md` that Claude Code then loaded in every project, and replaced the global `.goodvibes.json`, so later updates treated the global rules and skills as edited by you and never updated them again. `--scope project` there now stops with an error
+- `goodvibes init` (npm) no longer fails half done with a wrong "no write permission" message when one folder in the project cannot be read. It now checks only the paths it writes, instead of reading the whole project (including `node_modules`)
+- `goodvibes init --minimal` now writes Copilot's rules (`.github/copilot-instructions.md`) and hooks (`.github/hooks/`), and `goodvibes update` adds them to projects set up with `--minimal`. It still skips the workflows, scripts, Dependabot, issue and pull request templates and `docs/`, and the `--minimal` help says so
+- A project whose CI is written as `.github/workflows/*.yaml` now counts as having its own workflows, so `init` no longer adds the goodvibes CI next to it
+- `goodvibes init --dry-run` lists `.github/workflows/ci.yml`, the file it writes, instead of the `ci-<type>.yml` template name
+- pip: an existing `CLAUDE.md` is no longer listed as both written and skipped
+- The "Next steps" after `init` give both ponytail commands (`/plugin marketplace add DietrichGebert/ponytail` and `/plugin install ponytail@ponytail`) and say they are optional and run in the Claude Code terminal
+- `goodvibes update --force` help now says it skips the confirmation prompt; files you edited are still kept
 - `goodvibes upgrade` run outside a goodvibes project (for example in your home folder) now says the new version is installed and how to update a project, instead of ending with a "No .goodvibes.json ... not set up here yet" box that looked like the upgrade had failed
 - `goodvibes update` no longer crashes (pip) or damages the file (npm) when a JSON file it merges is valid but has a key of the wrong type, for example `"mcpServers": []` in `.cursor/mcp.json`, `"hooks": []` in `.claude/settings.json`, or a `permissions.deny` written as one string instead of a list. npm used to split such a string into single characters and save that. The file is now left unchanged, and update names the key to fix
 - File Size check in projects that already have their own GitHub workflows: `goodvibes init` now adds `.github/workflows/file-size.yml` together with the script it runs (the other goodvibes workflows are still skipped there), and `goodvibes update` adds it to projects that got only the script. An existing `file-size.yml` is never overwritten, and `--minimal` still skips all of `.github/`

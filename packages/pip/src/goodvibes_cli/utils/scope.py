@@ -11,6 +11,14 @@ def global_owned(rel: str) -> bool:
     return p == ".mcp.json" or p == ".claude/skills" or p.startswith(".claude/skills/")
 
 
+def minimal_skipped(rel: str) -> bool:
+    """--minimal skips docs and the CI side of .github, but Copilot reads its rules and hooks only from .github."""
+    p = rel.replace("\\", "/")
+    if p == "docs" or p.startswith("docs/"):
+        return True
+    return p.startswith(".github/") and p != ".github/copilot-instructions.md" and p != ".github/hooks" and not p.startswith(".github/hooks/")
+
+
 def goodvibes_block(claude_template: str) -> str:
     start = claude_template.find(SENTINEL_START)
     end = claude_template.find(SENTINEL_END)

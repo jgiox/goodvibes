@@ -207,7 +207,7 @@ The journal check and the read guard run in these tools. Every file runs the exa
 | Claude Code | `~/.claude/settings.json` and this project's `.claude/settings.json` |
 | Cursor | No file of its own: it runs the hooks in `.claude/settings.json` while its "Include Third-Party Plugins, Skills, and Other Configs" setting is on (the default) |
 | GitHub Copilot CLI | `.claude/settings.json` and `.github/hooks/goodvibes.json`, so each check runs twice (same result) |
-| GitHub Copilot cloud agent, Copilot in VS Code | `.github/hooks/goodvibes.json` (not written with `--minimal`, like the rest of `.github/`) |
+| GitHub Copilot cloud agent, Copilot in VS Code | `.github/hooks/goodvibes.json` (written with `--minimal` too) |
 | OpenAI Codex CLI | `.codex/hooks.json`. Codex asks you once to trust the project's hooks before they run (a review screen at startup) |
 | Gemini CLI | `.gemini/settings.json`, under `BeforeTool`. Gemini runs project hooks only in a trusted folder and shows a warning the first time it sees them |
 | Devin CLI | `.devin/hooks.v1.json` |
@@ -374,7 +374,7 @@ Never commit the key itself, only the `${CONTEXT7_API_KEY}` reference.
 - CodeQL and dependency review need GitHub Advanced Security on private repositories, so they are skipped there and run on public ones.
 - Every workflow gets a read-only token, and a newer push to a pull request cancels the older run.
 - `.github/dependabot.yml` opens pull requests each week to update your GitHub Actions, npm and pip dependencies, at most five open at a time each. It waits 7 days after a release before proposing it.
-- If your project already had workflows when you ran `goodvibes init`, goodvibes added only `file-size.yml` and none of its other workflows. A project set up before this that has the file size script but not `file-size.yml` gets it on the next `goodvibes update`.
+- If your project already had workflows (any `.yml` or `.yaml` file in `.github/workflows/`) when you ran `goodvibes init`, goodvibes added only `file-size.yml` and none of its other workflows. A project set up before this that has the file size script but not `file-size.yml` gets it on the next `goodvibes update`.
 
 ### File size check
 
