@@ -16,9 +16,14 @@ def _safe_path() -> str:
     """PATH without ".", empty or relative entries or folders inside the project, which would let a cloned repo pick the program."""
     cwd = os.path.realpath(os.getcwd())
 
+    def within(path: str) -> bool:
+        return path == cwd or path.startswith(cwd.rstrip(os.sep) + os.sep)
+
+    # The home folder and the folders above it hold the user's own bin folders (~/.local/bin), so they never count as a project.
+    project = not within(os.path.realpath(os.path.expanduser("~")))
+
     def inside(d: str) -> bool:
-        real = os.path.realpath(d)
-        return real == cwd or real.startswith(cwd.rstrip(os.sep) + os.sep)
+        return project and within(os.path.realpath(d))
 
     dirs = (d.strip('"') for d in os.environ.get("PATH", "").split(os.pathsep))
     return os.pathsep.join(d for d in dirs if os.path.isabs(d) and not inside(d))
