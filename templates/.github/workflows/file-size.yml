@@ -24,3 +24,5 @@ jobs:
           persist-credentials: false
       # A new code file must stay under 500 lines and a file already over it may not grow.
       - run: node .github/scripts/check-file-sizes.mjs
+        env:
+          PUSH_BEFORE: ${{ github.event.before }}

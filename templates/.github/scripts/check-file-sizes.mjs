@@ -5,9 +5,9 @@
 // licensed under the Apache License, Version 2.0. Modified by goodvibes: one standalone file
 // instead of a shared core plus per-project policies; limits come from built-in defaults and
 // an optional .github/file-size-limits.json instead of code; the base is the merge-base with
-// origin/$GITHUB_BASE_REF or HEAD^ (every file is new on a first commit); lockfiles, build output,
-// vendored, generated and binary files are skipped; lines are counted like wc -l; untracked files
-// are not checked; beginner-friendly messages.
+// origin/$GITHUB_BASE_REF, the commit before a push, or HEAD^ (every file is new on a first
+// commit); lockfiles, build output, vendored, generated and binary files are skipped; lines are
+// counted like wc -l; untracked files are not checked; beginner-friendly messages.
 //
 // Optional .github/file-size-limits.json (every key optional):
 //   { "default": 500, "extensions": { ".py": 600 }, "ignore": ["gen/**"], "allow": { "src/big.ts": 1200 } }
@@ -90,6 +90,9 @@ function resolveBase() {
     }
     return git(['merge-base', remote, 'HEAD']).trim()
   }
+  // A push can carry several commits; compare with the commit before the push, not just HEAD^.
+  const before = process.env.PUSH_BEFORE
+  if (before && !/^0+$/.test(before) && gitOk(['rev-parse', '--verify', '--quiet', `${before}^{commit}`])) return before
   if (gitOk(['rev-parse', '--verify', '--quiet', 'HEAD^'])) return 'HEAD^'
   // A shallow clone hides HEAD^; treating every file as new would then fail on old big files.
   if (git(['rev-parse', '--is-shallow-repository']).trim() === 'true') {

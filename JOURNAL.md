@@ -1871,3 +1871,4 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 
 **Docs updated:** JOURNAL.md, NOTICE. README/FAQ/CHANGELOG still need a line about the new check (not in this task's scope).
 - File-size check: on a push, compare with the commit before the push (`PUSH_BEFORE` from `github.event.before`) instead of only `HEAD^`, so growth in an earlier commit of a multi-commit push fails. RED test committed first. Tests: `file-size-check.integration.test.ts`.
+- GREEN: `check-file-sizes.mjs` reads `PUSH_BEFORE` (ignored when all zeros or unknown); `file-size.yml` passes `github.event.before`. 19/19 file-size tests pass, actionlint clean.
