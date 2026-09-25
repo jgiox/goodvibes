@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import { lstat, readdir, realpath, rename, rm, rmdir, writeFile } from 'node:fs/promises'
+import { chmod, lstat, readdir, realpath, rename, rm, rmdir, stat, writeFile } from 'node:fs/promises'
 import { basename, dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
 
 // path.relative, not a string prefix: "/proj-evil" must not count as inside "/proj".
@@ -66,8 +66,11 @@ export async function writeFileAtomic(path: string, content: string): Promise<vo
     throw e
   })
   const tmp = join(dirname(target), `.${basename(target)}.${randomUUID().slice(0, 8)}.tmp`)
+  // The temp file starts with the umask default; keep the target's mode so a 0600 file never becomes world-readable.
+  const mode = await stat(target).then(s => s.mode & 0o777, () => undefined)
   try {
-    await writeFile(tmp, content, 'utf-8')
+    await writeFile(tmp, content, { encoding: 'utf-8', mode: mode ?? 0o666 })
+    if (mode !== undefined) await chmod(tmp, mode)
     await rename(tmp, target)
   } catch (e) {
     await rm(tmp, { force: true })

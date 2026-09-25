@@ -1848,6 +1848,6 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 
 **Why:** Review findings on PR #41 (P1 permission widening, P2 symlink replaced).
 
-**Tests run:** RED: npm mode test failed (symlink test passed); pip symlink test failed (mode test passed).
+**Tests run:** RED: npm mode test failed (symlink test passed); pip symlink test failed (mode test passed). GREEN: npm typecheck 0, vitest 438 passed, 1 skipped (the fs-safe unit mock gained stat and chmod); pip pytest 358 passed.
 
 **Docs updated:** JOURNAL.md.

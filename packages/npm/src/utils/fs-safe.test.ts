@@ -6,6 +6,8 @@ vi.mock('node:fs/promises', () => ({
   rm: vi.fn().mockResolvedValue(undefined),
   realpath: vi.fn(),
   lstat: vi.fn(),
+  stat: vi.fn(async () => { throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' }) }),
+  chmod: vi.fn().mockResolvedValue(undefined),
 }))
 
 const enoent = () => Object.assign(new Error('ENOENT'), { code: 'ENOENT' })

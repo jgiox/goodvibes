@@ -30,6 +30,8 @@ def _hook_id(group: dict) -> str | None:
 
 def write_json(path: pathlib.Path, data: object) -> None:
     """Write via a temp file in the same folder so a crash never leaves a half-written settings file."""
+    # A symlinked config file (dotfiles repo) stays a symlink: its target is replaced, not the link.
+    path = pathlib.Path(os.path.realpath(path))
     tmp = path.with_name(f".{path.name}.{os.getpid()}.tmp")
     try:
         with open(tmp, "x", encoding="utf-8", newline="\n") as f:
