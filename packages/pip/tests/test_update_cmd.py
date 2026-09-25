@@ -834,3 +834,80 @@ def test_update_merges_the_goodvibes_hooks_into_existing_gemini_and_codex_hook_f
     assert gemini["hooks"]["BeforeTool"] == [user_group, *json.loads((real / ".gemini" / "settings.json").read_text(encoding="utf-8"))["hooks"]["BeforeTool"]]
     codex = json.loads((merge_dirs / ".codex" / "hooks.json").read_text(encoding="utf-8"))
     assert codex["hooks"]["PreToolUse"] == [user_group, *json.loads((real / ".codex" / "hooks.json").read_text(encoding="utf-8"))["hooks"]["PreToolUse"]]
+
+
+
+def test_update_force_exits_1_and_does_not_delete_git_head_through_a_claude_skills_dotdot_manifest_key(plain_dirs):
+    _, project_dir = plain_dirs
+    head = "ref: refs/heads/main\n"
+    (project_dir / ".git").mkdir()
+    (project_dir / ".claude" / "skills").mkdir(parents=True)
+    (project_dir / ".git" / "HEAD").write_text(head, encoding="utf-8")
+    _write_manifest(project_dir, {".claude/skills/../../.git/HEAD": _sha(head)})
+
+    result = runner.invoke(app, ["update", "--force"])
+
+    assert result.exit_code == 1
+    assert (project_dir / ".git" / "HEAD").read_text(encoding="utf-8") == head
+    out = " ".join(_ANSI.sub("", result.output).split())
+    assert f'{project_dir / ".goodvibes.json"} is not a valid goodvibes manifest (".claude/skills/../../.git/HEAD" is not a safe relative path); fix it or delete it and run goodvibes init' in out
+
+
+@pytest.mark.parametrize("key", ["../outside.txt", "/etc/hostname"])
+def test_update_exits_1_with_a_fix_it_message_not_a_traceback_for_a_dotdot_or_absolute_manifest_key(plain_dirs, key):
+    _, project_dir = plain_dirs
+    _write_manifest(project_dir, {key: "abc"})
+
+    result = runner.invoke(app, ["update", "--force"])
+
+    assert result.exit_code == 1
+    assert result.exception is None or isinstance(result.exception, SystemExit)
+    assert f'("{key}" is not a safe relative path); fix it or delete it and run goodvibes init' in " ".join(_ANSI.sub("", result.output).split())
+
+
+def test_update_asks_before_adding_a_net_new_file_and_adds_nothing_when_the_answer_is_no(plain_dirs, mocker):
+    template_dir, project_dir = plain_dirs
+    _tpl(template_dir, ["NEW.md"])
+    _write_manifest(project_dir, {})
+    confirm = mocker.patch("goodvibes_cli.commands.update_cmd.typer.confirm", return_value=False)
+
+    runner.invoke(app, ["update"])
+
+    confirm.assert_called_once()
+    assert "add 1," in confirm.call_args.args[0]
+    assert not (project_dir / "NEW.md").exists()
+
+
+def test_update_prints_question_marks_for_escape_codes_in_json_errors_and_key_paths_and_bracketed_manifest_keys_as_they_are(merge_dirs):
+    (merge_dirs / ".claude" / "settings.json").write_text('{"hooks": {"\\u001b[2J": 5}}', encoding="utf-8")
+    (merge_dirs / ".mcp.json").write_text('{"a": x\x1b[31mRED}', encoding="utf-8")
+    _write_manifest(merge_dirs, {".claude/settings.json": "old", ".mcp.json": "old", "docs/[/x].md": "abc", "[bold red]HI[/bold red].md": "abc"})
+
+    result = runner.invoke(app, ["update", "--force"])
+
+    assert result.exit_code == 0, result.output
+    out = " ".join(result.output.replace("│", " ").split())
+    assert '.claude/settings.json: "hooks.?[2J" is not a JSON array; left unchanged' in out
+    assert ".mcp.json: not valid JSON (" in out
+    assert "docs/[/x].md: removed by you, not re-added" in out
+    assert "[bold red]HI[/bold red].md: removed by you, not re-added" in out
+    assert not re.search(r"[\x00-\x09\x0b-\x1f]", result.output)
+
+
+def test_update_merges_into_settings_and_mcp_files_whose_hooks_permissions_and_server_maps_are_null(merge_dirs):
+    tpl = merge_dirs.parent / "templates"
+    (tpl / ".vscode").mkdir()
+    (tpl / ".vscode" / "mcp.json").write_text(json.dumps({"servers": {"context7": {"type": "http", "url": "https://mcp.context7.com/mcp"}}}), encoding="utf-8")
+    (merge_dirs / ".vscode").mkdir()
+    (merge_dirs / ".claude" / "settings.json").write_text('{"hooks": null, "permissions": null}', encoding="utf-8")
+    (merge_dirs / ".mcp.json").write_text('{"mcpServers": null}', encoding="utf-8")
+    (merge_dirs / ".vscode" / "mcp.json").write_text('{"servers": null}', encoding="utf-8")
+    _write_manifest(merge_dirs, {".claude/settings.json": "old-hash", ".mcp.json": "old-hash", ".vscode/mcp.json": "old-hash"})
+
+    result = runner.invoke(app, ["update", "--force"])
+
+    assert result.exit_code == 0, result.output
+    assert _read(merge_dirs, ".claude/settings.json")["hooks"]["PreToolUse"]
+    assert "Bash(git push*)" in _read(merge_dirs, ".claude/settings.json")["permissions"]["ask"]
+    assert "context7" in _read(merge_dirs, ".mcp.json")["mcpServers"]
+    assert "context7" in _read(merge_dirs, ".vscode/mcp.json")["servers"]

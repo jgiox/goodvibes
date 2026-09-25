@@ -187,3 +187,23 @@ describe('shapeError', () => {
     expect(shapeError('.claude/settings.json', { hooks: { PreToolUse: [{ hooks: {} }] } })).toBe('"hooks.PreToolUse[0].hooks" is not a JSON array')
   })
 })
+
+describe('mergeManagedJson with null containers and empty entries', () => {
+  it('treats null hooks and permissions as absent and creates them', () => {
+    const { merged, changes } = mergeManagedJson('.claude/settings.json', tplSettings, { hooks: null, permissions: null, model: 'x' })
+    expect(merged).toEqual({ hooks: { PreToolUse: [gateV2] }, permissions: { ask: ['Bash(git push*)'], deny: ['Bash(git reset --hard*)'] }, model: 'x' })
+    expect(changes).toHaveLength(3)
+  })
+
+  it('treats null mcpServers and servers as absent and adds context7', () => {
+    expect(mergeManagedJson('.mcp.json', tplMcp, { mcpServers: null }).merged).toEqual(tplMcp)
+    expect(mergeManagedJson('.cursor/mcp.json', tplCursor, { mcpServers: null }).merged).toEqual(tplCursor)
+    expect(mergeManagedJson('.vscode/mcp.json', tplVscode, { servers: null }).merged).toEqual(tplVscode)
+  })
+
+  it('fills an empty context7 entry with the template fields even when it was installed', () => {
+    const { merged, changes } = mergeManagedJson('.mcp.json', tplMcp, { mcpServers: { context7: {} } }, ['mcp:context7'])
+    expect(merged).toEqual(tplMcp)
+    expect(changes).toEqual(['~ mcpServers.context7'])
+  })
+})

@@ -351,3 +351,48 @@ def test_apply_global_config_only_reports_a_retired_skill_file_in_dry_run():
     r = apply_global_config(TEMPLATES, "1.8.0", dry_run=True)
     assert r["retired"] == ["skills/cavecrew/SKILL.md"]
     assert (_cfg() / "skills" / "cavecrew" / "SKILL.md").exists()
+
+
+def test_apply_global_config_does_not_delete_settings_through_a_skills_dotdot_key_in_the_global_manifest():
+    import pytest
+    from goodvibes_cli.steps.write_manifest import ManifestError
+    apply_global_config(TEMPLATES, "1.8.0", dry_run=False)
+    settings = (_cfg() / "settings.json").read_text(encoding="utf-8")
+    m = json.loads((_cfg() / ".goodvibes.json").read_text(encoding="utf-8"))
+    m["files"]["skills/../settings.json"] = hashlib.sha256(settings.encode("utf-8")).hexdigest()
+    (_cfg() / ".goodvibes.json").write_text(json.dumps(m), encoding="utf-8")
+
+    with pytest.raises(ManifestError, match='"skills/../settings.json" is not a safe relative path'):
+        apply_global_config(TEMPLATES, "1.8.0", dry_run=False)
+
+    assert (_cfg() / "settings.json").read_text(encoding="utf-8") == settings
+
+
+def test_apply_global_config_merges_into_global_settings_whose_hooks_and_permissions_are_null():
+    _cfg().mkdir(parents=True, exist_ok=True)
+    (_cfg() / "settings.json").write_text('{"hooks": null, "permissions": null, "model": "opus"}', encoding="utf-8")
+
+    r = apply_global_config(TEMPLATES, "1.8.0", dry_run=False)
+
+    settings = json.loads((_cfg() / "settings.json").read_text(encoding="utf-8"))
+    assert r["settings_error"] is None
+    assert settings["model"] == "opus"
+    assert settings["hooks"]["SessionStart"][0]["hooks"][0]["command"].startswith(": goodvibes-doctor;")
+    assert "Bash(git push*)" in settings["permissions"]["ask"]
+    assert (_cfg() / ".goodvibes.json").exists()
+
+
+def test_format_global_shows_a_question_mark_instead_of_terminal_escape_codes_from_the_global_settings_file():
+    import re
+    _cfg().mkdir(parents=True, exist_ok=True)
+    (_cfg() / "settings.json").write_text('{"hooks": {"\\u001b[2J": 5}}', encoding="utf-8")
+    r = apply_global_config(TEMPLATES, "1.8.0", dry_run=True)
+    assert "is not a JSON array" in r["settings_error"]
+    assert not re.search(r"[\x00-\x09\x0b-\x1f]", format_global(r, None, None))
+
+
+def test_apply_global_config_reports_no_file_as_written_on_a_second_run_when_nothing_changed():
+    apply_global_config(TEMPLATES, "1.8.0", dry_run=False)
+    r = apply_global_config(TEMPLATES, "1.8.0", dry_run=False)
+    assert r["written"] == []
+    assert r["kept"] == []

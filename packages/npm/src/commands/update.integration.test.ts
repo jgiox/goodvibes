@@ -406,6 +406,23 @@ describe('update command — JSON-aware merge of settings.json and .mcp.json (UP
     expect(out).toContain('.claude/settings.json: "hooks" is not a JSON object; left unchanged, fix it and re-run update')
   })
 
+  it('merges into settings and MCP files whose hooks, permissions and server maps are null', async () => {
+    mkdirSync(join(templateDir, '.vscode'), { recursive: true })
+    writeFileSync(join(templateDir, '.vscode', 'mcp.json'), readFileSync(join(realTemplates, '.vscode', 'mcp.json'), 'utf-8'))
+    mkdirSync(join(projectDir, '.vscode'), { recursive: true })
+    writeFileSync(join(projectDir, '.claude', 'settings.json'), '{"hooks": null, "permissions": null}')
+    writeFileSync(join(projectDir, '.mcp.json'), '{"mcpServers": null}')
+    writeFileSync(join(projectDir, '.vscode', 'mcp.json'), '{"servers": null}')
+    writeManifestFile({ '.claude/settings.json': 'old-hash', '.mcp.json': 'old-hash', '.vscode/mcp.json': 'old-hash' })
+
+    await runUpdate('--force')
+
+    expect(readJson('.claude/settings.json').hooks.PreToolUse.length).toBeGreaterThan(0)
+    expect(readJson('.claude/settings.json').permissions.ask).toContain('Bash(git push*)')
+    expect(readJson('.mcp.json').mcpServers.context7).toBeDefined()
+    expect(readJson('.vscode/mcp.json').servers.context7).toBeDefined()
+  })
+
   it('leaves no temp files next to the JSON files it writes', async () => {
     writeFileSync(join(projectDir, '.claude', 'settings.json'), JSON.stringify({ model: 'x' }))
     writeManifestFile({ '.claude/settings.json': 'old-hash' })
@@ -514,6 +531,63 @@ describe('update command — broken manifests and Windows keys', () => {
     expect(readFileSync(join(projectDir, 'docs', 'b.md'), 'utf-8')).toBe('b edited by me\n')
     const files = JSON.parse(readFileSync(join(projectDir, '.goodvibes.json'), 'utf-8')).files
     expect(files).toEqual({ 'docs/a.md': sha256('a v2\n'), 'docs/b.md': sha256('b v1\n') })
+  })
+
+  it('update --force exits 1 and does not delete .git/HEAD through a .claude/skills/../../ manifest key', async () => {
+    const head = 'ref: refs/heads/main\n'
+    mkdirSync(join(projectDir, '.git'))
+    mkdirSync(join(projectDir, '.claude', 'skills'), { recursive: true })
+    writeFileSync(join(projectDir, '.git', 'HEAD'), head)
+    writeFileSync(join(projectDir, '.goodvibes.json'), JSON.stringify({ version: '1.0.0', files: { '.claude/skills/../../.git/HEAD': sha256(head) } }))
+
+    await expect(runUpdate('--force')).rejects.toThrow('exit 1')
+
+    expect(readFileSync(join(projectDir, '.git', 'HEAD'), 'utf-8')).toBe(head)
+    expect(await said()).toContain(`${join(projectDir, '.goodvibes.json')} is not a valid goodvibes manifest (".claude/skills/../../.git/HEAD" is not a safe relative path); fix it or delete it and run goodvibes init`)
+  })
+
+  it('exits 1 with a fix-it message, not a stack trace, for a ../ or absolute manifest key', async () => {
+    for (const key of ['../outside.txt', '/etc/hostname']) {
+      writeFileSync(join(projectDir, '.goodvibes.json'), JSON.stringify({ version: '1.0.0', files: { [key]: 'abc' } }))
+      await expect(runUpdate('--force')).rejects.toThrow('exit 1')
+      expect(await said()).toContain(`("${key}" is not a safe relative path); fix it or delete it and run goodvibes init`)
+    }
+  })
+
+  it('asks before adding a net-new file and adds nothing when the answer is no', async () => {
+    const { confirm } = await import('@clack/prompts')
+    vi.mocked(confirm).mockClear()
+    vi.mocked(confirm).mockResolvedValueOnce(false)
+    writeFileSync(join(templateDir, 'NEW.md'), 'new\n')
+    writeFileSync(join(projectDir, '.goodvibes.json'), JSON.stringify({ version: '1.0.0', files: {} }))
+
+    await expect(runUpdate()).rejects.toThrow('exit 0')
+
+    expect(String(vi.mocked(confirm).mock.calls[0][0].message)).toContain('add 1,')
+    expect(existsSync(join(projectDir, 'NEW.md'))).toBe(false)
+  })
+
+  it('prints ? for terminal escape codes in JSON errors and key paths, and bracketed manifest keys as they are', async () => {
+    const tpl = fileURLToPath(new URL('../../../../templates', import.meta.url))
+    mkdirSync(join(templateDir, '.claude'))
+    writeFileSync(join(templateDir, '.claude', 'settings.json'), readFileSync(join(tpl, '.claude', 'settings.json'), 'utf-8'))
+    writeFileSync(join(templateDir, '.mcp.json'), readFileSync(join(tpl, '.mcp.json'), 'utf-8'))
+    mkdirSync(join(projectDir, '.claude'))
+    writeFileSync(join(projectDir, '.claude', 'settings.json'), '{"hooks": {"\\u001b[2J": 5}}')
+    writeFileSync(join(projectDir, '.mcp.json'), '{"a": x\u001b[31mRED}')
+    writeFileSync(join(projectDir, '.goodvibes.json'), JSON.stringify({
+      version: '1.0.0',
+      files: { '.claude/settings.json': 'old', '.mcp.json': 'old', 'docs/[/x].md': 'abc', '[bold red]HI[/bold red].md': 'abc' },
+    }))
+
+    await runUpdate('--force')
+
+    const out = await said()
+    expect(out).toContain('.claude/settings.json: "hooks.?[2J" is not a JSON array; left unchanged')
+    expect(out).toContain('.mcp.json: not valid JSON (')
+    expect(out).toContain('docs/[/x].md: removed by you, not re-added')
+    expect(out).toContain('[bold red]HI[/bold red].md: removed by you, not re-added')
+    expect(out).not.toMatch(/[\u0000-\u0009\u000b-\u001f]/)
   })
 })
 
