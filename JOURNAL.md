@@ -1639,3 +1639,4 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 - RED 4: an apostrophe in a full-line comment pairs with a later quote and hides the commit between them.
 - GREEN 4: full-line comments (optional leading blanks, then `#`) are dropped in the heredoc pass, before quotes are paired and before heredoc detection. Inline `#` is not stripped there.
 - RED 5: one `--amend` anywhere (a later commit, or a trailing comment) exempts every commit in the command.
+- GREEN 5: a command is exempt only when every git commit in it has an unquoted `--amend` argument of its own. A word starting with `#` now starts a comment that runs to the end of the line, as in sh, so a URL such as `http://x/#y` is untouched.
