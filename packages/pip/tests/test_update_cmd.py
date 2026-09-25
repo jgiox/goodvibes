@@ -320,6 +320,58 @@ def test_update_adds_context7_to_unrecorded_user_mcp_json_and_keeps_other_server
     assert m["mcpServers"]["context7"] == json.loads(_TPL_MCP)["mcpServers"]["context7"]
 
 
+_CONTEXT7 = {"type": "http", "url": "https://mcp.context7.com/mcp"}
+_GITHUB = {"type": "http", "url": "https://api.githubcopilot.com/mcp"}
+_TPL_EDITORS = {".cursor/mcp.json": {"mcpServers": {"context7": {"url": _CONTEXT7["url"]}}}, ".vscode/mcp.json": {"servers": {"context7": _CONTEXT7}}}
+
+
+def _put(root, rel, data):
+    (root / rel).parent.mkdir(parents=True, exist_ok=True)
+    (root / rel).write_text(json.dumps(data, indent=2), encoding="utf-8")
+
+
+@pytest.fixture
+def editor_dirs(merge_dirs):
+    for rel, data in _TPL_EDITORS.items():
+        _put(merge_dirs.parent / "templates", rel, data)
+    return merge_dirs
+
+
+def test_update_merges_context7_into_existing_cursor_and_vscode_mcp_files_and_keeps_user_servers(editor_dirs):
+    _put(editor_dirs, ".cursor/mcp.json", {"mcpServers": {"postgres": {"command": "pg-mcp"}}})
+    _put(editor_dirs, ".vscode/mcp.json", {"inputs": [], "servers": {"github": _GITHUB}})
+    _write_manifest(editor_dirs, {})
+
+    result = runner.invoke(app, ["update", "--force"])
+
+    assert result.exit_code == 0, result.output
+    assert _read(editor_dirs, ".cursor/mcp.json")["mcpServers"] == {"postgres": {"command": "pg-mcp"}, "context7": {"url": _CONTEXT7["url"]}}
+    assert _read(editor_dirs, ".vscode/mcp.json") == {"inputs": [], "servers": {"github": _GITHUB, "context7": _CONTEXT7}}
+    assert ".vscode/mcp.json (merged 1 goodvibes key(s))" in " ".join(_ANSI.sub("", result.output).split())
+
+
+def test_update_does_not_re_add_context7_to_a_vscode_mcp_file_after_the_user_deleted_the_entry(editor_dirs):
+    _put(editor_dirs, ".vscode/mcp.json", {"servers": {"github": _GITHUB}})
+    _write_manifest(editor_dirs, {})
+    assert runner.invoke(app, ["update", "--force"]).exit_code == 0
+    after_first = _read(editor_dirs, ".vscode/mcp.json")
+    assert after_first["servers"]["context7"] == _CONTEXT7
+    del after_first["servers"]["context7"]
+    _put(editor_dirs, ".vscode/mcp.json", after_first)
+
+    assert runner.invoke(app, ["update", "--force"]).exit_code == 0
+
+    assert _read(editor_dirs, ".vscode/mcp.json")["servers"] == {"github": _GITHUB}
+
+
+def test_update_does_not_recreate_a_cursor_mcp_file_the_user_deleted(editor_dirs):
+    _write_manifest(editor_dirs, {".cursor/mcp.json": _sha(json.dumps(_TPL_EDITORS[".cursor/mcp.json"], indent=2))})
+
+    assert runner.invoke(app, ["update", "--force"]).exit_code == 0
+
+    assert not (editor_dirs / ".cursor" / "mcp.json").exists()
+
+
 def test_update_dry_run_lists_json_keys_it_would_add_without_writing(merge_dirs):
     user_file = json.dumps({"permissions": {"allow": ["Bash(make*)"]}})
     (merge_dirs / ".claude" / "settings.json").write_text(user_file, encoding="utf-8")
@@ -543,6 +595,43 @@ def test_update_adds_a_new_workflow_when_the_manifest_tracks_a_workflow_but_not_
     assert (project_dir / ".github" / "workflows" / "security.yml").exists()
     assert not (project_dir / ".github" / "dependabot.yml").exists()
     assert not (project_dir / "docs").exists()
+
+
+def test_update_adds_the_file_size_workflow_but_no_other_workflow_when_the_manifest_tracks_the_file_size_script(plain_dirs):
+    template_dir, project_dir = plain_dirs
+    _tpl(template_dir, [".github/scripts/check-file-sizes.mjs", ".github/workflows/file-size.yml", ".github/workflows/security.yml"])
+    script = project_dir / ".github" / "scripts" / "check-file-sizes.mjs"
+    script.parent.mkdir(parents=True)
+    script.write_text("template .github/scripts/check-file-sizes.mjs\n", encoding="utf-8")
+    mine = project_dir / ".github" / "workflows" / "mine.yml"
+    mine.parent.mkdir(parents=True)
+    mine.write_text("my own ci\n", encoding="utf-8")
+    _write_manifest(project_dir, {".github/scripts/check-file-sizes.mjs": _sha("template .github/scripts/check-file-sizes.mjs\n")})
+
+    result = runner.invoke(app, ["update", "--force"])
+
+    assert result.exit_code == 0, result.output
+    assert (project_dir / ".github" / "workflows" / "file-size.yml").read_text(encoding="utf-8") == "template .github/workflows/file-size.yml\n"
+    assert _read(project_dir, ".goodvibes.json")["files"][".github/workflows/file-size.yml"] == _sha("template .github/workflows/file-size.yml\n")
+    assert not (project_dir / ".github" / "workflows" / "security.yml").exists()
+
+
+def test_update_keeps_the_users_own_file_size_workflow_when_the_manifest_tracks_the_file_size_script(plain_dirs):
+    template_dir, project_dir = plain_dirs
+    _tpl(template_dir, [".github/scripts/check-file-sizes.mjs", ".github/workflows/file-size.yml"])
+    script = project_dir / ".github" / "scripts" / "check-file-sizes.mjs"
+    script.parent.mkdir(parents=True)
+    script.write_text("template .github/scripts/check-file-sizes.mjs\n", encoding="utf-8")
+    own = project_dir / ".github" / "workflows" / "file-size.yml"
+    own.parent.mkdir(parents=True)
+    own.write_text("my own size check\n", encoding="utf-8")
+    _write_manifest(project_dir, {".github/scripts/check-file-sizes.mjs": _sha("template .github/scripts/check-file-sizes.mjs\n")})
+
+    result = runner.invoke(app, ["update", "--force"])
+
+    assert result.exit_code == 0, result.output
+    assert own.read_text(encoding="utf-8") == "my own size check\n"
+    assert _read(project_dir, ".goodvibes.json")["files"][".github/workflows/file-size.yml"] == "user-owned"
 
 
 def test_update_never_overwrites_a_removed_file_the_user_recreated(plain_dirs):

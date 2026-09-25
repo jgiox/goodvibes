@@ -235,6 +235,55 @@ describe('update command — JSON-aware merge of settings.json and .mcp.json (UP
     expect(m.mcpServers.context7).toEqual(JSON.parse(tplMcp).mcpServers.context7)
   })
 
+  describe('context7 in the Cursor and VS Code MCP files', () => {
+    const context7 = { type: 'http', url: 'https://mcp.context7.com/mcp' }
+    const tpl = { '.cursor/mcp.json': { mcpServers: { context7: { url: context7.url } } }, '.vscode/mcp.json': { servers: { context7 } } }
+    const put = (dir: string, rel: string, data: unknown) => {
+      mkdirSync(join(dir, rel, '..'), { recursive: true })
+      writeFileSync(join(dir, rel), JSON.stringify(data, null, 2))
+    }
+    beforeEach(() => {
+      for (const [rel, data] of Object.entries(tpl)) put(templateDir, rel, data)
+    })
+
+    it('merges context7 into existing Cursor and VS Code MCP files and keeps the user servers', async () => {
+      put(projectDir, '.cursor/mcp.json', { mcpServers: { postgres: { command: 'pg-mcp' } } })
+      put(projectDir, '.vscode/mcp.json', { inputs: [], servers: { github: { type: 'http', url: 'https://api.githubcopilot.com/mcp' } } })
+      writeManifestFile({})
+      const { note } = await import('@clack/prompts')
+      vi.mocked(note).mockClear()
+
+      await runUpdate('--force')
+
+      expect(readJson('.cursor/mcp.json').mcpServers).toEqual({ postgres: { command: 'pg-mcp' }, context7: { url: context7.url } })
+      expect(readJson('.vscode/mcp.json')).toEqual({ inputs: [], servers: { github: { type: 'http', url: 'https://api.githubcopilot.com/mcp' }, context7 } })
+      const out = vi.mocked(note).mock.calls.map(c => String(c[0])).join('\n')
+      expect(out).toContain('Merged 1 goodvibes key(s) into .vscode/mcp.json.')
+    })
+
+    it('does not re-add context7 to a VS Code MCP file after the user deleted the entry', async () => {
+      put(projectDir, '.vscode/mcp.json', { servers: { github: { type: 'http', url: 'https://api.githubcopilot.com/mcp' } } })
+      writeManifestFile({})
+      await runUpdate('--force')
+      const afterFirst = readJson('.vscode/mcp.json')
+      expect(afterFirst.servers.context7).toEqual(context7)
+      delete afterFirst.servers.context7
+      put(projectDir, '.vscode/mcp.json', afterFirst)
+
+      await runUpdate('--force')
+
+      expect(readJson('.vscode/mcp.json').servers).toEqual({ github: { type: 'http', url: 'https://api.githubcopilot.com/mcp' } })
+    })
+
+    it('does not recreate a Cursor MCP file the user deleted', async () => {
+      writeManifestFile({ '.cursor/mcp.json': sha256(JSON.stringify(tpl['.cursor/mcp.json'], null, 2)) })
+
+      await runUpdate('--force')
+
+      expect(existsSync(join(projectDir, '.cursor', 'mcp.json'))).toBe(false)
+    })
+  })
+
   it('--dry-run lists the JSON keys it would add without writing anything', async () => {
     const userFile = JSON.stringify({ permissions: { allow: ['Bash(make*)'] } })
     writeFileSync(join(projectDir, '.claude', 'settings.json'), userFile)
@@ -730,5 +779,39 @@ describe('update command — respects files the user removed and layers init ski
     expect(readFileSync(join(projectDir, '.github', 'workflows', 'security.yml'), 'utf-8')).toBe('sec\n')
     expect(readFileSync(join(projectDir, 'docs', 'new.md'), 'utf-8')).toBe('new\n')
     expect(existsSync(join(projectDir, '.github', 'ISSUE_TEMPLATE', 'bug.md'))).toBe(false)
+  })
+
+  it('adds file-size.yml but no other workflow when the manifest tracks the file-size script and the project has its own workflows', async () => {
+    put(templateDir, '.github/scripts/check-file-sizes.mjs', 'script\n')
+    put(templateDir, '.github/workflows/file-size.yml', 'size\n')
+    put(templateDir, '.github/workflows/security.yml', 'sec\n')
+    put(projectDir, '.github/scripts/check-file-sizes.mjs', 'script\n')
+    put(projectDir, '.github/workflows/mine.yml', 'my own ci\n')
+    writeFileSync(join(projectDir, '.goodvibes.json'), JSON.stringify({
+      version: '1.0.0',
+      files: { '.github/scripts/check-file-sizes.mjs': sha256('script\n') },
+    }))
+
+    await runUpdate('--force')
+
+    expect(readFileSync(join(projectDir, '.github', 'workflows', 'file-size.yml'), 'utf-8')).toBe('size\n')
+    expect(manifestFiles()['.github/workflows/file-size.yml']).toBe(sha256('size\n'))
+    expect(existsSync(join(projectDir, '.github', 'workflows', 'security.yml'))).toBe(false)
+  })
+
+  it('keeps the user\'s own file-size.yml when the manifest tracks the file-size script', async () => {
+    put(templateDir, '.github/scripts/check-file-sizes.mjs', 'script\n')
+    put(templateDir, '.github/workflows/file-size.yml', 'size\n')
+    put(projectDir, '.github/scripts/check-file-sizes.mjs', 'script\n')
+    put(projectDir, '.github/workflows/file-size.yml', 'my own size check\n')
+    writeFileSync(join(projectDir, '.goodvibes.json'), JSON.stringify({
+      version: '1.0.0',
+      files: { '.github/scripts/check-file-sizes.mjs': sha256('script\n') },
+    }))
+
+    await runUpdate('--force')
+
+    expect(readFileSync(join(projectDir, '.github', 'workflows', 'file-size.yml'), 'utf-8')).toBe('my own size check\n')
+    expect(manifestFiles()['.github/workflows/file-size.yml']).toBe('user-owned')
   })
 })

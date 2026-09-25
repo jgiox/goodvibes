@@ -254,6 +254,21 @@ def test_init_records_only_files_it_wrote_so_update_never_overwrites_the_users_o
     assert (proj / "src" / "app.py").read_text(encoding="utf-8") == "print('mine')\n"
 
 
+def test_init_writes_context7_for_cursor_and_vscode_and_update_keeps_a_deleted_entry_deleted(runner, real_project):
+    import json
+    from goodvibes_cli.main import app as main_app
+    assert runner.invoke(main_app, ["init", "--minimal", "--scope", "project"]).exit_code == 0
+    cursor, vscode = real_project / ".cursor" / "mcp.json", real_project / ".vscode" / "mcp.json"
+    assert json.loads(cursor.read_text(encoding="utf-8"))["mcpServers"]["context7"]["url"] == "https://mcp.context7.com/mcp"
+    assert json.loads(vscode.read_text(encoding="utf-8"))["servers"]["context7"]["type"] == "http"
+    cursor.write_text(json.dumps({"mcpServers": {"postgres": {"command": "pg-mcp"}}}), encoding="utf-8")
+
+    result = runner.invoke(main_app, ["update", "--force"])
+
+    assert result.exit_code == 0, result.output
+    assert json.loads(cursor.read_text(encoding="utf-8")) == {"mcpServers": {"postgres": {"command": "pg-mcp"}}}
+
+
 def test_running_init_twice_keeps_every_manifest_entry(runner, real_project):
     from goodvibes_cli.main import app as main_app
     assert runner.invoke(main_app, ["init"]).exit_code == 0

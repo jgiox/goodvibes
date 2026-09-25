@@ -6,6 +6,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/2.0.0/),
 
 ## [Unreleased]
 
+### Added
+
+- context7 in Cursor and VS Code (GitHub Copilot): `goodvibes init` writes `.cursor/mcp.json` and `.vscode/mcp.json` with the context7 server, in every scope and with `--minimal`. `goodvibes update` adds or refreshes only the `context7` entry, keeps your other servers, and never brings back an entry or file you deleted. Windsurf keeps its MCP servers outside the project, so its setup note explains the one manual step
+
+### Security
+
+- Claude Code also asks before editing `.cursor/mcp.json` and `.vscode/mcp.json`, so an agent cannot quietly add an MCP server for Cursor or VS Code
+
+### Fixed
+
+- File Size check in projects that already have their own GitHub workflows: `goodvibes init` now adds `.github/workflows/file-size.yml` together with the script it runs (the other goodvibes workflows are still skipped there), and `goodvibes update` adds it to projects that got only the script. An existing `file-size.yml` is never overwritten, and `--minimal` still skips all of `.github/`
+
 ## [1.10.0] - 2026-09-25
 
 ### Added

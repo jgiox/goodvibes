@@ -325,6 +325,19 @@ describe('copyTemplates — IDE rule files', () => {
     expect(existsSync(join(tmpDir, '.mcp.json'))).toBe(true)
   })
 
+  it('writes the context7 MCP files for Cursor and VS Code on fresh init', async () => {
+    const { written } = await copyTemplates(templateDir, tmpDir, false, false)
+    expect(written).toEqual(expect.arrayContaining(['.cursor/mcp.json', '.vscode/mcp.json']))
+    expect(JSON.parse(readFileSync(join(tmpDir, '.cursor', 'mcp.json'), 'utf-8')).mcpServers.context7.url).toBe('https://mcp.context7.com/mcp')
+    expect(JSON.parse(readFileSync(join(tmpDir, '.vscode', 'mcp.json'), 'utf-8')).servers.context7.url).toBe('https://mcp.context7.com/mcp')
+  })
+
+  it('--minimal and global scope still write the Cursor and VS Code MCP files, which those tools read only from the project', async () => {
+    await copyTemplates(templateDir, tmpDir, false, true, 'both', 'global')
+    expect(existsSync(join(tmpDir, '.cursor', 'mcp.json'))).toBe(true)
+    expect(existsSync(join(tmpDir, '.vscode', 'mcp.json'))).toBe(true)
+  })
+
   it('global scope writes project files but not skills, .mcp.json or the rules block', async () => {
     const { written } = await copyTemplates(templateDir, tmpDir, false, false, 'both', 'global')
     expect(existsSync(join(tmpDir, '.claude', 'skills'))).toBe(false)
@@ -526,6 +539,44 @@ describe('copyTemplates — workflow conflict guard', () => {
   it('writes template workflow files when destination has no existing workflows', async () => {
     await copyTemplates(templateDir, tmpDir, false, false)
     expect(existsSync(join(tmpDir, '.github', 'workflows', 'ci.yml'))).toBe(true)
+  })
+
+  it('adds file-size.yml but not ci.yml when the project already has its own workflow', async () => {
+    const workflowsDir = join(tmpDir, '.github', 'workflows')
+    mkdirSync(workflowsDir, { recursive: true })
+    writeFileSync(join(workflowsDir, 'codeql.yml'), '# existing CodeQL\n')
+
+    const { written } = await copyTemplates(templateDir, tmpDir, false, false)
+
+    expect(readFileSync(join(workflowsDir, 'file-size.yml'), 'utf-8')).toBe(readFileSync(join(templateDir, '.github', 'workflows', 'file-size.yml'), 'utf-8'))
+    expect(written).toContain('.github/workflows/file-size.yml')
+    expect(existsSync(join(tmpDir, '.github', 'scripts', 'check-file-sizes.mjs'))).toBe(true)
+    expect(existsSync(join(workflowsDir, 'ci.yml'))).toBe(false)
+    expect(existsSync(join(workflowsDir, 'security.yml'))).toBe(false)
+  })
+
+  it('adds neither file-size.yml nor ci.yml under --minimal when the project has its own workflow', async () => {
+    const workflowsDir = join(tmpDir, '.github', 'workflows')
+    mkdirSync(workflowsDir, { recursive: true })
+    writeFileSync(join(workflowsDir, 'codeql.yml'), '# existing CodeQL\n')
+
+    await copyTemplates(templateDir, tmpDir, false, true)
+
+    expect(existsSync(join(workflowsDir, 'file-size.yml'))).toBe(false)
+    expect(existsSync(join(workflowsDir, 'ci.yml'))).toBe(false)
+    expect(existsSync(join(tmpDir, '.github', 'scripts'))).toBe(false)
+  })
+
+  it('keeps the user\'s own file-size.yml and reports it as skipped when the project has its own workflows', async () => {
+    const workflowsDir = join(tmpDir, '.github', 'workflows')
+    mkdirSync(workflowsDir, { recursive: true })
+    writeFileSync(join(workflowsDir, 'file-size.yml'), '# my own size check\n')
+
+    const { written, skipped } = await copyTemplates(templateDir, tmpDir, false, false)
+
+    expect(readFileSync(join(workflowsDir, 'file-size.yml'), 'utf-8')).toBe('# my own size check\n')
+    expect(written).not.toContain('.github/workflows/file-size.yml')
+    expect(skipped).toContain('.github/workflows/file-size.yml')
   })
 })
 

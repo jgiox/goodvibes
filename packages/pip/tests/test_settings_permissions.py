@@ -61,6 +61,6 @@ def test_shipped_settings_never_deny_reading_env_example():
 
 
 def test_shipped_settings_ask_before_editing_settings_mcp_servers_and_hooks():
-    guard = ["Edit(./.claude/settings.json)", "Edit(./.claude/settings.local.json)", "Edit(./.mcp.json)", "Edit(./.claude/hooks/**)"]
+    guard = ["Edit(./.claude/settings.json)", "Edit(./.claude/settings.local.json)", "Edit(./.mcp.json)", "Edit(./.cursor/mcp.json)", "Edit(./.vscode/mcp.json)", "Edit(./.claude/hooks/**)"]
     assert [p for p in guard if p not in _perms()["ask"]] == []
     assert [p for p in _perms()["ask"] if "CLAUDE.md" in p or "JOURNAL.md" in p] == []

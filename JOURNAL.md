@@ -2111,3 +2111,41 @@ Added a Standing decisions section to this journal.
 **Why:** the maintainer asked to try the first release through the new `release` environment. After merge, the maintainer pushes `npm-v1.10.0` and `pip-v1.10.0` on main and approves both runs.
 
 **Tests:** npm vitest 793 passed, 1 skipped; pip 667 passed; `--version` prints 1.10.0 in both CLIs; verify-phase1 to 5 PASS.
+
+## 2026-09-25: 1.10.0 released; repo's own rule files synced
+
+**Release:** 1.10.0 is live on npm and PyPI. Both publish runs (npm #17, pip #17) passed the guard and the tests, waited for the maintainer's approval in the `release` environment, published, and passed their install tests. `npx goodvibes-cli@1.10.0 --version` and a fresh `pip install goodvibes-cli==1.10.0` both print 1.10.0.
+
+**What went wrong on the way:**
+- PR #42 was merged one commit before its version bump landed. The bump was re-opened as PR #43 on a branch restarted from main.
+- The first tags were pushed from a local main 260 commits behind, pointing at `ed0b502` (version 1.7.1). Tag pushes run the workflow file as it was at the tagged commit, so they used the old workflows without the guard. npm refused the 1.7.1 re-publish, and the pip run was cancelled at the approval step. Nothing wrong was published.
+- The tags were deleted and recreated on `0fe9130`.
+- Approval was first impossible because "Prevent self-review" was on in the `release` environment. It is now off, since the maintainer is the only reviewer.
+
+**Repo settings now:**
+- `release` environment: required reviewer, admin bypass off, deployments limited to `main`, `npm-v*` and `pip-v*`.
+- npm: two-factor authentication required, bypass tokens not allowed.
+- Private vulnerability reporting, Dependabot alerts, code scanning and secret scanning are all enabled.
+- The template token was replaced and a security advisory drafted for the fsmonitor issue (affected: npm >= 1.9.0 < 1.10.0, pip >= 1.8.0 < 1.10.0).
+- Template repo `jgiox/goodvibes-template` is still at v1.2.0. The publish-template run is waiting for the maintainer to start it again and approve it.
+
+**Dogfood sync:** this repo's rule files are copied from `templates/`: `.amazonq`, `.clinerules`, `.continue`, `.cursor`, `.devin`, `.kiro`, `.windsurfrules`, `AGENTS.md`, `GEMINI.md` and `.github/copilot-instructions.md`. `.claude/skills/` is copied from `templates/.claude/skills/`, which adds `model-regression`. The goodvibes block of `CLAUDE.md` is replaced from the template; the project sections above it are unchanged. Not synced, because they are this repo's own: CHANGELOG, JOURNAL, CONTRIBUTING, SECURITY, `.github/dependabot.yml`, the repo workflows, and `.claude/settings.json` (hooks already identical; the repo deliberately has no permissions block).
+- Rulesets: `main` requires a PR with green CI and blocks force-push and deletion; only admins can create the `npm-v*`, `pip-v*` and `v*` tags (maintainer confirmed).
+
+## 2026-09-25: File Size workflow reaches projects with their own workflows
+
+**What:** `.github/workflows/file-size.yml` now travels with `.github/scripts/check-file-sizes.mjs`. `init` adds it even when the project already has workflows (other template workflows are still skipped there), `--minimal` still skips all of `.github/`, and `update` counts it in the `.github` layer, so a project that got only the script gets the workflow on its next update. An existing `file-size.yml` is never overwritten.
+- RED: npm `copy-templates.integration.test.ts` and `update.integration.test.ts`, pip `test_copy_templates.py` and `test_update_cmd.py`: own workflow gets `file-size.yml` but not `ci.yml`; `--minimal` adds neither; update adds it when the manifest tracks the script; a user's own `file-size.yml` is kept.
+- GREEN: `copyTemplates` / `copy_templates` no longer skip `file-size.yml` when the project has workflows (no-clobber still applies), and update's `layer()` / `_group()` put it in the `.github` layer.
+- Docs: getting-started (and its template copy) says projects with their own workflows get `file-size.yml` only; CHANGELOG `[Unreleased]` Fixed entry.
+- Template sync failed: the fine-grained TEMPLATE_REPO_TOKEN also needs Workflows: Read and write, because templates/ contains .github/workflows files (GitHub rejected the push of ci-both.yml without the workflow scope). Fixed the setup note in publish-template.yml; the maintainer is editing the token.
+
+## 2026-09-25: context7 for Cursor and VS Code (GitHub Copilot)
+
+**What:** `goodvibes init` ships `.cursor/mcp.json` and `.vscode/mcp.json` with only the context7 entry, and `update` merges that entry the way it merges `.mcp.json`, in npm and pip.
+**Formats (verified):** context7's client docs (`docs/resources/all-clients.mdx` in upstash/context7): Cursor `.cursor/mcp.json`, key `mcpServers`, entry `{"url": ...}`; VS Code `.vscode/mcp.json`, key `servers`, entry `{"type": "http", "url": ...}`. Windsurf is `mcpServers` with `serverUrl` (context7 README up to 2.0.0), but its file path could not be confirmed from a primary source (docs.windsurf.com blocked here; search results name both `~/.codeium/windsurf/mcp_config.json` and `~/.codeium/mcp_config.json`), so goodvibes does not write it; the Windsurf setup note explains the manual step.
+- RED: npm `mcp-json.test.ts`, `json-merge.test.ts`, `copy-templates.integration.test.ts`, `update.integration.test.ts`, `dist-cli.integration.test.ts`; pip `test_mcp_json.py`, `test_json_merge.py`, `test_copy_templates.py`, `test_update_cmd.py`, `test_init_cmd.py`. The two "deleted file stays deleted" and "installed id not re-added" guards already pass, because that logic is shared.
+- GREEN: `templates/.cursor/mcp.json` and `templates/.vscode/mcp.json`; `json-merge.ts` / `json_merge.py` map each MCP file to its servers key (`mcpServers`, or `servers` for VS Code) and add both files to `MANAGED_JSON`, so init, update, the managed record and the removed-stays-removed rules are the ones `.mcp.json` already uses. `--minimal` and global scope write both files, as they are not Claude Code config. The pip update test asserts pip's existing summary wording (`(merged N goodvibes key(s))`), which already differs from npm's. Tests: npm 806 passed, 1 skipped; pip 679 passed; verify-phase1 to 5 PASS.
+- Docs: README (problem table, What init sets up, Updating, the global-scope table, Works with), FAQ (where files go, update merge, privacy), getting-started context7 section (a per-tool table), and the Cursor and Windsurf setup notes (Windsurf: manual `serverUrl` step, path not stated because it is unverified), with byte-identical `templates/docs/` copies. CHANGELOG `[Unreleased]` Added entry. Not done: `.claude/settings.json` asks before editing `.mcp.json` but not `.cursor/mcp.json` or `.vscode/mcp.json`; worth a follow-up.
+- Guard rails: RED tests require ask rules for Edit(./.cursor/mcp.json) and Edit(./.vscode/mcp.json), so an agent cannot quietly add an MCP server for Cursor or VS Code (flagged by the context7 worker). Template sync to goodvibes-template succeeded after the token got Workflows: Read and write; the template repo is at v1.10.0.
+- GREEN: templates/.claude/settings.json asks before Edit(./.cursor/mcp.json) and Edit(./.vscode/mcp.json). README guard-rail list and CHANGELOG updated. npm vitest 811 passed, 1 skipped; pip 684 passed.

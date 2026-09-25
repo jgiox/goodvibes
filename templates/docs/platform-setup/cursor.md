@@ -4,7 +4,7 @@
 
 The git commit check also works here: `goodvibes init` adds a git hook that blocks any commit that leaves out `JOURNAL.md`.
 
-**What you do not get:** the Claude Code guard rails (the read guard, the session-start check and the permissions), the Claude Code skills such as caveman, `goodvibes usage`, and the Claude Code slash commands such as `/ponytail-review`. goodvibes sets up context7 and headroom for Claude Code only. See [Getting started](../getting-started.md) for what each piece does.
+**What you do not get:** the Claude Code guard rails (the read guard, the session-start check and the permissions), the Claude Code skills such as caveman, `goodvibes usage`, and the Claude Code slash commands such as `/ponytail-review`. goodvibes sets up headroom for Claude Code only; context7 is set up for Cursor too (see below). See [Getting started](../getting-started.md) for what each piece does.
 
 ## Setup
 
@@ -13,6 +13,12 @@ There is nothing to do. `goodvibes init` wrote `.cursor/rules/goodvibes.mdc` int
 ## Check that the rules are on
 
 Open the project in Cursor and ask in the chat: "Which rules do you follow in this project?" The answer should mention the goodvibes engineering rules, for example reading `JOURNAL.md` before acting.
+
+## context7: current library docs
+
+`goodvibes init` also wrote `.cursor/mcp.json`, which adds the context7 server to Cursor for this project. With it, Cursor can look up the current docs for the libraries you use instead of guessing from old training data. It is free and needs no account or key. You can see it under Cursor Settings, Tools & MCP.
+
+You can add your own MCP servers to the same file. `goodvibes update` adds or refreshes only the `context7` entry and keeps the rest. To turn context7 off, delete the `context7` entry, or the whole file if it holds nothing else. `goodvibes update` does not bring it back.
 
 ## If you already have a `.cursorrules` file
 

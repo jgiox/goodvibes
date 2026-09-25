@@ -20,7 +20,9 @@ const removedNote = (rel: string) => `${rel}: removed by you, not re-added (run 
 
 // init skips a whole layer (CI when the project had workflows, .github/docs under --minimal); update must not add it later.
 const layer = (rel: string) =>
-  rel.startsWith('.github/workflows/') ? 'workflows' : rel.startsWith('.github/') ? 'github' : rel.startsWith('docs/') ? 'docs' : null
+  // file-size.yml travels with its script in .github/scripts, so it is in the github layer
+  rel.startsWith('.github/workflows/') && rel !== '.github/workflows/file-size.yml' ? 'workflows'
+    : rel.startsWith('.github/') ? 'github' : rel.startsWith('docs/') ? 'docs' : null
 
 async function categorise(
   templateDir: string,
@@ -148,7 +150,7 @@ export async function runUpdate(dryRun: boolean, force: boolean): Promise<void> 
     ? await categorise(templateDir, cwd, manifest, projectType, scope)
     : { overwrite: [], skip: [], netNew: [], kept: [], removed: [], stillRemoved: [], retired: [], blocked: {} as Record<string, string> }
 
-  // User-modified settings.json / .mcp.json still receive goodvibes-managed keys.
+  // User-modified settings.json and MCP files still receive goodvibes-managed keys.
   const merges: { rel: string; merged: Record<string, unknown>; changes: string[] }[] = []
   const mergeErrors: string[] = []
   for (const rel of [...skip, ...kept].filter(r => MANAGED_JSON.includes(r))) {

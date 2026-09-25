@@ -277,13 +277,22 @@ It works offline and reads only token counts, never what you or Claude wrote. Cl
 
 <a id="what-is-context7"></a>
 
-## context7: current library docs (Claude Code only)
+## context7: current library docs (Claude Code, Cursor, VS Code)
 
-**What it is.** context7 is an MCP server that gives Claude Code current documentation for libraries and frameworks. It is free and needs no account or key.
+**What it is.** context7 is an MCP server that gives your AI tool current documentation for libraries and frameworks. It is free and needs no account or key.
 
-**Why it helps you.** An AI model learned its libraries at one point in time. When a library changes, the AI keeps writing the old way. With context7, Claude can look up the current docs first, and the rules tell it to check an API before stating a guess as fact.
+**Why it helps you.** An AI model learned its libraries at one point in time. When a library changes, the AI keeps writing the old way. With context7, the AI can look up the current docs first, and the rules tell it to check an API before stating a guess as fact.
 
-**What it does.** By default, `goodvibes init` adds context7 to your Claude Code user settings, so it works in every project:
+**What it does.** `goodvibes init` sets context7 up in three tools:
+
+| Tool | Where |
+|---|---|
+| Claude Code | Your Claude Code user settings, or this project's `.mcp.json` with `--scope project` |
+| Cursor | `.cursor/mcp.json` in this project |
+| VS Code (GitHub Copilot) | `.vscode/mcp.json` in this project |
+| Windsurf | Not set up for you: see [Windsurf setup](platform-setup/windsurf.md) for the manual step |
+
+**In Claude Code.** By default, `goodvibes init` adds context7 to your Claude Code user settings, so it works in every project:
 
 ```sh
 claude mcp add --transport http --scope user context7 https://mcp.context7.com/mcp
@@ -318,7 +327,9 @@ In a project `.mcp.json`, set a `CONTEXT7_API_KEY` environment variable and refe
 
 Never commit the key itself, only the `${CONTEXT7_API_KEY}` reference.
 
-**Turn it off.** Run `claude mcp remove context7 -s user`. With `--scope project`, delete the `context7` entry from `.mcp.json`.
+**In Cursor and VS Code.** The files are in the project whichever scope you chose, because those tools do not read the Claude Code settings. Each holds only the context7 server. You can add your own servers to the same file: `goodvibes update` adds or refreshes only the `context7` entry and keeps the rest. In Cursor you can see it under Cursor Settings, Tools & MCP. To use a key in these tools, follow context7's setup notes for your tool at [context7.com/docs/resources/all-clients](https://context7.com/docs/resources/all-clients), and keep the key in an environment variable, never in the file.
+
+**Turn it off.** Run `claude mcp remove context7 -s user`. With `--scope project`, delete the `context7` entry from `.mcp.json`. In Cursor or VS Code, delete the `context7` entry from `.cursor/mcp.json` or `.vscode/mcp.json`, or the whole file. `goodvibes update` does not bring back anything you deleted.
 
 ## GitHub checks (CI)
 
@@ -339,7 +350,7 @@ Never commit the key itself, only the `${CONTEXT7_API_KEY}` reference.
 - CodeQL and dependency review need GitHub Advanced Security on private repositories, so they are skipped there and run on public ones.
 - Every workflow gets a read-only token, and a newer push to a pull request cancels the older run.
 - `.github/dependabot.yml` opens pull requests each week to update your GitHub Actions, npm and pip dependencies, at most five open at a time each. It waits 7 days after a release before proposing it.
-- If your project already had workflows when you ran `goodvibes init`, goodvibes added none of its own.
+- If your project already had workflows when you ran `goodvibes init`, goodvibes added only `file-size.yml` and none of its other workflows. A project set up before this that has the file size script but not `file-size.yml` gets it on the next `goodvibes update`.
 
 ### File size check
 

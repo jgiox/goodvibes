@@ -12,7 +12,7 @@ import typer
 from rich.console import Console
 from rich.panel import Panel
 
-from goodvibes_cli.steps.copy_templates import list_template_files, resolve_templates_dir
+from goodvibes_cli.steps.copy_templates import FILE_SIZE_WORKFLOW, list_template_files, resolve_templates_dir
 from goodvibes_cli.steps.git_hook import KEEPS, REMOVED_LINE, hook_line, install_git_hook
 from goodvibes_cli.steps.write_manifest import USER_OWNED, USER_REMOVED, ManifestError, read_manifest, write_manifest
 from goodvibes_cli.utils.detect_project_type import detect_project_type
@@ -28,7 +28,8 @@ REMOVED = "removed by you, not re-added (run goodvibes init to restore)"
 
 
 def _group(rel: str) -> str | None:
-    if rel.startswith(".github/workflows/"):
+    # file-size.yml travels with its script in .github/scripts, so it is in the .github group
+    if rel.startswith(".github/workflows/") and rel != FILE_SIZE_WORKFLOW:
         return "workflows"
     if rel.startswith(".github/"):
         return ".github"
@@ -168,7 +169,7 @@ def update_cmd(
         elif _group(dest_rel) is None or _group(dest_rel) in tracked_groups:
             net_new.append(dest_rel)
 
-    # User-modified settings.json / .mcp.json still receive goodvibes-managed keys.
+    # User-modified settings.json and MCP files still receive goodvibes-managed keys.
     merges: list[tuple[str, dict, list[str]]] = []
     merge_errors: list[str] = []
     for rel in [r for r in skip + kept if r in MANAGED_JSON]:
