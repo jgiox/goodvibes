@@ -2,12 +2,16 @@
 from __future__ import annotations
 
 import importlib.metadata
+import json
 import math
+import os
 import pathlib
+import re
 import shutil
 import subprocess
 from dataclasses import dataclass, field
 from typing import Annotated, Literal
+from urllib.parse import urlsplit
 
 import typer
 from rich.console import Console
@@ -74,6 +78,94 @@ def _check_journal(cwd: pathlib.Path) -> list[CheckResult]:
         "warn",
         'Keep lasting decisions in its "Standing decisions" section and keep new entries short.',
     )]
+
+
+SECRET_KEY = re.compile(r"key|token|secret|password|authorization", re.I)
+LOOPBACK = {"localhost", "127.0.0.1", "::1"}
+
+
+def claude_json_path() -> pathlib.Path:
+    cfg = os.environ.get("CLAUDE_CONFIG_DIR")
+    if not cfg:
+        return pathlib.Path.home() / ".claude.json"
+    dotted = pathlib.Path(cfg) / ".claude.json"
+    plain = pathlib.Path(cfg) / "claude.json"
+    return plain if not dotted.exists() and plain.exists() else dotted
+
+
+def _unpinned_package(command: str, args: list[str]) -> str | None:
+    name = pathlib.PurePath(command).name.lower().removesuffix(".cmd").removesuffix(".exe")
+    if name == "pnpm":
+        if args[:1] != ["dlx"]:
+            return None
+        name, args = "npx", args[1:]
+    if name not in ("npx", "bunx", "uvx"):
+        return None
+    pkg = next((a for a in args if not a.startswith("-")), None)
+    if pkg is None or pkg.startswith((".", "/")):
+        return None
+    if name == "uvx":
+        return None if "==" in pkg or "@" in pkg else pkg
+    at = pkg.rfind("@")
+    return None if 0 < at < len(pkg) - 1 else pkg
+
+
+def server_problems(server: dict) -> list[tuple[str, str]]:
+    """(problem, remedy) pairs for one MCP server entry; secret values are never included."""
+    problems: list[tuple[str, str]] = []
+    command = server.get("command") if isinstance(server.get("command"), str) else ""
+    args = [a for a in server.get("args") or [] if isinstance(a, str)] if isinstance(server.get("args"), list) else []
+    if pathlib.PurePath(command).name in ("sh", "bash") and "-c" in args[:-1]:
+        script = args[args.index("-c") + 1]
+        if ("curl" in script or "wget" in script) and "|" in script:
+            problems.append(("pipes a download into a shell", ""))
+    pkg = _unpinned_package(command, args) if command else None
+    if pkg:
+        problems.append((f"unpinned package {pkg} is fetched every run", "Pin a version"))
+    url = server.get("url")
+    if isinstance(url, str):
+        try:
+            parts = urlsplit(url)
+            host = parts.hostname
+        except ValueError:
+            parts, host = None, None
+        if parts and parts.scheme == "http" and host not in LOOPBACK:
+            problems.append((f"insecure http:// URL to {host}", "Use https"))
+    for where in ("env", "headers"):
+        values = server.get(where)
+        for key, value in (values.items() if isinstance(values, dict) else []):
+            if SECRET_KEY.search(key) and isinstance(value, str) and len(value) > 16 and not re.search(r"\$\{[^}]+\}", value):
+                problems.append((f"literal secret in {where}.{key}", "Move it to an environment variable and reference ${VAR}"))
+    return problems
+
+
+def _load_json(path: pathlib.Path) -> tuple[dict, list[CheckResult]]:
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        return {}, []
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        return {}, [CheckResult(f"MCP config {path} is not valid JSON", "warn")]
+    except OSError as e:
+        return {}, [CheckResult(f"MCP config {path} could not be read ({e.strerror})", "warn")]
+    return (data if isinstance(data, dict) else {}), []
+
+
+def _servers(section: object) -> dict:
+    servers = section.get("mcpServers") if isinstance(section, dict) else None
+    return servers if isinstance(servers, dict) else {}
+
+
+def _check_mcp(cwd: pathlib.Path) -> list[CheckResult]:
+    user, results = _load_json(claude_json_path())
+    project, project_errors = _load_json(cwd / ".mcp.json")
+    results += project_errors
+    projects = user.get("projects") if isinstance(user.get("projects"), dict) else {}
+    for scope, servers in (("user", _servers(user)), ("local", _servers(projects.get(str(cwd)))), ("project", _servers(project))):
+        for name, server in servers.items():
+            problems = server_problems(server) if isinstance(server, dict) else []
+            results += [CheckResult(f"MCP {name} ({scope}): {p}", "warn", r) for p, r in problems] or [CheckResult(f"MCP {name} ({scope})", "ok")]
+    return results
 
 
 def _check_goodvibes_cli() -> CheckResult:
@@ -171,6 +263,7 @@ def doctor_cmd(
         *manifest_checks,
         *_rule_checks(cwd, scope),
         *_check_journal(cwd),
+        *_check_mcp(cwd),
     ]
 
     version = _installed_version()

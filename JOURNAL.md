@@ -1865,3 +1865,4 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 - RED: JOURNAL.md over 10 KB warns in doctor and doctor --quick; the file is not changed.
 - GREEN: `_check_journal` (size rounded up to whole KB, 1 KB = 1024 bytes); runs in both modes.
 - RED: MCP server check (user/local/project scope; piped download, unpinned launcher package, remote http, literal secret; bad JSON warns).
+- GREEN: `claude_json_path`, `server_problems`, `_check_mcp` in full doctor only; reads local files only, never contacts a server, prints key names only.
