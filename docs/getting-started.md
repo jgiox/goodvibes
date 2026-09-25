@@ -339,7 +339,7 @@ Never commit the key itself, only the `${CONTEXT7_API_KEY}` reference.
 - CodeQL and dependency review need GitHub Advanced Security on private repositories, so they are skipped there and run on public ones.
 - Every workflow gets a read-only token, and a newer push to a pull request cancels the older run.
 - `.github/dependabot.yml` opens pull requests each week to update your GitHub Actions, npm and pip dependencies, at most five open at a time each. It waits 7 days after a release before proposing it.
-- If your project already had workflows when you ran `goodvibes init`, goodvibes added none of its own.
+- If your project already had workflows when you ran `goodvibes init`, goodvibes added only `file-size.yml` and none of its other workflows. A project set up before this that has the file size script but not `file-size.yml` gets it on the next `goodvibes update`.
 
 ### File size check
 
