@@ -1,7 +1,7 @@
 import type { Command } from 'commander'
 import { intro, outro, note, confirm, isCancel, cancel } from '@clack/prompts'
 import { listTemplateFiles, resolveTemplatesDir } from '../steps/copy-templates.js'
-import { readManifest, writeManifest, posixKey, type Manifest } from '../steps/write-manifest.js'
+import { readManifest, writeManifest, posixKey, USER_OWNED, USER_REMOVED, type Manifest } from '../steps/write-manifest.js'
 import { mergeClaude, MarkerError } from '../utils/sentinel-merge.js'
 import { MANAGED_JSON, mergeManagedJson, managedRecord, isJsonObject } from '../utils/json-merge.js'
 import { assertSafe, writeBlocked, writeFileAtomic } from '../utils/fs-safe.js'
@@ -15,9 +15,6 @@ import { createHash } from 'node:crypto'
 import { packageVersion } from '../utils/version.js'
 import { copy } from 'fs-extra'
 
-// Not a hex digest, so the file always classifies as user-modified on later runs.
-const USER_OWNED = 'user-owned'
-
 const removedNote = (rel: string) => `${rel}: removed by you, not re-added (run goodvibes init to restore)`
 
 // init skips a whole layer (CI when the project had workflows, .github/docs under --minimal); update must not add it later.
@@ -30,7 +27,7 @@ async function categorise(
   manifest: { files: Record<string, string> },
   projectType: string,
   scope: Scope = 'project',
-): Promise<{ overwrite: string[]; skip: string[]; netNew: string[]; kept: string[]; removed: string[]; blocked: Record<string, string> }> {
+): Promise<{ overwrite: string[]; skip: string[]; netNew: string[]; kept: string[]; removed: string[]; stillRemoved: string[]; blocked: Record<string, string> }> {
   // In global scope the rules block, skills and context7 live in the user config, never in the project.
   const excluded = (rel: string) => scope === 'global' && (rel === 'CLAUDE.md' || GLOBAL_OWNED(rel))
   const ciVariants = ['ci-node.yml', 'ci-python.yml', 'ci-both.yml']
@@ -40,6 +37,7 @@ async function categorise(
   const netNew: string[] = []
   const kept: string[] = []
   const removed: string[] = []
+  const stillRemoved: string[] = []
   // Symlinked destinations: never read for hashing, never written; tracked ones keep their manifest entry.
   const blocked: Record<string, string> = {}
 
@@ -52,8 +50,11 @@ async function categorise(
       continue
     }
     const destPath = join(cwd, rel)
-    if (!existsSync(destPath)) {
-      removed.push(rel) // the user deleted it; dropping it from the manifest is how the choice is kept
+    if (manifestSha === USER_REMOVED) {
+      if (existsSync(destPath)) kept.push(rel) // recreated by the user: theirs now
+      else stillRemoved.push(rel)
+    } else if (!existsSync(destPath)) {
+      removed.push(rel)
     } else if (rel === 'CLAUDE.md') {
       // mergeClaude only ever replaces the sentinel block, so it's always safe to
       // run even when custom prose outside the block changes the whole-file hash.
@@ -70,7 +71,7 @@ async function categorise(
   }
 
   // Second pass: template files absent from manifest are net-new
-  const trackedLayers = new Set(Object.keys(manifest.files).map(layer))
+  const trackedLayers = new Set(Object.entries(manifest.files).filter(([, v]) => v !== USER_REMOVED).map(([k]) => layer(k)))
   const allTemplateFiles = (await listTemplateFiles(templateDir)).map(posixKey)
   for (const templateFile of allTemplateFiles) {
     if (templateFile === '.goodvibes.json') continue
@@ -95,7 +96,7 @@ async function categorise(
     }
   }
 
-  return { overwrite, skip, netNew, kept, removed, blocked }
+  return { overwrite, skip, netNew, kept, removed, stillRemoved, blocked }
 }
 
 export function registerUpdateCommand(program: Command): void {
@@ -139,9 +140,9 @@ export async function runUpdate(dryRun: boolean, force: boolean): Promise<void> 
 
   const projectType = detectProjectType(cwd)
   const scope: Scope = manifest?.scope ?? 'project'
-  const { overwrite, skip, netNew, kept, removed, blocked } = manifest
+  const { overwrite, skip, netNew, kept, removed, stillRemoved, blocked } = manifest
     ? await categorise(templateDir, cwd, manifest, projectType, scope)
-    : { overwrite: [], skip: [], netNew: [], kept: [], removed: [], blocked: {} as Record<string, string> }
+    : { overwrite: [], skip: [], netNew: [], kept: [], removed: [], stillRemoved: [], blocked: {} as Record<string, string> }
 
   // User-modified settings.json / .mcp.json still receive goodvibes-managed keys.
   const merges: { rel: string; merged: Record<string, unknown>; changes: string[] }[] = []
@@ -250,6 +251,9 @@ export async function runUpdate(dryRun: boolean, force: boolean): Promise<void> 
   if (claudeProblems.length > 0 && 'CLAUDE.md' in manifest.files) preserved['CLAUDE.md'] = manifest.files['CLAUDE.md']
   for (const rel of kept) {
     preserved[rel] = USER_OWNED
+  }
+  for (const rel of [...removed, ...stillRemoved]) {
+    preserved[rel] = USER_REMOVED
   }
 
   const manifestBlocked = await writeManifest(

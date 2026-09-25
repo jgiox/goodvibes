@@ -5,7 +5,7 @@ import { homedir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { execa } from 'execa'
 import { listTemplateFiles } from './copy-templates.js'
-import { readManifest, type Manifest, MANIFEST_PATH } from './write-manifest.js'
+import { readManifest, type Manifest, MANIFEST_PATH, USER_OWNED, USER_REMOVED } from './write-manifest.js'
 import { mergeManagedJson, presentIds, isJsonObject } from '../utils/json-merge.js'
 import { writeFileAtomic } from '../utils/fs-safe.js'
 import { goodvibesBlock } from '../utils/scope.js'
@@ -66,7 +66,8 @@ export type GlobalResult = {
 }
 
 // Writes goodvibes-owned files into the Claude Code user config; a file the user edited since goodvibes wrote it is kept.
-export async function applyGlobalConfig(templateDir: string, version: string, dryRun: boolean): Promise<GlobalResult> {
+// Only init passes restore, which brings back files the user deleted.
+export async function applyGlobalConfig(templateDir: string, version: string, dryRun: boolean, restore = false): Promise<GlobalResult> {
   const cfg = claudeConfigDir()
   const prev: Manifest | null = await readManifest(cfg)
   const owned: [string, string][] = [['rules/goodvibes.md', goodvibesBlock(await readFile(join(templateDir, 'CLAUDE.md'), 'utf-8'))]]
@@ -79,12 +80,18 @@ export async function applyGlobalConfig(templateDir: string, version: string, dr
   for (const [rel, content] of owned) {
     const dest = join(cfg, rel)
     const recorded = prev?.files[rel]
-    // Tracked but gone: the user deleted it, so it is neither rewritten nor kept in the manifest.
-    if (recorded && !existsSync(dest)) {
-      result.removed.push(rel)
+    const exists = existsSync(dest)
+    if (recorded === USER_REMOVED && exists) {
+      result.kept.push(rel)
+      files[rel] = USER_OWNED
       continue
     }
-    if (existsSync(dest) && sha(await readFile(dest, 'utf-8')) !== recorded) {
+    if (recorded && !exists && !restore) {
+      if (recorded !== USER_REMOVED) result.removed.push(rel)
+      files[rel] = USER_REMOVED
+      continue
+    }
+    if (exists && sha(await readFile(dest, 'utf-8')) !== recorded) {
       result.kept.push(rel)
       if (recorded) files[rel] = recorded
       continue

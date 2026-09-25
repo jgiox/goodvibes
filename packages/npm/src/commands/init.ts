@@ -75,7 +75,7 @@ export function registerInitCommand(program: Command): void {
 
       if (dryRun) {
         if (scope === 'global') {
-          const g = await applyGlobalConfig(templateDir, packageVersion(), true)
+          const g = await applyGlobalConfig(templateDir, packageVersion(), true, true)
           const cli = await ensureGlobalCli(packageVersion(), true)
           note(formatGlobal(g, cli, undefined), `Dry run — global setup (${g.configDir})`)
         }
@@ -125,7 +125,7 @@ export function registerInitCommand(program: Command): void {
         taskList.push({
           title: 'Setting up goodvibes for all your projects',
           task: async () => {
-            globalResult = await applyGlobalConfig(templateDir, packageVersion(), false)
+            globalResult = await applyGlobalConfig(templateDir, packageVersion(), false, true)
             context7Result = await registerContext7(false)
             cliResult = await ensureGlobalCli(packageVersion(), false)
             return `Global setup in ${globalResult.configDir}`

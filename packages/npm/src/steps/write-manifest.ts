@@ -12,6 +12,10 @@ export interface Manifest {
 
 export const MANIFEST_PATH = '.goodvibes.json'
 
+// Sentinels, not hex digests: 'user-owned' is never overwritten; 'user-removed' was deleted by the user and is not re-added.
+export const USER_OWNED = 'user-owned'
+export const USER_REMOVED = 'user-removed'
+
 // Manifest keys are always forward-slash so a manifest written on Windows matches on every OS.
 export const posixKey = (rel: string): string => rel.replace(/\\/g, '/')
 const posixKeys = <T>(record: Record<string, T> = {}): Record<string, T> =>
