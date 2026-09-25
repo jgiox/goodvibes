@@ -19,19 +19,33 @@ export function claudeJsonPath(): string {
 
 const isObject = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v)
 
-function packageArg(args: string[]): string | undefined {
+const UVX_VALUE_OPTIONS = new Set(['-p', '--python', '--with', '--index', '--index-url', '--default-index', '--extra-index-url'])
+
+function packageArg(args: string[], uvx: boolean): string | undefined {
+  const named = uvx ? ['--from'] : ['-p', '--package']
   for (let i = 0; i < args.length; i++) {
-    const a = args[i]
-    if (a === '-p' || a === '--package' || a === '--from') return args[i + 1]
-    if (a.startsWith('--package=') || a.startsWith('--from=')) return a.slice(a.indexOf('=') + 1)
-    if (!a.startsWith('-')) return a
+    const eq = args[i].indexOf('=')
+    if (named.includes(args[i])) return args[i + 1]
+    if (eq > 0 && named.includes(args[i].slice(0, eq))) return args[i].slice(eq + 1)
+  }
+  for (let i = 0; i < args.length; i++) {
+    if (uvx && UVX_VALUE_OPTIONS.has(args[i])) i++
+    else if (!args[i].startsWith('-')) return args[i]
   }
   return undefined
 }
 
+// `pkg@latest` still fetches whatever is newest, so only a real version or range counts as pinned.
+const pinnedAfter = (pkg: string, sep: string, from: number): boolean => {
+  const at = pkg.indexOf(sep, from)
+  return at >= 0 && pkg.slice(at + sep.length) !== '' && pkg.slice(at + sep.length) !== 'latest'
+}
+
 function problems(s: Server): Problem[] {
   const out: Problem[] = []
-  const cmd = typeof s.command === 'string' ? (s.command.split(/[\\/]/).pop() ?? '').replace(/\.(cmd|exe)$/i, '') : ''
+  const raw = typeof s.command === 'string' ? s.command : ''
+  const cmd = (raw.split(/[\\/]/).pop() ?? '').replace(/\.(cmd|exe)$/i, '')
+  const isPath = /^[./]/.test(raw) || /[\\/]/.test(raw)
   const args = Array.isArray(s.args) ? s.args.filter((a): a is string => typeof a === 'string') : []
 
   if (cmd === 'sh' || cmd === 'bash') {
@@ -41,12 +55,12 @@ function problems(s: Server): Problem[] {
     }
   }
 
-  const launcher = cmd === 'npx' || cmd === 'bunx' || cmd === 'uvx' ? cmd : cmd === 'pnpm' && args[0] === 'dlx' ? 'pnpm dlx' : null
+  const launcher = isPath ? null : cmd === 'npx' || cmd === 'bunx' || cmd === 'uvx' ? cmd : cmd === 'pnpm' && args[0] === 'dlx' ? 'pnpm dlx' : null
   if (launcher) {
-    const pkg = packageArg(launcher === 'pnpm dlx' ? args.slice(1) : args)
-    if (pkg && launcher === 'uvx' && !pkg.includes('==') && !pkg.includes('@')) {
+    const pkg = packageArg(launcher === 'pnpm dlx' ? args.slice(1) : args, launcher === 'uvx')
+    if (pkg && launcher === 'uvx' && !pinnedAfter(pkg, '==', 0) && !pinnedAfter(pkg, '@', 0)) {
       out.push([`uvx fetches unpinned ${pkg} on every run`, `Pin a version: ${pkg}==<version>.`])
-    } else if (pkg && launcher !== 'uvx' && pkg.lastIndexOf('@') <= 0) {
+    } else if (pkg && launcher !== 'uvx' && !pinnedAfter(pkg, '@', 1)) {
       out.push([`${launcher} fetches unpinned ${pkg} on every run`, `Pin a version: ${pkg}@<version>.`])
     }
   }
@@ -68,13 +82,14 @@ function problems(s: Server): Problem[] {
   return out
 }
 
-// Unreadable or missing files are skipped silently; only malformed JSON is worth a warning.
 function readJson(path: string): { data?: unknown; warning?: CheckResult } {
   let raw: string
   try {
     raw = readFileSync(path, 'utf-8')
-  } catch {
-    return {}
+  } catch (e) {
+    const code = (e as NodeJS.ErrnoException).code ?? (e as Error).message
+    if (code === 'ENOENT') return {}
+    return { warning: { label: `${path} could not be read (${code}); its MCP servers were not checked`, status: 'warn' } }
   }
   try {
     return { data: JSON.parse(raw) }

@@ -31,9 +31,10 @@ async function checkHeadroom(): Promise<CheckResult> {
   try {
     await execa('headroom', ['--version'], { timeout: 10_000 })
     return { label: 'headroom installed and working', status: 'ok' }
-  } catch {
+  } catch (e) {
+    const missing = (e as NodeJS.ErrnoException).code === 'ENOENT'
     return {
-      label: 'headroom not installed (optional: compresses what Claude reads)',
+      label: `headroom ${missing ? 'not installed' : 'not working'} (optional: compresses what Claude reads)`,
       status: 'warn',
       remedy: 'Run: uv tool install "headroom-ai[all]"  (or re-run goodvibes init)',
     }
@@ -106,7 +107,7 @@ function checkOnPath(): CheckResult {
   const found = (process.env.PATH ?? '').split(delimiter).some(dir => dir && exts.some(ext => existsSync(join(dir, `goodvibes${ext}`))))
   return found
     ? { label: 'goodvibes command on PATH', status: 'ok' }
-    : { label: 'goodvibes command on PATH', status: 'warn', remedy: 'Optional: lets the session-start check run. Install: npm install -g goodvibes-cli (or: uv tool install goodvibes-cli)' }
+    : { label: 'goodvibes command not on PATH', status: 'warn', remedy: 'Optional: lets the session-start check run. Install: npm install -g goodvibes-cli (or: uv tool install goodvibes-cli)' }
 }
 
 export function checkJournal(cwd: string): CheckResult[] {
@@ -114,7 +115,11 @@ export function checkJournal(cwd: string): CheckResult[] {
   if (!existsSync(path)) return []
   const size = statSync(path).size
   if (size <= 10 * 1024) return []
-  return [{ label: `JOURNAL.md is ${Math.ceil(size / 1024)} KB; agents read it every session. Keep lasting decisions in its "Standing decisions" section and keep new entries short.`, status: 'warn' }]
+  return [{
+    label: `JOURNAL.md is ${Math.ceil(size / 1024)} KB; agents read it every session`,
+    status: 'warn',
+    remedy: 'Keep lasting decisions in its "Standing decisions" section and keep new entries short.',
+  }]
 }
 
 // Global-scope projects keep the rules in the Claude config, not in the project CLAUDE.md.

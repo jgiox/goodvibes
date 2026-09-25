@@ -1880,4 +1880,5 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 
 **What I did:** Aligning npm strings with the coordinator's parity spec (scratchpad `parity_spec.md`) so npm and pip print the same output.
 - Doctor/MCP RED: tests for `goodvibes command not on PATH`, `headroom not working (...)`, journal split into label + remedy, `@latest` unpinned, uvx `--from` and option values skipped, `.cmd`/`.exe` launchers, path commands not launchers, and the `could not be read (<code>)` warning.
+- Doctor/MCP GREEN: `doctor.ts` (headroom ENOENT says not installed, any other error says not working; PATH warn label; journal label + remedy) and `mcp-check.ts` (npm launchers read `-p`/`--package`, uvx reads `--from` and skips option values; `@latest` unpinned; path commands are not launchers; unreadable config gives `could not be read (<code>)`, missing stays silent). --quick formatting already matched the spec.
 
