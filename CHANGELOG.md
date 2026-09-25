@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/2.0.0/),
 
 ## [Unreleased]
 
+## [1.11.0] - 2026-09-25
+
 ### Added
 
 - The journal check and the read guard now run in more AI tools, not only Claude Code. `goodvibes init` writes each tool's hook file: `.codex/hooks.json` (Codex CLI), `.gemini/settings.json` (Gemini CLI), `.github/hooks/goodvibes.json` (GitHub Copilot cloud agent and Copilot in VS Code), `.devin/hooks.v1.json` (Devin CLI), `.windsurf/hooks.json` (Windsurf) and `.kiro/hooks/goodvibes.json` (Kiro). Cursor and the Copilot CLI already run the checks from `.claude/settings.json`. Every file runs the exact same two scripts. `goodvibes update` merges the goodvibes hooks into an existing `.gemini/settings.json` or `.codex/hooks.json` and keeps your own settings and hooks. Codex and Gemini ask you once to trust a project's hooks before they run. Not covered: Cline (its hooks stop the whole task instead of one action), Antigravity, Continue, Amazon Q, Replit, Bolt and Lovable. The git commit check still covers the journal in every tool
