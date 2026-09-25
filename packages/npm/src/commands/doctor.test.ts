@@ -771,6 +771,11 @@ describe('doctor command', () => {
       expect(checks).toContain('- Git commit check not managed (your own pre-commit hook)')
     })
 
+    it('skips as not managed when .git/hooks is a link', async () => {
+      const { checks } = await runWithHook('linked-hooks')
+      expect(checks).toContain('- Git commit check not managed (.git/hooks is a link or outside the git folder)')
+    })
+
     it('shows no git commit check outside a git repository', async () => {
       const { checks } = await runWithHook('not-a-repo')
       expect(checks).not.toContain('Git commit check')

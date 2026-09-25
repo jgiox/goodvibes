@@ -703,6 +703,16 @@ def test_check_git_hook_skips_a_pre_commit_hook_that_is_not_from_goodvibes(hook_
     assert _hook_file(hook_repo).read_text() == "#!/bin/sh\necho mine\n"
 
 
+def test_check_git_hook_skips_when_git_hooks_is_a_link(hook_repo, tmp_path):
+    import shutil
+    from goodvibes_cli.commands.doctor_cmd import _check_git_hook
+    outside = tmp_path / "external"
+    outside.mkdir()
+    shutil.rmtree(hook_repo / ".git" / "hooks")
+    (hook_repo / ".git" / "hooks").symlink_to(outside)
+    assert _check_git_hook(hook_repo) == [CheckResult("Git commit check not managed (.git/hooks is a link or outside the git folder)", "skip")]
+
+
 def test_check_git_hook_reports_nothing_without_a_journal(hook_repo):
     from goodvibes_cli.commands.doctor_cmd import _check_git_hook
     (hook_repo / "JOURNAL.md").unlink()
