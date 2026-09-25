@@ -268,7 +268,7 @@ def _check_sentinel(cwd: pathlib.Path) -> CheckResult:
     path = cwd / "CLAUDE.md"
     if not path.exists():
         return CheckResult(label="goodvibes sentinel block", status="fail", remedy="Run: goodvibes init")
-    content = path.read_text(encoding="utf-8")
+    content = path.read_text(encoding="utf-8", errors="replace")
     ok = SENTINEL_START in content and SENTINEL_END in content
     return CheckResult(
         label="goodvibes sentinel block",
@@ -281,7 +281,7 @@ def _project_scope(cwd: pathlib.Path) -> tuple[str | None, list[CheckResult]]:
     try:
         manifest = read_manifest(cwd)
     except ManifestError as e:
-        return "project", [CheckResult(label=".goodvibes.json is valid JSON", status="fail", remedy=str(e))]
+        return "project", [CheckResult(label=".goodvibes.json is valid JSON", status="fail", remedy=_printable(str(e)))]
     if manifest is None:
         return None, []
     return ("global" if manifest.get("scope") == "global" else "project"), []
@@ -306,8 +306,13 @@ def doctor_cmd(
     if quick:
         # Exit 2 from a SessionStart hook blocks the session, so quick mode reports and always exits 0.
         # Outside a goodvibes project (no manifest) only the machine-wide git checks apply.
-        scope, manifest_checks = _project_scope(cwd)
-        checks = [*manifest_checks, _check_git_config("user.name"), _check_git_config("user.email"), *(_rule_checks(cwd, scope) if scope else []), *_check_journal(cwd)]
+        try:
+            scope, manifest_checks = _project_scope(cwd)
+            checks = [*manifest_checks, _check_git_config("user.name"), _check_git_config("user.email"), *(_rule_checks(cwd, scope) if scope else []), *_check_journal(cwd)]
+        except Exception as e:
+            reason = errno.errorcode.get(e.errno, str(e)) if isinstance(e, OSError) and e.errno else (str(e).splitlines() or [type(e).__name__])[0]
+            typer.echo(f"goodvibes doctor: ✗ Could not finish the checks ({_printable(reason)}). Run: goodvibes doctor")
+            return
         for r in checks:
             if r.status in ("warn", "fail"):
                 head = r.label if r.label.endswith(".") else f"{r.label}."

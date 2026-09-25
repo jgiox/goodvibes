@@ -16,12 +16,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/2.0.0/),
 
 - Claude Code also asks before editing the other tools' hook files (`.codex/hooks.json`, `.gemini/settings.json`, `.github/hooks/`, `.devin/hooks.v1.json`, `.windsurf/hooks.json`, `.kiro/hooks/`), so an agent cannot quietly turn the checks off for another tool
 - Claude Code also asks before editing `.cursor/mcp.json` and `.vscode/mcp.json`, so an agent cannot quietly add an MCP server for Cursor or VS Code
+- `goodvibes doctor` and `doctor --quick` print control characters (terminal escape codes) from a broken `.goodvibes.json` error as `?`, the same way the MCP check already did, so a cloned repo cannot rewrite what your terminal or the agent's session-start context shows
 
 ### Fixed
 
 - Telemetry is now skipped whenever `CI` is set to anything other than `0` or `false` (for example `CI=1`), not only for `CI=true`. npm and pip use the same rule
 - `goodvibes upgrade` (npm) now says "Could not check npm for a newer version (...); updating with the installed version" when the version check fails, like pip does for PyPI, instead of carrying on silently. It runs `npm view` from your home folder, so a project's `.npmrc` cannot choose which version counts as newest
 - `goodvibes upgrade` (pip): the "Could not upgrade goodvibes. Run: ..." line now quotes `'goodvibes-cli>=X'`, so pasting it into a terminal no longer treats `>` as a redirect that creates a file named `=X`
+- `goodvibes doctor` (pip) no longer crashes on a `CLAUDE.md` that is not UTF-8
+- `goodvibes doctor --quick`, the session-start check, now always exits 0 as documented: if a check itself fails (for example an unreadable `CLAUDE.md`), it prints one "Could not finish the checks (...)" line instead of a stack trace
 - `goodvibes usage` (pip) no longer undercounts when a logged message contains a Unicode line separator (U+2028); its totals now match npm's
 - `goodvibes upgrade` run outside a goodvibes project (for example in your home folder) now says the new version is installed and how to update a project, instead of ending with a "No .goodvibes.json ... not set up here yet" box that looked like the upgrade had failed
 - `goodvibes update` no longer crashes (pip) or damages the file (npm) when a JSON file it merges is valid but has a key of the wrong type, for example `"mcpServers": []` in `.cursor/mcp.json`, `"hooks": []` in `.claude/settings.json`, or a `permissions.deny` written as one string instead of a list. npm used to split such a string into single characters and save that. The file is now left unchanged, and update names the key to fix
