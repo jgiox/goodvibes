@@ -19,6 +19,11 @@ Every rule below is an order, not a suggestion.
 - Never ask the user for information already answered in README.md, CLAUDE.md, AGENTS.md, JOURNAL.md, or the codebase. Look there first. Ask only when those sources are silent or contradict each other, and say which.
 - Never state a guess as fact. Run the command, read the file, or look the API up (context7) first; label anything you could not verify as unverified.
 
+### Replies
+- Use the caveman skill at ultra from the first reply of every session; do not wait for /caveman.
+- Reply in caveman ultra from the first message, in every message: drop articles, filler, pleasantries and hedging; abbreviate prose words (DB, auth, config, fn); use arrows for cause and effect (X → Y). Never shorten code, commands, file names, API names or error messages, and quote errors exactly. Write normally in code, comments, commits, pull requests and docs, in security warnings, before irreversible actions, and wherever the short form could be misread.
+- The user switches with `/caveman lite|full|ultra` and turns it off with `stop caveman` or `normal mode`.
+
 ### Before you begin
 Define the exact request, success criteria, files you will touch, tests you will run, and docs you will update. If you cannot state those, you are not ready to code.
 
