@@ -232,3 +232,29 @@ def test_merge_fills_an_empty_context7_entry_with_the_template_fields_even_when_
     merged, changes = merge_managed_json(".mcp.json", TPL_MCP, {"mcpServers": {"context7": {}}}, ["mcp:context7"])
     assert merged == TPL_MCP
     assert changes == ["~ mcpServers.context7"]
+
+
+def _guard(cmd, matcher):
+    return {"matcher": matcher, "hooks": [{"type": "command", "command": f": goodvibes-read-guard; {cmd}"}]}
+
+
+_TPL_REFRESH = {"hooks": {"PreToolUse": [_guard("v2", "Read|Bash|Grep")]}, "permissions": {"deny": ["Bash(git push --force *)"]}}
+
+
+def test_refreshes_the_matcher_of_the_goodvibes_hook_group_so_new_tools_reach_the_read_guard():
+    merged, changes = merge_managed_json(".claude/settings.json", _TPL_REFRESH, {"hooks": {"PreToolUse": [_guard("v1", "Read|Bash")]}})
+    assert merged["hooks"]["PreToolUse"] == [_guard("v2", "Read|Bash|Grep")]
+    assert "~ hooks.PreToolUse: goodvibes-read-guard" in changes
+
+
+def test_removes_the_old_force_push_deny_rules_goodvibes_installed_so_force_with_lease_reaches_the_ask_rule():
+    user = {"permissions": {"deny": ["Bash(git push --force*)", "Bash(git push * --force*)", "Bash(rm -rf /*)"]}}
+    installed = ["deny:Bash(git push --force*)", "deny:Bash(git push * --force*)"]
+    merged, changes = merge_managed_json(".claude/settings.json", _TPL_REFRESH, user, installed)
+    assert merged["permissions"]["deny"] == ["Bash(rm -rf /*)", "Bash(git push --force *)"]
+    assert "- permissions.deny: Bash(git push --force*)" in changes
+
+
+def test_keeps_an_old_force_push_deny_rule_the_user_added_themselves():
+    merged, _ = merge_managed_json(".claude/settings.json", _TPL_REFRESH, {"permissions": {"deny": ["Bash(git push --force*)"]}})
+    assert "Bash(git push --force*)" in merged["permissions"]["deny"]

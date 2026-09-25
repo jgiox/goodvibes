@@ -207,3 +207,27 @@ describe('mergeManagedJson with null containers and empty entries', () => {
     expect(changes).toEqual(['~ mcpServers.context7'])
   })
 })
+
+describe('refreshing goodvibes hook groups and retired deny rules', () => {
+  const guard = (cmd: string, matcher: string) => ({ matcher, hooks: [{ type: 'command', command: `: goodvibes-read-guard; ${cmd}` }] })
+  const tpl = { hooks: { PreToolUse: [guard('v2', 'Read|Bash|Grep')] }, permissions: { deny: ['Bash(git push --force *)'] } }
+
+  it('refreshes the matcher of the goodvibes hook group so new tools reach the read guard', () => {
+    const { merged, changes } = mergeManagedJson('.claude/settings.json', tpl, { hooks: { PreToolUse: [guard('v1', 'Read|Bash')] } })
+    expect(merged.hooks.PreToolUse).toEqual([guard('v2', 'Read|Bash|Grep')])
+    expect(changes).toContain('~ hooks.PreToolUse: goodvibes-read-guard')
+  })
+
+  it('removes the old force-push deny rules goodvibes installed, so --force-with-lease reaches the ask rule', () => {
+    const user = { permissions: { deny: ['Bash(git push --force*)', 'Bash(git push * --force*)', 'Bash(rm -rf /*)'] } }
+    const installed = ['deny:Bash(git push --force*)', 'deny:Bash(git push * --force*)']
+    const { merged, changes } = mergeManagedJson('.claude/settings.json', tpl, user, installed)
+    expect(merged.permissions.deny).toEqual(['Bash(rm -rf /*)', 'Bash(git push --force *)'])
+    expect(changes).toContain('- permissions.deny: Bash(git push --force*)')
+  })
+
+  it('keeps an old force-push deny rule the user added themselves', () => {
+    const { merged } = mergeManagedJson('.claude/settings.json', tpl, { permissions: { deny: ['Bash(git push --force*)'] } })
+    expect(merged.permissions.deny).toContain('Bash(git push --force*)')
+  })
+})
