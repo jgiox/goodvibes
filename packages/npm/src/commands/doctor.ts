@@ -6,6 +6,7 @@ import { execa } from 'execa'
 import { packageVersion } from '../utils/version.js'
 import { claudeConfigDir } from '../steps/global-setup.js'
 import { MANIFEST_PATH, parseManifest } from '../steps/write-manifest.js'
+import { checkMcpServers } from './mcp-check.js'
 
 // ponytail: not imported from sentinel-merge.ts — those constants are module-private
 const SENTINEL_START = '<!-- goodvibes:start -->'
@@ -141,7 +142,7 @@ export function registerDoctorCommand(program: Command): void {
       const headroomResult = await checkHeadroom()
       const gitResults = await checkGit()
       const { scope, failure } = manifestCheck(cwd)
-      const all: CheckResult[] = [...(failure ? [failure] : []), headroomResult, checkOnPath(), ...gitResults, ...ruleChecks(cwd, scope), ...checkJournal(cwd)]
+      const all: CheckResult[] = [...(failure ? [failure] : []), headroomResult, checkOnPath(), ...gitResults, ...ruleChecks(cwd, scope), ...checkJournal(cwd), ...checkMcpServers(cwd)]
 
       note([`goodvibes v${packageVersion()}`, ...all.map(formatCheck)].join('\n'), 'goodvibes doctor')
 
