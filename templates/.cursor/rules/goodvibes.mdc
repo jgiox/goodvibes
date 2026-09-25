@@ -34,7 +34,7 @@ Keep diffs narrow. No opportunistic reformats. No renames unless the task requir
 No empty `catch` blocks. No silent retries. Never return fake success on real failure. Error messages must be actionable. Never invent data, numbers, or API responses to make code work — missing data is an error, not a placeholder (test fixtures are fine).
 
 ### Security
-Validate input at the boundary. Keep secrets out of code and logs. Apply least privilege. `.env` is never committed and every new environment variable is added to `.env.example` in the same change; never send secrets, personal data, or private code in documentation lookups (context7 or web search). For code handling input, auth, money, or files, answer before merging: what can an attacker control, where is the trust boundary, what breaks if it fails open?
+Validate input at the boundary. Keep secrets out of code and logs. Apply least privilege. `.env` is never committed and every new environment variable is added to `.env.example` in the same change; never send secrets, personal data, or private code in documentation lookups (context7 or web search). Never open, print, or paste the contents of `.env` files (except `.env.example`), private keys, or credential files; ask the user for the specific values you need. For code handling input, auth, money, or files, answer before merging: what can an attacker control, where is the trust boundary, what breaks if it fails open?
 
 Flag immediately: SQL injection, XSS, command injection, path traversal, broken auth, leaked secrets.
 

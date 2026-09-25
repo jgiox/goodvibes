@@ -53,6 +53,7 @@ Define the exact request, success criteria, files you will touch, tests you will
 - Use parameterized queries. Keep secrets out of code, commits, and logs.
 - Apply least privilege for tokens, roles, and permissions.
 - `.env` is never committed; every new environment variable goes into `.env.example` in the same change.
+- Never open, print, or paste the contents of `.env` files (except `.env.example`), private keys, or credential files; ask the user for the specific values you need.
 - Never send secrets, personal data, or private code in documentation lookups (context7 or web search).
 - For code that handles input, auth, money, or files, answer before merging: what can an attacker control, where is the trust boundary, what breaks if it fails open?
 

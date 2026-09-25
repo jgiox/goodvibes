@@ -30,7 +30,7 @@ Keep diffs narrow. No opportunistic reformats. Only remove what your change made
 No empty catch blocks. No silent retries. Never return fake success on real failure. Error messages must be actionable.
 
 ## Security
-Validate input at the boundary. Keep secrets out of code and logs. Apply least privilege.
+Validate input at the boundary. Keep secrets out of code and logs. Apply least privilege. Never open, print, or paste the contents of `.env` files (except `.env.example`), private keys, or credential files; ask the user for the specific values you need.
 
 Flag immediately: SQL injection, XSS, command injection, path traversal, broken auth, leaked secrets.
 
