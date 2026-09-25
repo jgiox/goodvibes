@@ -44,7 +44,7 @@ check "UPGRADE-IN-MAIN"    "grep -v '^#' packages/pip/src/goodvibes_cli/main.py 
 check "UPGRADE-DRY-RUN-TS" "grep -q 'dry-run' packages/npm/src/commands/upgrade.ts"
 check "UPGRADE-DRY-RUN-PY" "grep -q 'dry.run' packages/pip/src/goodvibes_cli/commands/upgrade_cmd.py"
 check "UPGRADE-DELEGATES-TS" "grep -q 'runUpdate' packages/npm/src/commands/upgrade.ts"
-check "UPGRADE-DELEGATES-PY" "grep -q 'update_cmd(' packages/pip/src/goodvibes_cli/commands/upgrade_cmd.py"
+check "UPGRADE-DELEGATES-PY" "grep -q 'run_update(' packages/pip/src/goodvibes_cli/commands/upgrade_cmd.py"
 
 # -----------------------------------------------------------------------
 # Unit test checks (only without --quick)

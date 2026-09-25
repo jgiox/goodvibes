@@ -47,8 +47,8 @@ check "DEP-REVIEW-PR"        "grep -q 'pull_request' templates/.github/workflows
 # dependency-review.yml must NOT have a push: trigger
 check "DEP-REVIEW-NO-PUSH"   "! grep -q 'push:' templates/.github/workflows/dependency-review.yml"
 check "DEPENDABOT-ACTIONS"   "grep -q 'github-actions' templates/.github/dependabot.yml"
-check "DEPENDABOT-NPM"       "grep -q 'npm' templates/.github/dependabot.yml"
-check "DEPENDABOT-PIP"       "grep -q 'pip' templates/.github/dependabot.yml"
+# The template lists only github-actions; init and update add npm, uv or pip from the project's files.
+check "DEPENDABOT-ACTIONS-ONLY" "test \"\$(grep -c 'package-ecosystem:' templates/.github/dependabot.yml)\" -eq 1"
 
 # -----------------------------------------------------------------------
 # Unit test checks (only without --quick)
@@ -60,6 +60,8 @@ if [ "$QUICK" -eq 0 ]; then
 
   check "NPM-TESTS"  "cd packages/npm && npm test"
   check "PIP-TESTS"  "cd packages/pip && uv run --extra dev pytest tests/ -x -q"
+  check "DEPENDABOT-BY-PROJECT-NPM" "cd packages/npm && npx vitest run src/utils/detect-project-type.test.ts src/steps/copy-templates.integration.test.ts -t 'ependabot'"
+  check "DEPENDABOT-BY-PROJECT-PIP" "cd packages/pip && uv run --extra dev pytest tests/test_detect_project_type.py tests/test_copy_templates.py -q -o addopts='' -k dependabot"
 
   echo ""
 fi

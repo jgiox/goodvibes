@@ -1,5 +1,5 @@
 import type { Command } from 'commander'
-import { existsSync, readdirSync, realpathSync } from 'node:fs'
+import { readdirSync } from 'node:fs'
 import { packageVersion } from '../utils/version.js'
 import { intro, outro, note, tasks, cancel } from '@clack/prompts'
 import { copyTemplates, listTemplateFiles, resolveTemplatesDir } from '../steps/copy-templates.js'
@@ -10,7 +10,7 @@ import { sendTelemetry, telemetryOptedOut } from '../steps/telemetry.js'
 import { readManifest, writeManifest, type Manifest } from '../steps/write-manifest.js'
 import { managedRecord } from '../utils/json-merge.js'
 import { applyGlobalConfig, claudeConfigDir, ensureGlobalCli, registerContext7, formatGlobal, type GlobalResult, type CliStatus, type McpStatus } from '../steps/global-setup.js'
-import { GLOBAL_OWNED, MINIMAL_SKIPPED, type Scope } from '../utils/scope.js'
+import { GLOBAL_OWNED, MINIMAL_SKIPPED, samePath, type Scope } from '../utils/scope.js'
 import { gitHookLine, hookInPlace, installGitHook, type GitHookResult } from '../steps/git-hook.js'
 import { homedir } from 'node:os'
 import { resolve, parse } from 'node:path'
@@ -46,11 +46,8 @@ const NEXT_STEPS = [
   '   /plugin marketplace add DietrichGebert/ponytail',
   '   /plugin install ponytail@ponytail',
   '   Other IDEs (Cursor, Windsurf, Kiro, Antigravity, etc.): rules already active',
-  '3. Start coding — CLAUDE.md rules are already active',
+  '3. Start coding: CLAUDE.md rules are already active',
 ]
-
-// cwd is already a real path, so the config folder is compared by its real path too (it may be a symlink).
-const realPath = (p: string) => existsSync(p) ? realpathSync(p) : resolve(p)
 
 export function registerInitCommand(program: Command): void {
   program
@@ -69,7 +66,7 @@ export function registerInitCommand(program: Command): void {
       }
       const cwd = process.cwd()
       // The Claude Code settings folder holds the global manifest; a project setup there would replace it.
-      const inConfigDir = realPath(cwd) === realPath(claudeConfigDir())
+      const inConfigDir = samePath(cwd, claudeConfigDir())
       if (inConfigDir && scope === 'project') {
         cancel(`${cwd} is your Claude Code settings folder, not a project.\nRun goodvibes init --scope project inside your project folder.`)
         process.exit(1)

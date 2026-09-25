@@ -1,6 +1,8 @@
 """Global vs project scope helpers (mirror of npm utils/scope.ts)."""
 from __future__ import annotations
 
+import pathlib
+
 SENTINEL_START = "<!-- goodvibes:start -->"
 SENTINEL_END = "<!-- goodvibes:end -->"
 
@@ -17,6 +19,11 @@ def minimal_skipped(rel: str) -> bool:
     if p == "docs" or p.startswith("docs/"):
         return True
     return p.startswith(".github/") and p != ".github/copilot-instructions.md" and p != ".github/hooks" and not p.startswith(".github/hooks/")
+
+
+def same_path(a: pathlib.Path, b: pathlib.Path) -> bool:
+    # Real paths on both sides: the Claude Code settings folder may be a symlink.
+    return a.resolve() == b.resolve()
 
 
 def goodvibes_block(claude_template: str) -> str:

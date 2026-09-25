@@ -13,19 +13,23 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.text import Text
 
-from goodvibes_cli.steps.copy_templates import FILE_SIZE_WORKFLOW, list_template_files, resolve_templates_dir
+from goodvibes_cli.steps.copy_templates import DEPENDABOT, FILE_SIZE_WORKFLOW, list_template_files, resolve_templates_dir
 from goodvibes_cli.steps.git_hook import KEEPS, REMOVED_LINE, hook_line, install_git_hook
 from goodvibes_cli.steps.write_manifest import USER_OWNED, USER_REMOVED, ManifestError, read_manifest, write_manifest
-from goodvibes_cli.utils.detect_project_type import detect_project_type
+from goodvibes_cli.utils.detect_project_type import dependabot_yml, detect_project_type
 from goodvibes_cli.utils.json_merge import MANAGED_JSON, managed_record, merge_managed_json, shape_error, write_json
 from goodvibes_cli.steps.global_setup import apply_global_config, claude_config_dir, format_global
 from goodvibes_cli.utils.safe_path import SymlinkError, check_writable, printable, remove_retired
-from goodvibes_cli.utils.scope import global_owned, minimal_skipped
+from goodvibes_cli.utils.scope import global_owned, minimal_skipped, same_path
 from goodvibes_cli.utils.sentinel_merge import ClaudeMdError, merge_claude
 
 console = Console()
 
 REMOVED = "removed by you, not re-added (run goodvibes init to restore)"
+# The npm CLI prints these exact strings; change both together.
+DRY_RUN_END = "Run without --dry-run to apply changes."
+CANCELLED = "Update cancelled. Nothing was changed."
+DONE = "Done!"
 
 
 def _shown(lines: list[str]) -> Text:
@@ -50,14 +54,19 @@ def _assert_safe(base: pathlib.Path, rel: str) -> None:
 
 
 def update_cmd(
-    dry_run: Annotated[bool, typer.Option("--dry-run", help="Preview changes without writing")] = False,
+    dry_run: Annotated[bool, typer.Option("--dry-run", help="Preview what would change without writing")] = False,
     force: Annotated[bool, typer.Option("--force", help="Skip the confirmation prompt (files you edited are still kept)")] = False,
 ) -> None:
-    """Update goodvibes-managed files using the manifest."""
+    """Update goodvibes-managed files using the manifest"""
     console.rule("[bold]goodvibes update[/bold]")
+    run_update(dry_run=dry_run, force=force)
+
+
+def run_update(dry_run: bool, force: bool) -> None:
     cwd = pathlib.Path.cwd()
     try:
-        manifest = read_manifest(cwd)
+        # In the Claude Code settings folder the manifest there is the global one: update only the global part.
+        manifest = None if same_path(cwd, claude_config_dir()) else read_manifest(cwd)
         global_manifest = read_manifest(claude_config_dir())
     except ManifestError as e:
         console.print(str(e), style="red", markup=False)
@@ -77,7 +86,7 @@ def update_cmd(
     g_plan = None
     if global_manifest is not None or (manifest or {}).get("scope") == "global":
         g_plan = apply_global_config(template_dir, version, dry_run=True, restore=False)
-        console.print(Panel(Text(format_global(g_plan, None, None)), title=f"{'Dry run — ' if dry_run else 'Planned — '}Global setup ({g_plan['config_dir']})"))
+        console.print(Panel(Text(format_global(g_plan, None, None)), title=f"{'Dry run — ' if dry_run else 'Plan — '}Global setup ({g_plan['config_dir']})"))
     global_changes = len(g_plan["written"]) + len(g_plan["retired"]) + len(g_plan["settings_changes"]) if g_plan else 0
 
     def apply_global() -> None:
@@ -87,13 +96,13 @@ def update_cmd(
 
     if manifest is None:
         if dry_run:
-            console.rule("Run without --dry-run to apply.")
+            console.print(DRY_RUN_END)
             return
         if not force and global_changes and not typer.confirm(f"Apply {global_changes} change(s) to your Claude Code settings?"):
-            console.rule("Update cancelled.")
+            console.print(CANCELLED)
             return
         apply_global()
-        console.rule("[green]Update complete![/green]")
+        console.print(DONE, style="green")
         return
     project_type = detect_project_type(cwd)
     scope = manifest.get("scope") or "project"
@@ -201,18 +210,20 @@ def update_cmd(
     merge_lines = [f"Will merge goodvibes keys into {rel}:\n  " + "\n  ".join(ch) for rel, _, ch in merges]
     merge_lines += [f"Cannot merge {e}" for e in merge_errors]
 
-    lines = [
-        f"Will overwrite ({len(overwrite)}): {', '.join(overwrite)}" if overwrite else "Will overwrite (0): (none)",
-        f"Will skip — user-modified ({len(skip)}): {', '.join(skip)}" if skip else "Will skip — user-modified (0): (none)",
-        f"Will add net-new ({len(net_new)}): {', '.join(net_new)}" if net_new else "Will add net-new (0): (none)",
-    ]
+    lines = []
+    if overwrite:
+        lines.append(f"Will overwrite ({len(overwrite)}): {', '.join(overwrite)}")
+    if skip:
+        lines.append(f"Will skip — user-modified ({len(skip)}): {', '.join(skip)}")
+    if net_new:
+        lines.append(f"Will add net-new ({len(net_new)}): {', '.join(net_new)}")
     if kept:
         lines.append(f"Will keep — already yours, not written by goodvibes ({len(kept)}): {', '.join(kept)}")
     if retired:
         lines.append(f"Will remove — no longer shipped by goodvibes ({len(retired)}): {', '.join(retired)}")
     lines += merge_lines
-    lines += not_written
     lines += [f"{rel}: {REMOVED}" for rel in removed]
+    lines += not_written
 
     git_hook = manifest.get("gitHook")
     hook_plan: dict | None = None
@@ -227,28 +238,24 @@ def update_cmd(
         elif hook_line(hook_plan, True):
             hook_notes.append(hook_line(hook_plan, True))
     hook_changes = hook_plan is not None and hook_plan["status"] in ("installed", "updated")
+    console.print(Panel(_shown(lines + hook_notes or ["Nothing to change in this project."]), title="Dry run — no files written" if dry_run else "Plan"))
     if dry_run:
-        console.print(Panel(_shown(lines), title="Dry run — no files written"))
-        for note in hook_notes:
-            console.print(note, markup=False)
-        console.rule("Run without --dry-run to apply.")
+        console.print(DRY_RUN_END)
         return
 
     if not force and (overwrite or net_new or merges or retired or global_changes or hook_changes):
-        console.print(Panel(_shown(lines), title="Planned — project files"))
-        for note in hook_notes:
-            console.print(note, markup=False)
         also_global = f" and apply {global_changes} change(s) to your Claude Code settings" if global_changes else ""
         confirmed = typer.confirm(
             f"Overwrite {len(overwrite)} managed file(s), add {len(net_new)}, merge goodvibes keys into {len(merges)} file(s){also_global}?"
         )
         if not confirmed:
-            console.rule("Update cancelled.")
+            console.print(CANCELLED)
             return
 
     apply_global()
 
-    # Apply: overwrite managed files and copy net-new files
+    # Counted before the loop: a CLAUDE.md that could not be merged is reported on its own, not as user-modified.
+    skipped_count = len(skip) + len(kept)
     applied: list[str] = []
     problems: list[str] = []
     for rel in overwrite + net_new:
@@ -282,6 +289,8 @@ def update_cmd(
             dest = cwd / rel
             dest.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(str(template_src), str(dest))
+            if rel == DEPENDABOT:
+                dest.write_bytes(dependabot_yml(template_src.read_bytes().decode("utf-8"), cwd).encode("utf-8"))
 
         applied.append(rel)
 
@@ -314,19 +323,15 @@ def update_cmd(
     except SymlinkError as e:
         not_written.append(str(e))
 
-    summary = applied + [f"{rel} (merged {len(ch)} goodvibes key(s))" for rel, _, ch in merges]
-    summary += [f"Not merged: {e}" for e in merge_errors]
-    summary += [f"{rel}: removed, no longer shipped by goodvibes" for rel in retired]
-    console.print(Panel(_shown(summary or ["(none)"]), title="Updated"))
-    if not_written:
-        console.print(Panel(_shown(not_written), title="Not written (symlinks are never followed)"))
-    for rel in removed:
-        console.print(printable(f"{rel}: {REMOVED}"), markup=False)
     hook_msg = REMOVED_LINE if hook_removed else hook_line(hook_result, False) if hook_result else None
-    if hook_msg:
-        console.print(hook_msg, markup=False)
+    summary = [f"Applied {len(applied)} file(s). Skipped {skipped_count} user-modified file(s)."]
+    summary += [f"Merged {len(ch)} goodvibes key(s) into {rel}." for rel, _, ch in merges]
+    summary += [f"{rel}: removed, no longer shipped by goodvibes" for rel in retired]
+    summary += [f"Not merged: {e}" for e in merge_errors]
+    summary += [f"{rel}: {REMOVED}" for rel in removed]
+    summary += not_written + problems + ([hook_msg] if hook_msg else [])
+    console.print(Panel(_shown(summary), title="Update complete"))
     if problems:
-        console.print(Panel(_shown(problems), title="Not updated — needs your attention"))
-        console.rule("[red]Update finished with problems.[/red]")
+        console.print("CLAUDE.md was not updated; fix it by hand as described above, then run goodvibes update again.", style="red")
         raise typer.Exit(1)
-    console.rule("[green]Update complete![/green]")
+    console.print(DONE, style="green")

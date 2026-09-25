@@ -7,6 +7,7 @@ import subprocess
 
 from goodvibes_cli.steps.copy_templates import resolve_hooks_dir
 from goodvibes_cli.utils.proc import run
+from goodvibes_cli.utils.safe_path import printable
 
 MARKER = b"# goodvibes-pre-commit"
 # A cloned repo can point core.fsmonitor at a script, or be a bare repo hidden in a subfolder.
@@ -28,7 +29,7 @@ def hook_line(result: dict, dry_run: bool) -> str | None:
     line = LINES.get(result["status"])
     if line is None:
         return None
-    line = line.format(detail=result.get("detail", ""))
+    line = line.format(detail=printable(result.get("detail", "")))
     return f"Would: {line}" if dry_run and result["status"] in ("installed", "updated") else line
 
 

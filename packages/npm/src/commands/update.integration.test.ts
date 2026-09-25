@@ -686,6 +686,7 @@ describe('update command — symlinks and broken CLAUDE.md markers', () => {
     expect(readFileSync(join(projectDir, 'CLAUDE.md'), 'utf-8')).toBe(broken)
     expect(readFileSync(join(projectDir, 'AGENTS.md'), 'utf-8')).toBe('tpl v2\n')
     expect(await said()).toMatch(/end line comes before the start line.*fix CLAUDE\.md by hand/)
+    expect(await said()).toContain('Applied 2 file(s). Skipped 0 user-modified file(s).') // AGENTS.md and the net-new settings.json, not CLAUDE.md
     expect(existsSync(join(projectDir, '.goodvibes.json'))).toBe(true)
   })
 })
@@ -774,6 +775,39 @@ describe('update command — one plan, one prompt, nothing written before it', (
     expect(planned).toContain('AGENTS.md')
     expect(existsSync(join(cfg, 'rules', 'goodvibes.md'))).toBe(true)
     expect(readFileSync(join(projectDir, 'AGENTS.md'), 'utf-8')).not.toBe('old agents\n')
+  })
+
+  it('asks one question that names the Claude Code settings changes, like the pip CLI', async () => {
+    const { confirm } = await import('@clack/prompts')
+    vi.mocked(confirm).mockResolvedValue(false)
+    await expect(runUpdate()).rejects.toThrow('exit 0')
+    expect(String(vi.mocked(confirm).mock.calls[0][0].message)).toMatch(
+      /^Overwrite 1 managed file\(s\), add \d+, merge goodvibes keys into \d+ file\(s\) and apply \d+ change\(s\) to your Claude Code settings\?$/)
+  })
+
+  it('with only a global setup, asks about the Claude Code settings changes alone', async () => {
+    const { confirm } = await import('@clack/prompts')
+    vi.mocked(confirm).mockResolvedValue(false)
+    rmSync(join(projectDir, '.goodvibes.json'))
+    await expect(runUpdate()).rejects.toThrow('exit 0')
+    expect(String(vi.mocked(confirm).mock.calls[0][0].message)).toMatch(/^Apply \d+ change\(s\) to your Claude Code settings\?$/)
+  })
+
+  it('run inside the Claude Code settings folder, plans and updates only the global part and adds no project files there', async () => {
+    cwdSpy.mockReturnValue(cfg)
+    const { note } = await import('@clack/prompts')
+
+    await runUpdate('--dry-run')
+    const planned = vi.mocked(note).mock.calls.map(c => String(c[0])).join('\n')
+    expect(planned).toContain('rules/goodvibes.md')
+    expect(planned).not.toContain('JOURNAL.md')
+
+    await runUpdate('--force')
+    for (const rel of ['JOURNAL.md', 'AGENTS.md', 'CLAUDE.md', '.github', 'docs']) expect(existsSync(join(cfg, rel))).toBe(false)
+    expect(existsSync(join(cfg, 'rules', 'goodvibes.md'))).toBe(true)
+    const manifest = JSON.parse(readFileSync(join(cfg, '.goodvibes.json'), 'utf-8'))
+    expect(manifest.scope).toBe('global')
+    expect(Object.keys(manifest.files)).not.toContain('JOURNAL.md')
   })
 })
 
@@ -948,5 +982,24 @@ describe('update command — respects files the user removed and layers init ski
 
     expect(readFileSync(join(projectDir, '.github', 'workflows', 'file-size.yml'), 'utf-8')).toBe('my own size check\n')
     expect(manifestFiles()['.github/workflows/file-size.yml']).toBe('user-owned')
+  })
+
+  it('rewrites an unedited dependabot.yml with the npm entry once the project has a package.json, and keeps an edited one', async () => {
+    const tpl = 'version: 2\nupdates:\n  - package-ecosystem: "github-actions"\n'
+    put(templateDir, '.github/dependabot.yml', tpl)
+    put(templateDir, 'AGENTS.md', 'agents\n')
+    put(projectDir, '.github/dependabot.yml', tpl)
+    put(projectDir, 'AGENTS.md', 'mine\n')
+    put(projectDir, 'package.json', '{}')
+    writeFileSync(join(projectDir, '.goodvibes.json'), JSON.stringify({ version: '1.0.0', files: { '.github/dependabot.yml': sha256(tpl), 'AGENTS.md': sha256('agents\n') } }))
+
+    await runUpdate('--force')
+    const tailored = readFileSync(join(projectDir, '.github', 'dependabot.yml'), 'utf-8')
+    expect(tailored).toContain('  - package-ecosystem: "npm"\n')
+    expect(manifestFiles()['.github/dependabot.yml']).toBe(sha256(tailored))
+
+    writeFileSync(join(projectDir, '.github', 'dependabot.yml'), tailored + '# mine\n')
+    await runUpdate('--force')
+    expect(readFileSync(join(projectDir, '.github', 'dependabot.yml'), 'utf-8')).toBe(tailored + '# mine\n')
   })
 })

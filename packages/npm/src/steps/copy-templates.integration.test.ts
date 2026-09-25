@@ -75,6 +75,12 @@ describe('copyTemplates', () => {
     expect(existsSync(join(tmpDir, 'CLAUDE.md'))).toBe(false)
   })
 
+  it('dry-run lists the CI workflow as ci.yml, the name init writes, not ci-<type>.yml', async () => {
+    const { written } = await copyTemplates(resolveTemplatesDir(), tmpDir, true, false, 'node')
+    expect(written).toContain(join('.github', 'workflows', 'ci.yml'))
+    expect(written.filter(f => /ci-(node|python|both)\.yml$/.test(f))).toEqual([])
+  })
+
   it('second call is idempotent — no error and CLAUDE.md not duplicated', async () => {
     const templateDir = resolveTemplatesDir()
     await copyTemplates(templateDir, tmpDir, false, false)
@@ -696,5 +702,31 @@ describe('copyTemplates — CLAUDE.md with broken markers', () => {
     expect(problems.join('\n')).toMatch(/no <!-- goodvibes:end --> line.*fix CLAUDE\.md by hand/)
     expect(written).not.toContain('CLAUDE.md')
     expect(existsSync(join(tmpDir, 'AGENTS.md'))).toBe(true)
+  })
+})
+
+describe('copyTemplates: Dependabot entries match the project', () => {
+  let tmpDir: string
+  beforeEach(() => { tmpDir = mkdtempSync(join(tmpdir(), 'gv-copy-dependabot-')) })
+  afterEach(() => { rmSync(tmpDir, { recursive: true, force: true }) })
+  const ecosystems = () => [...readFileSync(join(tmpDir, '.github', 'dependabot.yml'), 'utf-8').matchAll(/^ {2}- package-ecosystem: "(\S+)"/gm)].map(m => m[1])
+
+  it('writes github-actions, npm and uv for a project with package.json, pyproject.toml and uv.lock', async () => {
+    for (const f of ['package.json', 'pyproject.toml', 'uv.lock']) writeFileSync(join(tmpDir, f), f === 'package.json' ? '{}' : '')
+    await copyTemplates(resolveTemplatesDir(), tmpDir, false, false, 'both', 'project')
+    expect(ecosystems()).toEqual(['github-actions', 'npm', 'uv'])
+  })
+
+  it('writes only github-actions for an empty project', async () => {
+    await copyTemplates(resolveTemplatesDir(), tmpDir, false, false, 'both', 'project')
+    expect(ecosystems()).toEqual(['github-actions'])
+  })
+
+  it('leaves an existing dependabot.yml exactly as it was', async () => {
+    mkdirSync(join(tmpDir, '.github'))
+    writeFileSync(join(tmpDir, '.github', 'dependabot.yml'), '# mine\n')
+    writeFileSync(join(tmpDir, 'package.json'), '{}')
+    await copyTemplates(resolveTemplatesDir(), tmpDir, false, false, 'node', 'project')
+    expect(readFileSync(join(tmpDir, '.github', 'dependabot.yml'), 'utf-8')).toBe('# mine\n')
   })
 })

@@ -6,6 +6,7 @@ from typing import Annotated
 import typer
 from rich.console import Console
 from rich.panel import Panel
+from rich.text import Text
 
 from goodvibes_cli.steps.configure_mcp import configure_mcp
 from goodvibes_cli.steps.copy_templates import copy_templates, list_template_files, resolve_templates_dir
@@ -17,7 +18,7 @@ from goodvibes_cli.utils.detect_project_type import detect_project_type
 from goodvibes_cli.utils.json_merge import managed_record
 from goodvibes_cli.utils.safe_path import SymlinkError
 from goodvibes_cli.steps.global_setup import apply_global_config, claude_config_dir, ensure_global_cli, format_global, register_context7
-from goodvibes_cli.utils.scope import global_owned, minimal_skipped
+from goodvibes_cli.utils.scope import global_owned, minimal_skipped, same_path
 
 console = Console()
 
@@ -49,23 +50,23 @@ _NEXT_STEPS = (
     "   /plugin marketplace add DietrichGebert/ponytail\n"
     "   /plugin install ponytail@ponytail\n"
     "   Other IDEs (Cursor, Windsurf, Kiro, Antigravity, etc.): rules already active\n"
-    "3. Start coding — CLAUDE.md rules are already active"
+    "3. Start coding: CLAUDE.md rules are already active"
 )
 
 
 def init_cmd(
-    dry_run: Annotated[bool, typer.Option("--dry-run", help="Preview files without writing")] = False,
+    dry_run: Annotated[bool, typer.Option("--dry-run", help="Preview files without writing to disk")] = False,
     minimal: Annotated[bool, typer.Option("--minimal", help="Skip headroom, docs/ and the .github CI files (workflows, scripts, Dependabot, issue and PR templates); Copilot's rules and hooks in .github are still added")] = False,
     scope: Annotated[str, typer.Option("--scope", help="global (default): set up Claude Code for every project and install goodvibes globally; project: this folder only")] = "global",
 ) -> None:
-    """Bootstrap a project with goodvibes configuration."""
+    """Bootstrap a project with goodvibes configuration"""
     if scope not in ("global", "project"):
         console.print(f'[red]Unknown --scope "{scope}".[/red] Use --scope global (the default) or --scope project.')
         raise typer.Exit(1)
     template_dir = resolve_templates_dir()
     cwd = pathlib.Path.cwd()
     # The Claude Code settings folder holds the global manifest; a project setup there would replace it.
-    in_config_dir = cwd.resolve() == claude_config_dir().resolve()
+    in_config_dir = same_path(cwd, claude_config_dir())
     if in_config_dir and scope == "project":
         console.print(f"{cwd} is your Claude Code settings folder, not a project.\nRun goodvibes init --scope project inside your project folder.", style="red", markup=False)
         raise typer.Exit(1)
@@ -85,7 +86,7 @@ def init_cmd(
         if scope == "global":
             version = importlib.metadata.version("goodvibes-cli")
             g = apply_global_config(template_dir, version, dry_run=True)
-            console.print(Panel(format_global(g, ensure_global_cli(version, dry_run=True), None), title=f"Dry run — global setup ({g['config_dir']})"))
+            console.print(Panel(Text(format_global(g, ensure_global_cli(version, dry_run=True), None)), title=f"Dry run — global setup ({g['config_dir']})"))
         all_files = [f for f in list_template_files(template_dir) if scope == "project" or not global_owned(f)] if in_project else []
         ci_variants = ["ci-node.yml", "ci-python.yml", "ci-both.yml"]
         selected = f"ci-{project_type}.yml"
@@ -187,7 +188,7 @@ def init_cmd(
         tel_thread.join(timeout=1.0)
 
     if global_result:
-        console.print(Panel(format_global(global_result, cli_result, c7_result), title=f"Global setup ({global_result['config_dir']})"))
+        console.print(Panel(Text(format_global(global_result, cli_result, c7_result)), title=f"Global setup ({global_result['config_dir']})"))
     if in_project:
         written_str = "\n".join(created_files) if created_files else "(none)"
         console.print(Panel(written_str, title=f"Files written ({len(created_files)})"))

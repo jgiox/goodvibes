@@ -1,6 +1,6 @@
 version: 2
 
-# To update npm, pip or uv packages too, see "GitHub checks (CI)" in docs/getting-started.md
+# goodvibes init adds npm, uv or pip below when your project has their files; to add one by hand, see "GitHub checks (CI)" in docs/getting-started.md
 updates:
   - package-ecosystem: "github-actions"
     directory: "/"

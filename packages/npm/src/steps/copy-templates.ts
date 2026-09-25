@@ -6,7 +6,7 @@ import { join, relative, sep } from 'path'
 import { fileURLToPath } from 'url'
 import { mergeClaude, MarkerError } from '../utils/sentinel-merge.js'
 import { writeBlocked } from '../utils/fs-safe.js'
-import { type ProjectType } from '../utils/detect-project-type.js'
+import { dependabotYml, type ProjectType } from '../utils/detect-project-type.js'
 import { GLOBAL_OWNED, MINIMAL_SKIPPED, projectStub, type Scope } from '../utils/scope.js'
 
 const FILE_SIZE_WORKFLOW = join('.github', 'workflows', 'file-size.yml')
@@ -61,9 +61,10 @@ export async function copyTemplates(
   const selectedVariant = `ci-${projectType}.yml`
 
   if (dryRun) {
-    // Return template files excluding non-selected CI variants (preserves --dry-run NPM-07 behaviour)
+    // Template files without the other CI variants, and the selected one under the ci.yml name init writes
     const all = (await listTemplateFiles(templateDir)).filter(p => scope === 'project' || !GLOBAL_OWNED(p))
-    return { written: all.filter(p => !ciVariants.some(v => p.endsWith(v) && v !== selectedVariant)), skipped: [], problems: [] }
+    const listed = all.filter(p => !ciVariants.some(v => p.endsWith(v) && v !== selectedVariant))
+    return { written: listed.map(p => p.endsWith(selectedVariant) ? p.slice(0, -selectedVariant.length) + 'ci.yml' : p), skipped: [], problems: [] }
   }
 
   // Only goodvibes destinations are checked, never the whole project: an unreadable folder or node_modules must not matter.
@@ -132,6 +133,11 @@ export async function copyTemplates(
         await rename(variantPath, ciPath)
       }
     }
+  }
+
+  const dependabot = join('.github', 'dependabot.yml')
+  if (!existingBefore.has(dependabot) && existsSync(join(destDir, dependabot)) && !(await writeBlocked(destDir, dependabot))) {
+    await writeFile(join(destDir, dependabot), dependabotYml(await readFile(join(templateDir, dependabot), 'utf-8'), destDir), 'utf-8')
   }
 
   const claudeSrc = join(templateDir, 'CLAUDE.md')

@@ -191,6 +191,10 @@ describe('upgrade command', () => {
 
     expect(exitSpy).toHaveBeenCalledWith(1)
     expect(vi.mocked(runUpdate)).not.toHaveBeenCalled()
-    expect(vi.mocked(note).mock.calls.flat().join(' ')).toContain('npm install -g goodvibes-cli@1.0.1')
+    expect(vi.mocked(note)).toHaveBeenCalledWith(
+      'Still running goodvibes 1.0.0 after installing 1.0.1. The goodvibes on your PATH is not the one that was upgraded.\n' +
+        'Run: npm install -g goodvibes-cli@1.0.1 if you installed goodvibes with npm, or uv tool install "goodvibes-cli>=1.0.1" if you installed it with Python. Then run goodvibes --version.',
+      'Upgrade did not take effect',
+    )
   })
 })

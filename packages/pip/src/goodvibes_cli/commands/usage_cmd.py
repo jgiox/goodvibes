@@ -141,7 +141,7 @@ def usage_cmd(
     days: Annotated[str, typer.Option("--days", help="Only sessions changed in the last N days")] = "7",
     as_json: Annotated[bool, typer.Option("--json", help="Machine-readable output")] = False,
 ) -> None:
-    """Best-effort token report from local Claude Code session logs (offline)."""
+    """Show token use from local Claude Code session logs (offline, best effort)"""
     if not re.fullmatch(r"\d+", days) or int(days) < 1:
         typer.echo(f'--days must be a whole number of 1 or more (got "{days}").', err=True)
         raise typer.Exit(1)

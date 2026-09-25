@@ -73,12 +73,18 @@ def test_check_headroom_warns_when_headroom_times_out(mocker):
 
 
 def test_check_goodvibes_cli_is_ok_when_goodvibes_is_on_path(mocker):
-    mocker.patch("goodvibes_cli.commands.doctor_cmd.shutil.which", return_value="/usr/local/bin/goodvibes")
+    mocker.patch("goodvibes_cli.commands.doctor_cmd.which", return_value="/usr/local/bin/goodvibes")
     assert _check_goodvibes_cli() == CheckResult(label="goodvibes command on PATH", status="ok")
 
 
+def test_check_goodvibes_cli_looks_goodvibes_up_on_path_only_never_in_the_project_folder(mocker):
+    which = mocker.patch("goodvibes_cli.commands.doctor_cmd.which", return_value="/usr/local/bin/goodvibes")
+    assert _check_goodvibes_cli().status == "ok"
+    which.assert_called_once_with("goodvibes")
+
+
 def test_check_goodvibes_cli_warns_when_goodvibes_is_not_on_path(mocker):
-    mocker.patch("goodvibes_cli.commands.doctor_cmd.shutil.which", return_value=None)
+    mocker.patch("goodvibes_cli.commands.doctor_cmd.which", return_value=None)
     result = _check_goodvibes_cli()
     assert result.status == "warn"
     assert result.label == "goodvibes command not on PATH"
@@ -157,7 +163,7 @@ def _mock_checks(mocker, tmp_path, headroom="ok", git=("ok", "ok")):
 
 @pytest.fixture(autouse=True)
 def _goodvibes_on_path(mocker):
-    mocker.patch("goodvibes_cli.commands.doctor_cmd.shutil.which", return_value="/usr/local/bin/goodvibes")
+    mocker.patch("goodvibes_cli.commands.doctor_cmd.which", return_value="/usr/local/bin/goodvibes")
 
 
 def test_doctor_cmd_raises_exit_1_when_any_check_fails(mocker, tmp_path):
@@ -175,7 +181,7 @@ def test_doctor_cmd_does_not_raise_when_all_checks_pass(mocker, tmp_path):
 def test_doctor_exits_0_and_counts_warnings_when_only_optional_parts_are_missing(mocker, tmp_path):
     from goodvibes_cli.main import app
     _mock_checks(mocker, tmp_path, headroom="warn")
-    mocker.patch("goodvibes_cli.commands.doctor_cmd.shutil.which", return_value=None)
+    mocker.patch("goodvibes_cli.commands.doctor_cmd.which", return_value=None)
     result = runner.invoke(app, ["doctor"])
     assert result.exit_code == 0
     assert "! headroom check" in result.output
@@ -620,7 +626,7 @@ def test_doctor_quick_never_runs_the_path_check(mocker, tmp_path):
     from goodvibes_cli.main import app
     mocker.patch("pathlib.Path.cwd", return_value=tmp_path)
     mocker.patch("goodvibes_cli.commands.doctor_cmd.subprocess.run", return_value=subprocess.CompletedProcess(args=[], returncode=0, stdout="v", stderr=""))
-    which = mocker.patch("goodvibes_cli.commands.doctor_cmd.shutil.which", return_value=None)
+    which = mocker.patch("goodvibes_cli.commands.doctor_cmd.which", return_value=None)
     result = runner.invoke(app, ["doctor", "--quick"])
     assert result.output == ""
     which.assert_not_called()

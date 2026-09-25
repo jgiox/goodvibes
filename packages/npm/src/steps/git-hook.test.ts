@@ -166,6 +166,11 @@ describe('gitHookLine', () => {
       "Git commit check skipped: .git/hooks is a link or points outside this repository's git folder, so goodvibes left it alone.")
   })
 
+  it('prints ? for terminal escape codes in the core.hooksPath value it shows', () => {
+    expect(gitHookLine({ status: 'custom-path', path: '', detail: 'x\u001b[2J\u0007' }, false)).toBe(
+      'Git commit check skipped: git uses its own hooks folder here (core.hooksPath = x?[2J?), so goodvibes left your hooks alone.')
+  })
+
   it('prefixes only the installed and updated lines with "Would: " on a dry run', () => {
     expect(gitHookLine({ status: 'installed', path: at }, true)).toBe(`Would: ${INSTALLED}`)
     expect(gitHookLine({ status: 'updated', path: at }, true)).toBe(`Would: ${UPDATED}`)
