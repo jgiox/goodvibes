@@ -11,7 +11,7 @@ import subprocess
 import sys
 
 from goodvibes_cli.steps.copy_templates import list_template_files
-from goodvibes_cli.steps.write_manifest import MANIFEST_PATH, read_manifest
+from goodvibes_cli.steps.write_manifest import MANIFEST_PATH, USER_OWNED, USER_REMOVED, read_manifest
 from goodvibes_cli.utils.json_merge import merge_managed_json, present_ids, write_json
 from goodvibes_cli.utils.scope import goodvibes_block
 
@@ -85,8 +85,14 @@ def apply_global_config(template_dir: pathlib.Path, version: str, dry_run: bool,
     for rel, content in owned:
         dest = cfg / rel
         recorded = prev_files.get(rel)
+        if not restore and recorded == USER_REMOVED:
+            if dest.exists():
+                result["kept"].append(rel)
+            files[rel] = USER_OWNED if dest.exists() else USER_REMOVED
+            continue
         if not restore and recorded and not dest.exists():
             result["removed"].append(rel)
+            files[rel] = USER_REMOVED
             continue
         current = _sha(dest.read_text(encoding="utf-8")) if dest.exists() else None
         if current == _sha(content):

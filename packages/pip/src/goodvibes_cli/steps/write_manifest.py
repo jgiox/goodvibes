@@ -8,6 +8,9 @@ from goodvibes_cli.utils.json_merge import write_json
 from goodvibes_cli.utils.safe_path import check_writable
 
 MANIFEST_PATH = ".goodvibes.json"
+# Not hex digests: "user-owned" never matches a file's hash, "user-removed" marks a file the user deleted.
+USER_OWNED = "user-owned"
+USER_REMOVED = "user-removed"
 
 
 def posix_key(rel: str) -> str:

@@ -13,7 +13,7 @@ from rich.console import Console
 from rich.panel import Panel
 
 from goodvibes_cli.steps.copy_templates import list_template_files, resolve_templates_dir
-from goodvibes_cli.steps.write_manifest import ManifestError, read_manifest, write_manifest
+from goodvibes_cli.steps.write_manifest import USER_OWNED, USER_REMOVED, ManifestError, read_manifest, write_manifest
 from goodvibes_cli.utils.detect_project_type import detect_project_type
 from goodvibes_cli.utils.json_merge import MANAGED_JSON, managed_record, merge_managed_json, write_json
 from goodvibes_cli.steps.global_setup import apply_global_config, claude_config_dir, format_global
@@ -23,8 +23,6 @@ from goodvibes_cli.utils.sentinel_merge import ClaudeMdError, merge_claude
 
 console = Console()
 
-# Not a hex digest, so the file always classifies as user-modified on later runs.
-USER_OWNED = "user-owned"
 REMOVED = "removed by you, not re-added (run goodvibes init to restore)"
 
 
@@ -106,6 +104,7 @@ def update_cmd(
     not_written: list[str] = []
     blocked: list[str] = []
     removed: list[str] = []
+    still_removed: list[str] = []
 
     def symlinked(rel: str) -> bool:
         try:
@@ -124,6 +123,10 @@ def update_cmd(
             continue
         _assert_safe(cwd, rel)
         dest_path = cwd / rel
+        if manifest_sha == USER_REMOVED:
+            # Recreated after the user deleted it: the file is theirs now and is never overwritten.
+            (kept if dest_path.exists() else still_removed).append(rel)
+            continue
         if not dest_path.exists():
             removed.append(rel)
             continue
@@ -142,7 +145,7 @@ def update_cmd(
     all_template_files = list_template_files(template_dir)
     managed_keys = set(manifest["files"].keys())
     # init --minimal, or a project that already had CI, skips whole groups; update must not add them later.
-    tracked_groups = {_group(k) for k in managed_keys if k not in removed}
+    tracked_groups = {_group(k) for k, v in manifest["files"].items() if k not in removed and v != USER_REMOVED}
     for tf in all_template_files:
         if tf == ".goodvibes.json":
             continue
@@ -253,6 +256,8 @@ def update_cmd(
     # protected on every later run instead of dropping out of the manifest.
     preserved = {rel: manifest["files"][rel] for rel in skip + blocked}
     preserved.update({rel: USER_OWNED for rel in kept})
+    # Recorded, not dropped: a dropped entry would look net-new on the next update and come back.
+    preserved.update({rel: USER_REMOVED for rel in removed + still_removed})
 
     try:
         write_manifest(
