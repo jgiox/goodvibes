@@ -14,6 +14,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/2.0.0/),
 
 ### Security
 
+- goodvibes never runs a program found through a `PATH` entry that is `.`, empty, relative or inside the project, so a cloned repo cannot plant its own `git`, `claude` or `headroom` for `goodvibes init`, `update` or `doctor` to run (macOS and Linux; Windows already skipped the current folder)
 - Claude Code also asks before editing the other tools' hook files (`.codex/hooks.json`, `.gemini/settings.json`, `.github/hooks/`, `.devin/hooks.v1.json`, `.windsurf/hooks.json`, `.kiro/hooks/`), so an agent cannot quietly turn the checks off for another tool
 - Claude Code also asks before editing `.cursor/mcp.json` and `.vscode/mcp.json`, so an agent cannot quietly add an MCP server for Cursor or VS Code
 - The dependency review workflow pins `actions/dependency-review-action` to the exact v5.0.0 commit instead of the movable `v5` branch

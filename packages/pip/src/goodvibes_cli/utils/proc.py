@@ -12,15 +12,26 @@ WINDOWS = sys.platform == "win32"
 NO_CWD = {"NoDefaultCurrentDirectoryInExePath": "1"}
 
 
+def _safe_path() -> str:
+    """PATH without ".", empty or relative entries or folders inside the project, which would let a cloned repo pick the program."""
+    cwd = os.path.realpath(os.getcwd())
+
+    def inside(d: str) -> bool:
+        real = os.path.realpath(d)
+        return real == cwd or real.startswith(cwd.rstrip(os.sep) + os.sep)
+
+    dirs = (d.strip('"') for d in os.environ.get("PATH", "").split(os.pathsep))
+    return os.pathsep.join(d for d in dirs if os.path.isabs(d) and not inside(d))
+
+
 def which(cmd: str) -> str | None:
     if not WINDOWS:
-        return shutil.which(cmd)
+        return shutil.which(cmd, path=_safe_path())
     # shutil.which on Windows searches the current folder first (always, before Python 3.12), so search PATH by hand.
     exts = [e for e in os.environ.get("PATHEXT", ".COM;.EXE;.BAT;.CMD").split(";") if e]
     names = [cmd] if os.path.splitext(cmd)[1].lower() in (e.lower() for e in exts) else [cmd + e for e in exts]
-    for d in os.environ.get("PATH", "").split(os.pathsep):
-        d = d.strip('"')
-        if not os.path.isabs(d):
+    for d in _safe_path().split(os.pathsep):
+        if not d:
             continue
         for name in names:
             if os.path.isfile(os.path.join(d, name)):
@@ -33,4 +44,4 @@ def run(args: list[str], **kwargs) -> subprocess.CompletedProcess:
     exe = which(args[0]) if WINDOWS and not os.path.isabs(args[0]) else args[0]
     if exe is None:
         raise FileNotFoundError(errno.ENOENT, f"{args[0]} is not on PATH", args[0])
-    return subprocess.run([exe, *args[1:]], env={**os.environ, **NO_CWD}, **kwargs)
+    return subprocess.run([exe, *args[1:]], env={**os.environ, **NO_CWD, **({} if WINDOWS else {"PATH": _safe_path()})}, **kwargs)
