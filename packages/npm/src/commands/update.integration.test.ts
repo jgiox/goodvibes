@@ -966,4 +966,23 @@ describe('update command — respects files the user removed and layers init ski
     expect(readFileSync(join(projectDir, '.github', 'workflows', 'file-size.yml'), 'utf-8')).toBe('my own size check\n')
     expect(manifestFiles()['.github/workflows/file-size.yml']).toBe('user-owned')
   })
+
+  it('rewrites an unedited dependabot.yml with the npm entry once the project has a package.json, and keeps an edited one', async () => {
+    const tpl = 'version: 2\nupdates:\n  - package-ecosystem: "github-actions"\n'
+    put(templateDir, '.github/dependabot.yml', tpl)
+    put(templateDir, 'AGENTS.md', 'agents\n')
+    put(projectDir, '.github/dependabot.yml', tpl)
+    put(projectDir, 'AGENTS.md', 'mine\n')
+    put(projectDir, 'package.json', '{}')
+    writeFileSync(join(projectDir, '.goodvibes.json'), JSON.stringify({ version: '1.0.0', files: { '.github/dependabot.yml': sha256(tpl), 'AGENTS.md': sha256('agents\n') } }))
+
+    await runUpdate('--force')
+    const tailored = readFileSync(join(projectDir, '.github', 'dependabot.yml'), 'utf-8')
+    expect(tailored).toContain('  - package-ecosystem: "npm"\n')
+    expect(manifestFiles()['.github/dependabot.yml']).toBe(sha256(tailored))
+
+    writeFileSync(join(projectDir, '.github', 'dependabot.yml'), tailored + '# mine\n')
+    await runUpdate('--force')
+    expect(readFileSync(join(projectDir, '.github', 'dependabot.yml'), 'utf-8')).toBe(tailored + '# mine\n')
+  })
 })

@@ -949,3 +949,23 @@ def test_update_inside_the_claude_settings_folder_updates_only_the_global_part_a
         assert not (project_dir / rel).exists()
     assert (project_dir / ".goodvibes.json").read_text(encoding="utf-8") == manifest
     assert apply.call_args.kwargs["dry_run"] is False
+
+
+def test_update_rewrites_an_unedited_dependabot_yml_with_the_npm_entry_once_the_project_has_a_package_json_and_keeps_an_edited_one(plain_dirs):
+    template_dir, project_dir = plain_dirs
+    tpl = 'version: 2\nupdates:\n  - package-ecosystem: "github-actions"\n'
+    for root in (template_dir, project_dir):
+        (root / ".github").mkdir()
+        (root / ".github" / "dependabot.yml").write_text(tpl, encoding="utf-8")
+    (project_dir / "package.json").write_text("{}", encoding="utf-8")
+    _write_manifest(project_dir, {".github/dependabot.yml": _sha(tpl)})
+
+    result = runner.invoke(app, ["update", "--force"])
+    assert result.exit_code == 0, result.output
+    tailored = (project_dir / ".github" / "dependabot.yml").read_text(encoding="utf-8")
+    assert '  - package-ecosystem: "npm"\n' in tailored
+    assert _read(project_dir, ".goodvibes.json")["files"][".github/dependabot.yml"] == _sha(tailored)
+
+    (project_dir / ".github" / "dependabot.yml").write_text(tailored + "# mine\n", encoding="utf-8")
+    runner.invoke(app, ["update", "--force"])
+    assert (project_dir / ".github" / "dependabot.yml").read_text(encoding="utf-8") == tailored + "# mine\n"

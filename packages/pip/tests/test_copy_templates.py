@@ -602,3 +602,36 @@ def test_copy_templates_minimal_global_scope_still_writes_cursor_and_vscode_mcp_
     written, _ = copy_templates(repo_templates, tmp_dir, minimal=True, scope="global")
     assert {".cursor/mcp.json", ".vscode/mcp.json"} <= set(written)
     assert not (tmp_dir / ".mcp.json").exists()
+
+
+def _ecosystems(dest):
+    import re
+    return re.findall(r'^ {2}- package-ecosystem: "(\S+)"', (dest / ".github" / "dependabot.yml").read_text(encoding="utf-8"), re.M)
+
+
+def test_copy_templates_writes_github_actions_npm_and_uv_dependabot_entries_for_a_project_with_package_json_pyproject_and_uv_lock(tmp_path):
+    from goodvibes_cli.steps.copy_templates import copy_templates, resolve_templates_dir
+    dest = tmp_path / "proj"
+    dest.mkdir()
+    for f in ("package.json", "pyproject.toml", "uv.lock"):
+        (dest / f).write_text("{}" if f == "package.json" else "")
+    copy_templates(resolve_templates_dir(), dest, project_type="both")
+    assert _ecosystems(dest) == ["github-actions", "npm", "uv"]
+
+
+def test_copy_templates_writes_only_the_github_actions_dependabot_entry_for_an_empty_project(tmp_path):
+    from goodvibes_cli.steps.copy_templates import copy_templates, resolve_templates_dir
+    dest = tmp_path / "proj"
+    dest.mkdir()
+    copy_templates(resolve_templates_dir(), dest, project_type="both")
+    assert _ecosystems(dest) == ["github-actions"]
+
+
+def test_copy_templates_leaves_an_existing_dependabot_yml_exactly_as_it_was(tmp_path):
+    from goodvibes_cli.steps.copy_templates import copy_templates, resolve_templates_dir
+    dest = tmp_path / "proj"
+    (dest / ".github").mkdir(parents=True)
+    (dest / ".github" / "dependabot.yml").write_text("# mine\n")
+    (dest / "package.json").write_text("{}")
+    copy_templates(resolve_templates_dir(), dest, project_type="node")
+    assert (dest / ".github" / "dependabot.yml").read_text() == "# mine\n"
