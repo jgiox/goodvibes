@@ -1641,3 +1641,14 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 - RED 5: one `--amend` anywhere (a later commit, or a trailing comment) exempts every commit in the command.
 - GREEN 5: a command is exempt only when every git commit in it has an unquoted `--amend` argument of its own. A word starting with `#` now starts a comment that runs to the end of the line, as in sh, so a URL such as `http://x/#y` is untouched.
 - RED 6: `cd proj && git commit` is checked against the session folder, not `proj`; `git -C ~/p` and `git -C $HOME/p` are blocked as "not a git repository"; `cd $VAR` or two `cd`s before a commit are not treated as unverifiable.
+- GREEN 6: a `cd <dir>` before the commit is treated like `-C <dir>` (relative to the session folder). More than one `cd`/`-C` before the commit, a `cd` between two commits, a missing path, `cd -`, `~user`, or any `$` other than a leading `$HOME`/`${HOME}` blocks with a "cannot verify" message. A leading `~/` or `$HOME` is expanded from `$HOME`. `git add JOURNAL.md` only counts when it runs after that `cd`.
+
+**Files changed:** templates/.claude/settings.json, .claude/settings.json (hook command only), packages/npm/src/steps/journal-gate-hook.integration.test.ts, packages/pip/tests/test_journal_gate_hook.py, JOURNAL.md.
+
+**Why:** A committed bare repo could run code through the gate, and the gate missed or wrongly blocked commits (items 1 to 7 of the review).
+
+**Tests run:** Each RED commit failed only its new tests; each GREEN commit passed both hook suites. Final: npm vitest 306 passed, 1 skipped, 2 todo (after `npm run build`); pip pytest 266 passed; `scripts/verify-phase5.sh --quick` 11 passed. The pip hook suite (68 tests) also passes with BWK awk (original-awk 2023-11-27) and with busybox 1.36 awk, sed, grep and wc on PATH; the sandbox `sh` is dash. A 2 MB command takes 1.4 to 1.5 s with mawk, 3.4 to 3.7 s with BWK awk and 17 to 19 s with busybox (the old hook took 36 s with mawk and over 2 minutes with busybox).
+
+**Next time:** Known gaps, all fail open and out of scope: `"$(git commit)"` inside double quotes, an apostrophe in an inline (not full-line) comment, `pushd`, `(cd x); git commit` (the subshell cd is still applied), `--git-dir`/`--work-tree` pointing at another repo, `sh -c` and aliases. BWK awk's `split(s, a, "c")` also splits on newlines, so the hook uses regex separators; keep it that way.
+
+**Docs updated:** JOURNAL.md.
