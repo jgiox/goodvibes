@@ -10,7 +10,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-node-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
@@ -20,13 +20,19 @@ jobs:
     timeout-minutes: 15
     strategy:
       matrix:
-        node: ['20', '22']
+        node: ['22', '24']
     steps:
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
 
+      # hashFiles is not available in a job-level if, so every step checks for package.json
+      - name: No package.json
+        if: hashFiles('package.json') == ''
+        run: echo "::notice::No package.json yet, so the Node.js tests were skipped"
+
       - uses: actions/setup-node@v6
+        if: hashFiles('package.json') != ''
         with:
           node-version: ${{ matrix.node }}
           # setup-node errors when cache is 'npm' and no package-lock.json exists
@@ -35,15 +41,19 @@ jobs:
 
       # npm install (not npm ci) — new projects may lack package-lock.json on first push
       - name: Install dependencies
+        if: hashFiles('package.json') != ''
         run: npm install
 
       - name: Build
+        if: hashFiles('package.json') != ''
         run: npm run build --if-present
 
       - name: Test
+        if: hashFiles('package.json') != ''
         run: npm test --if-present
 
       - name: Lint
+        if: hashFiles('package.json') != ''
         run: |
           if node -e "process.exit(require('./package.json').scripts?.lint ? 0 : 1)"; then
             npm run lint

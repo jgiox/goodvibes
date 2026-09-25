@@ -22,9 +22,9 @@ Auto-clarity rule: caveman drops to normal prose for security warnings, irrevers
 ## How to invoke
 
 ```
-/caveman              # full mode (default)
+/caveman              # ultra mode (goodvibes default)
 /caveman lite         # lighter compression
-/caveman ultra        # extreme compression
+/caveman full         # classic caveman (upstream default)
 /caveman wenyan       # classical Chinese
 stop caveman          # back to normal prose
 ```
@@ -45,4 +45,4 @@ Caveman (ultra):
 ## See also
 
 - [`SKILL.md`](./SKILL.md) — full LLM-facing instructions
-- [Caveman README](../../README.md) — repo overview, install, benchmarks
+- [Upstream caveman](https://github.com/JuliusBrussee/caveman): the original project and its benchmarks

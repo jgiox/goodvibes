@@ -57,6 +57,18 @@ describe('agent rule files (AGENT-01..04)', () => {
     expect(text).toMatch(/never rewrite (earlier|old) entries/i)
   })
 
+  it.each(RULE_FILES)('%s asks before a push, needs explicit approval to deploy or publish, and keeps secrets out of lookups', rel => {
+    const text = read(rel)
+    expect(text).toMatch(/Push → confirm with human first|Confirm with the human before every push/)
+    expect(text).toMatch(/Deploy\s*\/\s*publish.*explicit human approval required/i)
+    expect(text).toContain('Never add a dependency for what a few lines can do')
+    expect(text).toMatch(/never send secrets, personal data, or private code in documentation lookups/i)
+  })
+
+  it('SECURITY.md gives a contact path for when private vulnerability reporting is off', () => {
+    expect(read('SECURITY.md')).toContain('If that button is not available')
+  })
+
   it('JOURNAL.md opens with a Standing decisions list above the entries', () => {
     const text = read('JOURNAL.md')
     const headings = [...text.matchAll(/^## (.+)$/gm)].map(m => m[1])
@@ -141,6 +153,15 @@ describe('caveman default (CAVE-01)', () => {
     const skill = read('.claude/skills/caveman/SKILL.md')
     expect(skill).toContain('Default: **ultra**')
     expect(skill).toContain('/caveman lite|full|ultra')
+  })
+
+  it('caveman-help and the caveman README call ultra the default and describe no config or links goodvibes does not ship', () => {
+    const help = read('.claude/skills/caveman-help/SKILL.md')
+    const readme = read('.claude/skills/caveman/README.md')
+    expect(help).toMatch(/\*\*Ultra\*\*.*Default/)
+    expect(help).not.toMatch(/\*\*Full\*\*.*Default/)
+    expect(readme).not.toMatch(/full mode \(default\)/)
+    for (const text of [help, readme]) expect(text).not.toMatch(/CAVEMAN_DEFAULT_MODE|\.config\/caveman|\.\.\/\.\.\/README\.md/)
   })
 
   it.each(RULE_FILES)('%s turns caveman ultra on from the first reply and says how to switch it off', rel => {

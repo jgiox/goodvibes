@@ -35,26 +35,40 @@ jobs:
 
       - name: Detect languages
         id: langs
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          py=$(find . -name "*.py" -not -path "./.venv/*" | head -1)
-          js=$(find . \( -name "*.js" -o -name "*.ts" \) -not -path "*/node_modules/*" | head -1)
+          # a schedule event has no repository payload, so the job-level private check lets it through
+          if [ "$(gh api "repos/$GITHUB_REPOSITORY" --jq .private)" = "true" ]; then
+            echo "::notice::Private repository, so CodeQL was skipped (it needs GitHub Advanced Security)"
+            echo "value=" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           langs=""
-          [ -n "$py" ] && langs="python"
-          [ -n "$js" ] && [ -n "$langs" ] && langs="python,javascript-typescript"
-          [ -n "$js" ] && [ -z "$langs" ] && langs="javascript-typescript"
-          [ -z "$langs" ] && langs="python"
-          echo "value=$langs" >> $GITHUB_OUTPUT
+          if [ -n "$(find . -name '*.py' -not -path './.venv/*' -not -path '*/node_modules/*' | head -1)" ]; then
+            langs="python"
+          fi
+          if [ -n "$(find . \( -name '*.js' -o -name '*.mjs' -o -name '*.cjs' -o -name '*.jsx' -o -name '*.ts' -o -name '*.tsx' \) -not -path './.venv/*' -not -path '*/node_modules/*' | head -1)" ]; then
+            langs="${langs:+$langs,}javascript-typescript"
+          fi
+          if [ -z "$langs" ]; then
+            echo "::notice::No Python, JavaScript or TypeScript files yet, so CodeQL was skipped"
+          fi
+          echo "value=$langs" >> "$GITHUB_OUTPUT"
 
       - name: Initialize CodeQL
+        if: steps.langs.outputs.value != ''
         uses: github/codeql-action/init@v4
         with:
           languages: ${{ steps.langs.outputs.value }}
           queries: security-extended
 
       - name: Autobuild
+        if: steps.langs.outputs.value != ''
         uses: github/codeql-action/autobuild@v4
 
       - name: Perform CodeQL Analysis
+        if: steps.langs.outputs.value != ''
         uses: github/codeql-action/analyze@v4
 
   secrets:

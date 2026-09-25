@@ -10,7 +10,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-both-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
@@ -20,13 +20,19 @@ jobs:
     timeout-minutes: 15
     strategy:
       matrix:
-        node: ['20', '22']
+        node: ['22', '24']
     steps:
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
 
+      # hashFiles is not available in a job-level if, so every step checks for package.json
+      - name: No package.json
+        if: hashFiles('package.json') == ''
+        run: echo "::notice::No package.json yet, so the Node.js tests were skipped"
+
       - uses: actions/setup-node@v6
+        if: hashFiles('package.json') != ''
         with:
           node-version: ${{ matrix.node }}
           # setup-node errors when cache is 'npm' and no package-lock.json exists
@@ -35,15 +41,19 @@ jobs:
 
       # npm install (not npm ci) — new projects may lack package-lock.json on first push
       - name: Install dependencies
+        if: hashFiles('package.json') != ''
         run: npm install
 
       - name: Build
+        if: hashFiles('package.json') != ''
         run: npm run build --if-present
 
       - name: Test
+        if: hashFiles('package.json') != ''
         run: npm test --if-present
 
       - name: Lint
+        if: hashFiles('package.json') != ''
         run: |
           if node -e "process.exit(require('./package.json').scripts?.lint ? 0 : 1)"; then
             npm run lint
@@ -63,24 +73,35 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: No pyproject.toml or requirements.txt
+        if: hashFiles('pyproject.toml', 'requirements.txt') == ''
+        run: echo "::notice::No pyproject.toml or requirements.txt yet, so the Python tests were skipped"
+
       # python-version must be explicit — setup-uv does not auto-read matrix.python (Pitfall 4)
       - uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
+        if: hashFiles('pyproject.toml', 'requirements.txt') != ''
         with:
           python-version: ${{ matrix.python }}
+          # uv pip install refuses to run without a virtual environment
+          activate-environment: true
 
       # uv sync installs the dev group by default; --all-extras adds dev deps kept under optional-dependencies
       - name: Install dependencies
+        if: hashFiles('pyproject.toml', 'requirements.txt') != ''
         run: |
           if [ -f "pyproject.toml" ]; then
             uv sync --all-extras || uv sync
           elif [ -f "requirements.txt" ]; then
             uv pip install -r requirements.txt
+            uv pip install pytest
           fi
 
       - name: Lint
+        if: hashFiles('pyproject.toml', 'requirements.txt') != ''
         run: uvx ruff@0.16.9 check .
 
       - name: Run tests
+        if: hashFiles('pyproject.toml', 'requirements.txt') != ''
         run: |
           if find . -name "test_*.py" -not -path "./.venv/*" | grep -q .; then
             uv run pytest -x -q

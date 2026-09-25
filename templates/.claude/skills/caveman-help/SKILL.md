@@ -15,8 +15,8 @@ Display this reference card when invoked. One-shot — do NOT change mode, write
 | Mode | Trigger | What change |
 |------|---------|-------------|
 | **Lite** | `/caveman lite` | Drop filler. Keep sentence structure. |
-| **Full** | `/caveman` | Drop articles, filler, pleasantries, hedging. Fragments OK. Default. |
-| **Ultra** | `/caveman ultra` | Extreme compression. Bare fragments. Tables over prose. |
+| **Full** | `/caveman full` | Drop articles, filler, pleasantries, hedging. Fragments OK. |
+| **Ultra** | `/caveman ultra` | Extreme compression. Bare fragments. Tables over prose. Default. |
 | **Wenyan-Lite** | `/caveman wenyan-lite` | Classical Chinese style, light compression. |
 | **Wenyan-Full** | `/caveman wenyan` | Full 文言文. Maximum classical terseness. |
 | **Wenyan-Ultra** | `/caveman wenyan-ultra` | Extreme. Ancient scholar on a budget. |
@@ -39,23 +39,9 @@ Say "stop caveman" or "normal mode". Resume anytime with `/caveman`.
 
 Keep user's language by default. User write Portuguese → reply Portuguese caveman. Compress the style, not the language. Technical terms, code, commands, commit types, and exact error strings stay verbatim unless user ask for translation.
 
-## Configure Default Mode
+## Default Mode
 
-Default mode = `full`. Change it:
-
-**Environment variable** (highest priority):
-```bash
-export CAVEMAN_DEFAULT_MODE=ultra
-```
-
-**Config file** (`~/.config/caveman/config.json`):
-```json
-{ "defaultMode": "lite" }
-```
-
-Set `"off"` to disable auto-activation on session start. User can still activate manually with `/caveman`.
-
-Resolution: env var > config file > `full`.
+Default mode = `ultra` (goodvibes; upstream default is `full`). The project rules turn it on from the first reply. Switch with `/caveman lite|full|ultra`. No env var or config file.
 
 ## More
 

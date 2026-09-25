@@ -16,12 +16,25 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/2.0.0/),
 
 - Claude Code also asks before editing the other tools' hook files (`.codex/hooks.json`, `.gemini/settings.json`, `.github/hooks/`, `.devin/hooks.v1.json`, `.windsurf/hooks.json`, `.kiro/hooks/`), so an agent cannot quietly turn the checks off for another tool
 - Claude Code also asks before editing `.cursor/mcp.json` and `.vscode/mcp.json`, so an agent cannot quietly add an MCP server for Cursor or VS Code
+- The dependency review workflow pins `actions/dependency-review-action` to the exact v5.0.0 commit instead of the movable `v5` branch
 
 ### Fixed
 
 - `goodvibes upgrade` run outside a goodvibes project (for example in your home folder) now says the new version is installed and how to update a project, instead of ending with a "No .goodvibes.json ... not set up here yet" box that looked like the upgrade had failed
 - `goodvibes update` no longer crashes (pip) or damages the file (npm) when a JSON file it merges is valid but has a key of the wrong type, for example `"mcpServers": []` in `.cursor/mcp.json`, `"hooks": []` in `.claude/settings.json`, or a `permissions.deny` written as one string instead of a list. npm used to split such a string into single characters and save that. The file is now left unchanged, and update names the key to fix
 - File Size check in projects that already have their own GitHub workflows: `goodvibes init` now adds `.github/workflows/file-size.yml` together with the script it runs (the other goodvibes workflows are still skipped there), and `goodvibes update` adds it to projects that got only the script. An existing `file-size.yml` is never overwritten, and `--minimal` still skips all of `.github/`
+- GitHub tests on a new project: the Node.js tests are skipped while there is no `package.json`, and the Python tests while there is no `pyproject.toml` or `requirements.txt`, so an empty project (or a repo made from the goodvibes template) gets a green check instead of a red one on its first push
+- GitHub Python tests for a `requirements.txt` project no longer fail with "No virtual environment found": the workflow now creates one, and installs `pytest` so the tests run
+- The Node.js, Python and combined CI workflows no longer cancel each other's runs when a repo has more than one of them (the goodvibes template repo ships all three)
+- CodeQL no longer fails on a project with no Python, JavaScript or TypeScript files (it now says so and skips), finds `.mjs`, `.cjs`, `.jsx` and `.tsx` files, and is skipped on private repos in the weekly Monday run too, not only on pushes and pull requests
+- The `SECURITY.md` that goodvibes adds to projects says what to do when GitHub's "Report a vulnerability" button is not available
+- The Replit (`replit.md`) and Bolt.new (`.bolt/prompt`) rule files now carry the ask-first rules (confirm before a push, explicit approval before deploy or publish), the dependency rule and the rule against sending secrets in documentation lookups, as the other rule files do
+- The caveman-help card and the caveman README now say the default is `ultra`, and no longer describe a config file and environment variable that goodvibes does not use
+
+### Changed
+
+- The GitHub Node.js tests run on Node 22 and 24 instead of 20 and 22, because Node 20 is end of life
+- The `.github/dependabot.yml` that goodvibes adds now updates only your GitHub Actions. Dependabot fails every week for a package manager whose files a project does not have, and the same file went into every project. The getting-started guide shows the short block that turns on npm, pip or uv updates. `goodvibes update` changes an unedited copy of the file the same way, so add that block if your project relied on npm or pip updates
 
 ## [1.10.0] - 2026-09-25
 
