@@ -144,3 +144,11 @@ def test_resolve_hooks_dir_prefers_the_bundled_hooks(mocker, tmp_path):
     (tmp_path / "hooks").mkdir()
     mocker.patch("goodvibes_cli.steps.copy_templates.importlib.resources.files", return_value=tmp_path)
     assert resolve_hooks_dir() == tmp_path / "hooks"
+
+
+def test_hook_line_prefixes_would_only_for_installed_and_updated_in_a_dry_run():
+    from goodvibes_cli.steps.git_hook import hook_line
+    assert hook_line({"status": "updated"}, True) == "Would: Git commit check updated (.git/hooks/pre-commit)"
+    assert hook_line({"status": "updated"}, False) == "Git commit check updated (.git/hooks/pre-commit)"
+    assert hook_line({"status": "custom-path", "detail": "x"}, True) == "Git commit check skipped: git uses its own hooks folder here (core.hooksPath = x), so goodvibes left your hooks alone."
+    assert hook_line({"status": "current"}, True) is None

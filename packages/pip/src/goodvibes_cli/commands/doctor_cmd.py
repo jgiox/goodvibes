@@ -19,6 +19,7 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.text import Text
 
+from goodvibes_cli.steps.git_hook import install_git_hook
 from goodvibes_cli.steps.global_setup import claude_config_dir
 from goodvibes_cli.steps.write_manifest import ManifestError, read_manifest
 
@@ -79,6 +80,26 @@ def _check_journal(cwd: pathlib.Path) -> list[CheckResult]:
         "warn",
         'Keep lasting decisions in its "Standing decisions" section and keep new entries short.',
     )]
+
+
+def _check_git_hook(cwd: pathlib.Path) -> list[CheckResult]:
+    if not (cwd / "JOURNAL.md").is_file():
+        return []
+    status = install_git_hook(cwd, True)["status"]
+    if status == "installed":
+        try:
+            turned_off = (read_manifest(cwd) or {}).get("gitHook") == "user-removed"
+        except ManifestError:
+            turned_off = False  # the manifest check already reports it
+        if turned_off:
+            return [CheckResult("Git commit check turned off", "skip")]
+    return {
+        "current": [CheckResult("Git commit check installed", "ok")],
+        "updated": [CheckResult("Git commit check out of date", "warn", "Run: goodvibes update")],
+        "installed": [CheckResult("Git commit check not installed", "warn", "Run: goodvibes update")],
+        "custom-path": [CheckResult("Git commit check not managed (core.hooksPath is set)", "skip")],
+        "existing-hook": [CheckResult("Git commit check not managed (your own pre-commit hook)", "skip")],
+    }.get(status, [])
 
 
 SECRET_KEY = re.compile(r"key|token|secret|password|authorization", re.I)
@@ -302,6 +323,7 @@ def doctor_cmd(
         _check_git_config("user.email"),
         *_rule_checks(cwd, scope),
         *_check_journal(cwd),
+        *_check_git_hook(cwd),
         *_check_mcp(cwd),
     ]
 
