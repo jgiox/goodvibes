@@ -117,6 +117,49 @@ describe('mcp-check', () => {
       ])
     })
 
+    it('treats @latest as unpinned for npx and uvx', () => {
+      projectConfig({
+        a: { command: 'npx', args: ['-y', 'some-mcp@latest'] },
+        b: { command: 'uvx', args: ['mcp-server-fetch@latest'] },
+      })
+      expect(checkMcpServers(project)).toEqual([
+        { label: 'MCP a (project): npx fetches unpinned some-mcp@latest on every run', status: 'warn', remedy: 'Pin a version: some-mcp@latest@<version>.' },
+        { label: 'MCP b (project): uvx fetches unpinned mcp-server-fetch@latest on every run', status: 'warn', remedy: 'Pin a version: mcp-server-fetch@latest==<version>.' },
+      ])
+    })
+
+    it('finds the uvx package from --from or past the values of options like --python and --with', () => {
+      projectConfig({
+        a: { command: 'uvx', args: ['--python', '3.12', 'mcp-server-fetch'] },
+        b: { command: 'uvx', args: ['--with', 'extra', '--index-url', 'https://pypi.example/simple', '-p', '3.11', 'tool==1.0'] },
+        c: { command: 'uvx', args: ['--from', 'mcp-pkg', 'mcp-tool==2.0'] },
+        d: { command: 'uvx', args: ['--from', 'mcp-pkg==1.0', 'mcp-tool'] },
+      })
+      expect(checkMcpServers(project)).toEqual([
+        { label: 'MCP a (project): uvx fetches unpinned mcp-server-fetch on every run', status: 'warn', remedy: 'Pin a version: mcp-server-fetch==<version>.' },
+        { label: 'MCP b (project)', status: 'ok' },
+        { label: 'MCP c (project): uvx fetches unpinned mcp-pkg on every run', status: 'warn', remedy: 'Pin a version: mcp-pkg==<version>.' },
+        { label: 'MCP d (project)', status: 'ok' },
+      ])
+    })
+
+    it('ignores a .cmd or .exe suffix on a launcher but does not treat a path command as a launcher', () => {
+      projectConfig({
+        a: { command: 'npx.cmd', args: ['-y', 'some-mcp'] },
+        b: { command: 'uvx.exe', args: ['mcp-server-fetch'] },
+        c: { command: './node_modules/.bin/npx', args: ['some-mcp'] },
+        d: { command: '/usr/local/bin/uvx', args: ['mcp-server-fetch'] },
+        e: { command: 'C:\\tools\\npx.cmd', args: ['some-mcp'] },
+      })
+      expect(checkMcpServers(project)).toEqual([
+        { label: 'MCP a (project): npx fetches unpinned some-mcp on every run', status: 'warn', remedy: 'Pin a version: some-mcp@<version>.' },
+        { label: 'MCP b (project): uvx fetches unpinned mcp-server-fetch on every run', status: 'warn', remedy: 'Pin a version: mcp-server-fetch==<version>.' },
+        { label: 'MCP c (project)', status: 'ok' },
+        { label: 'MCP d (project)', status: 'ok' },
+        { label: 'MCP e (project)', status: 'ok' },
+      ])
+    })
+
     it('warns about a plain http URL to a remote host but not to localhost, 127.0.0.1 or ::1', () => {
       projectConfig({
         remote: { type: 'http', url: 'http://mcp.example.com/mcp' },
@@ -155,6 +198,13 @@ describe('mcp-check', () => {
       expect(checkMcpServers(project)).toEqual([
         { label: `${join(config, '.claude.json')} is not valid JSON; its MCP servers were not checked`, status: 'warn' },
         { label: 'MCP a (project)', status: 'ok' },
+      ])
+    })
+
+    it('gives one warning with the error code when a config file exists but cannot be read', () => {
+      mkdirSync(join(project, '.mcp.json'))
+      expect(checkMcpServers(project)).toEqual([
+        { label: `${join(project, '.mcp.json')} could not be read (EISDIR); its MCP servers were not checked`, status: 'warn' },
       ])
     })
   })

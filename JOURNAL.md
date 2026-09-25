@@ -1874,3 +1874,10 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 
 **Docs updated:** none (out of scope for this worker). README/FAQ/CHANGELOG need: tri-state doctor and the summary line, the journal warning, the MCP check, and `goodvibes usage`.
 
+---
+
+## 2026-09-25 · npm: align doctor and usage output with the canonical parity spec
+
+**What I did:** Aligning npm strings with the coordinator's parity spec (scratchpad `parity_spec.md`) so npm and pip print the same output.
+- Doctor/MCP RED: tests for `goodvibes command not on PATH`, `headroom not working (...)`, journal split into label + remedy, `@latest` unpinned, uvx `--from` and option values skipped, `.cmd`/`.exe` launchers, path commands not launchers, and the `could not be read (<code>)` warning.
+

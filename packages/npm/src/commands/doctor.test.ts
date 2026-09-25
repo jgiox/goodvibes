@@ -33,7 +33,8 @@ describe('doctor command', () => {
     vi.mocked(checkMcpServers).mockReturnValue([])
   })
 
-  const JOURNAL_WARNING = 'JOURNAL.md is 13 KB; agents read it every session. Keep lasting decisions in its "Standing decisions" section and keep new entries short.'
+  const JOURNAL_LABEL = 'JOURNAL.md is 13 KB; agents read it every session'
+  const JOURNAL_REMEDY = 'Keep lasting decisions in its "Standing decisions" section and keep new entries short.'
   const bigJournal = async () => {
     const { statSync } = await import('node:fs')
     vi.mocked(statSync).mockImplementation(((p: unknown) => ({ size: String(p).endsWith('JOURNAL.md') ? 12_500 : 100 })) as any)
@@ -375,6 +376,22 @@ describe('doctor command', () => {
       expect(exitSpy).not.toHaveBeenCalled()
     })
 
+    it('reports headroom as not working, still a warning, when it is installed but fails or times out', async () => {
+      const { execa } = await import('execa')
+      vi.mocked(execa).mockImplementation((async (cmd: string) => {
+        if (cmd === 'headroom') throw Object.assign(new Error('timed out'), { timedOut: true })
+        return { stdout: 'value' }
+      }) as any)
+      await readyProject()
+
+      const { text, exitSpy } = await runFull()
+
+      expect(text).toContain('! headroom not working (optional: compresses what Claude reads)')
+      expect(text).toContain('uv tool install "headroom-ai[all]"')
+      expect(text.split('\n').at(-1)).toBe('Ready, with 1 warning(s).')
+      expect(exitSpy).not.toHaveBeenCalled()
+    })
+
     it('warns and still exits 0 when the goodvibes command is not on PATH', async () => {
       const { execa } = await import('execa')
       vi.mocked(execa).mockResolvedValue({ stdout: 'value' } as any)
@@ -384,7 +401,7 @@ describe('doctor command', () => {
 
       const { text, exitSpy } = await runFull()
 
-      expect(text).toContain('! goodvibes command on PATH')
+      expect(text).toContain('! goodvibes command not on PATH')
       expect(text).toContain('npm install -g goodvibes-cli')
       expect(text.split('\n').at(-1)).toBe('Ready, with 1 warning(s).')
       expect(exitSpy).not.toHaveBeenCalled()
@@ -442,7 +459,7 @@ describe('doctor command', () => {
       vi.mocked(existsSync).mockReturnValue(true)
       await bigJournal()
       const { checkJournal } = await import('./doctor.js')
-      expect(checkJournal('/p')).toEqual([{ label: JOURNAL_WARNING, status: 'warn' }])
+      expect(checkJournal('/p')).toEqual([{ label: JOURNAL_LABEL, status: 'warn', remedy: JOURNAL_REMEDY }])
     })
   })
 
@@ -464,7 +481,8 @@ describe('doctor command', () => {
       registerDoctorCommand(program as any)
       await capturedAction()
 
-      expect(String(vi.mocked(note).mock.calls[0][0])).toContain(`! ${JOURNAL_WARNING}`)
+      expect(String(vi.mocked(note).mock.calls[0][0])).toContain(`! ${JOURNAL_LABEL}`)
+      expect(String(vi.mocked(note).mock.calls[1][0])).toContain(`${JOURNAL_LABEL}: ${JOURNAL_REMEDY}`)
       expect(vi.mocked(outro)).toHaveBeenCalledWith('Ready, with 1 warning(s).')
       expect(exitSpy).not.toHaveBeenCalled()
     })
@@ -609,7 +627,7 @@ describe('doctor command', () => {
 
       const { logs, exitSpy } = await runQuick()
 
-      expect(logs).toEqual([`goodvibes doctor: ! ${JOURNAL_WARNING}`])
+      expect(logs).toEqual([`goodvibes doctor: ! ${JOURNAL_LABEL}. ${JOURNAL_REMEDY}`])
       expect(exitSpy).not.toHaveBeenCalled()
     })
 
