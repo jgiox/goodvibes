@@ -78,23 +78,23 @@ The optional `/ponytail-review` (check your changes for over-building) and `/pon
 /plugin install ponytail@ponytail
 ```
 
-## caveman: shorter replies (Claude Code only)
+## caveman: shorter replies
 
-**What it is.** A Claude Code skill. A skill is a set of instructions Claude Code loads when it needs them. caveman makes Claude answer in short, clipped sentences.
+**What it is.** A reply style: short, clipped sentences with no filler. It is on from the first reply in every AI tool, because the goodvibes rules turn it on. In Claude Code it is also a skill (a set of instructions Claude Code loads), which holds the full style guide.
 
-**Why it helps you.** Every word Claude writes costs tokens and fills the context window (the working memory of a session). Shorter replies leave more room for your code, so a session lasts longer before it has to start over.
+**Why it helps you.** Every word the AI writes costs tokens and fills the context window (the working memory of a session). Shorter replies leave more room for your code, so a session lasts longer before it has to start over.
 
-**What it does.** caveman starts when you type `/caveman`, or when you ask Claude to be brief or to save tokens. Once on, it stays on for the session. goodvibes sets its default level to `ultra`: Claude drops filler words, uses short forms such as "DB", "auth" and "fn", and writes arrows for cause and effect ("token expired → 401"). Code, file names, commands, error messages, commit messages and pull requests are never shortened. For security warnings and steps that cannot be undone, Claude switches back to full sentences.
+**What it does.** goodvibes starts every session at the strongest level, `ultra`: the AI drops filler words, uses short forms such as "DB", "auth" and "fn", and writes arrows for cause and effect ("token expired → 401"). Code, file names, commands, error messages, commit messages, pull requests and docs are never shortened. For security warnings and steps that cannot be undone, the AI switches back to full sentences.
 
-If the replies are too terse, type one of these in Claude Code:
+`ultra` takes some getting used to. If the replies are too terse, say so, or type one of these:
 
-- `/caveman full`: short sentences, no abbreviations.
-- `/caveman lite`: normal sentences, just no filler.
+- `/caveman full` (in other tools: "caveman full"): short sentences, no abbreviations.
+- `/caveman lite` (in other tools: "caveman lite"): normal sentences, just no filler.
 - `stop caveman` (or `normal mode`): off for the rest of the session.
 
-goodvibes also installs `caveman-commit` and `caveman-review` (short commit messages and review comments), `caveman-help` (a quick reference), `goodvibes-hygiene` (on-demand over-engineering audits) and `model-regression` (a before-and-after check whenever a change can move a model or a score).
+goodvibes also installs these Claude Code skills: `caveman-commit` and `caveman-review` (short commit messages and review comments), `caveman-help` (a quick reference), `goodvibes-hygiene` (on-demand over-engineering audits) and `model-regression` (a before-and-after check whenever a change can move a model or a score).
 
-**Turn it off.** Delete the skill's folder: `~/.claude/skills/caveman/`, or `.claude/skills/caveman/` in this project with `--scope project`. The same works for the other skills. `goodvibes update` does not bring a deleted skill back.
+**Turn it off for good.** Delete the "Replies" section from the rules: in `~/.claude/rules/goodvibes.md` for Claude Code, or in your tool's rule file (for example `.cursor/rules/goodvibes.mdc`). `goodvibes update` keeps a rules file you edited. With `--scope project`, the Claude Code rules live in the goodvibes block of `CLAUDE.md`, which `goodvibes update` rewrites, so type `stop caveman` there instead. To remove a skill, delete its folder: `~/.claude/skills/caveman/`, or `.claude/skills/caveman/` with `--scope project`. `goodvibes update` does not bring a deleted skill back.
 
 ## headroom: compress what Claude reads (Claude Code only)
 

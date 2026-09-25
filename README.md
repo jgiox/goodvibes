@@ -38,7 +38,7 @@ It is free, open source (Apache 2.0) and works on its own: no account, no servic
 | Problem | What goodvibes does |
 |---|---|
 | The AI over-builds | Engineering rules and the **ponytail** minimalism ladder: smallest change that works, no new dependency for what a few lines can do, fail loud instead of hiding errors |
-| Tokens and context run out | Claude reads big files a range at a time (**read guard**), replies get shorter when you type `/caveman` (**caveman** skill), what it reads is compressed (**headroom**), and **`goodvibes usage`** shows where your tokens went |
+| Tokens and context run out | Claude reads big files a range at a time (**read guard**), replies are short from the first message (**caveman**, at its `ultra` level), what it reads is compressed (**headroom**), and **`goodvibes usage`** shows where your tokens went |
 | "Done" without proof | The rules require passing tests, pasted output and updated docs before a task counts as done. A failing test comes before every bug fix |
 | Each session starts from zero | **JOURNAL.md** keeps decisions across sessions and tools. In Claude Code, a commit is blocked until the journal is updated |
 | Risky commands | Claude Code asks before `git push`, publishing, deploying or deleting branches, refuses force-push and `git reset --hard`, and will not open `.env` files, SSH keys or credential files |
@@ -79,7 +79,8 @@ Rules guide, guard rails stop, checks verify. Other AI tools get layers 1 and 3;
 
 - **Engineering rules**, in `~/.claude/rules/goodvibes.md` for Claude Code (or this project's `CLAUDE.md` with `--scope project`), and as a rule file for each of 14 tools (see [Works with](#works-with)).
 - **ponytail**, a minimalism ruleset: before writing code, check whether it needs to exist, whether the codebase or standard library already does it, and only then write the least code that works.
-- **Skills** for Claude Code: `caveman` (short replies once you type `/caveman` or ask Claude to be brief; `/caveman full` or `stop caveman` if they get too terse), `caveman-commit` and `caveman-review` (short commit messages and review comments), `goodvibes-hygiene` (on-demand over-engineering audits), and `model-regression` (a before-and-after gate whenever a change can move a model or a score).
+- **caveman**, a short reply style, on at its strongest level (`ultra`) from the first reply in every tool. It abbreviates prose, never code, commands or error messages. Too terse? Type `/caveman full` or `stop caveman` (in other tools, say "caveman full" or "stop caveman").
+- **Skills** for Claude Code: `caveman` (the full style guide), `caveman-commit` and `caveman-review` (short commit messages and review comments), `goodvibes-hygiene` (on-demand over-engineering audits), and `model-regression` (a before-and-after gate whenever a change can move a model or a score).
 
 ### Guard rails in Claude Code
 

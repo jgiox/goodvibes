@@ -22,7 +22,7 @@ Then open the folder in your AI coding tool and ask for what you want to build. 
 
 - **Rules for 14 AI tools**: Claude Code, Cursor, GitHub Copilot, Windsurf, Devin Desktop, Kiro, Antigravity, Cline, Amazon Q, Continue.dev, OpenAI Codex CLI, Lovable, Replit Agent and Bolt.new. Plan first, smallest change that works, tests before "done", decisions recorded in `JOURNAL.md`, ask before risky steps.
 - **Claude Code guard rails**: a commit is blocked until `JOURNAL.md` is updated; whole-file reads of big files and reads of `.env`, SSH keys and credential files are blocked; it asks before pushing, publishing, deploying or editing its own settings, and refuses force-push and `git reset --hard`.
-- **Fewer tokens**: the read guard, the caveman skill (shorter replies), headroom (compresses what Claude reads) and `goodvibes usage` (where your tokens went).
+- **Fewer tokens**: the read guard, caveman (short replies from the first message; `/caveman full` or `stop caveman` if too terse), headroom (compresses what Claude reads) and `goodvibes usage` (where your tokens went).
 - **context7**: current library docs for Claude Code. Free, no key.
 - **GitHub checks**: tests, CodeQL and gitleaks scans, dependency review, a file size check, and Dependabot.
 

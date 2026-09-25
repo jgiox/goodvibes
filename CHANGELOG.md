@@ -20,6 +20,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/2.0.0/),
 
 ### Changed
 
+- caveman is on at its `ultra` level from the first reply in every AI tool: every rule file has a "Replies" section that turns it on, and Claude Code also loads the caveman skill. Code, commands, error messages, commits, pull requests and docs are never shortened. `/caveman full` or `stop caveman` switch it down or off
 - Docs rewritten for both beginners and experienced developers: the README (what goodvibes is, who it is for, how the three layers work), FAQ, getting started, git basics, and the setup notes for each AI tool. They say clearly which parts work in every tool (rules, GitHub checks) and which only in Claude Code (hooks, permissions, skills)
 - `goodvibes doctor` has three levels: ✓ fine, ! warning, ✗ problem. headroom and the `goodvibes` command being missing are warnings, because both are optional, and only problems make `doctor` exit with an error. It ends with `Ready.`, `Ready, with N warning(s).` or `Not ready: N problem(s).`
 
