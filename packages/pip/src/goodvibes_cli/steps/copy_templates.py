@@ -5,11 +5,13 @@ import importlib.resources
 import pathlib
 import shutil
 
+from goodvibes_cli.utils.detect_project_type import dependabot_yml
 from goodvibes_cli.utils.safe_path import SymlinkError, check_writable
 from goodvibes_cli.utils.scope import global_owned, minimal_skipped, project_stub
 from goodvibes_cli.utils.sentinel_merge import ClaudeMdError, merge_claude
 
 FILE_SIZE_WORKFLOW = ".github/workflows/file-size.yml"
+DEPENDABOT = ".github/dependabot.yml"
 
 
 def resolve_templates_dir() -> pathlib.Path:
@@ -147,6 +149,9 @@ def copy_templates(
         else:
             (dest_dir / variant_rel).rename(ci_path)
             copied[copied.index(variant_rel)] = ".github/workflows/ci.yml"
+
+    if DEPENDABOT in copied:
+        (dest_dir / DEPENDABOT).write_bytes(dependabot_yml((template_dir / DEPENDABOT).read_bytes().decode("utf-8"), dest_dir).encode("utf-8"))
 
     # Handle CLAUDE.md via sentinel merge
     claude_src = template_dir / "CLAUDE.md"

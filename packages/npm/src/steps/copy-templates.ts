@@ -6,7 +6,7 @@ import { join, relative, sep } from 'path'
 import { fileURLToPath } from 'url'
 import { mergeClaude, MarkerError } from '../utils/sentinel-merge.js'
 import { writeBlocked } from '../utils/fs-safe.js'
-import { type ProjectType } from '../utils/detect-project-type.js'
+import { dependabotYml, type ProjectType } from '../utils/detect-project-type.js'
 import { GLOBAL_OWNED, MINIMAL_SKIPPED, projectStub, type Scope } from '../utils/scope.js'
 
 const FILE_SIZE_WORKFLOW = join('.github', 'workflows', 'file-size.yml')
@@ -132,6 +132,11 @@ export async function copyTemplates(
         await rename(variantPath, ciPath)
       }
     }
+  }
+
+  const dependabot = join('.github', 'dependabot.yml')
+  if (!existingBefore.has(dependabot) && existsSync(join(destDir, dependabot)) && !(await writeBlocked(destDir, dependabot))) {
+    await writeFile(join(destDir, dependabot), dependabotYml(await readFile(join(templateDir, dependabot), 'utf-8'), destDir), 'utf-8')
   }
 
   const claudeSrc = join(templateDir, 'CLAUDE.md')

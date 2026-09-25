@@ -13,10 +13,10 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.text import Text
 
-from goodvibes_cli.steps.copy_templates import FILE_SIZE_WORKFLOW, list_template_files, resolve_templates_dir
+from goodvibes_cli.steps.copy_templates import DEPENDABOT, FILE_SIZE_WORKFLOW, list_template_files, resolve_templates_dir
 from goodvibes_cli.steps.git_hook import KEEPS, REMOVED_LINE, hook_line, install_git_hook
 from goodvibes_cli.steps.write_manifest import USER_OWNED, USER_REMOVED, ManifestError, read_manifest, write_manifest
-from goodvibes_cli.utils.detect_project_type import detect_project_type
+from goodvibes_cli.utils.detect_project_type import dependabot_yml, detect_project_type
 from goodvibes_cli.utils.json_merge import MANAGED_JSON, managed_record, merge_managed_json, shape_error, write_json
 from goodvibes_cli.steps.global_setup import apply_global_config, claude_config_dir, format_global
 from goodvibes_cli.utils.safe_path import SymlinkError, check_writable, printable, remove_retired
@@ -283,6 +283,8 @@ def update_cmd(
             dest = cwd / rel
             dest.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(str(template_src), str(dest))
+            if rel == DEPENDABOT:
+                dest.write_bytes(dependabot_yml(template_src.read_bytes().decode("utf-8"), cwd).encode("utf-8"))
 
         applied.append(rel)
 

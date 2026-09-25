@@ -7,8 +7,8 @@ import { MANAGED_JSON, mergeManagedJson, managedRecord, isJsonObject, shapeError
 import { assertSafe, printable, removeRetired, writeBlocked, writeFileAtomic } from '../utils/fs-safe.js'
 import { applyGlobalConfig, claudeConfigDir, formatGlobal } from '../steps/global-setup.js'
 import { GLOBAL_OWNED, MINIMAL_SKIPPED, samePath, type Scope } from '../utils/scope.js'
-import { detectProjectType } from '../utils/detect-project-type.js'
-import { readFile } from 'node:fs/promises'
+import { dependabotYml, detectProjectType } from '../utils/detect-project-type.js'
+import { readFile, writeFile } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { createHash } from 'node:crypto'
@@ -254,6 +254,7 @@ export async function runUpdate(dryRun: boolean, force: boolean): Promise<void> 
       }
     } else {
       await copy(templateSrc, join(cwd, rel), { overwrite: true })
+      if (rel === '.github/dependabot.yml') await writeFile(join(cwd, rel), dependabotYml(await readFile(templateSrc, 'utf-8'), cwd), 'utf-8')
     }
   }
 

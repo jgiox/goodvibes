@@ -13,3 +13,16 @@ export function detectProjectType(cwd: string): ProjectType {
   if (hasPython) return 'python'
   return 'both' // safe default: install all workflows
 }
+
+const dependabotBlock = (ecosystem: string) =>
+  `  - package-ecosystem: "${ecosystem}"\n    directory: "/"\n    schedule:\n      interval: "weekly"\n    open-pull-requests-limit: 5\n    cooldown:\n      default-days: 7\n`
+
+// Dependabot fails every week for an ecosystem whose files are missing, so only the ones this project has are added.
+export function dependabotYml(template: string, cwd: string): string {
+  const has = (f: string) => existsSync(join(cwd, f))
+  const ecosystems = [
+    ...(has('package.json') ? ['npm'] : []),
+    ...(has('uv.lock') ? ['uv'] : has('pyproject.toml') || has('requirements.txt') ? ['pip'] : []),
+  ]
+  return template + ecosystems.map(dependabotBlock).join('')
+}
