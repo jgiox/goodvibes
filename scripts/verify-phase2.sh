@@ -36,7 +36,7 @@ check "NPM-PKG-02" "node -e \"const p=JSON.parse(require('fs').readFileSync('pac
 check "NPM-PKG-03" "node -e \"const p=JSON.parse(require('fs').readFileSync('packages/npm/package.json','utf8'));process.exit(p.bin&&p.bin.goodvibes==='./dist/index.js'?0:1)\""
 
 # NPM-08: engines.node contains >=20
-check "NPM-PKG-04" "node -e \"const p=JSON.parse(require('fs').readFileSync('packages/npm/package.json','utf8'));process.exit(p.engines&&p.engines.node&&p.engines.node.indexOf('>=20')!==-1?0:1)\""
+check "NPM-PKG-04" "node -e \"const p=JSON.parse(require('fs').readFileSync('packages/npm/package.json','utf8'));process.exit(p.engines&&p.engines.node&&p.engines.node.indexOf('>=22.12')!==-1?0:1)\""
 
 # HDR-06: package.json does NOT contain scripts.postinstall
 check "HDR-06" "node -e \"const p=JSON.parse(require('fs').readFileSync('packages/npm/package.json','utf8'));process.exit(p.scripts&&p.scripts.postinstall?1:0)\""
@@ -62,10 +62,10 @@ check "NPM-09-TSCONFIG" "test -f packages/npm/tsconfig.json"
 # NPM-02 / NPM-03 / NPM-04 / NPM-05: vitest.config.ts exists
 check "NPM-TEST-CFG" "test -f packages/npm/vitest.config.ts"
 
-# NPM-08: version check appears BEFORE the first import statement
+# NPM-08: version check runs BEFORE the CLI (and its Node 22-only deps) is loaded
 check "NPM-08-ORDER" "
   idx_version=\$(grep -n 'process.version' packages/npm/src/index.ts | head -1 | cut -d: -f1)
-  idx_import=\$(grep -n '^import ' packages/npm/src/index.ts | head -1 | cut -d: -f1)
+  idx_import=\$(grep -n \"import('./cli.js')\" packages/npm/src/index.ts | head -1 | cut -d: -f1)
   [ -n \"\$idx_version\" ] && [ -n \"\$idx_import\" ] && [ \"\$idx_version\" -lt \"\$idx_import\" ]
 "
 

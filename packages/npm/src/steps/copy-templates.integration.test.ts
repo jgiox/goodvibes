@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { mkdtempSync, writeFileSync, existsSync, readFileSync, mkdirSync } from 'fs'
+import { mkdtempSync, writeFileSync, existsSync, readFileSync, mkdirSync, symlinkSync, readdirSync } from 'fs'
 import { rmSync } from 'fs'
 import { join } from 'path'
 import { tmpdir } from 'os'
@@ -512,5 +512,92 @@ describe('copyTemplates — workflow conflict guard', () => {
   it('writes template workflow files when destination has no existing workflows', async () => {
     await copyTemplates(templateDir, tmpDir, false, false)
     expect(existsSync(join(tmpDir, '.github', 'workflows', 'ci.yml'))).toBe(true)
+  })
+})
+
+describe('copyTemplates — never writes through a symlink', () => {
+  let tmpDir: string
+  let outside: string
+  const templateDir = resolveTemplatesDir()
+
+  beforeEach(() => {
+    tmpDir = mkdtempSync(join(tmpdir(), 'gv-link-proj-'))
+    outside = mkdtempSync(join(tmpdir(), 'gv-link-outside-'))
+  })
+
+  afterEach(() => {
+    rmSync(tmpDir, { recursive: true, force: true })
+    rmSync(outside, { recursive: true, force: true })
+  })
+
+  it('leaves the outside file unchanged when CLAUDE.md is a symlink to it and reports it as skipped', async () => {
+    const target = join(outside, 'notes.md')
+    writeFileSync(target, 'my private notes\n')
+    symlinkSync(target, join(tmpDir, 'CLAUDE.md'))
+
+    const { written, skipped } = await copyTemplates(templateDir, tmpDir, false, false, 'node', 'project')
+
+    expect(readFileSync(target, 'utf-8')).toBe('my private notes\n')
+    expect(skipped).toContain('CLAUDE.md: symlink, not written')
+    expect(written).not.toContain('CLAUDE.md')
+    expect(existsSync(join(tmpDir, 'AGENTS.md'))).toBe(true)
+  })
+
+  it('does not create the target of a dangling CLAUDE.md symlink in global scope', async () => {
+    symlinkSync(join(outside, 'missing.md'), join(tmpDir, 'CLAUDE.md'))
+
+    const { skipped } = await copyTemplates(templateDir, tmpDir, false, false, 'node', 'global')
+
+    expect(existsSync(join(outside, 'missing.md'))).toBe(false)
+    expect(skipped).toContain('CLAUDE.md: symlink, not written')
+  })
+
+  it('writes nothing into an outside folder that .claude or .github points to', async () => {
+    symlinkSync(outside, join(tmpDir, '.claude'))
+    const outsideGithub = join(outside, 'gh')
+    mkdirSync(outsideGithub)
+    symlinkSync(outsideGithub, join(tmpDir, '.github'))
+
+    const { skipped } = await copyTemplates(templateDir, tmpDir, false, false, 'node', 'project')
+
+    expect(readdirSync(outside)).toEqual(['gh'])
+    expect(readdirSync(outsideGithub)).toEqual([])
+    expect(skipped).toContain('.claude: symlink, not written')
+    expect(skipped).toContain('.github: symlink, not written')
+    expect(existsSync(join(tmpDir, 'AGENTS.md'))).toBe(true)
+  })
+
+  it('does not create the target of a dangling symlink for a template file', async () => {
+    symlinkSync(join(outside, 'agents.md'), join(tmpDir, 'AGENTS.md'))
+
+    const { skipped } = await copyTemplates(templateDir, tmpDir, false, false, 'node', 'project')
+
+    expect(existsSync(join(outside, 'agents.md'))).toBe(false)
+    expect(skipped).toContain('AGENTS.md: symlink, not written')
+  })
+})
+
+describe('copyTemplates — CLAUDE.md with broken markers', () => {
+  let tmpDir: string
+  const templateDir = resolveTemplatesDir()
+
+  beforeEach(() => {
+    tmpDir = mkdtempSync(join(tmpdir(), 'gv-marker-proj-'))
+  })
+
+  afterEach(() => {
+    rmSync(tmpDir, { recursive: true, force: true })
+  })
+
+  it('leaves CLAUDE.md alone, reports the problem and still copies the other files', async () => {
+    const broken = '# Mine\n<!-- goodvibes:start -->\nno end marker, and my text below\nkeep me\n'
+    writeFileSync(join(tmpDir, 'CLAUDE.md'), broken)
+
+    const { written, problems } = await copyTemplates(templateDir, tmpDir, false, false, 'node', 'project')
+
+    expect(readFileSync(join(tmpDir, 'CLAUDE.md'), 'utf-8')).toBe(broken)
+    expect(problems.join('\n')).toMatch(/no <!-- goodvibes:end --> line.*fix CLAUDE\.md by hand/)
+    expect(written).not.toContain('CLAUDE.md')
+    expect(existsSync(join(tmpDir, 'AGENTS.md'))).toBe(true)
   })
 })

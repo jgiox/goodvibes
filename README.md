@@ -33,13 +33,27 @@ This sets goodvibes up for every project on your computer and adds the project f
 3. **caveman skill** — Compresses Claude's output so you get more done per context window (defaults to `ultra`; type `/caveman full` or `stop caveman` if replies get too terse). Also ships a `model-regression` skill that Claude Code loads only when a change touches model, scoring or metric code: baseline first, same evaluation before and after, revert on degradation
 4. **ponytail rules** — Keeps code minimal; no over-engineering
 5. **headroom** — Compresses what Claude reads, so context lasts longer (requires Python 3.10+; skipped gracefully if absent)
-6. **Journal check (Claude Code only)**: A hook stops Claude Code from running `git commit` until `JOURNAL.md` is staged. By default it goes in `~/.claude/settings.json` and acts only in repos that have a `JOURNAL.md`; with `--scope project` it goes in this project's `.claude/settings.json`. It only gates commits made through Claude Code's own Bash tool. It does not gate commits you type in a terminal, commits from your editor's Git panel, or commits made by any other AI tool or IDE. Your own settings are kept: goodvibes adds its entries next to yours. With `--scope project`, if the project already had a `.claude/settings.json`, `goodvibes init` leaves it alone; run `goodvibes update` afterwards to add the hook
+6. **Journal check (Claude Code only)**: A hook stops Claude Code from running `git commit` until `JOURNAL.md` is staged. By default it goes in `~/.claude/settings.json` and acts only in repos that have a `JOURNAL.md`; with `--scope project` it goes in this project's `.claude/settings.json`. It only gates commits made through Claude Code's own Bash tool. It does not gate commits you type in a terminal, commits from your editor's Git panel, or commits made by any other AI tool or IDE. Your own settings are kept: goodvibes adds its entries next to yours. With `--scope project`, if the project already had a `.claude/settings.json`, `goodvibes init` leaves it alone; run `goodvibes update` afterwards to add the hook. It checks the repository the commit really runs in, including `cd somewhere && git commit` and `git -C somewhere commit`; if it cannot tell which repository that is, it blocks and says so, and running the commit as its own command fixes it. It is a safety net for honest mistakes, not a security barrier.
 7. **context7 (Claude Code)**: Connects Claude Code to [context7](https://github.com/upstash/context7) for up-to-date library docs. Free, no account or key. By default it is added to your Claude Code user settings, so every project has it. With `--scope project` it goes in this project's `.mcp.json` instead, and Claude Code asks you once to trust the project's MCP servers; say yes. An optional free key raises the rate limit: see [docs/getting-started.md](docs/getting-started.md#what-is-context7)
 8. **Session check (Claude Code only)**: When Claude Code starts, `goodvibes doctor --quick` checks that git knows your name and email and that the goodvibes rules are in place. It prints nothing when all is well; otherwise Claude sees a one-line fix. See [docs/getting-started.md](docs/getting-started.md#session-start-check-claude-code-only)
 
 Running it a second time is safe — existing files are not overwritten, and CLAUDE.md is merged rather than replaced.
 
-`goodvibes update` brings an existing project up to date. Files you never edited are replaced with the new version. Files you edited are left alone, except `.claude/settings.json` and `.mcp.json`: for those, update adds only the goodvibes parts (the journal check, the ask-before-publish rules, context7) and keeps everything you added. `goodvibes update --dry-run` shows each change first. If you delete one of those goodvibes parts on purpose, update will not put it back.
+`goodvibes update` brings an existing project up to date. It first lists everything it will change, in this folder and in `~/.claude`, and asks you once (`--force` skips the question; `--dry-run` only shows the list).
+
+- Files you never edited are replaced with the new version. Files you edited are left alone.
+- `.claude/settings.json` and `.mcp.json` are the exception: update adds only the goodvibes parts (the journal check, the ask and deny rules, context7), keeps everything you added, and removes the auto-approve rules older goodvibes versions put there (see below).
+- A goodvibes file or setting you delete stays deleted. `goodvibes init` brings deleted files back if you want them.
+- Skills goodvibes no longer ships are removed, unless you edited them.
+- goodvibes never writes through a symlink, and if the goodvibes block in your `CLAUDE.md` is damaged (for example a start line without its end line), update leaves the file alone and tells you what to fix.
+
+### What Claude Code can do without asking
+
+In a goodvibes project, Claude Code runs these without a prompt: reading and editing files, `git add`, `git commit`, `git status`, `git diff`, `git log`, `git show`, `git branch`, `git stash`, `git fetch`, and your tests (`npm test`, `pytest`, `uv run pytest`, `python -m pytest`).
+
+It asks you first before `git push`, publishing, deploying, `git restore`, deleting a branch or stash, `git clean`, and every other command, including installing packages and running `node`, `python`, `npx` or `uv`. It refuses force-push (`--force`, `-f`, `+branch`) and `git reset --hard`.
+
+Up to version 1.9.1, goodvibes also auto-approved `node`, `python`, `npx`, `uv`, `npm run` and package installs. Any command can run through those, which made the ask and deny rules easy to get around, so `goodvibes update` now removes exactly those rules from your project settings. Rules you wrote yourself are kept.
 
 ## Global or one project
 
@@ -90,7 +104,7 @@ goodvibes init --scope project   # Everything inside this project only (default:
 |-------------|-----|---------|
 | **git** | Version control — goodvibes sets up git-friendly CI | [git-scm.com](https://git-scm.com/downloads) |
 | **GitHub account** | Where your code lives; CI runs here | [github.com/signup](https://github.com/signup) |
-| **Node.js 20+** | Required for `npx goodvibes-cli init` (the npm CLI) | [nodejs.org](https://nodejs.org) |
+| **Node.js 22.12+** | Required for `npx goodvibes-cli init` (the npm CLI) | [nodejs.org](https://nodejs.org) |
 | **Python 3.10+** | Required only for `pip install goodvibes-cli` (optional) | [python.org](https://python.org/downloads) |
 
 **Windows users:** Use WSL2 for the best experience — install it from the Microsoft Store or with `wsl --install` in PowerShell.
@@ -129,6 +143,10 @@ goodvibes init --scope project   # Everything inside this project only (default:
 **Note for GitHub Copilot users:** If instructions do not activate, check that the VS Code setting `github.copilot.chat.codeGeneration.useInstructionFiles` is enabled (it is on by default in recent versions).
 
 **Note on ponytail audit commands:** The minimalism rules (ponytail ladder) are embedded in every IDE rule file above and are always active. On-demand audit commands (`/ponytail-review`, `/ponytail-audit`) require the Claude Code CLI terminal — they are not available in any non-Claude-Code IDE.
+
+## Privacy
+
+`goodvibes init` sends one anonymous install count: an empty request with a random ID made fresh for that run. Nothing about you, your machine or your code is included, though like any web request the server sees your IP address. It is skipped in CI (`CI=true`). To turn it off, set `DO_NOT_TRACK=1` (or `true`, `yes`) or `GOODVIBES_NO_TELEMETRY=1`. The counter has no accounts or keys, so its totals are approximate.
 
 ## Docs
 

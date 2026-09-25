@@ -1623,3 +1623,231 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 **Tests run:** RED: pip upgrade tests 3 failed, 11 passed. GREEN: pip pytest 242 passed. Sandbox: a uv-made venv without pip holding goodvibes 1.9.0 went to 1.9.1 through `_self_update_pip("1.9.1")` from this branch, with no uv tool created.
 
 **Docs updated:** JOURNAL.md.
+
+---
+
+## 2026-09-24 · Template security and correctness fixes (permissions, CI, skills, journal safety)
+
+**What I did:** Hardened what goodvibes ships into projects, one RED/GREEN pair per testable item. Commit log for this entry:
+- RED: tests pinning that the shipped allow list no longer auto-approves node, python, npx, uv, npm run/install, pip install or `git restore`, and that new ask/deny rules for destructive git commands and every force-push form exist (npm settings-permissions.test.ts, pip test_settings_permissions.py).
+- GREEN: templates/.claude/settings.json allow keeps only Read/Edit/Write, safe git, `npm test*`, `pytest*`, `uv run pytest*`, `python -m pytest*`; ask adds `git restore*`, branch/stash deletes, `git clean*`, `--force-with-lease`; deny adds `-f`, flag-after-remote and `+refspec` force pushes. Checked that `mergeManagedJson` adds all 11 new ask/deny entries to a user-edited settings file; it never touches allow, so old broad allow entries stay in user-edited files. vitest settings-permissions + json-merge + global-setup 38 passed; pytest 27 passed.
+- Repo config: removed the `rm -rf *`, local-path `node .../dist/index.js init` and `echo "EXIT:$?"` allow entries from .claude/settings.json (hooks untouched); .gitignore now ignores `.env`, `.env.*` (not `.env.example`) and `.claude/settings.local.json`. Checked with `git check-ignore`.
+- RED: packages/npm/src/steps/workflow-templates.test.ts pins the template workflow fixes (no `--extra dev`, lockfile-conditional npm cache, CodeQL and dependency review skipped on private repos, top-level `contents: read`, `persist-credentials: false`, third-party actions and images pinned). 17 failed, 3 passed. Sandbox with uv 0.8.17: a `[dependency-groups] dev` project fails the old `uv run --extra dev pytest` with "Extra `dev` is not defined"; an optional-dependencies project passes.
+- GREEN: ci-python/ci-both run `uv sync --all-extras || uv sync` then `uv run pytest` (sandbox: both layouts 1 passed); ci-node/ci-both use `cache: ${{ hashFiles('**/package-lock.json') != '' && 'npm' || '' }}`; security.yml CodeQL job and dependency-review job skip when `github.event.repository.private` is true; every template workflow has top-level `contents: read` and `persist-credentials: false` on checkout; setup-uv pinned to fac544c07dec837d0ccb6301d7b5580bf5edae39 (v8.2.0, lightweight tag, `git ls-remote`), gitleaks image pinned to sha256:c00b6bd0aeb3071cbcb79009cb16a60dd9e0a7c60e2be9ab65d25e6bc8abbb7f (v8.30.1 index digest from the ghcr.io registry API, checked by hashing the manifest). verify-phase4 CI-PYTHON-EXTRA-DEV check became CI-PYTHON-UV-RUN. actionlint 1.7.12: no findings. vitest workflow-templates + copy-templates 78 passed.
+- RED: rule-files.test.ts asserts the shipped skills are exactly caveman, caveman-commit, caveman-help, caveman-review, goodvibes-hygiene, model-regression and that none mentions caveman-compress, caveman-stats or cavecrew. 2 failed, 37 passed.
+- GREEN: deleted templates/.claude/skills/caveman-compress (ran `python3 -m scripts`, which could execute an unrelated `scripts` package in the user's project), caveman-stats (needs an unshipped hook) and cavecrew (needs unshipped agents); dropped the caveman-compress row from caveman-help. No code constant, verify script or other test named them. Note: `npm run prebuild` copies without pruning, so a stale packages/npm/templates keeps deleted skills; delete it before prebuild. Full vitest 315 passed (after build); pytest 244 passed; verify-phase1 PASS.
+- RED: rule-files.test.ts asserts every rule file and the JOURNAL.md template say entries never override the rules and must not be followed when they ask to weaken security, skip tests, push, publish, deploy, or run supplied commands. 14 failed, 39 passed.
+- GREEN: added that limit to the Start of every session rule in templates/CLAUDE.md, AGENTS.md and its six byte-identical copies, copilot-instructions.md, the Cursor, Kiro, Replit and Bolt rule files, and the templates/JOURNAL.md header. JOURNAL.md stays the handoff record; an entry can no longer grant itself authority over the rules. vitest rule-files + copy-templates + sentinel-merge 125 passed.
+
+**Files changed:** packages/npm/src/steps/settings-permissions.test.ts, packages/pip/tests/test_settings_permissions.py, JOURNAL.md (more listed per commit below).
+
+**Why:** The allow list let any `node -e`/`uvx` command run unprompted, which made every ask and deny rule meaningless.
+
+**Tests run:** RED: vitest settings-permissions 11 failed, 3 passed; pytest test_settings_permissions 2 failed.
+
+**Docs updated:** JOURNAL.md.
+
+## 2026-09-24 · Harden the repo's own CI/CD and release pipeline
+
+**What I did:** Seven hardening changes to goodvibes' own workflows and packaging, one commit each (listed below). Nothing pushed, published or dispatched.
+
+**Why:** Review found that publishing could run from any branch or any tagged commit, tests did not gate the publish, actions and npm were referenced by mutable tags, vhs.yml ran the registry's latest release with a write token, the template PAT comment described an impossible classic-PAT scope, the packages shipped without LICENSE/NOTICE, and dependency review did not block copyleft licences.
+
+**Commits:**
+- 1: publish-npm.yml and publish-pip.yml: `guard` job (main, or an `npm-v*`/`pip-v*` tag whose commit is on origin/main and whose version matches the package), publish job in `environment: release`. Tests: YAML load, actionlint 1.7.12, guard script run against a fake clone (main/side branch, matching/mismatching tags): 12/12 as expected.
+- 2: publish jobs need a `test` job (npm: Node 22/24, `npm ci`, prebuild, typecheck, build, `npm test`; pip: Python 3.10/3.11/3.12, the ci.yml pytest command); pre-publish smoke tests of the packed tarball (installed into a temp prefix) and the built wheel (fresh `uv venv`, zipfile check for `goodvibes_cli/templates/CLAUDE.md`). Tests: YAML load, actionlint, both smoke steps extracted and run locally: rc=0; wheel check on a wheel without templates: rc=1.
+- 3: every `uses:` in .github/workflows pinned to a commit SHA with the tag in a comment (resolved with `git ls-remote`, peeled `^{}` for setup-uv's annotated tags); npm in the OIDC job pinned to 11.20.0 (latest 11.x per `npm view npm@11 version`). .github/dependabot.yml already has a weekly `github-actions` entry for `/`, so no change there. Tests: YAML load, actionlint, grep shows 0 unpinned `uses:`.
+- 4: vhs.yml builds the CLI from the checkout (`npm ci`, prebuild, build, `npm link`) instead of `npm install -g goodvibes-cli`, and is split into a read-only `record` job (checkout without persisted credentials, uploads docs/demo.gif) and a `commit` job that alone holds `contents: write` and runs only checkout, download-artifact and git-auto-commit. The tape's `goodvibes init --minimal` is unchanged. Tests: YAML load, actionlint; `npm link` into a scratch prefix gives `bin/goodvibes -> dist/index.js`, which prints 1.9.1 and runs `init --minimal --dry-run`. VHS itself was not run locally (not installed).
+- 5: publish-template.yml: setup comment rewritten for a fine-grained PAT (only jgiox/goodvibes-template, Contents read and write) stored as a `release` environment secret; top-level `permissions: contents: read`; main-only `guard` job; publish job in `environment: release`. Tests: YAML load, actionlint, guard extracted and run with main/side/tag refs: 3/3 as expected.
+- 6: LICENSE and NOTICE now ship in both packages. NOTICE already credits caveman (Julius Brussee, MIT, github.com/juliusbrussee/caveman; matches commit 6b310b6 and upstream LICENSE), so it is unchanged. npm: `prebuild` copies ../../LICENSE and ../../NOTICE (gitignored in packages/npm/.gitignore, listed in `files`). pip: pyproject uses `license = "Apache-2.0"` + `license-files = ["LICENSE", "NOTICE"]`, the sdist force-includes both from the repo root, and hatch_build.py adds them to a wheel built straight from source (license-files globs before hooks run, so copying them there would be too late); the hook now raises when no templates directory is found, or when an sdist lacks LICENSE/NOTICE. publish workflows check the tarball, wheel and sdist for both files. Tests: `npm pack --dry-run` lists LICENSE and NOTICE; `uv build --no-sources --out-dir /tmp/wheelcheck` gives sdist root LICENSE/NOTICE and wheel `dist-info/licenses/{LICENSE,NOTICE}` with `License-File` metadata; a `--wheel` source build also has both; builds without templates, or from an sdist without licences, fail with the new errors; pip pytest 242 passed; extracted verify and smoke steps rc=0; wheel check fails on the old wheel.
+- 7: dependency-review.yml denies GPL-2.0, GPL-3.0, AGPL-3.0, LGPL-3.0. Checked against v5.0.0's matcher (@onebeyond/spdx-license-satisfies): the list also catches the -only and -or-later IDs, not MIT/Apache-2.0/LGPL-2.1, and it flags dual-licensed `MIT OR GPL-3.0-only`. `deny-licenses` is marked deprecated for possible removal in the next major. Tests: YAML load, actionlint, matcher run locally.
+
+**Tests run (final):** npm prebuild + build + vitest, pip pytest, verify-phase1 to 5 (results in the hand-off report).
+
+**Docs updated:** JOURNAL.md only (docs are written separately).
+
+## 2026-09-24 · npm CLI: fix 15 verified bugs (symlinks, manifest, markers, hooks, update order, headroom, Windows, Node gate)
+
+**What I did:** Fixing the verified-bug list in `packages/npm/src/` item by item, each as a RED test commit followed by a GREEN fix commit. The pip package gets the same list from a second worker.
+
+**Files changed:** packages/npm/** (source, tests, package.json, tsup config), JOURNAL.md.
+
+**Why:** Verified bugs: writes through symlinks, init wiping the manifest, CLAUDE.md marker handling losing text, hook merge deleting user hooks, update touching ~/.claude before its prompt, update re-adding removed files, headroom install killed after 10 s, headroom MCP registered without arguments, Windows manifest keys, pre-release version comparison, broken manifest treated as missing, upgrade on Windows, Node 20 crash on import, DO_NOT_TRACK values, non-atomic JSON writes.
+
+**Tests run:** vitest per item (RED then GREEN); full `npm run prebuild && npm run typecheck && npm run build && npx vitest run` at the end.
+
+## 2026-09-24 · pip CLI: fix the verified bug list (data loss, symlinks, manifest, update, upgrade)
+
+**What I did:** Fixed the verified pip CLI bugs (items 0-15 of the audit list), each as a RED test commit followed by a GREEN fix commit. One line per commit below.
+
+**Files changed:** packages/pip/src/goodvibes_cli/**, packages/pip/tests/**, JOURNAL.md.
+
+**Why:** Verified bugs: init recorded every project file as goodvibes-written (update then overwrote them), writes followed symlinks, re-running init wiped the manifest, CLAUDE.md markers lost text, hook merges dropped user hooks, update changed ~/.claude before asking, and more.
+
+**Tests run:** pip pytest from packages/pip (results per commit below).
+
+**Docs updated:** JOURNAL.md.
+
+**Commits:**
+- RED: version comparison with pre-releases and strict CLAUDE.md marker lines (items 3, 10).
+- GREEN: parse pre-release/post versions (never throws); markers only count alone on their line, ambiguous markers throw MarkerError without writing, CRLF kept (items 3, 10).
+- RED: hook merge must keep user hooks that share a group with a goodvibes hook (item 4).
+- GREEN: replace only the marked hook object inside a user group (item 4).
+- RED: DO_NOT_TRACK / GOODVIBES_NO_TELEMETRY accept 1, true, yes (item 14).
+- GREEN: telemetryOptedOut() shared by init and sendTelemetry (item 14).
+- RED: headroom install timeout 15 min with a heads-up; MCP registered with '-- <path> mcp serve', broken entries repaired, first line of where (items 7, 8).
+- GREEN: install commands get a 15-minute timeout (probes stay 10 s); MCP add passes '-- <path> mcp serve', 'claude mcp get' detects and repairs old entries; first non-empty line of where (items 7, 8).
+- RED: broken .goodvibes.json is an error (update/doctor exit 1); backslash manifest keys normalised (items 9, 11).
+- GREEN: parseManifest() throws '<path> is not valid JSON (...)'; update and doctor report it and exit 1 (doctor --quick prints it, exits 0); manifest keys forward-slash on read and write (items 9, 11). Existing doctor/update unit mocks adjusted to return a valid manifest / posixKey.
+- RED: JSON files written via temp file + rename; non-object user JSON reported, not a crash (item 15).
+- GREEN: utils/fs-safe.ts writeFileAtomic (temp + rename, symlinked config file keeps its link) for settings.json, .mcp.json and both manifests; isJsonObject guard in update, global setup and managedRecord (item 15).
+- RED: never write through a symlink (init copy, CLAUDE.md, update copy/merge, manifest), real-path assertSafe; broken CLAUDE.md markers reported by callers, update exits 1 (items 1, 3).
+- GREEN: fs-safe writeBlocked()/assertSafe() (lstat walk + real paths via path.relative); copyTemplates filter, CI rename, CLAUDE.md, update categorise/apply and writeManifest skip symlinked destinations and report '<path>: symlink, not written'; MarkerError reported by init ('Needs your attention') and update (exit 1 after the other files). init/update unit mocks gained problems/fs-safe (items 1, 3).
+- RED: re-running init must merge with the previous manifest and managed record (item 2).
+- GREEN: init reads the previous manifest first (broken one stops init with exit 1), keeps its entries for files not written this run and passes its managed record to managedRecord (item 2).
+- RED: update plans global + project changes, asks once, and cancel writes nothing anywhere (item 5).
+- GREEN: runUpdate plans global (applyGlobalConfig dry run) and project changes, shows the plan, asks once (unless --force/--dry-run), then applies; cancel exits 0 with nothing written (item 5).
+- RED: update must not re-create removed tracked files (project and global) nor add workflows/.github/docs groups the manifest never tracked (item 6).
+- GREEN: tracked-but-deleted files (project and config dir) are reported 'removed by you, not re-added (run goodvibes init to restore)' and dropped from the manifest; net-new workflows/.github/docs only when the manifest tracks that layer (item 6).
+- RED: upgrade re-runs via process.execPath and turns npm install -g failures into an actionable message with exit 1 (item 12).
+- GREEN: upgrade re-runs with process.execPath + argv[1]; npm install -g failure prints the EACCES docs link or the first npm error line and exits 1 (item 12).
+- RED: Node gate (>=22.12) must run before any dependency loads; engines.node >=22.12.0 (item 13).
+- GREEN: src/node-check.ts gate runs first in src/index.ts, CLI body moved to src/cli.ts and loaded by dynamic import (tsup emits dist/index.js + one chunk, both in npm pack); engines.node >=22.12.0 (lockfile root engines synced with npm@11, one line), tsup target node22 (item 13).
+- RED (coordinator decision on item 6): a removed file is recorded as 'user-removed' instead of dropped; deleted AGENTS.md and rules/goodvibes.md stay absent over two updates, reported once; init restores both; a recreated user-removed file is never overwritten.
+- GREEN: USER_OWNED/USER_REMOVED sentinels exported from write-manifest.ts; update records newly deleted files as 'user-removed' (reported once), never re-adds them, treats a recreated one as user-owned, and ignores user-removed entries when deciding if a layer is tracked; applyGlobalConfig does the same in the config dir, and init passes restore=true so it brings them back with real hashes.
+
+- item 10 RED: version_gte / extract_version tests for rc, post and trailing-dot versions (5 failed).
+- item 10 GREEN: version_gte parses release + pre-release (a/b/rc, -rc.N, -beta.N) + .postN and returns False on unparseable input; extract_version keeps pre-release tags, drops a trailing dot (247 passed).
+- item 15 RED: DO_NOT_TRACK / GOODVIBES_NO_TELEMETRY = true/yes (any case) must opt out, in telemetry and the init privacy panel (9 failed).
+- item 15 GREEN: telemetry.opted_out() accepts 1/true/yes in any case for DO_NOT_TRACK and GOODVIBES_NO_TELEMETRY; init's privacy panel reuses it (258 passed).
+- item 14 RED: resolve_templates_dir must fall back to the repo templates/ in a source checkout (1 failed).
+- item 14 GREEN: resolve_templates_dir walks up from the package to the first templates/CLAUDE.md when no bundled copy exists (260 passed).
+- item 13 RED: ensure_global_cli must tell the user to run uv tool update-shell when goodvibes is still not on PATH after installing (1 failed).
+- item 13 GREEN: after uv tool install, ensure_global_cli reports installed with a 'run uv tool update-shell, then open a new terminal' reason when goodvibes is still not on PATH; format_global prints it (261 passed).
+- item 7 RED: headroom installers need a 900 s timeout (probe stays 10 s), a several-minutes warning first, and bytes stderr from TimeoutExpired decoded (3 failed).
+- item 7 GREEN: install commands use a 900 s timeout (probe keeps 10 s), a several-minutes notice is logged first, TimeoutExpired bytes stderr is decoded (264 passed).
+- item 8 RED: headroom must be registered as 'headroom -- <path> mcp serve', and a registration without mcp serve repaired via claude mcp remove + add (3 failed).
+- item 8 GREEN: claude mcp add -s user headroom -- <path> mcp serve; when claude mcp get headroom succeeds without mcp serve, remove + re-add and report repaired (266 passed).
+- item 12 RED: upgrade must re-exec as sys.executable -m goodvibes_cli, skip installing under uvx, and say when PyPI cannot be reached (4 failed).
+- item 12 GREEN: upgrade re-execs via os.execve(sys.executable, [sys.executable, -m, goodvibes_cli, ...]) with _GV_UPGRADING, installs nothing under uvx (archive-v* in sys.prefix), and prints the PyPI failure reason (270 passed).
+- item 11 RED: a broken .goodvibes.json must be a clear 'is not valid JSON (...); fix it or delete it and run goodvibes init' error, with update/doctor (and init for the global manifest) exiting 1 (7 failed).
+- item 11 GREEN: read_manifest raises ManifestError for invalid or non-object JSON; update and init print it and exit 1; doctor reports it as a failed check (exit 1; --quick prints it, exit 0) (276 passed).
+- item 9 RED: manifest keys must be forward-slash on write and read, so update matches keys a Windows run wrote with backslashes (3 failed).
+- item 9 GREEN: posix_key() normalises manifest keys on write_manifest and read_manifest; list_template_files and copy_templates return forward-slash paths (279 passed).
+- item 3 RED: CLAUDE.md markers count only alone on their line; unmatched/misordered/duplicate markers must raise a fix-by-hand error and leave the file alone; CRLF kept; non-UTF-8 is a clear error; init and update report it and continue, update exits non-zero (10 failed).
+- item 3 GREEN: merge_claude matches marker lines by regex (own line, trailing space/CR allowed), raises ClaudeMdError for any layout other than one start then one end, reads/writes with newline='' keeping CRLF, and reports non-UTF-8; copy_templates lists the error in skipped, update reports it, keeps the old hash and exits 1 (289 passed).
+- item 4 RED: hook merge must replace only the goodvibes hook object inside a user group; JSON writes keep non-ASCII and are atomic; non-object JSON reported 'not a JSON object; left unchanged' (7 failed).
+- item 4 GREEN: merge_managed_json swaps only the marked hook object inside the user's group; write_json (temp file + os.replace, ensure_ascii=False) now writes settings, .mcp.json and both manifests; non-object settings reported 'not a JSON object; left unchanged' in update and global setup (296 passed).
+- item 0 RED: init must record only files it created (not src/, .git/ or a user's own .github/dependabot.yml) and update --force must leave those untouched (2 failed).
+- item 0 GREEN: copy_templates records files through copytree's copy_function (plus the ci.yml rename and CLAUDE.md) instead of every file under the project, so the manifest never claims src/, .git/ or the user's own files (298 passed).
+- item 2 RED: a second init must keep every manifest entry and the managed record (a deleted hook stays deleted after update), and refuse a broken project manifest (3 failed).
+- item 2 GREEN: init reads the previous manifest before writing anything, keeps its entries for files this run did not write and passes its managed record to managed_record (301 passed).
+- item 1 RED: init and update must never write through a symlinked (or dangling) destination or parent: .claude -> outside, CLAUDE.md -> outside, docs -> outside, dangling AGENTS.md and .goodvibes.json; _assert_safe must work at a drive root (5 failed).
+- item 1 GREEN: new utils/safe_path.check_writable (os.path.islink on every existing component, resolved path inside the root) guards copytree entries, the CLAUDE.md merge/stub, the ci.yml rename, update copies/merges and both manifest writes; blocked paths are reported '<path>: symlink, not written' and skipped; _assert_safe uses resolve() + is_relative_to (306 passed).
+- item 6 RED: update must not re-create tracked files the user deleted (project and config dir; reported and dropped from the manifest) and must add net-new .github/workflows, other .github and docs files only to groups the manifest already tracks; two old tests now create the tracked CLAUDE.md they update (4 failed).
+- item 6 GREEN: update reports a missing tracked file as 'removed by you, not re-added (run goodvibes init to restore)' and drops it; apply_global_config(restore=False) does the same for the config dir (init keeps restore=True); net-new files in .github/workflows, other .github and docs are added only when the manifest still tracks a file in that group (315 passed).
+- item 5 RED: update must plan the global changes, ask once, and leave the config dir and project untouched on cancel (2 failed).
+- item 5 GREEN: update plans the config-dir changes with apply_global_config(dry_run=True), shows them, asks once (counting global changes), and only then applies global and project changes; apply_global_config no longer lists files whose content is already current as written (317 passed).
+- item 6a follow-up RED (coordinator change): a deleted tracked file is recorded as 'user-removed', stays absent across two updates (reported only the first time) in the project and config dir, a recreated one becomes user-owned and is never overwritten, and init restores both (5 failed).
+- item 6a follow-up GREEN: USER_OWNED/USER_REMOVED live in write_manifest; update records a newly missing file as 'user-removed' (reported once), leaves 'user-removed' entries absent and out of net-new/group counts, and treats a recreated one as user-owned; apply_global_config(restore=False) does the same in the config dir; init (restore) rewrites them with real hashes (320 passed).
+- item 6a detail RED (coordinator): init must also record a recreated 'user-removed' file as 'user-owned' and keep it (project and config dir); guard test that user-removed docs do not count as a tracked docs group (2 failed, guard passes).
+- item 6a detail GREEN: a recreated 'user-removed' file becomes 'user-owned' and is kept on every run, including init, in the project manifest and the config-dir manifest (323 passed).
+- item 5 detail RED: update without --force must show the project plan (not only counts) before asking (1 failed).
+- item 5 detail GREEN: the dry-run plan lines are built once and shown as 'Planned — project files' before the single prompt (323 passed).
+
+- 2026-09-25: verify-phase2 NPM-PKG-04 and NPM-08-ORDER and verify-phase5 UPGRADE-IN-INDEX updated for the Node 22.12 entry point (version check in index.ts, commands registered in cli.ts). All five phase gates pass on the merged tree.
+
+## 2026-09-24 · Journal gate: fsmonitor code execution, missed commits, wrong-repo checks
+
+**What I did:** Hardened the journal-gate PreToolUse hook (templates/.claude/settings.json and the dogfood .claude/settings.json, kept identical). One RED test commit, then one GREEN fix commit, per problem:
+- RED 1: a bare repo inside the project with `core.fsmonitor` set runs its command when the hook merely sees `git -C vendor/evil commit` in the text.
+- GREEN 1: every git call in the hook runs with `-c core.fsmonitor=false -c safe.bareRepository=explicit`; the cwd `git rev-parse` now goes through the same GIT helper.
+- RED 2: a commit whose `git` is glued to `&&`, `|`, `$(`, `(` or `;` is not seen as a commit.
+- RED 7: `git log | grep commit`, `git help commit`, `git cat-file commit HEAD` and `git log -1 && echo last commit` are wrongly blocked.
+- GREEN 2 and 7 (one fix): the hook now tokenizes the command in one awk pass (quotes kept as parts of words, `&&`, `||`, `;`, `|`, `&`, `(`, `)`, `$(`, backtick and newline split out as operators) and counts only a `git` whose subcommand, after global options such as `-C <path>`, `-c <k=v>` and `--no-pager`, is `commit`. The awk passes also stream their output instead of rebuilding strings, so a 2 MB command takes about 1.5 s with mawk instead of 36 s.
+- RED 3: `git \` + newline + `commit -m x` is not seen as a commit.
+- GREEN 3: backslash-newline continuations are joined (after heredoc bodies are dropped, before words are split).
+- RED 4: an apostrophe in a full-line comment pairs with a later quote and hides the commit between them.
+- GREEN 4: full-line comments (optional leading blanks, then `#`) are dropped in the heredoc pass, before quotes are paired and before heredoc detection. Inline `#` is not stripped there.
+- RED 5: one `--amend` anywhere (a later commit, or a trailing comment) exempts every commit in the command.
+- GREEN 5: a command is exempt only when every git commit in it has an unquoted `--amend` argument of its own. A word starting with `#` now starts a comment that runs to the end of the line, as in sh, so a URL such as `http://x/#y` is untouched.
+- RED 6: `cd proj && git commit` is checked against the session folder, not `proj`; `git -C ~/p` and `git -C $HOME/p` are blocked as "not a git repository"; `cd $VAR` or two `cd`s before a commit are not treated as unverifiable.
+- GREEN 6: a `cd <dir>` before the commit is treated like `-C <dir>` (relative to the session folder). More than one `cd`/`-C` before the commit, a `cd` between two commits, a missing path, `cd -`, `~user`, or any `$` other than a leading `$HOME`/`${HOME}` blocks with a "cannot verify" message. A leading `~/` or `$HOME` is expanded from `$HOME`. `git add JOURNAL.md` only counts when it runs after that `cd`.
+
+**Files changed:** templates/.claude/settings.json, .claude/settings.json (hook command only), packages/npm/src/steps/journal-gate-hook.integration.test.ts, packages/pip/tests/test_journal_gate_hook.py, JOURNAL.md.
+
+**Why:** A committed bare repo could run code through the gate, and the gate missed or wrongly blocked commits (items 1 to 7 of the review).
+
+**Tests run:** Each RED commit failed only its new tests; each GREEN commit passed both hook suites. Final: npm vitest 306 passed, 1 skipped, 2 todo (after `npm run build`); pip pytest 266 passed; `scripts/verify-phase5.sh --quick` 11 passed. The pip hook suite (68 tests) also passes with BWK awk (original-awk 2023-11-27) and with busybox 1.36 awk, sed, grep and wc on PATH; the sandbox `sh` is dash. A 2 MB command takes 1.4 to 1.5 s with mawk, 3.4 to 3.7 s with BWK awk and 17 to 19 s with busybox (the old hook took 36 s with mawk and over 2 minutes with busybox).
+
+**Next time:** Known gaps, all fail open and out of scope: `"$(git commit)"` inside double quotes, an apostrophe in an inline (not full-line) comment, `pushd`, `(cd x); git commit` (the subshell cd is still applied), `--git-dir`/`--work-tree` pointing at another repo, `sh -c` and aliases. BWK awk's `split(s, a, "c")` also splits on newlines, so the hook uses regex separators; keep it that way.
+
+**Docs updated:** JOURNAL.md.
+
+---
+
+## 2026-09-25 · update removes the allow rules older versions shipped
+
+**What I did:** goodvibes up to 1.9.1 shipped project allow rules that auto-approved arbitrary code (`Bash(node*)`, `Bash(python*)`, `Bash(npx*)`, `Bash(uv*)`, `Bash(npm run*)`, `Bash(npm install*)`, `Bash(pip install*)`) and `Bash(git restore *)`. The new template drops them, but `update` never touched `allow` in a settings file the user had edited, so existing projects kept them. `update` now removes exactly those strings from the project `.claude/settings.json` (never from `~/.claude/settings.json`, where goodvibes never wrote allow rules, so anything there is the user's own) and lists each removal. npm and pip.
+
+**Files changed:** packages/npm/src/utils/json-merge.ts, packages/npm/src/commands/update.ts, packages/pip/src/goodvibes_cli/utils/json_merge.py, packages/pip/src/goodvibes_cli/commands/update_cmd.py, their tests, JOURNAL.md.
+
+**Why:** Audit finding S3 left existing installs exposed.
+
+**Tests run:** RED: npm 2 failed (json-merge, update integration); pip 2 failed (json_merge, update_cmd). GREEN: npm typecheck 0, vitest 432 passed, 1 skipped; pip pytest 352 passed.
+
+**Docs updated:** JOURNAL.md.
+
+---
+
+## 2026-09-25 · update deletes unchanged skills goodvibes no longer ships
+
+**What I did:** caveman-compress, caveman-stats and cavecrew were removed from the templates because they depend on code goodvibes never shipped, but installs that already had them kept them: the global setup dropped them from its manifest and left the files, and project update skipped copying a file whose template is gone yet kept recording it. Now a tracked file under the skills folder (`skills/` in the Claude config dir, `.claude/skills/` in a project) that goodvibes no longer ships and that is unchanged since goodvibes wrote it is deleted, its empty folder removed, and the deletion reported ("removed, no longer shipped by goodvibes"). An edited copy is the user's and stays. Dry run only reports. npm and pip.
+
+**Files changed:** packages/npm/src/steps/global-setup.ts, packages/npm/src/commands/update.ts, packages/pip/src/goodvibes_cli/steps/global_setup.py, packages/pip/src/goodvibes_cli/commands/update_cmd.py, their tests, JOURNAL.md.
+
+**Why:** Audit follow-up: the removed skills would otherwise stay installed forever.
+
+**Tests run:** RED: npm 4 failed (global-setup integration x3, update integration); pip 4 failed. GREEN: npm typecheck 0, vitest 436 passed, 1 skipped; pip pytest 356 passed on Python 3.11 and 3.10. The global-setup test mocks gained the new `removed`/`retired` fields.
+
+**Docs updated:** JOURNAL.md.
+
+---
+
+## 2026-09-25 · Docs for the audit fixes
+
+**What I did:** README: journal check scope and "cannot verify" behaviour, update now plans and asks once, deleted files stay deleted, retired skills and old auto-approve rules removed, symlinks never followed, damaged CLAUDE.md block left alone; new "What Claude Code can do without asking" section listing the exact allow/ask/deny behaviour; Node.js 22.12+; new Privacy section (opt-outs incl. `DO_NOT_TRACK=true`, totals approximate). FAQ: removed-allow-rules exception, telemetry wording, and new entries for deleted files, the new prompts for node/python/installs, "cannot verify", a damaged CLAUDE.md block, an invalid `.goodvibes.json`, and the slow first install. getting-started (both copies): journal check scope and limits, headroom first-install time. Package READMEs: Node 22.12, opt-out values. SECURITY.md: fallback contact without details, supported versions, scope includes shipped files and the telemetry worker. demo.tape header. CHANGELOG `[Unreleased]`: Security and Fixed entries for every audit fix.
+
+**Files changed:** README.md, FAQ.md, docs/getting-started.md, templates/docs/getting-started.md, packages/npm/README.md, packages/pip/README.md, SECURITY.md, scripts/demo.tape, CHANGELOG.md, JOURNAL.md.
+
+**Why:** Every doc the audit fixes made untrue.
+
+**Tests run:** docs only; claims checked against the merged code (permissions list read from templates/.claude/settings.json).
+
+**Docs updated:** as listed.
+
+---
+
+## 2026-09-25 · Release tidy-ups on the branch tip
+
+**What I did:** Applied the tidy-up worker's six results on the current tip (it had run on the old base): `publish-pip.yml` publishes through `pypa/gh-action-pypi-publish@dc37677b # v1.14.2`, which uploads PEP 740 attestations; NOTICE carries the verbatim MIT permission text for caveman (2026 Julius Brussee) and ponytail (2026 DietrichGebert); npm `prebuild` deletes the old `templates/` copy before copying, so removed skills can never ship from a stale copy; removed `cavecrew`, `caveman-compress` and `caveman-stats` from this repo's own `.claude/skills/`; the Python CI templates pin `uvx ruff@0.16.9`; dev-only nanoid 3.3.16 to 3.3.19 (GHSA-2v37-7h3g-55p8), the same three lockfile lines npm 11 `audit fix` produced. The repo `CLAUDE.md` block is not refreshed yet: `merge_claude` only replaces a block with a newer version stamp, so it follows at the version bump.
+
+**Files changed:** .github/workflows/publish-pip.yml, NOTICE, packages/npm/package.json, packages/npm/package-lock.json, .claude/skills/ (3 folders removed), templates/.github/workflows/ci-both.yml, templates/.github/workflows/ci-python.yml, JOURNAL.md.
+
+**Tests run:** actionlint 1.7.12 clean on all repo and template workflows; YAML loads; prebuild leaves only the 6 shipped skills; `npm ci` (npm 11) accepts the lockfile; `npm audit` 0 vulnerabilities (incl. dev); npm typecheck 0, vitest 436 passed; pip 356 passed; verify-phase1 to 5 PASS.
+
+**Docs updated:** JOURNAL.md.
+
+---
+
+## 2026-09-25 · Atomic JSON writes keep file modes and symlinks (both packages)
+
+**What I did:** Codex review on PR #41. npm `writeFileAtomic` created the temp file with the umask default and renamed it over the target, so a `0600` `~/.claude/settings.json` or `.mcp.json` became `0644` (P1). pip `write_json` renamed the temp file over the path itself, so a symlinked settings file (dotfiles repo) became a regular file and its real target went stale (P2). Each package already got the other half right. Now both resolve a symlink to its target, write the temp file next to the target, give it the target's mode, and rename it onto the target.
+
+**Files changed:** packages/npm/src/utils/fs-safe.ts, packages/npm/src/utils/fs-safe.integration.test.ts (new, real temp files), packages/pip/src/goodvibes_cli/utils/json_merge.py, packages/pip/tests/test_json_merge.py, JOURNAL.md.
+
+**Why:** Review findings on PR #41 (P1 permission widening, P2 symlink replaced).
+
+**Tests run:** RED: npm mode test failed (symlink test passed); pip symlink test failed (mode test passed). GREEN: npm typecheck 0, vitest 438 passed, 1 skipped (the fs-safe unit mock gained stat and chmod); pip pytest 358 passed.
+
+**Docs updated:** JOURNAL.md.

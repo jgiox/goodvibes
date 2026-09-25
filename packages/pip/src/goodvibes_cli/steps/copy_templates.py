@@ -5,24 +5,29 @@ import importlib.resources
 import pathlib
 import shutil
 
+from goodvibes_cli.utils.safe_path import SymlinkError, check_writable
 from goodvibes_cli.utils.scope import global_owned, project_stub
-from goodvibes_cli.utils.sentinel_merge import merge_claude
+from goodvibes_cli.utils.sentinel_merge import ClaudeMdError, merge_claude
 
 
 def resolve_templates_dir() -> pathlib.Path:
-    """Return the bundled templates directory from the installed wheel."""
+    """Return the bundled templates directory, or the repo's templates/ when running from a source checkout."""
     ref = importlib.resources.files("goodvibes_cli").joinpath("templates")
     # Wrap with Path(str(...)) for str/PathLike compatibility (RESEARCH.md Pitfall 2)
     path = pathlib.Path(str(ref))
-    if not path.exists():
-        raise FileNotFoundError("goodvibes template files not found in installed package")
-    return path
+    if path.exists():
+        return path
+    # Editable/dev installs have no bundled copy; the build hook only adds it to wheels.
+    for parent in pathlib.Path(__file__).resolve().parents:
+        if (parent / "templates" / "CLAUDE.md").is_file():
+            return parent / "templates"
+    raise FileNotFoundError("goodvibes template files not found in installed package")
 
 
 def list_template_files(template_dir: pathlib.Path) -> list[str]:
     """Return sorted list of relative file paths under template_dir."""
     return sorted(
-        str(f.relative_to(template_dir))
+        f.relative_to(template_dir).as_posix()
         for f in template_dir.rglob("*")
         if f.is_file()
     )
@@ -86,16 +91,30 @@ def copy_templates(
             # Skip selected CI variant on re-runs where ci.yml already exists (prevents orphaned variant file)
             if name == selected_variant and (dest_dir / ".github" / "workflows" / "ci.yml").is_file():
                 ignored.add(name)
-                skipped_files.append(str(pathlib.Path(".github") / "workflows" / "ci.yml"))
-            # No-clobber: skip files (not dirs) that already exist at dest (T-03-02-03)
+                skipped_files.append(".github/workflows/ci.yml")
             dest_candidate = dest_dir / rel
+            if name not in ignored:
+                try:
+                    check_writable(dest_dir, dest_candidate)
+                except SymlinkError as e:
+                    ignored.add(name)
+                    skipped_files.append(str(e))
+                    continue
+            # No-clobber: skip files (not dirs) that already exist at dest (T-03-02-03)
             if dest_candidate.is_file():
                 ignored.add(name)
-                skipped_files.append(str(dest_candidate.relative_to(dest_dir)))
+                skipped_files.append(dest_candidate.relative_to(dest_dir).as_posix())
         return ignored
 
+    # Only files copied here are goodvibes'; everything else in the project (src/, .git/, a user's own files) is not.
+    copied: list[str] = []
+
+    def copy_fn(src: str, dst: str) -> None:
+        shutil.copy2(src, dst)
+        copied.append(pathlib.Path(dst).relative_to(dest_dir).as_posix())
+
     try:
-        shutil.copytree(str(template_dir), str(dest_dir), ignore=ignore_fn, dirs_exist_ok=True)
+        shutil.copytree(str(template_dir), str(dest_dir), ignore=ignore_fn, dirs_exist_ok=True, copy_function=copy_fn)
     except PermissionError as e:
         raise PermissionError(
             f"Cannot write files to {dest_dir}.\n"
@@ -106,14 +125,14 @@ def copy_templates(
         raise OSError(f"Cannot copy template files: {e}. Check available disk space.") from e
 
     # Rename selected CI variant to ci.yml
-    if not minimal:
-        variant_path = dest_dir / ".github" / "workflows" / selected_variant
+    variant_rel = f".github/workflows/{selected_variant}"
+    if variant_rel in copied:
         ci_path = dest_dir / ".github" / "workflows" / "ci.yml"
-        if variant_path.exists():
-            if ci_path.exists():
-                skipped_files.append(".github/workflows/ci.yml")  # ponytail: UX-04
-            else:
-                variant_path.rename(ci_path)
+        if ci_path.exists() or ci_path.is_symlink():
+            skipped_files.append(".github/workflows/ci.yml")  # ponytail: UX-04
+        else:
+            (dest_dir / variant_rel).rename(ci_path)
+            copied[copied.index(variant_rel)] = ".github/workflows/ci.yml"
 
     # Handle CLAUDE.md via sentinel merge
     claude_src = template_dir / "CLAUDE.md"
@@ -122,15 +141,16 @@ def copy_templates(
         claude_dest = dest_dir / "CLAUDE.md"
         template_content = claude_src.read_text(encoding="utf-8")
         if scope == "project":
-            merge_claude(claude_dest, template_content)
-            claude_merged = True
+            try:
+                merge_claude(claude_dest, template_content)
+                claude_merged = True
+            except (ClaudeMdError, SymlinkError) as e:
+                skipped_files.append(str(e))
+        elif claude_dest.is_symlink():
+            skipped_files.append("CLAUDE.md: symlink, not written")
         elif not claude_dest.exists():
             claude_dest.write_text(project_stub(template_content), encoding="utf-8")
+            claude_merged = True
 
-    # Walk destDir so return shows ci.yml (not ci-node.yml) — per RESEARCH.md Pitfall 6
-    all_dest = sorted(str(f.relative_to(dest_dir)) for f in dest_dir.rglob("*") if f.is_file())
-    written = [f for f in all_dest if f not in skipped_files]
-    # Only inject CLAUDE.md into written if sentinel merge actually ran
-    if claude_merged and "CLAUDE.md" not in written:
-        written = ["CLAUDE.md"] + written
+    written = copied + (["CLAUDE.md"] if claude_merged else [])
     return (sorted(written), sorted(skipped_files))

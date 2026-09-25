@@ -1,5 +1,5 @@
 # Source: charmbracelet/vhs (latest via charm.sh apt) — https://github.com/charmbracelet/vhs
-# DEMO-01: 800px width, real init (--minimal), global install so no npx wait
+# DEMO-01: 800px width, real init (--minimal), CLI built from this checkout and npm-linked, so no npx wait
 
 Output ../docs/demo.gif
 

@@ -41,13 +41,15 @@ This only affects Claude Code. Other tools use their own reply style.
 
 ## What is headroom?
 
-headroom compresses the AI's memory of your project so you spend fewer tokens per session. It runs automatically in the background when Claude Code is active — you do not need to invoke it manually.
+headroom compresses the AI's memory of your project so you spend fewer tokens per session. It runs automatically in the background when Claude Code is active — you do not need to invoke it manually. The first install downloads a few gigabytes and can take several minutes; `goodvibes init --minimal` skips it.
 
 ## About the journal-gate hook
 
 The journal-gate hook only gates `git commit` when it runs through Claude Code's own Bash tool — it does not intercept a commit you type directly in a terminal. Other AI coding tools or IDEs (Cursor, Copilot, and others) have no equivalent hook mechanism, so this enforcement does not apply there.
 
 The hook lives in `~/.claude/settings.json` (or this project's `.claude/settings.json` if you used `--scope project`) and only acts in repos that have a `JOURNAL.md`. To turn it off, delete the `PreToolUse` entry whose command starts with `: goodvibes-journal-gate` from that file; `goodvibes update` will not add it back. Commits made from your editor's Source Control or Git panel are not gated either.
+
+The check looks at the repository the commit really runs in, including `cd somewhere && git commit` and `git -C somewhere commit`. If a command changes folder more than once, or uses a folder name it cannot work out, it blocks with a "cannot verify" message instead of guessing; run the commit as its own command from inside the repository. It is a safety net for honest mistakes, not a security barrier: a determined agent can get around it.
 
 ## Session-start check (Claude Code only)
 

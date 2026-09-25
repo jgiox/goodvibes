@@ -5,8 +5,9 @@ import { homedir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { execa } from 'execa'
 import { listTemplateFiles } from './copy-templates.js'
-import { readManifest, type Manifest, MANIFEST_PATH } from './write-manifest.js'
-import { mergeManagedJson, presentIds } from '../utils/json-merge.js'
+import { readManifest, type Manifest, MANIFEST_PATH, USER_OWNED, USER_REMOVED } from './write-manifest.js'
+import { mergeManagedJson, presentIds, isJsonObject } from '../utils/json-merge.js'
+import { removeRetired, writeFileAtomic } from '../utils/fs-safe.js'
 import { goodvibesBlock } from '../utils/scope.js'
 import { versionGte } from '../utils/sentinel-merge.js'
 
@@ -59,12 +60,15 @@ export type GlobalResult = {
   configDir: string
   written: string[]
   kept: string[]
+  removed: string[]
+  retired: string[]
   settingsChanges: string[]
   settingsError?: string
 }
 
 // Writes goodvibes-owned files into the Claude Code user config; a file the user edited since goodvibes wrote it is kept.
-export async function applyGlobalConfig(templateDir: string, version: string, dryRun: boolean): Promise<GlobalResult> {
+// Only init passes restore, which brings back files the user deleted.
+export async function applyGlobalConfig(templateDir: string, version: string, dryRun: boolean, restore = false): Promise<GlobalResult> {
   const cfg = claudeConfigDir()
   const prev: Manifest | null = await readManifest(cfg)
   const owned: [string, string][] = [['rules/goodvibes.md', goodvibesBlock(await readFile(join(templateDir, 'CLAUDE.md'), 'utf-8'))]]
@@ -72,12 +76,23 @@ export async function applyGlobalConfig(templateDir: string, version: string, dr
     if (rel.startsWith('.claude/skills/')) owned.push([rel.slice('.claude/'.length), await readFile(join(templateDir, rel), 'utf-8')])
   }
 
-  const result: GlobalResult = { configDir: cfg, written: [], kept: [], settingsChanges: [] }
+  const result: GlobalResult = { configDir: cfg, written: [], kept: [], removed: [], retired: [], settingsChanges: [] }
   const files: Record<string, string> = {}
   for (const [rel, content] of owned) {
     const dest = join(cfg, rel)
     const recorded = prev?.files[rel]
-    if (existsSync(dest) && sha(await readFile(dest, 'utf-8')) !== recorded) {
+    const exists = existsSync(dest)
+    if (recorded === USER_REMOVED && exists) {
+      result.kept.push(rel)
+      files[rel] = USER_OWNED
+      continue
+    }
+    if (recorded && !exists && !restore) {
+      if (recorded !== USER_REMOVED) result.removed.push(rel)
+      files[rel] = USER_REMOVED
+      continue
+    }
+    if (exists && sha(await readFile(dest, 'utf-8')) !== recorded) {
       result.kept.push(rel)
       if (recorded) files[rel] = recorded
       continue
@@ -90,25 +105,39 @@ export async function applyGlobalConfig(templateDir: string, version: string, dr
     }
   }
 
+  // Skills goodvibes no longer ships: delete the copy it wrote; an edited copy is the user's and stays (untracked).
+  const ownedPaths = new Set(owned.map(([rel]) => rel))
+  for (const [rel, recorded] of Object.entries(prev?.files ?? {})) {
+    if (ownedPaths.has(rel) || !rel.startsWith('skills/') || recorded === USER_OWNED || recorded === USER_REMOVED) continue
+    const dest = join(cfg, rel)
+    if (!existsSync(dest) || sha(await readFile(dest, 'utf-8')) !== recorded) continue
+    result.retired.push(rel)
+    if (!dryRun) await removeRetired(cfg, rel, 'skills')
+  }
+
   const tpl = JSON.parse(await readFile(join(templateDir, '.claude', 'settings.json'), 'utf-8'))
   const settingsPath = join(cfg, 'settings.json')
   let managed = prev?.managed ?? {}
+  let user: unknown
   try {
-    const user = existsSync(settingsPath) ? JSON.parse(await readFile(settingsPath, 'utf-8')) : {}
+    user = existsSync(settingsPath) ? JSON.parse(await readFile(settingsPath, 'utf-8')) : {}
+    if (!isJsonObject(user)) result.settingsError = `${settingsPath}: not a JSON object; left unchanged, fix it and re-run`
+  } catch (e) {
+    result.settingsError = `${settingsPath}: not valid JSON (${(e as Error).message}); left unchanged, fix it and re-run`
+  }
+  if (isJsonObject(user)) {
     const { merged, changes } = mergeManagedJson('.claude/settings.json', tpl, user, managed['settings.json'])
     result.settingsChanges = changes
     if (!dryRun && changes.length > 0) {
       await mkdir(cfg, { recursive: true })
-      await writeFile(settingsPath, JSON.stringify(merged, null, 2) + '\n', 'utf-8')
+      await writeFileAtomic(settingsPath, JSON.stringify(merged, null, 2) + '\n')
     }
     managed = { ...managed, 'settings.json': [...new Set([...(managed['settings.json'] ?? []), ...presentIds('.claude/settings.json', tpl, merged)])] }
-  } catch (e) {
-    result.settingsError = `${settingsPath}: not valid JSON (${(e as Error).message}); left unchanged, fix it and re-run`
   }
 
   if (!dryRun) {
     await mkdir(cfg, { recursive: true })
-    await writeFile(join(cfg, MANIFEST_PATH), JSON.stringify({ version, scope: 'global', files, managed }, null, 2) + '\n', 'utf-8')
+    await writeFileAtomic(join(cfg, MANIFEST_PATH), JSON.stringify({ version, scope: 'global', files, managed }, null, 2) + '\n')
   }
   return result
 }
@@ -117,6 +146,8 @@ export function formatGlobal(g: GlobalResult, cli: CliStatus | undefined, c7: Mc
   const lines = [
     ...g.written.map(f => `written: ${f}`),
     ...g.kept.map(f => `kept (you edited it): ${f}`),
+    ...g.removed.map(f => `${f}: removed by you, not re-added (run goodvibes init to restore)`),
+    ...g.retired.map(f => `${f}: removed, no longer shipped by goodvibes`),
     ...g.settingsChanges.map(c => `settings.json ${c}`),
     ...(g.settingsError ? [`settings.json not changed: ${g.settingsError}`] : []),
   ]

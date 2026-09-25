@@ -22,7 +22,7 @@ def _isolate_global_setup(request, mocker, tmp_path, monkeypatch):
         mocker.patch("goodvibes_cli.commands.init_cmd.start_telemetry_thread", return_value=None)
     if "test_global_setup" in request.module.__name__:
         return
-    result = {"config_dir": str(tmp_path / "claude-config"), "written": [], "kept": [], "settings_changes": [], "settings_error": None}
+    result = {"config_dir": str(tmp_path / "claude-config"), "written": [], "kept": [], "removed": [], "retired": [], "settings_changes": [], "settings_error": None}
     for mod in ("init_cmd", "update_cmd"):
         mocker.patch(f"goodvibes_cli.commands.{mod}.apply_global_config", return_value=result)
     mocker.patch("goodvibes_cli.commands.init_cmd.ensure_global_cli", return_value={"status": "already-installed"})

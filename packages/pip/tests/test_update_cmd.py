@@ -56,13 +56,14 @@ def test_update_force_skips_confirm_prompt(mocker):
     mock_confirm.assert_not_called()
 
 
-def test_update_prompts_confirm_before_overwriting_without_force(mocker):
+def test_update_prompts_confirm_before_overwriting_without_force(mocker, tmp_path):
     manifest = {"version": "1.0.0", "files": {"CLAUDE.md": "abc123"}}
+    (tmp_path / "CLAUDE.md").write_text("# mine\n", encoding="utf-8")
+    mocker.patch("pathlib.Path.cwd", return_value=tmp_path)
     mocker.patch("goodvibes_cli.commands.update_cmd.read_manifest", return_value=manifest)
     mocker.patch("goodvibes_cli.commands.update_cmd.resolve_templates_dir")
     mocker.patch("goodvibes_cli.commands.update_cmd.detect_project_type", return_value="both")
     mocker.patch("goodvibes_cli.commands.update_cmd.list_template_files", return_value=[])
-    mocker.patch("pathlib.Path.exists", return_value=False)
     mock_confirm = mocker.patch("goodvibes_cli.commands.update_cmd.typer.confirm", return_value=True)
     # template_dir is a MagicMock so template_src.exists() is truthy; mock merge_claude to avoid real I/O
     mocker.patch("goodvibes_cli.commands.update_cmd.merge_claude")
@@ -116,13 +117,13 @@ def test_update_uses_merge_claude_for_claude_md(mocker, tmp_path):
     (template_dir / "CLAUDE.md").write_text("# Template\n", encoding="utf-8")
     project_dir = tmp_path / "project"
     project_dir.mkdir()
+    (project_dir / "CLAUDE.md").write_text("# mine\n", encoding="utf-8")
 
     manifest = {"version": "1.0.0", "files": {"CLAUDE.md": "abc123"}}
     mocker.patch("goodvibes_cli.commands.update_cmd.read_manifest", return_value=manifest)
     mocker.patch("goodvibes_cli.commands.update_cmd.resolve_templates_dir", return_value=template_dir)
     mocker.patch("goodvibes_cli.commands.update_cmd.detect_project_type", return_value="both")
     mocker.patch("goodvibes_cli.commands.update_cmd.list_template_files", return_value=[])
-    # cwd → project_dir (no CLAUDE.md) so dest doesn't exist → overwrite
     mocker.patch("pathlib.Path.cwd", return_value=project_dir)
     mock_copy = mocker.patch("goodvibes_cli.commands.update_cmd.shutil.copy2")
     mock_merge = mocker.patch("goodvibes_cli.commands.update_cmd.merge_claude")
@@ -261,6 +262,34 @@ def _read(project_dir, rel):
     return json.loads((project_dir / rel).read_text(encoding="utf-8"))
 
 
+def test_update_deletes_an_unchanged_project_skill_goodvibes_no_longer_ships_and_keeps_an_edited_one(merge_dirs):
+    for name, text in (("gone", "old\n"), ("mine", "edited\n")):
+        (merge_dirs / ".claude" / "skills" / name).mkdir(parents=True)
+        (merge_dirs / ".claude" / "skills" / name / "SKILL.md").write_text(text, encoding="utf-8")
+    (merge_dirs / ".mcp.json").write_text(_TPL_MCP, encoding="utf-8")
+    _write_manifest(merge_dirs, {
+        ".claude/skills/gone/SKILL.md": _sha("old\n"),
+        ".claude/skills/mine/SKILL.md": _sha("old\n"),
+        ".mcp.json": _sha(_TPL_MCP),
+    })
+    result = runner.invoke(app, ["update", "--force"])
+    assert result.exit_code == 0, result.output
+    assert not (merge_dirs / ".claude" / "skills" / "gone").exists()
+    assert (merge_dirs / ".claude" / "skills" / "mine" / "SKILL.md").read_text() == "edited\n"
+    assert ".claude/skills/gone/SKILL.md" not in _read(merge_dirs, ".goodvibes.json")["files"]
+
+
+def test_update_removes_allow_rules_older_versions_shipped_from_hand_edited_project_settings(merge_dirs):
+    old = json.dumps({"permissions": {"allow": ["Read(**)"]}}, indent=2)
+    user = {"permissions": {"allow": ["Read(**)", "Bash(node*)", "Bash(uv*)", "Bash(make*)"]}}
+    (merge_dirs / ".claude" / "settings.json").write_text(json.dumps(user, indent=2), encoding="utf-8")
+    (merge_dirs / ".mcp.json").write_text(_TPL_MCP, encoding="utf-8")
+    _write_manifest(merge_dirs, {".claude/settings.json": _sha(old), ".mcp.json": _sha(_TPL_MCP)})
+    result = runner.invoke(app, ["update", "--force"])
+    assert result.exit_code == 0, result.output
+    assert _read(merge_dirs, ".claude/settings.json")["permissions"]["allow"] == ["Read(**)", "Bash(make*)"]
+
+
 def test_update_merges_journal_gate_and_ask_rules_into_hand_edited_settings(merge_dirs):
     v171 = json.dumps({"permissions": {"allow": ["Read(**)"], "deny": ["Bash(git reset --hard*)"]}}, indent=2)
     user = {
@@ -336,3 +365,205 @@ def test_update_leaves_invalid_settings_unchanged_and_reports_it(merge_dirs):
     assert result.exit_code == 0
     assert (merge_dirs / ".claude" / "settings.json").read_text(encoding="utf-8") == "{ not json"
     assert ".claude/settings.json: not valid JSON" in _ANSI.sub("", result.output)
+
+
+def test_update_exits_1_with_a_clear_message_when_goodvibes_json_is_broken(mocker, tmp_path):
+    (tmp_path / ".goodvibes.json").write_text("{ broken", encoding="utf-8")
+    mocker.patch("pathlib.Path.cwd", return_value=tmp_path)
+    result = runner.invoke(app, ["update", "--force"])
+    out = " ".join(_ANSI.sub("", result.output).split())
+    assert result.exit_code == 1
+    assert "is not valid JSON" in out
+    assert "fix it or delete it and run goodvibes init" in out
+    assert "not set up" not in out
+
+
+def test_update_exits_1_when_the_global_manifest_is_broken(mocker, tmp_path, monkeypatch):
+    cfg = tmp_path / "claude-config"
+    cfg.mkdir()
+    (cfg / ".goodvibes.json").write_text("{ broken", encoding="utf-8")
+    proj = tmp_path / "proj"
+    proj.mkdir()
+    mocker.patch("pathlib.Path.cwd", return_value=proj)
+    result = runner.invoke(app, ["update", "--force"])
+    assert result.exit_code == 1
+    assert "is not valid JSON" in _ANSI.sub("", result.output)
+
+
+def test_update_matches_backslash_manifest_keys_written_on_windows(mocker, tmp_path):
+    template_dir = tmp_path / "templates"
+    (template_dir / "docs").mkdir(parents=True)
+    (template_dir / "docs" / "onboarding.md").write_text("v2\n", encoding="utf-8")
+    project_dir = tmp_path / "project"
+    (project_dir / "docs").mkdir(parents=True)
+    (project_dir / "docs" / "onboarding.md").write_text("v1\n", encoding="utf-8")
+    _write_manifest(project_dir, {"docs\\onboarding.md": _sha("v1\n")})
+    mocker.patch("goodvibes_cli.commands.update_cmd.resolve_templates_dir", return_value=template_dir)
+    mocker.patch("goodvibes_cli.commands.update_cmd.detect_project_type", return_value="both")
+    mocker.patch("pathlib.Path.cwd", return_value=project_dir)
+
+    result = runner.invoke(app, ["update", "--force"])
+
+    assert result.exit_code == 0, result.output
+    assert (project_dir / "docs" / "onboarding.md").read_text(encoding="utf-8") == "v2\n"
+    assert list(_read(project_dir, ".goodvibes.json")["files"]) == ["docs/onboarding.md"]
+
+
+def test_update_reports_broken_claude_md_markers_updates_the_rest_and_exits_non_zero(mocker, tmp_path):
+    template_dir = tmp_path / "templates"
+    template_dir.mkdir()
+    (template_dir / "CLAUDE.md").write_text("<!-- goodvibes:start -->\n# goodvibes: v2.0.0\nnew\n<!-- goodvibes:end -->\n", encoding="utf-8")
+    (template_dir / "AGENTS.md").write_text("agents v2\n", encoding="utf-8")
+    project_dir = tmp_path / "project"
+    project_dir.mkdir()
+    broken = "# Mine\n<!-- goodvibes:start -->\nno end marker, my notes\n"
+    (project_dir / "CLAUDE.md").write_text(broken, encoding="utf-8")
+    (project_dir / "AGENTS.md").write_text("agents v1\n", encoding="utf-8")
+    _write_manifest(project_dir, {"CLAUDE.md": "x", "AGENTS.md": _sha("agents v1\n")})
+    mocker.patch("goodvibes_cli.commands.update_cmd.resolve_templates_dir", return_value=template_dir)
+    mocker.patch("goodvibes_cli.commands.update_cmd.detect_project_type", return_value="both")
+    mocker.patch("pathlib.Path.cwd", return_value=project_dir)
+
+    result = runner.invoke(app, ["update", "--force"])
+
+    assert result.exit_code != 0
+    assert (project_dir / "CLAUDE.md").read_text(encoding="utf-8") == broken
+    assert (project_dir / "AGENTS.md").read_text(encoding="utf-8") == "agents v2\n"
+    assert "fix CLAUDE.md by hand" in " ".join(_ANSI.sub("", result.output).split())
+
+
+def test_update_reports_settings_that_are_not_a_json_object_and_leaves_them_unchanged(merge_dirs):
+    (merge_dirs / ".claude" / "settings.json").write_text("[]", encoding="utf-8")
+    _write_manifest(merge_dirs, {".claude/settings.json": "old-hash"})
+
+    result = runner.invoke(app, ["update", "--force"])
+
+    assert result.exit_code == 0, result.output
+    assert (merge_dirs / ".claude" / "settings.json").read_text(encoding="utf-8") == "[]"
+    assert ".claude/settings.json: not a JSON object; left unchanged" in _ANSI.sub("", result.output)
+
+
+def test_update_merge_keeps_non_ascii_text_in_settings(merge_dirs):
+    (merge_dirs / ".claude" / "settings.json").write_text(json.dumps({"env": {"GREETING": "héllo"}}, ensure_ascii=False), encoding="utf-8")
+    _write_manifest(merge_dirs, {".claude/settings.json": "old-hash"})
+
+    assert runner.invoke(app, ["update", "--force"]).exit_code == 0
+
+    assert "héllo" in (merge_dirs / ".claude" / "settings.json").read_text(encoding="utf-8")
+
+
+@pytest.mark.parametrize("recorded", ["unchanged", "user-edited"])
+def test_update_does_not_write_through_a_symlinked_claude_dir(mocker, tmp_path, recorded):
+    template_dir = tmp_path / "templates"
+    (template_dir / ".claude" / "skills" / "x").mkdir(parents=True)
+    (template_dir / ".claude" / "settings.json").write_text(_TPL_SETTINGS, encoding="utf-8")
+    (template_dir / ".claude" / "skills" / "x" / "SKILL.md").write_text("skill\n", encoding="utf-8")
+    outside = tmp_path / "external" / "claude"
+    outside.mkdir(parents=True)
+    theirs = json.dumps({"permissions": {"allow": ["Bash(make*)"]}})
+    (outside / "settings.json").write_text(theirs, encoding="utf-8")
+    project_dir = tmp_path / "project"
+    project_dir.mkdir()
+    (project_dir / ".claude").symlink_to(outside, target_is_directory=True)
+    _write_manifest(project_dir, {".claude/settings.json": _sha(theirs) if recorded == "unchanged" else "old-hash"})
+    mocker.patch("goodvibes_cli.commands.update_cmd.resolve_templates_dir", return_value=template_dir)
+    mocker.patch("goodvibes_cli.commands.update_cmd.detect_project_type", return_value="both")
+    mocker.patch("pathlib.Path.cwd", return_value=project_dir)
+
+    result = runner.invoke(app, ["update", "--force"])
+
+    assert (outside / "settings.json").read_text(encoding="utf-8") == theirs
+    assert sorted(p.name for p in outside.iterdir()) == ["settings.json"]
+    assert ".claude/settings.json: symlink, not written" in _ANSI.sub("", result.output)
+    assert "Traceback" not in result.output
+
+
+def test_assert_safe_accepts_paths_inside_a_drive_root_and_rejects_escapes(tmp_path):
+    from goodvibes_cli.commands.update_cmd import _assert_safe
+    _assert_safe(pathlib.Path(tmp_path.anchor), tmp_path.relative_to(tmp_path.anchor).as_posix())
+    with pytest.raises(ValueError):
+        _assert_safe(tmp_path, "../outside.txt")
+
+
+def _tpl(template_dir, rels):
+    for rel in rels:
+        (template_dir / rel).parent.mkdir(parents=True, exist_ok=True)
+        (template_dir / rel).write_text(f"template {rel}\n", encoding="utf-8")
+
+
+@pytest.fixture
+def plain_dirs(mocker, tmp_path):
+    template_dir, project_dir = tmp_path / "templates", tmp_path / "project"
+    template_dir.mkdir()
+    project_dir.mkdir()
+    mocker.patch("goodvibes_cli.commands.update_cmd.resolve_templates_dir", return_value=template_dir)
+    mocker.patch("goodvibes_cli.commands.update_cmd.detect_project_type", return_value="both")
+    mocker.patch("pathlib.Path.cwd", return_value=project_dir)
+    return template_dir, project_dir
+
+
+def test_update_does_not_recreate_a_tracked_file_the_user_deleted(plain_dirs):
+    template_dir, project_dir = plain_dirs
+    _tpl(template_dir, ["docs/onboarding.md", "JOURNAL.md"])
+    (project_dir / "JOURNAL.md").write_text("template JOURNAL.md\n", encoding="utf-8")
+    _write_manifest(project_dir, {"docs/onboarding.md": _sha("template docs/onboarding.md\n"), "JOURNAL.md": _sha("template JOURNAL.md\n")})
+
+    result = runner.invoke(app, ["update", "--force"])
+
+    assert result.exit_code == 0, result.output
+    assert not (project_dir / "docs" / "onboarding.md").exists()
+    out = " ".join(_ANSI.sub("", result.output).split())
+    assert "docs/onboarding.md: removed by you, not re-added (run goodvibes init to restore)" in out
+    assert _read(project_dir, ".goodvibes.json")["files"]["docs/onboarding.md"] == "user-removed"
+
+
+def test_update_adds_new_github_and_docs_files_only_to_groups_the_manifest_already_tracks(plain_dirs):
+    template_dir, project_dir = plain_dirs
+    _tpl(template_dir, ["JOURNAL.md", "NEW.md", ".github/workflows/security.yml", ".github/dependabot.yml", "docs/onboarding.md"])
+    (project_dir / "JOURNAL.md").write_text("template JOURNAL.md\n", encoding="utf-8")
+    _write_manifest(project_dir, {"JOURNAL.md": _sha("template JOURNAL.md\n")})
+
+    assert runner.invoke(app, ["update", "--force"]).exit_code == 0
+
+    assert (project_dir / "NEW.md").exists()
+    assert not (project_dir / ".github").exists()
+    assert not (project_dir / "docs").exists()
+
+
+def test_update_adds_a_new_workflow_when_the_manifest_tracks_a_workflow_but_not_other_github_files(plain_dirs):
+    template_dir, project_dir = plain_dirs
+    _tpl(template_dir, [".github/workflows/ci-both.yml", ".github/workflows/security.yml", ".github/dependabot.yml", "docs/onboarding.md"])
+    ci = project_dir / ".github" / "workflows" / "ci.yml"
+    ci.parent.mkdir(parents=True)
+    ci.write_text("template .github/workflows/ci-both.yml\n", encoding="utf-8")
+    _write_manifest(project_dir, {".github/workflows/ci.yml": _sha("template .github/workflows/ci-both.yml\n")})
+
+    assert runner.invoke(app, ["update", "--force"]).exit_code == 0
+
+    assert (project_dir / ".github" / "workflows" / "security.yml").exists()
+    assert not (project_dir / ".github" / "dependabot.yml").exists()
+    assert not (project_dir / "docs").exists()
+
+
+def test_update_never_overwrites_a_removed_file_the_user_recreated(plain_dirs):
+    template_dir, project_dir = plain_dirs
+    _tpl(template_dir, ["AGENTS.md"])
+    (project_dir / "AGENTS.md").write_text("my own agents\n", encoding="utf-8")
+    _write_manifest(project_dir, {"AGENTS.md": "user-removed"})
+
+    result = runner.invoke(app, ["update", "--force"])
+
+    assert result.exit_code == 0, result.output
+    assert (project_dir / "AGENTS.md").read_text(encoding="utf-8") == "my own agents\n"
+    assert _read(project_dir, ".goodvibes.json")["files"]["AGENTS.md"] == "user-owned"
+
+
+def test_update_does_not_add_new_docs_when_every_tracked_doc_is_user_removed(plain_dirs):
+    template_dir, project_dir = plain_dirs
+    _tpl(template_dir, ["JOURNAL.md", "docs/onboarding.md", "docs/new-guide.md"])
+    (project_dir / "JOURNAL.md").write_text("template JOURNAL.md\n", encoding="utf-8")
+    _write_manifest(project_dir, {"JOURNAL.md": _sha("template JOURNAL.md\n"), "docs/onboarding.md": "user-removed"})
+
+    assert runner.invoke(app, ["update", "--force"]).exit_code == 0
+
+    assert not (project_dir / "docs").exists()

@@ -56,7 +56,7 @@ goodvibes doctor                 # Check the setup and print a fix for anything 
 
 **Windows users:** Use WSL2 for the best experience.
 
-**Privacy:** `goodvibes init` sends one anonymous install count: an empty request with a random ID, nothing about you or your code (the server sees your IP address, as with any request). Set `GOODVIBES_NO_TELEMETRY=1` or `DO_NOT_TRACK=1` to turn it off.
+**Privacy:** `goodvibes init` sends one anonymous install count: an empty request with a random ID, nothing about you or your code (the server sees your IP address, as with any request). Set `DO_NOT_TRACK=1` (or `true`, `yes`) or `GOODVIBES_NO_TELEMETRY=1` to turn it off.
 
 ## IDE support
 

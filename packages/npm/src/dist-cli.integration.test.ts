@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { mkdtempSync, rmSync, existsSync, readFileSync, symlinkSync, mkdirSync } from 'node:fs'
+import { mkdtempSync, rmSync, existsSync, readFileSync, symlinkSync, mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { fileURLToPath } from 'node:url'
@@ -73,5 +73,81 @@ describe('built CLI (dist/index.js)', () => {
     await run('init', '--minimal')
 
     expect(readFileSync(rules, 'utf-8')).toBe(edited)
+  })
+
+  it('init leaves an outside file unchanged when the project CLAUDE.md is a symlink to it', async () => {
+    const outsideDir = mkdtempSync(join(tmpdir(), 'gv-dist-outside-'))
+    try {
+      const target = join(outsideDir, 'notes.md')
+      writeFileSync(target, 'private\n')
+      symlinkSync(target, join(projectDir, 'CLAUDE.md'))
+
+      const result = await run('init', '--minimal', '--scope', 'project')
+
+      expect(result.exitCode).toBe(0)
+      expect(readFileSync(target, 'utf-8')).toBe('private\n')
+      expect(result.stdout).toContain('CLAUDE.md: symlink, not written')
+    } finally {
+      rmSync(outsideDir, { recursive: true, force: true })
+    }
+  })
+
+  it('a second init keeps every goodvibes file in the manifest and does not re-add a hook the user deleted', async () => {
+    await run('init', '--minimal', '--scope', 'project')
+    const manifestPath = join(projectDir, '.goodvibes.json')
+    const first = JSON.parse(readFileSync(manifestPath, 'utf-8'))
+    expect(Object.keys(first.files)).toContain('AGENTS.md')
+
+    const settingsPath = join(projectDir, '.claude', 'settings.json')
+    const settings = JSON.parse(readFileSync(settingsPath, 'utf-8'))
+    settings.hooks.PreToolUse = settings.hooks.PreToolUse.filter((g: any) => !JSON.stringify(g).includes('goodvibes-journal-gate'))
+    writeFileSync(settingsPath, JSON.stringify(settings, null, 2))
+
+    await run('init', '--minimal', '--scope', 'project')
+    const second = JSON.parse(readFileSync(manifestPath, 'utf-8'))
+    expect(Object.keys(second.files).sort()).toEqual(Object.keys(first.files).sort())
+
+    const upd = await run('update', '--force')
+    expect(upd.exitCode).toBe(0)
+    expect(readFileSync(settingsPath, 'utf-8')).not.toContain('goodvibes-journal-gate')
+  })
+
+  it('the entry file loads no dependency before its Node version check, so old Node gets the friendly message', () => {
+    const entry = readFileSync(distCli, 'utf-8')
+    const staticImports = [...entry.matchAll(/^import\s.*?from\s+["']([^"']+)["']/gm)].map(m => m[1])
+    expect(staticImports.filter(m => !m.startsWith('.') && !m.startsWith('node:'))).toEqual([])
+    expect(entry.indexOf('nodeVersionError(')).toBeGreaterThan(-1)
+    expect(entry.indexOf('await import(')).toBeGreaterThan(entry.indexOf('nodeVersionError('))
+  })
+
+  it('declares the Node version that execa and commander need', () => {
+    const pkg = JSON.parse(readFileSync(fileURLToPath(new URL('../package.json', import.meta.url)), 'utf-8'))
+    expect(pkg.engines.node).toBe('>=22.12.0')
+  })
+
+  it('a deleted AGENTS.md and rules file stay deleted over two updates, and init restores both', async () => {
+    await run('init', '--minimal')
+    const agents = join(projectDir, 'AGENTS.md')
+    const rules = join(configDir, 'rules', 'goodvibes.md')
+    const agentsContent = readFileSync(agents, 'utf-8')
+    const rulesContent = readFileSync(rules, 'utf-8')
+    rmSync(agents)
+    rmSync(rules)
+
+    for (let i = 0; i < 2; i++) {
+      const upd = await run('update', '--force')
+      expect(upd.exitCode).toBe(0)
+      expect(existsSync(agents)).toBe(false)
+      expect(existsSync(rules)).toBe(false)
+    }
+    expect(JSON.parse(readFileSync(join(projectDir, '.goodvibes.json'), 'utf-8')).files['AGENTS.md']).toBe('user-removed')
+    expect(JSON.parse(readFileSync(join(configDir, '.goodvibes.json'), 'utf-8')).files['rules/goodvibes.md']).toBe('user-removed')
+
+    await run('init', '--minimal')
+
+    expect(readFileSync(agents, 'utf-8')).toBe(agentsContent)
+    expect(readFileSync(rules, 'utf-8')).toBe(rulesContent)
+    expect(JSON.parse(readFileSync(join(projectDir, '.goodvibes.json'), 'utf-8')).files['AGENTS.md']).toMatch(/^[0-9a-f]{64}$/)
+    expect(JSON.parse(readFileSync(join(configDir, '.goodvibes.json'), 'utf-8')).files['rules/goodvibes.md']).toMatch(/^[0-9a-f]{64}$/)
   })
 })

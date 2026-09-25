@@ -16,6 +16,17 @@ async function checkLatestNpmVersion(): Promise<string | null> {
   }
 }
 
+function npmInstallFailure(e: unknown, version: string): string {
+  const err = e as { stderr?: unknown; message?: string }
+  const text = `${String(err.stderr ?? '')}\n${err.message ?? String(e)}`
+  const retry = `Then run: npm install -g goodvibes-cli@${version}`
+  if (/EACCES|permission denied/i.test(text)) {
+    return `npm cannot write its global folder (permission denied).\nFix: https://docs.npmjs.com/resolving-eacces-permissions-errors-when-installing-packages-globally\n${retry}`
+  }
+  const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean)
+  return `npm install -g goodvibes-cli@${version} failed: ${lines.find(l => /error/i.test(l)) ?? lines[0] ?? 'unknown error'}\n${retry}`
+}
+
 export function registerUpgradeCommand(program: Command): void {
   program
     .command('upgrade')
@@ -43,9 +54,16 @@ export function registerUpgradeCommand(program: Command): void {
             note(`goodvibes ${latest} is available (installed: ${current}). The preview below uses ${current}.`, 'New version available')
           } else {
             note(`Updating goodvibes ${current} → ${latest}…`, 'New version available')
-            await execa('npm', ['install', '-g', `goodvibes-cli@${latest}`], { stdio: 'inherit' })
+            try {
+              // stderr is shown live and also kept, so a failure can be explained below.
+              await execa('npm', ['install', '-g', `goodvibes-cli@${latest}`], { stdin: 'inherit', stdout: 'inherit', stderr: ['pipe', 'inherit'] })
+            } catch (e) {
+              note(npmInstallFailure(e, latest), 'Upgrade failed')
+              process.exit(1)
+            }
             // Re-run on the new version so the project gets its templates, not this process's.
-            const rerun = await execa(process.argv[1], process.argv.slice(2), {
+            // Through node itself: Windows cannot execute a .js path directly.
+            const rerun = await execa(process.execPath, [process.argv[1], ...process.argv.slice(2)], {
               stdio: 'inherit',
               env: { ...process.env, [_GV_UPGRADING]: latest },
               reject: false,

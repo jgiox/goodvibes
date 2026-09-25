@@ -35,6 +35,29 @@ describe('versionGte', () => {
   it('handles minor version correctly (1.10 > 1.9 numerically)', () => {
     expect(versionGte('1.10.0', '1.9.0')).toBe(true)
   })
+
+  it('treats a semver pre-release as lower than the same release', () => {
+    expect(versionGte('2.0.0-beta.1', '2.0.0')).toBe(false)
+    expect(versionGte('1.9.1', '1.9.1-rc.1')).toBe(true)
+  })
+
+  it('treats PEP 440 pre-releases as lower than the release and orders a1 < b1 < rc1', () => {
+    expect(versionGte('1.9.1rc1', '1.9.1')).toBe(false)
+    expect(versionGte('1.9.1b1', '1.9.1a1')).toBe(true)
+    expect(versionGte('1.9.1b1', '1.9.1rc1')).toBe(false)
+    expect(versionGte('1.9.1-rc.2', '1.9.1-rc.1')).toBe(true)
+  })
+
+  it('treats a .postN release as higher than the same release', () => {
+    expect(versionGte('1.9.1.post1', '1.9.1')).toBe(true)
+    expect(versionGte('1.9.1', '1.9.1.post1')).toBe(false)
+  })
+
+  it('returns false instead of throwing when either version cannot be parsed', () => {
+    expect(versionGte('banana', '1.0.0')).toBe(false)
+    expect(versionGte('1.0.0', '')).toBe(false)
+    expect(versionGte('1.0.0-weird!', '1.0.0')).toBe(false)
+  })
 })
 
 describe('extractVersion', () => {
@@ -44,6 +67,15 @@ describe('extractVersion', () => {
 
   it('returns null when no version present', () => {
     expect(extractVersion('no version here')).toBeNull()
+  })
+
+  it('does not capture a trailing dot after the version', () => {
+    expect(extractVersion('# goodvibes: v1.7.0.')).toBe('1.7.0')
+  })
+
+  it('keeps a pre-release tag', () => {
+    expect(extractVersion('# goodvibes: v2.0.0-beta.1')).toBe('2.0.0-beta.1')
+    expect(extractVersion('# goodvibes: v1.9.1rc1\n')).toBe('1.9.1rc1')
   })
 
   it('extracts version from full sentinel block', () => {
@@ -135,14 +167,74 @@ describe('mergeClaude', () => {
     expect(content).toContain('v2.0.0')
   })
 
-  it('SENTINEL_START without SENTINEL_END does not corrupt file', async () => {
+  const OLD = `${SENTINEL_START}\n# goodvibes: v0.9.0\n\nOld rules.\n${SENTINEL_END}`
+
+  async function expectRefused(existing: string, reason: RegExp) {
     const destPath = join(tmpDir, 'CLAUDE.md')
-    writeFileSync(destPath, '# User content\n\n' + SENTINEL_START + '\norphaned start')
+    writeFileSync(destPath, existing)
+    await expect(mergeClaude(destPath, TEMPLATE_CONTENT)).rejects.toThrow(reason)
+    await expect(mergeClaude(destPath, TEMPLATE_CONTENT)).rejects.toThrow(/fix CLAUDE\.md by hand/)
+    expect(readFileSync(destPath, 'utf-8')).toBe(existing)
+  }
+
+  it('refuses to write and says so when there is a start line but no end line', async () => {
+    await expectRefused('# User content\n\n' + SENTINEL_START + '\norphaned start\nmore user text\n', /no <!-- goodvibes:end --> line/)
+  })
+
+  it('refuses to write and says so when there is an end line but no start line', async () => {
+    await expectRefused('# User content\n' + SENTINEL_END + '\nafter\n', /no <!-- goodvibes:start --> line/)
+  })
+
+  it('refuses to write and says so when the end line comes before the start line', async () => {
+    await expectRefused(`top\n${SENTINEL_END}\nmiddle\n${SENTINEL_START}\nbottom\n`, /end line comes before/)
+  })
+
+  it('refuses to write and says so when there are two start lines', async () => {
+    await expectRefused(`${SENTINEL_START}\na\n${SENTINEL_START}\nb\n${SENTINEL_END}\n`, /2 <!-- goodvibes:start --> lines/)
+  })
+
+  it('refuses to write and says so when there are two end lines', async () => {
+    await expectRefused(`${SENTINEL_START}\na\n${SENTINEL_END}\nb\n${SENTINEL_END}\n`, /2 <!-- goodvibes:end --> lines/)
+  })
+
+  it('ignores a marker quoted inside a line and appends the block instead of cutting user text', async () => {
+    const destPath = join(tmpDir, 'CLAUDE.md')
+    const existing = `# Notes\n\nThe block starts at \`${SENTINEL_START}\` and ends at \`${SENTINEL_END}\`.\nKeep this line.\n`
+    writeFileSync(destPath, existing)
     await mergeClaude(destPath, TEMPLATE_CONTENT)
     const content = readFileSync(destPath, 'utf-8')
-    expect(content.includes('# User content')).toBe(true)
-    expect(content.includes(SENTINEL_END)).toBe(true)
-    expect((content.match(/<!-- goodvibes:start -->/g) ?? []).length).toBe(1)
-    expect(content.split(SENTINEL_END).at(-1)?.trim()).toBe('')
+    expect(content.startsWith(existing.trimEnd())).toBe(true)
+    expect(content).toContain('Keep this line.')
+    expect(content).toContain('# goodvibes: v1.0.0')
+  })
+
+  it('accepts marker lines with trailing whitespace', async () => {
+    const destPath = join(tmpDir, 'CLAUDE.md')
+    writeFileSync(destPath, `before\n${SENTINEL_START}  \n# goodvibes: v0.9.0\n${SENTINEL_END}\t\nafter\n`)
+    await mergeClaude(destPath, TEMPLATE_CONTENT)
+    const content = readFileSync(destPath, 'utf-8')
+    expect(content).toContain('# goodvibes: v1.0.0')
+    expect(content.startsWith('before\n')).toBe(true)
+    expect(content.endsWith('after\n')).toBe(true)
+  })
+
+  it('keeps CRLF line endings when replacing the block', async () => {
+    const destPath = join(tmpDir, 'CLAUDE.md')
+    writeFileSync(destPath, `before\r\n\r\n${OLD.split('\n').join('\r\n')}\r\nafter\r\n`)
+    await mergeClaude(destPath, TEMPLATE_CONTENT)
+    const content = readFileSync(destPath, 'utf-8')
+    expect(content).toContain('# goodvibes: v1.0.0')
+    expect(content.replace(/\r\n/g, '')).not.toContain('\n')
+    expect(content.startsWith('before\r\n')).toBe(true)
+    expect(content.endsWith('after\r\n')).toBe(true)
+  })
+
+  it('keeps CRLF line endings when appending the block', async () => {
+    const destPath = join(tmpDir, 'CLAUDE.md')
+    writeFileSync(destPath, '# Mine\r\n\r\ntext\r\n')
+    await mergeClaude(destPath, TEMPLATE_CONTENT)
+    const content = readFileSync(destPath, 'utf-8')
+    expect(content).toContain(SENTINEL_START)
+    expect(content.replace(/\r\n/g, '')).not.toContain('\n')
   })
 })

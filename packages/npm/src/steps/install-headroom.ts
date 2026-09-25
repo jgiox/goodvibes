@@ -51,9 +51,11 @@ export async function installHeadroom(log: (msg: string) => void): Promise<Headr
     { cmd: pythonCmd, args: ['-m', 'pip', 'install', '--user', 'headroom-ai[all]'] },
   ]
 
+  log('Installing headroom: the first install can take several minutes.')
   for (const installer of installers) {
     try {
-      await execa(installer.cmd, installer.args, { timeout: 10_000 })
+      // A real `uv tool install "headroom-ai[all]"` takes about two minutes; leave generous headroom.
+      await execa(installer.cmd, installer.args, { timeout: 15 * 60_000 })
       return { status: 'installed' }
     } catch (e: unknown) {
       if ((e as NodeJS.ErrnoException).code === 'ENOENT') {

@@ -98,4 +98,38 @@ describe('mergeManagedJson', () => {
     const { changes } = mergeManagedJson('.mcp.json', tplMcp, structuredClone(tplMcp))
     expect(changes).toEqual([])
   })
+
+  it('keeps a user hook added inside the journal-gate group and replaces only the goodvibes hook', () => {
+    const mine = { type: 'command', command: 'echo mine' }
+    const user = { hooks: { PreToolUse: [{ matcher: 'Bash', hooks: [mine, gate.hooks[0]], note: 'x' }] } }
+    const { merged, changes } = mergeManagedJson('.claude/settings.json', { hooks: { PreToolUse: [gateV2] } }, user)
+    expect(merged.hooks.PreToolUse).toEqual([{ matcher: 'Bash', hooks: [mine, gateV2.hooks[0]], note: 'x' }])
+    expect(changes).toEqual(['~ hooks.PreToolUse: goodvibes-journal-gate'])
+  })
+
+  it('keeps a user hook added next to the goodvibes-doctor hook in the SessionStart group', () => {
+    const doctor = { type: 'command', command: ': goodvibes-doctor; goodvibes doctor --quick', timeout: 10 }
+    const doctorV2 = { type: 'command', command: ': goodvibes-doctor; goodvibes doctor --quick', timeout: 20 }
+    const mine = { type: 'command', command: 'echo hello' }
+    const user = { hooks: { SessionStart: [{ matcher: 'startup', hooks: [doctor, mine] }] } }
+    const tpl = { hooks: { SessionStart: [{ matcher: 'startup', hooks: [doctorV2] }] } }
+    const { merged } = mergeManagedJson('.claude/settings.json', tpl, user)
+    expect(merged.hooks.SessionStart).toEqual([{ matcher: 'startup', hooks: [doctorV2, mine] }])
+  })
+})
+
+describe('retiring allow rules older goodvibes versions shipped', () => {
+  const retired = ['Bash(npm install*)', 'Bash(npm run*)', 'Bash(npx*)', 'Bash(pip install*)', 'Bash(uv*)', 'Bash(python*)', 'Bash(node*)', 'Bash(git restore *)']
+  const user = { permissions: { allow: ['Read(**)', ...retired, 'Bash(make test*)'] } }
+
+  it('removes every allow rule that auto-approved arbitrary code from a project settings file and keeps the user own rules', () => {
+    const { merged, changes } = mergeManagedJson('.claude/settings.json', {}, user, [], true)
+    expect(merged.permissions.allow).toEqual(['Read(**)', 'Bash(make test*)'])
+    for (const r of retired) expect(changes).toContain(`- permissions.allow: ${r}`)
+  })
+
+  it('leaves allow rules alone when not retiring (the user-level settings file, where goodvibes never wrote allow rules)', () => {
+    const { merged } = mergeManagedJson('.claude/settings.json', {}, user)
+    expect(merged.permissions.allow).toEqual(user.permissions.allow)
+  })
 })

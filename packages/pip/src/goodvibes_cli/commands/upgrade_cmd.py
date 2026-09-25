@@ -29,12 +29,14 @@ def _get_package_version() -> str | None:
         return None
 
 
-def _check_pypi_version() -> str | None:
-    try:
-        with urllib.request.urlopen(_PYPI_URL, timeout=5) as resp:  # noqa: S310
-            return json.loads(resp.read())["info"]["version"]
-    except Exception:
-        return None
+def _check_pypi_version() -> str:
+    with urllib.request.urlopen(_PYPI_URL, timeout=5) as resp:  # noqa: S310
+        return json.loads(resp.read())["info"]["version"]
+
+
+def _running_under_uvx() -> bool:
+    # uvx runs from a throwaway environment in uv's cache (…/uv/archive-v0/<hash>); installing there is pointless.
+    return any(part.startswith("archive-v") for part in pathlib.Path(sys.prefix).parts)
 
 
 def _self_update_pip(latest: str) -> None:
@@ -72,8 +74,14 @@ def upgrade_cmd(
             "that was upgraded. Run: uv tool install goodvibes-cli@latest (or pip install --upgrade goodvibes-cli), then goodvibes --version."
         )
         raise typer.Exit(1)
-    if not target:
-        latest = _check_pypi_version()
+    if not target and _running_under_uvx():
+        console.print("You are running goodvibes through uvx, and uvx always runs the newest version, so there is nothing to install.")
+    elif not target:
+        try:
+            latest = _check_pypi_version()
+        except (OSError, ValueError, KeyError) as e:
+            console.print(f"Could not check PyPI for a newer version ({getattr(e, 'reason', e)}); updating with the installed version", markup=False)
+            latest = None
         if latest and current and not version_gte(current, latest):
             if dry_run:
                 console.print(f"goodvibes {latest} is available (installed: {current}). The preview below uses {current}.")
@@ -82,6 +90,7 @@ def upgrade_cmd(
                 with console.status(f"Updating goodvibes {current} → {latest}…"):
                     _self_update_pip(latest)
                 # Re-run on the new version so the project gets its templates, not this process's.
-                os.execve(sys.argv[0], sys.argv, {**os.environ, _UPGRADING_ENV: latest})
+                # argv[0] is not executable under `python -m goodvibes_cli`, so always go through the interpreter.
+                os.execve(sys.executable, [sys.executable, "-m", "goodvibes_cli", *sys.argv[1:]], {**os.environ, _UPGRADING_ENV: latest})
 
     update_cmd(dry_run=dry_run, force=False)

@@ -321,3 +321,61 @@ def test_description_logged_before_idempotency_check(mocker):
     assert desc_idx is not None, "Description must be logged"
     assert subprocess_idx is not None, "subprocess.run must be called"
     assert desc_idx < subprocess_idx, "Description must appear before the idempotency check"
+
+
+def _probe_missing_then(result_or_exc):
+    def side_effect(cmd_list, **kwargs):
+        if cmd_list == ["headroom", "compress", "--help"]:
+            raise FileNotFoundError("headroom not found")
+        if isinstance(result_or_exc, BaseException):
+            raise result_or_exc
+        return result_or_exc
+    return side_effect
+
+
+def test_installers_get_fifteen_minutes_while_the_probe_keeps_a_short_timeout(mocker):
+    mocker.patch("goodvibes_cli.steps.install_headroom.detect_python", return_value="python3")
+    run = mocker.patch(
+        "goodvibes_cli.steps.install_headroom.subprocess.run",
+        side_effect=_probe_missing_then(subprocess.CompletedProcess(args=[], returncode=0, stdout="", stderr="")),
+    )
+    from goodvibes_cli.steps.install_headroom import install_headroom
+
+    install_headroom(lambda m: None)
+
+    assert run.call_args_list[0].kwargs["timeout"] == 10
+    assert run.call_args_list[1].args[0] == ["uv", "tool", "install", "headroom-ai[all]"]
+    assert run.call_args_list[1].kwargs["timeout"] == 900
+
+
+def test_warns_that_the_first_install_can_take_several_minutes_before_installing(mocker):
+    mocker.patch("goodvibes_cli.steps.install_headroom.detect_python", return_value="python3")
+    events: list[str] = []
+
+    def side_effect(cmd_list, **kwargs):
+        events.append(f"run:{cmd_list[0]}")
+        if cmd_list == ["headroom", "compress", "--help"]:
+            raise FileNotFoundError("headroom not found")
+        return subprocess.CompletedProcess(args=cmd_list, returncode=0, stdout="", stderr="")
+
+    mocker.patch("goodvibes_cli.steps.install_headroom.subprocess.run", side_effect=side_effect)
+    from goodvibes_cli.steps.install_headroom import install_headroom
+
+    install_headroom(lambda m: events.append(f"log:{m}"))
+
+    warn = next(i for i, e in enumerate(events) if e.startswith("log:") and "several minutes" in e)
+    assert warn < events.index("run:uv")
+
+
+def test_install_timeout_with_bytes_stderr_is_logged_as_text(mocker):
+    mocker.patch("goodvibes_cli.steps.install_headroom.detect_python", return_value="python3")
+    timeout = subprocess.TimeoutExpired(cmd=["uv"], timeout=900, stderr=b"Resolving headroom-ai\n")
+    mocker.patch("goodvibes_cli.steps.install_headroom.subprocess.run", side_effect=_probe_missing_then(timeout))
+    from goodvibes_cli.steps.install_headroom import install_headroom
+    logs: list[str] = []
+
+    result = install_headroom(logs.append)
+
+    assert result["status"] == "failed"
+    assert any("uv install failed: Resolving headroom-ai" in m for m in logs)
+    assert not any("b'" in m for m in logs)

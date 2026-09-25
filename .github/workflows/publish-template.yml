@@ -4,20 +4,34 @@ name: Publish template repo
 # templates/ contents to jgiox/goodvibes-template.
 #
 # Secret required: TEMPLATE_REPO_TOKEN
-#   Create at: github.com/settings/tokens — classic PAT, repo scope
-#   Limit scope to jgiox/goodvibes-template only (repo:write)
-#   Add as repo secret: Settings → Secrets and variables → Actions → New repository secret
+#   Create at: github.com/settings/personal-access-tokens/new — fine-grained PAT
+#   Repository access: Only select repositories → jgiox/goodvibes-template
+#   Repository permissions: Contents → Read and write; nothing else (Metadata read-only is added automatically)
+#   Add as an environment secret: Settings → Environments → release → Environment secrets → Add secret
 
 on:
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
-  publish:
+  guard:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
     steps:
-      - uses: actions/checkout@v7
+      - name: Allow only main
+        run: |
+          if [ "$GITHUB_REF" != refs/heads/main ]; then
+            echo "::error::The template repo is published only from main, not $GITHUB_REF. Run the workflow from main."
+            exit 1
+          fi
+
+  publish:
+    needs: guard
+    runs-on: ubuntu-latest
+    environment: release  # needs a required reviewer; holds TEMPLATE_REPO_TOKEN
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           fetch-depth: 0  # full history required by git subtree split
           persist-credentials: false  # prevent checkout's GITHUB_TOKEN from overriding our PAT

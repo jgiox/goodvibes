@@ -164,3 +164,48 @@ def test_self_update_re_runs_with_the_target_version_in_the_environment(mocker):
     mocker.patch("goodvibes_cli.commands.upgrade_cmd.update_cmd")
     runner.invoke(app, ["upgrade"])
     assert execve.call_args.args[2]["_GV_UPGRADING"] == "1.0.1"
+
+
+from goodvibes_cli.commands import upgrade_cmd as _upgrade_module  # noqa: E402
+
+_REAL_CHECK_PYPI = _upgrade_module._check_pypi_version
+
+
+@pytest.mark.parametrize("argv0", ["/home/u/.local/bin/goodvibes", "/src/goodvibes_cli/__main__.py"])
+def test_self_update_re_runs_through_the_running_interpreter_as_python_m_goodvibes_cli(mocker, argv0):
+    import sys
+    mocker.patch("goodvibes_cli.commands.upgrade_cmd._check_pypi_version", return_value="1.0.1")
+    mocker.patch("goodvibes_cli.commands.upgrade_cmd._self_update_pip")
+    mocker.patch("goodvibes_cli.commands.upgrade_cmd.sys.argv", [argv0, "upgrade"])
+    execve = mocker.patch("goodvibes_cli.commands.upgrade_cmd.os.execve")
+    mocker.patch("goodvibes_cli.commands.upgrade_cmd.update_cmd")
+    runner.invoke(app, ["upgrade"])
+    assert execve.call_args.args[0] == sys.executable
+    assert execve.call_args.args[1] == [sys.executable, "-m", "goodvibes_cli", "upgrade"]
+    assert execve.call_args.args[2]["_GV_UPGRADING"] == "1.0.1"
+
+
+def test_upgrade_under_uvx_installs_nothing_and_goes_straight_to_update(mocker, tmp_path):
+    mocker.patch("goodvibes_cli.commands.upgrade_cmd.sys.prefix", str(tmp_path / ".cache" / "uv" / "archive-v0" / "Ab12Cd"))
+    mocker.patch("goodvibes_cli.commands.upgrade_cmd._check_pypi_version", return_value="1.0.1")
+    mock_self = mocker.patch("goodvibes_cli.commands.upgrade_cmd._self_update_pip")
+    execve = mocker.patch("goodvibes_cli.commands.upgrade_cmd.os.execve")
+    mock_update = mocker.patch("goodvibes_cli.commands.upgrade_cmd.update_cmd")
+    result = runner.invoke(app, ["upgrade"])
+    assert result.exit_code == 0
+    mock_self.assert_not_called()
+    execve.assert_not_called()
+    mock_update.assert_called_once_with(dry_run=False, force=False)
+    assert "uvx always runs the newest version" in _ANSI.sub("", result.output)
+
+
+def test_upgrade_says_it_could_not_reach_pypi_instead_of_silently_continuing(mocker):
+    import urllib.error
+    mocker.patch("goodvibes_cli.commands.upgrade_cmd._check_pypi_version", _REAL_CHECK_PYPI)
+    mocker.patch("goodvibes_cli.commands.upgrade_cmd.urllib.request.urlopen", side_effect=urllib.error.URLError("no network"))
+    mock_update = mocker.patch("goodvibes_cli.commands.upgrade_cmd.update_cmd")
+    result = runner.invoke(app, ["upgrade"])
+    out = " ".join(_ANSI.sub("", result.output).split())
+    assert result.exit_code == 0
+    assert "Could not check PyPI for a newer version (no network); updating with the installed version" in out
+    mock_update.assert_called_once_with(dry_run=False, force=False)

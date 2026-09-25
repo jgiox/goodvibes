@@ -466,3 +466,45 @@ def test_copy_templates_minimal_writes_bolt_prompt(tmp_dir, template_dir, mocker
     mocker.patch("goodvibes_cli.steps.copy_templates.merge_claude")
     copy_templates(template_dir, tmp_dir, minimal=True)
     assert (tmp_dir / ".bolt" / "prompt").exists()
+
+
+def test_resolve_templates_dir_falls_back_to_the_repo_templates_in_a_source_checkout(mocker, tmp_path):
+    from goodvibes_cli.steps.copy_templates import resolve_templates_dir
+    missing = tmp_path / "site-packages" / "goodvibes_cli"
+    mocker.patch("goodvibes_cli.steps.copy_templates.importlib.resources.files", return_value=missing)
+    repo_templates = pathlib.Path(__file__).resolve().parents[3] / "templates"
+    assert resolve_templates_dir() == repo_templates
+
+
+def test_resolve_templates_dir_prefers_the_bundled_templates(mocker, tmp_path):
+    from goodvibes_cli.steps.copy_templates import resolve_templates_dir
+    (tmp_path / "templates").mkdir()
+    mocker.patch("goodvibes_cli.steps.copy_templates.importlib.resources.files", return_value=tmp_path)
+    assert resolve_templates_dir() == tmp_path / "templates"
+
+
+def test_copy_templates_reports_broken_claude_md_markers_and_keeps_copying(tmp_path, template_dir):
+    from goodvibes_cli.steps.copy_templates import copy_templates
+    dest = tmp_path / "proj"
+    dest.mkdir()
+    broken = "# Mine\n<!-- goodvibes:start -->\nno end\n"
+    (dest / "CLAUDE.md").write_text(broken, encoding="utf-8")
+    written, skipped = copy_templates(template_dir, dest)
+    assert (dest / "CLAUDE.md").read_text(encoding="utf-8") == broken
+    assert "CLAUDE.md" not in written
+    assert "CONTRIBUTING.md" in written
+    assert any(s.startswith("CLAUDE.md:") and "fix CLAUDE.md by hand" in s for s in skipped)
+
+
+def test_copy_templates_returns_only_files_this_run_created(tmp_path, template_dir):
+    from goodvibes_cli.steps.copy_templates import copy_templates
+    dest = tmp_path / "proj"
+    (dest / "src").mkdir(parents=True)
+    (dest / "src" / "app.py").write_text("mine\n", encoding="utf-8")
+    (dest / "AGENTS.md").write_text("my agents\n", encoding="utf-8")
+    written, skipped = copy_templates(template_dir, dest)
+    assert "src/app.py" not in written
+    assert "AGENTS.md" not in written
+    assert "AGENTS.md" in skipped
+    assert "CONTRIBUTING.md" in written
+    assert ".github/workflows/ci.yml" in written

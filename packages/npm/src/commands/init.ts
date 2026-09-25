@@ -6,8 +6,8 @@ import { copyTemplates, listTemplateFiles, resolveTemplatesDir } from '../steps/
 import { installHeadroom, type HeadroomResult } from '../steps/install-headroom.js'
 import { configureMcp, type McpResult } from '../steps/configure-mcp.js'
 import { detectProjectType } from '../utils/detect-project-type.js'
-import { sendTelemetry } from '../steps/telemetry.js'
-import { writeManifest } from '../steps/write-manifest.js'
+import { sendTelemetry, telemetryOptedOut } from '../steps/telemetry.js'
+import { readManifest, writeManifest, type Manifest } from '../steps/write-manifest.js'
 import { managedRecord } from '../utils/json-merge.js'
 import { applyGlobalConfig, ensureGlobalCli, registerContext7, formatGlobal, type GlobalResult, type CliStatus, type McpStatus } from '../steps/global-setup.js'
 import { GLOBAL_OWNED, type Scope } from '../utils/scope.js'
@@ -29,6 +29,7 @@ function formatHeadroomStatus(hr: HeadroomResult | undefined, mr: McpResult | un
   if (mr) {
     const mcp = ({
       'registered':         'MCP: registered',
+      'repaired':           'MCP: repaired (was missing "mcp serve")',
       'already-registered': 'MCP: already configured',
       'skipped':            `MCP: skipped (${mr.status === 'skipped' ? mr.reason : ''})`,
       'failed':             `MCP: failed (${mr.status === 'failed' ? mr.reason : ''})`,
@@ -65,8 +66,7 @@ export function registerInitCommand(program: Command): void {
 
       intro('goodvibes init')
 
-      const telemetryOptOut = process.env.DO_NOT_TRACK === '1' || process.env.GOODVIBES_NO_TELEMETRY === '1' || process.env.CI === 'true'
-      if (!telemetryOptOut) { note('Anonymous usage stats are collected. Set DO_NOT_TRACK=1 to opt out.', 'Privacy') }
+      if (!telemetryOptedOut()) { note('Anonymous usage stats are collected. Set DO_NOT_TRACK=1 to opt out.', 'Privacy') }
 
       const existingEntries = readdirSync(cwd).filter(e => e !== '.git' && e !== '.DS_Store')
       if (existingEntries.length > 0) {
@@ -75,7 +75,7 @@ export function registerInitCommand(program: Command): void {
 
       if (dryRun) {
         if (scope === 'global') {
-          const g = await applyGlobalConfig(templateDir, packageVersion(), true)
+          const g = await applyGlobalConfig(templateDir, packageVersion(), true, true)
           const cli = await ensureGlobalCli(packageVersion(), true)
           note(formatGlobal(g, cli, undefined), `Dry run — global setup (${g.configDir})`)
         }
@@ -98,10 +98,22 @@ export function registerInitCommand(program: Command): void {
         return
       }
 
+      // Read before writing anything: a broken manifest must stop init, not be silently replaced.
+      let prevManifest: Manifest | null = null
+      if (inProject) {
+        try {
+          prevManifest = await readManifest(cwd)
+        } catch (e) {
+          cancel((e as Error).message)
+          process.exit(1)
+        }
+      }
+
       const telemetryPromise = sendTelemetry()
 
       const createdFiles: string[] = []
       const skippedFiles: string[] = []
+      const problems: string[] = []
       let headroomResult: HeadroomResult | undefined
       let mcpResult: McpResult | undefined
       let globalResult: GlobalResult | undefined
@@ -113,7 +125,7 @@ export function registerInitCommand(program: Command): void {
         taskList.push({
           title: 'Setting up goodvibes for all your projects',
           task: async () => {
-            globalResult = await applyGlobalConfig(templateDir, packageVersion(), false)
+            globalResult = await applyGlobalConfig(templateDir, packageVersion(), false, true)
             context7Result = await registerContext7(false)
             cliResult = await ensureGlobalCli(packageVersion(), false)
             return `Global setup in ${globalResult.configDir}`
@@ -124,9 +136,10 @@ export function registerInitCommand(program: Command): void {
         taskList.push({
           title: 'Copying template files',
           task: async () => {
-            const { written, skipped } = await copyTemplates(templateDir, cwd, false, minimal, projectType, scope)
+            const { written, skipped, problems: found } = await copyTemplates(templateDir, cwd, false, minimal, projectType, scope)
             createdFiles.push(...written)
             skippedFiles.push(...skipped)
+            problems.push(...found)
             return `Copied ${written.length} files`
           },
         })
@@ -142,6 +155,7 @@ export function registerInitCommand(program: Command): void {
         }
         const mcpLabels: Record<McpResult['status'], string> = {
           'registered':         'MCP server registered',
+          'repaired':           'MCP server entry repaired',
           'already-registered': 'MCP server already configured',
           'skipped':            'MCP registration skipped',
           'failed':             'MCP registration failed — see note below',
@@ -177,7 +191,16 @@ export function registerInitCommand(program: Command): void {
 
       const _ver = packageVersion()
       if (inProject) {
-        await writeManifest(cwd, createdFiles.filter(f => f !== '.goodvibes.json'), _ver, undefined, await managedRecord(cwd, templateDir), scope)
+        // Earlier entries survive a re-run: files kept this time are still goodvibes', and removed hooks stay removed.
+        const blocked = await writeManifest(
+          cwd,
+          createdFiles.filter(f => f !== '.goodvibes.json'),
+          _ver,
+          prevManifest?.files,
+          await managedRecord(cwd, templateDir, prevManifest?.managed),
+          scope,
+        )
+        if (blocked) skippedFiles.push(blocked)
       }
 
       await Promise.race([telemetryPromise.catch(() => {}), sleep(1_000)])
@@ -188,6 +211,8 @@ export function registerInitCommand(program: Command): void {
       if (skippedFiles.length > 0) {
         note(skippedFiles.join('\n'), `Files skipped (${skippedFiles.length})`)
       }
+
+      if (problems.length > 0) note(problems.join('\n'), 'Needs your attention')
 
       if (!minimal && headroomResult) {
         note(formatHeadroomStatus(headroomResult, mcpResult), 'Headroom')

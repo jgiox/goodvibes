@@ -1,6 +1,5 @@
 """goodvibes init command — port of init.ts."""
 import importlib.metadata
-import os
 import pathlib
 from typing import Annotated
 
@@ -11,10 +10,11 @@ from rich.panel import Panel
 from goodvibes_cli.steps.configure_mcp import configure_mcp
 from goodvibes_cli.steps.copy_templates import copy_templates, list_template_files, resolve_templates_dir
 from goodvibes_cli.steps.install_headroom import install_headroom
-from goodvibes_cli.steps.telemetry import start_telemetry_thread
-from goodvibes_cli.steps.write_manifest import write_manifest
+from goodvibes_cli.steps.telemetry import opted_out, start_telemetry_thread
+from goodvibes_cli.steps.write_manifest import USER_OWNED, USER_REMOVED, ManifestError, read_manifest, write_manifest
 from goodvibes_cli.utils.detect_project_type import detect_project_type
 from goodvibes_cli.utils.json_merge import managed_record
+from goodvibes_cli.utils.safe_path import SymlinkError
 from goodvibes_cli.steps.global_setup import apply_global_config, ensure_global_cli, format_global, register_context7
 from goodvibes_cli.utils.scope import global_owned
 
@@ -67,12 +67,7 @@ def init_cmd(
 
     console.rule("[bold]goodvibes init[/bold]")
 
-    _opted_out = (
-        os.environ.get("DO_NOT_TRACK") == "1"
-        or os.environ.get("GOODVIBES_NO_TELEMETRY") == "1"
-        or os.environ.get("CI") == "true"
-    )
-    if not _opted_out:
+    if not opted_out():
         console.print(Panel(
             "Anonymous usage stats are collected. Set DO_NOT_TRACK=1 to opt out.",
             title="Privacy",
@@ -113,6 +108,8 @@ def init_cmd(
 
     global_result = cli_result = c7_result = None
     try:
+        # Read before writing anything: a broken manifest stops init instead of being overwritten.
+        prev = (read_manifest(cwd) if in_project else None) or {}
         if scope == "global":
             with console.status("Setting up goodvibes for all your projects"):
                 _v = importlib.metadata.version("goodvibes-cli")
@@ -149,16 +146,27 @@ def init_cmd(
     except OSError as e:
         console.print(f"[red]Unexpected error:[/red] {e}")
         raise typer.Exit(1)
+    except ManifestError as e:
+        console.print(str(e), style="red", markup=False)
+        raise typer.Exit(1)
 
     _version = importlib.metadata.version("goodvibes-cli")
     if in_project:
-        write_manifest(
-            cwd,
-            [f for f in created_files if f != ".goodvibes.json"],
-            _version,
-            managed=managed_record(cwd, template_dir),
-            scope=scope,
-        )
+        written = [f for f in created_files if f != ".goodvibes.json"]
+        # init restores missing files; one the user recreated after removing it is theirs now.
+        previous = {k: USER_OWNED if v == USER_REMOVED and (cwd / k).exists() else v for k, v in (prev.get("files") or {}).items()}
+        # A re-run writes only missing files; everything recorded earlier keeps its entry and managed ids.
+        try:
+            write_manifest(
+                cwd,
+                written,
+                _version,
+                preserved={k: v for k, v in previous.items() if k not in written},
+                managed=managed_record(cwd, template_dir, prev.get("managed")),
+                scope=scope,
+            )
+        except SymlinkError as e:
+            skipped_files_list.append(str(e))
 
     if tel_thread:
         tel_thread.join(timeout=1.0)
