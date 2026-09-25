@@ -2080,3 +2080,4 @@ Added a Standing decisions section to this journal.
 
 **What:** the pip package ships `hooks/pre-commit` and installs it into `.git/hooks/` from `init` and `update`; `doctor` reports on it. Follows the shared spec, so strings match npm.
 - RED: installer unit tests (`tests/test_git_hook.py`) and the shared-cases runner (`tests/test_git_hook_cases.py`); `test_hook_cases.py` now skips `git-*.cases.json`, which the new runner owns.
+- GREEN: `steps/git_hook.py` (`install_git_hook`), `resolve_hooks_dir()`; `hatch_build.py` copies `hooks/` into the wheel (source and sdist builds) and the sdist force-includes `../../hooks`; root `.gitignore` ignores the build-time copy. Wheel has `goodvibes_cli/hooks/pre-commit` (0755).

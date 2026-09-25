@@ -24,6 +24,17 @@ def resolve_templates_dir() -> pathlib.Path:
     raise FileNotFoundError("goodvibes template files not found in installed package")
 
 
+def resolve_hooks_dir() -> pathlib.Path:
+    """Return the bundled git hooks directory, or the repo's hooks/ when running from a source checkout."""
+    path = pathlib.Path(str(importlib.resources.files("goodvibes_cli").joinpath("hooks")))
+    if path.exists():
+        return path
+    for parent in pathlib.Path(__file__).resolve().parents:
+        if (parent / "hooks" / "pre-commit").is_file():
+            return parent / "hooks"
+    raise FileNotFoundError("goodvibes git hook files not found in installed package")
+
+
 def list_template_files(template_dir: pathlib.Path) -> list[str]:
     """Return sorted list of relative file paths under template_dir."""
     return sorted(

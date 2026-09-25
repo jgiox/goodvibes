@@ -1,4 +1,4 @@
-"""Hatchling build hook — copies templates into the wheel when building from sdist."""
+"""Hatchling build hook — copies templates and git hooks into the wheel when building from sdist."""
 from __future__ import annotations
 
 import pathlib
@@ -14,7 +14,8 @@ class CustomBuildHook(BuildHookInterface):
 
     When building directly from source, ../../templates resolves correctly.
     When building from an sdist, the templates are at <sdist-root>/templates/.
-    This hook copies whichever location exists into the wheel's goodvibes_cli/templates/.
+    This hook copies whichever location exists into the wheel's goodvibes_cli/templates/,
+    and hooks/ (beside templates/ in both layouts) into goodvibes_cli/hooks/.
     A wheel built straight from source also gets the repo-root LICENSE and NOTICE here.
     """
 
@@ -48,14 +49,20 @@ class CustomBuildHook(BuildHookInterface):
                 "or from a goodvibes-cli sdist."
             )
 
-        dest = root / "src" / "goodvibes_cli" / "templates"
-        if dest.exists():
-            shutil.rmtree(dest)
-        shutil.copytree(src, dest)
+        # The git hooks sit next to templates in both layouts: ../../hooks from source, <root>/hooks in an sdist.
+        hooks = src.parent / "hooks" if templates_source.exists() else root / "hooks"
+        if not (hooks / "pre-commit").is_file():
+            raise FileNotFoundError(f"goodvibes build: {hooks.resolve() / 'pre-commit'} is missing; the package must ship it.")
 
-        # Clean up after wheel build completes (cleanup hook handles this)
-        self._templates_dest = dest
+        self._copied = []
+        for src_dir, name in ((src, "templates"), (hooks.resolve(), "hooks")):
+            dest = root / "src" / "goodvibes_cli" / name
+            if dest.exists():
+                shutil.rmtree(dest)
+            shutil.copytree(src_dir, dest)
+            self._copied.append(dest)
 
     def finalize(self, version: str, build_data: dict, artifact_path: str) -> None:
-        if hasattr(self, "_templates_dest") and self._templates_dest.exists():
-            shutil.rmtree(self._templates_dest)
+        for dest in getattr(self, "_copied", []):
+            if dest.exists():
+                shutil.rmtree(dest)
