@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import importlib.metadata
-import json
 import pathlib
 import subprocess
 from dataclasses import dataclass, field
@@ -13,6 +12,7 @@ from rich.console import Console
 from rich.panel import Panel
 
 from goodvibes_cli.steps.global_setup import claude_config_dir
+from goodvibes_cli.steps.write_manifest import ManifestError, read_manifest
 
 # ponytail: not imported from sentinel_merge — define locally to avoid coupling
 SENTINEL_START = "<!-- goodvibes:start -->"
@@ -94,14 +94,14 @@ def _check_sentinel(cwd: pathlib.Path) -> CheckResult:
     )
 
 
-def _project_scope(cwd: pathlib.Path) -> str | None:
-    path = cwd / ".goodvibes.json"
-    if not path.exists():
-        return None
+def _project_scope(cwd: pathlib.Path) -> tuple[str | None, list[CheckResult]]:
     try:
-        return "global" if json.loads(path.read_text(encoding="utf-8")).get("scope") == "global" else "project"
-    except ValueError:
-        return "project"  # unreadable manifest: fall back to the project CLAUDE.md checks, which report the real problem
+        manifest = read_manifest(cwd)
+    except ManifestError as e:
+        return "project", [CheckResult(label=".goodvibes.json is valid JSON", passed=False, remedy=str(e))]
+    if manifest is None:
+        return None, []
+    return ("global" if manifest.get("scope") == "global" else "project"), []
 
 
 def _check_global_rules() -> CheckResult:
@@ -123,18 +123,20 @@ def doctor_cmd(
     if quick:
         # Exit 2 from a SessionStart hook blocks the session, so quick mode reports and always exits 0.
         # Outside a goodvibes project (no manifest) only the machine-wide git checks apply.
-        scope = _project_scope(cwd)
-        checks = [_check_git_config("user.name"), _check_git_config("user.email"), *(_rule_checks(cwd, scope) if scope else [])]
+        scope, manifest_checks = _project_scope(cwd)
+        checks = [_check_git_config("user.name"), _check_git_config("user.email"), *manifest_checks, *(_rule_checks(cwd, scope) if scope else [])]
         for r in checks:
             if not r.passed:
                 typer.echo(f"goodvibes doctor: ✗ {r.label}." + (f" {r.remedy}" if r.remedy else ""))
         return
 
+    scope, manifest_checks = _project_scope(cwd)
     results = [
         _check_headroom(),
         _check_git_config("user.name"),
         _check_git_config("user.email"),
-        *_rule_checks(cwd, _project_scope(cwd)),
+        *manifest_checks,
+        *_rule_checks(cwd, scope),
     ]
 
     version = _installed_version()

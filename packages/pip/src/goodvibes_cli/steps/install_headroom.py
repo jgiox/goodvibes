@@ -4,6 +4,8 @@ from typing import Callable
 
 from goodvibes_cli.utils.detect_python import detect_python
 
+INSTALL_TIMEOUT = 900
+
 
 def install_headroom(log: Callable[[str], None]) -> dict[str, str]:
     """Install headroom-ai[all] using the first available installer.
@@ -39,6 +41,8 @@ def install_headroom(log: Callable[[str], None]) -> dict[str, str]:
         " — this may take 1–3 minutes on a slow connection."
     )
 
+    log("The first headroom install can take several minutes — please keep this window open.")
+
     installers: list[list[str]] = [
         ["uv", "tool", "install", "headroom-ai[all]"],
         ["pipx", "install", "headroom-ai[all]"],
@@ -47,12 +51,17 @@ def install_headroom(log: Callable[[str], None]) -> dict[str, str]:
 
     for cmd_list in installers:
         try:
-            subprocess.run(cmd_list, capture_output=True, text=True, check=True, timeout=10)
+            # The real install downloads ~2 minutes of wheels; 10 s killed it every time.
+            subprocess.run(cmd_list, capture_output=True, text=True, check=True, timeout=INSTALL_TIMEOUT)
             return {"status": "installed", "reason": ""}
         except FileNotFoundError:
             continue
         except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as e:
-            lines = (getattr(e, 'stderr', '') or "").splitlines()
+            stderr = getattr(e, "stderr", "") or ""
+            # TimeoutExpired carries bytes even with text=True.
+            if isinstance(stderr, bytes):
+                stderr = stderr.decode("utf-8", errors="replace")
+            lines = stderr.splitlines()
             first_line = lines[0] if lines else "unknown error"
             log(f"{cmd_list[0]} install failed: {first_line} — trying next installer")
             continue  # advance to pipx / pip fallback

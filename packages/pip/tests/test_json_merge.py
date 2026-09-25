@@ -92,3 +92,34 @@ def test_merge_keeps_user_headers_on_context7_while_updating_managed_fields():
 def test_merge_reports_no_changes_when_managed_keys_are_current():
     _, changes = merge_managed_json(".mcp.json", TPL_MCP, copy.deepcopy(TPL_MCP))
     assert changes == []
+
+
+def test_merge_replaces_only_the_goodvibes_hook_and_keeps_user_hooks_and_fields_in_the_same_group():
+    mine = {"type": "command", "command": "./my-lint.sh"}
+    user_group = {"matcher": "Bash|Edit", "hooks": [mine, GATE["hooks"][0]], "note": "mine"}
+    merged, changes = merge_managed_json(".claude/settings.json", {"hooks": {"PreToolUse": [GATE_V2]}}, {"hooks": {"PreToolUse": [user_group]}})
+    assert merged["hooks"]["PreToolUse"] == [{"matcher": "Bash|Edit", "hooks": [mine, GATE_V2["hooks"][0]], "note": "mine"}]
+    assert changes == ["~ hooks.PreToolUse: goodvibes-journal-gate"]
+
+
+def test_write_json_keeps_non_ascii_text(tmp_path):
+    from goodvibes_cli.utils.json_merge import write_json
+    path = tmp_path / "settings.json"
+    write_json(path, {"note": "café ✓"})
+    assert "café ✓" in path.read_text(encoding="utf-8")
+
+
+def test_write_json_leaves_the_old_file_intact_when_the_write_fails(tmp_path, mocker):
+    from goodvibes_cli.utils.json_merge import write_json
+    path = tmp_path / "settings.json"
+    path.write_text('{"old": true}\n', encoding="utf-8")
+    mocker.patch("goodvibes_cli.utils.json_merge.os.replace", side_effect=OSError("disk full"))
+    import pytest
+    with pytest.raises(OSError):
+        write_json(path, {"new": True})
+    assert path.read_text(encoding="utf-8") == '{"old": true}\n'
+    assert [p.name for p in tmp_path.iterdir()] == ["settings.json"]
+
+
+def test_present_ids_returns_nothing_for_content_that_is_not_an_object():
+    assert present_ids(".claude/settings.json", TPL_SETTINGS, []) == []

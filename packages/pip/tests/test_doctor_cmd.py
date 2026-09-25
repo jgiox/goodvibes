@@ -208,3 +208,31 @@ def test_doctor_quick_prints_one_line_per_failure_and_exits_0(mocker, tmp_path):
         "goodvibes doctor: ✗ CLAUDE.md present. Run: goodvibes init",
         "goodvibes doctor: ✗ goodvibes sentinel block. Run: goodvibes init",
     ]
+
+
+def test_doctor_exits_1_and_names_the_broken_goodvibes_json(mocker, tmp_path):
+    (tmp_path / ".goodvibes.json").write_text("{ broken", encoding="utf-8")
+    (tmp_path / "CLAUDE.md").write_text("<!-- goodvibes:start -->\nx\n<!-- goodvibes:end -->\n", encoding="utf-8")
+    mocker.patch("pathlib.Path.cwd", return_value=tmp_path)
+    mocker.patch(
+        "goodvibes_cli.commands.doctor_cmd.subprocess.run",
+        return_value=subprocess.CompletedProcess(args=[], returncode=0, stdout="value", stderr=""),
+    )
+    from goodvibes_cli.main import app
+    result = runner.invoke(app, ["doctor"])
+    out = " ".join(result.output.split())
+    assert result.exit_code == 1
+    assert "is not valid JSON" in out
+
+
+def test_doctor_quick_reports_a_broken_goodvibes_json_and_still_exits_0(mocker, tmp_path):
+    (tmp_path / ".goodvibes.json").write_text("{ broken", encoding="utf-8")
+    mocker.patch("pathlib.Path.cwd", return_value=tmp_path)
+    mocker.patch(
+        "goodvibes_cli.commands.doctor_cmd.subprocess.run",
+        return_value=subprocess.CompletedProcess(args=[], returncode=0, stdout="value", stderr=""),
+    )
+    from goodvibes_cli.main import app
+    result = runner.invoke(app, ["doctor", "--quick"])
+    assert result.exit_code == 0
+    assert "is not valid JSON" in result.output

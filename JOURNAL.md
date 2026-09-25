@@ -1676,6 +1676,16 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 
 **Tests run:** vitest per item (RED then GREEN); full `npm run prebuild && npm run typecheck && npm run build && npx vitest run` at the end.
 
+## 2026-09-24 · pip CLI: fix the verified bug list (data loss, symlinks, manifest, update, upgrade)
+
+**What I did:** Fixed the verified pip CLI bugs (items 0-15 of the audit list), each as a RED test commit followed by a GREEN fix commit. One line per commit below.
+
+**Files changed:** packages/pip/src/goodvibes_cli/**, packages/pip/tests/**, JOURNAL.md.
+
+**Why:** Verified bugs: init recorded every project file as goodvibes-written (update then overwrote them), writes followed symlinks, re-running init wiped the manifest, CLAUDE.md markers lost text, hook merges dropped user hooks, update changed ~/.claude before asking, and more.
+
+**Tests run:** pip pytest from packages/pip (results per commit below).
+
 **Docs updated:** JOURNAL.md.
 
 **Commits:**
@@ -1705,3 +1715,42 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 - GREEN: src/node-check.ts gate runs first in src/index.ts, CLI body moved to src/cli.ts and loaded by dynamic import (tsup emits dist/index.js + one chunk, both in npm pack); engines.node >=22.12.0 (lockfile root engines synced with npm@11, one line), tsup target node22 (item 13).
 - RED (coordinator decision on item 6): a removed file is recorded as 'user-removed' instead of dropped; deleted AGENTS.md and rules/goodvibes.md stay absent over two updates, reported once; init restores both; a recreated user-removed file is never overwritten.
 - GREEN: USER_OWNED/USER_REMOVED sentinels exported from write-manifest.ts; update records newly deleted files as 'user-removed' (reported once), never re-adds them, treats a recreated one as user-owned, and ignores user-removed entries when deciding if a layer is tracked; applyGlobalConfig does the same in the config dir, and init passes restore=true so it brings them back with real hashes.
+
+- item 10 RED: version_gte / extract_version tests for rc, post and trailing-dot versions (5 failed).
+- item 10 GREEN: version_gte parses release + pre-release (a/b/rc, -rc.N, -beta.N) + .postN and returns False on unparseable input; extract_version keeps pre-release tags, drops a trailing dot (247 passed).
+- item 15 RED: DO_NOT_TRACK / GOODVIBES_NO_TELEMETRY = true/yes (any case) must opt out, in telemetry and the init privacy panel (9 failed).
+- item 15 GREEN: telemetry.opted_out() accepts 1/true/yes in any case for DO_NOT_TRACK and GOODVIBES_NO_TELEMETRY; init's privacy panel reuses it (258 passed).
+- item 14 RED: resolve_templates_dir must fall back to the repo templates/ in a source checkout (1 failed).
+- item 14 GREEN: resolve_templates_dir walks up from the package to the first templates/CLAUDE.md when no bundled copy exists (260 passed).
+- item 13 RED: ensure_global_cli must tell the user to run uv tool update-shell when goodvibes is still not on PATH after installing (1 failed).
+- item 13 GREEN: after uv tool install, ensure_global_cli reports installed with a 'run uv tool update-shell, then open a new terminal' reason when goodvibes is still not on PATH; format_global prints it (261 passed).
+- item 7 RED: headroom installers need a 900 s timeout (probe stays 10 s), a several-minutes warning first, and bytes stderr from TimeoutExpired decoded (3 failed).
+- item 7 GREEN: install commands use a 900 s timeout (probe keeps 10 s), a several-minutes notice is logged first, TimeoutExpired bytes stderr is decoded (264 passed).
+- item 8 RED: headroom must be registered as 'headroom -- <path> mcp serve', and a registration without mcp serve repaired via claude mcp remove + add (3 failed).
+- item 8 GREEN: claude mcp add -s user headroom -- <path> mcp serve; when claude mcp get headroom succeeds without mcp serve, remove + re-add and report repaired (266 passed).
+- item 12 RED: upgrade must re-exec as sys.executable -m goodvibes_cli, skip installing under uvx, and say when PyPI cannot be reached (4 failed).
+- item 12 GREEN: upgrade re-execs via os.execve(sys.executable, [sys.executable, -m, goodvibes_cli, ...]) with _GV_UPGRADING, installs nothing under uvx (archive-v* in sys.prefix), and prints the PyPI failure reason (270 passed).
+- item 11 RED: a broken .goodvibes.json must be a clear 'is not valid JSON (...); fix it or delete it and run goodvibes init' error, with update/doctor (and init for the global manifest) exiting 1 (7 failed).
+- item 11 GREEN: read_manifest raises ManifestError for invalid or non-object JSON; update and init print it and exit 1; doctor reports it as a failed check (exit 1; --quick prints it, exit 0) (276 passed).
+- item 9 RED: manifest keys must be forward-slash on write and read, so update matches keys a Windows run wrote with backslashes (3 failed).
+- item 9 GREEN: posix_key() normalises manifest keys on write_manifest and read_manifest; list_template_files and copy_templates return forward-slash paths (279 passed).
+- item 3 RED: CLAUDE.md markers count only alone on their line; unmatched/misordered/duplicate markers must raise a fix-by-hand error and leave the file alone; CRLF kept; non-UTF-8 is a clear error; init and update report it and continue, update exits non-zero (10 failed).
+- item 3 GREEN: merge_claude matches marker lines by regex (own line, trailing space/CR allowed), raises ClaudeMdError for any layout other than one start then one end, reads/writes with newline='' keeping CRLF, and reports non-UTF-8; copy_templates lists the error in skipped, update reports it, keeps the old hash and exits 1 (289 passed).
+- item 4 RED: hook merge must replace only the goodvibes hook object inside a user group; JSON writes keep non-ASCII and are atomic; non-object JSON reported 'not a JSON object; left unchanged' (7 failed).
+- item 4 GREEN: merge_managed_json swaps only the marked hook object inside the user's group; write_json (temp file + os.replace, ensure_ascii=False) now writes settings, .mcp.json and both manifests; non-object settings reported 'not a JSON object; left unchanged' in update and global setup (296 passed).
+- item 0 RED: init must record only files it created (not src/, .git/ or a user's own .github/dependabot.yml) and update --force must leave those untouched (2 failed).
+- item 0 GREEN: copy_templates records files through copytree's copy_function (plus the ci.yml rename and CLAUDE.md) instead of every file under the project, so the manifest never claims src/, .git/ or the user's own files (298 passed).
+- item 2 RED: a second init must keep every manifest entry and the managed record (a deleted hook stays deleted after update), and refuse a broken project manifest (3 failed).
+- item 2 GREEN: init reads the previous manifest before writing anything, keeps its entries for files this run did not write and passes its managed record to managed_record (301 passed).
+- item 1 RED: init and update must never write through a symlinked (or dangling) destination or parent: .claude -> outside, CLAUDE.md -> outside, docs -> outside, dangling AGENTS.md and .goodvibes.json; _assert_safe must work at a drive root (5 failed).
+- item 1 GREEN: new utils/safe_path.check_writable (os.path.islink on every existing component, resolved path inside the root) guards copytree entries, the CLAUDE.md merge/stub, the ci.yml rename, update copies/merges and both manifest writes; blocked paths are reported '<path>: symlink, not written' and skipped; _assert_safe uses resolve() + is_relative_to (306 passed).
+- item 6 RED: update must not re-create tracked files the user deleted (project and config dir; reported and dropped from the manifest) and must add net-new .github/workflows, other .github and docs files only to groups the manifest already tracks; two old tests now create the tracked CLAUDE.md they update (4 failed).
+- item 6 GREEN: update reports a missing tracked file as 'removed by you, not re-added (run goodvibes init to restore)' and drops it; apply_global_config(restore=False) does the same for the config dir (init keeps restore=True); net-new files in .github/workflows, other .github and docs are added only when the manifest still tracks a file in that group (315 passed).
+- item 5 RED: update must plan the global changes, ask once, and leave the config dir and project untouched on cancel (2 failed).
+- item 5 GREEN: update plans the config-dir changes with apply_global_config(dry_run=True), shows them, asks once (counting global changes), and only then applies global and project changes; apply_global_config no longer lists files whose content is already current as written (317 passed).
+- item 6a follow-up RED (coordinator change): a deleted tracked file is recorded as 'user-removed', stays absent across two updates (reported only the first time) in the project and config dir, a recreated one becomes user-owned and is never overwritten, and init restores both (5 failed).
+- item 6a follow-up GREEN: USER_OWNED/USER_REMOVED live in write_manifest; update records a newly missing file as 'user-removed' (reported once), leaves 'user-removed' entries absent and out of net-new/group counts, and treats a recreated one as user-owned; apply_global_config(restore=False) does the same in the config dir; init (restore) rewrites them with real hashes (320 passed).
+- item 6a detail RED (coordinator): init must also record a recreated 'user-removed' file as 'user-owned' and keep it (project and config dir); guard test that user-removed docs do not count as a tracked docs group (2 failed, guard passes).
+- item 6a detail GREEN: a recreated 'user-removed' file becomes 'user-owned' and is kept on every run, including init, in the project manifest and the config-dir manifest (323 passed).
+- item 5 detail RED: update without --force must show the project plan (not only counts) before asking (1 failed).
+- item 5 detail GREEN: the dry-run plan lines are built once and shown as 'Planned — project files' before the single prompt (323 passed).

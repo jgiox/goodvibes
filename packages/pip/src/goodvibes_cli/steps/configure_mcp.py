@@ -4,16 +4,48 @@ import subprocess
 from typing import Callable
 
 
+def _add_cmd(headroom_path: str) -> list[str]:
+    return ["claude", "mcp", "add", "-s", "user", "headroom", "--", headroom_path, "mcp", "serve"]
+
+
+def _repair(log: Callable[[str], None]) -> dict[str, str]:
+    absolute_path = shutil.which("headroom")
+    if not absolute_path:
+        log("headroom MCP registration is missing `mcp serve`, but headroom is not on PATH to repair it.")
+        return {"status": "skipped", "reason": "headroom binary not found on PATH"}
+    try:
+        subprocess.run(["claude", "mcp", "remove", "headroom", "-s", "user"], capture_output=True, text=True, check=True, timeout=10)
+        subprocess.run(_add_cmd(absolute_path), capture_output=True, text=True, check=True, timeout=10)
+    except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as e:
+        lines = (getattr(e, "stderr", "") or "").splitlines()
+        reason = lines[0] if lines else str(e).splitlines()[0]
+        log(f"headroom MCP repair failed: {reason}")
+        return {"status": "failed", "reason": reason}
+    log("headroom MCP registration repaired (now runs headroom mcp serve)")
+    return {"status": "repaired", "reason": ""}
+
+
 def configure_mcp(log: Callable[[str], None]) -> dict[str, str]:
     """Register headroom as a global MCP server via claude mcp add (primary) or headroom mcp install (fallback).
 
     Strategy:
     1. Idempotency: headroom mcp status (exit 0 → already registered)
-    2. Primary: claude mcp add -s user headroom <absolute-path>
+    2. Primary: claude mcp add -s user headroom -- <absolute-path> mcp serve
     3. Fallback: headroom mcp install (when claude CLI not on PATH)
 
     Never writes to ~/.claude/ directly. Never uses shell=True.
     """
+    # Registrations made without `mcp serve` start headroom's CLI instead of its MCP server.
+    try:
+        got = subprocess.run(["claude", "mcp", "get", "headroom"], capture_output=True, text=True, timeout=10)
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        got = None
+    if got is not None and got.returncode == 0:
+        if "mcp serve" in got.stdout:
+            log("headroom MCP already configured — skipping")
+            return {"status": "already-registered", "reason": ""}
+        return _repair(log)
+
     # Step 1: idempotency check
     try:
         subprocess.run(
@@ -49,13 +81,7 @@ def configure_mcp(log: Callable[[str], None]) -> dict[str, str]:
             )
             return {"status": "skipped", "reason": "headroom binary not found on PATH"}
 
-        subprocess.run(
-            ["claude", "mcp", "add", "-s", "user", "headroom", absolute_path],
-            capture_output=True,
-            text=True,
-            check=True,
-            timeout=10,
-        )
+        subprocess.run(_add_cmd(absolute_path), capture_output=True, text=True, check=True, timeout=10)
         log("headroom registered as global MCP server")
         return {"status": "registered", "reason": ""}
     except FileNotFoundError:
