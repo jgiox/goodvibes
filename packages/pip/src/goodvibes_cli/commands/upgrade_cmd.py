@@ -12,8 +12,11 @@ from typing import Annotated
 
 import typer
 from rich.console import Console
+from rich.panel import Panel
 
 from goodvibes_cli.commands.update_cmd import update_cmd
+from goodvibes_cli.steps.global_setup import claude_config_dir
+from goodvibes_cli.steps.write_manifest import ManifestError, read_manifest
 from goodvibes_cli.utils.sentinel_merge import version_gte
 
 console = Console()
@@ -93,4 +96,17 @@ def upgrade_cmd(
                 # argv[0] is not executable under `python -m goodvibes_cli`, so always go through the interpreter.
                 os.execve(sys.executable, [sys.executable, "-m", "goodvibes_cli", *sys.argv[1:]], {**os.environ, _UPGRADING_ENV: latest})
 
+    # In a folder goodvibes never set up, update's "not set up here" reads like a failed upgrade.
+    try:
+        set_up = bool(read_manifest(pathlib.Path.cwd()) or read_manifest(claude_config_dir()))
+    except ManifestError:
+        set_up = True
+    if not set_up:
+        console.print(Panel(
+            f"goodvibes {current} is installed. This folder has no goodvibes setup, so there is nothing to update here.\n"
+            "To update a project, go into its folder and run: goodvibes update\n"
+            "To set up a new project, go into its folder and run: goodvibes init",
+            title="Nothing to update here",
+        ))
+        return
     update_cmd(dry_run=dry_run, force=False)
