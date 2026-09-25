@@ -89,3 +89,28 @@ def test_which_off_windows_ignores_a_program_that_only_dot_or_the_project_folder
     monkeypatch.chdir(tmp_path)
     monkeypatch.setenv("PATH", os.pathsep.join([".", str(tmp_path)]))
     assert proc.which("headroom") is None
+
+
+def test_which_off_windows_finds_a_program_in_local_bin_when_run_from_the_home_folder(mocker, tmp_path, monkeypatch):
+    mocker.patch("goodvibes_cli.utils.proc.WINDOWS", False)
+    bin_dir = tmp_path / ".local" / "bin"
+    bin_dir.mkdir(parents=True)
+    tool = bin_dir / "goodvibes"
+    tool.write_text("#!/bin/sh\n")
+    tool.chmod(0o755)
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("PATH", os.pathsep.join([str(bin_dir), ".", "/usr/bin"]))
+    assert proc.which("goodvibes") == str(tool)
+    run = mocker.patch("goodvibes_cli.utils.proc.subprocess.run")
+    proc.run(["headroom", "mcp", "status"])
+    assert run.call_args.kwargs["env"]["PATH"] == os.pathsep.join([str(bin_dir), "/usr/bin"])
+
+
+def test_run_off_windows_keeps_system_folders_when_run_from_the_filesystem_root(mocker, monkeypatch):
+    mocker.patch("goodvibes_cli.utils.proc.WINDOWS", False)
+    monkeypatch.chdir("/")
+    monkeypatch.setenv("PATH", os.pathsep.join(["/usr/local/bin", "/usr/bin"]))
+    run = mocker.patch("goodvibes_cli.utils.proc.subprocess.run")
+    proc.run(["git", "status"])
+    assert run.call_args.kwargs["env"]["PATH"] == os.pathsep.join(["/usr/local/bin", "/usr/bin"])
