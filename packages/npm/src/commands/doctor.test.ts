@@ -19,6 +19,9 @@ vi.mock('./mcp-check.js', () => ({ checkMcpServers: vi.fn(() => []) }))
 
 vi.mock('../utils/version.js', () => ({ packageVersion: () => '1.6.2' }))
 
+// Unit tests must never run real git: cwd here is the goodvibes checkout itself.
+vi.mock('../steps/git-hook.js', () => ({ installGitHook: vi.fn() }))
+
 // existsSync is true for every path in some tests, so .goodvibes.json must read as a real manifest there.
 const withManifest = (claudeMd: string) => (p: unknown) =>
   String(p).endsWith('.goodvibes.json') ? '{"version":"1.0.0","files":{}}' : claudeMd
@@ -31,6 +34,8 @@ describe('doctor command', () => {
     vi.mocked(statSync).mockReturnValue({ size: 100 } as any)
     const { checkMcpServers } = await import('./mcp-check.js')
     vi.mocked(checkMcpServers).mockReturnValue([])
+    const { installGitHook } = await import('../steps/git-hook.js')
+    vi.mocked(installGitHook).mockResolvedValue({ status: 'not-a-repo', path: '/p/.git/hooks/pre-commit' })
   })
 
   const JOURNAL_LABEL = 'JOURNAL.md is 13 KB; agents read it every session'
@@ -653,6 +658,105 @@ describe('doctor command', () => {
       const { logs } = await runQuick()
 
       expect(logs).toEqual(['goodvibes doctor: ✗ goodvibes rules in Claude config. Run: goodvibes init'])
+    })
+  })
+
+  describe('git commit check in the full doctor', () => {
+    async function runWithHook(status: string, gitHook?: string, files: (p: string) => boolean = () => true) {
+      const { execa } = await import('execa')
+      vi.mocked(execa).mockResolvedValue({ stdout: 'value' } as any)
+      const { existsSync, readFileSync } = await import('node:fs')
+      vi.mocked(existsSync).mockImplementation(p => files(String(p)))
+      const manifest = JSON.stringify({ version: '1.9.0', files: {}, ...(gitHook ? { gitHook } : {}) })
+      vi.mocked(readFileSync).mockImplementation((p: unknown) => String(p).endsWith('.goodvibes.json') ? manifest : '<!-- goodvibes:start -->\n<!-- goodvibes:end -->')
+      const { installGitHook } = await import('../steps/git-hook.js')
+      vi.mocked(installGitHook).mockResolvedValue({ status, path: '/p/.git/hooks/pre-commit' } as any)
+      const { checkMcpServers } = await import('./mcp-check.js')
+      vi.mocked(checkMcpServers).mockReturnValue([{ label: 'MCP context7 (project)', status: 'ok' }])
+      const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never)
+      const { note } = await import('@clack/prompts')
+      const { registerDoctorCommand } = await import('./doctor.js')
+      let capturedAction: () => Promise<void> = async () => {}
+      const program = { command: vi.fn().mockReturnThis(), description: vi.fn().mockReturnThis(),
+        option: vi.fn().mockReturnThis(), action: vi.fn((fn) => { capturedAction = fn; return { command: vi.fn() } }) }
+      registerDoctorCommand(program as any)
+      await capturedAction()
+      exitSpy.mockRestore()
+      const calls = vi.mocked(note).mock.calls.map(c => String(c[0]))
+      return { checks: calls[0], fixes: calls.slice(1).join('\n') }
+    }
+
+    it('shows ok when the installed hook matches the packaged one, and never writes', async () => {
+      const { checks } = await runWithHook('current')
+      expect(checks).toContain('✓ Git commit check installed')
+      const { installGitHook } = await import('../steps/git-hook.js')
+      expect(vi.mocked(installGitHook)).toHaveBeenCalledWith(process.cwd(), true)
+    })
+
+    it('warns with the update remedy when the goodvibes hook is out of date', async () => {
+      const { checks, fixes } = await runWithHook('updated')
+      expect(checks).toContain('! Git commit check out of date')
+      expect(fixes).toContain('Git commit check out of date: Run: goodvibes update')
+    })
+
+    it('shows turned off when there is no hook and the manifest says the user removed it', async () => {
+      const { checks, fixes } = await runWithHook('installed', 'user-removed')
+      expect(checks).toContain('- Git commit check turned off')
+      expect(fixes).not.toContain('Git commit check')
+    })
+
+    it('warns with the update remedy when there is no hook and the user did not remove it', async () => {
+      const { checks, fixes } = await runWithHook('installed', 'installed')
+      expect(checks).toContain('! Git commit check not installed')
+      expect(fixes).toContain('Git commit check not installed: Run: goodvibes update')
+    })
+
+    it('skips as not managed when core.hooksPath is set', async () => {
+      const { checks } = await runWithHook('custom-path')
+      expect(checks).toContain('- Git commit check not managed (core.hooksPath is set)')
+    })
+
+    it('skips as not managed when the user has their own pre-commit hook', async () => {
+      const { checks } = await runWithHook('existing-hook')
+      expect(checks).toContain('- Git commit check not managed (your own pre-commit hook)')
+    })
+
+    it('shows no git commit check outside a git repository', async () => {
+      const { checks } = await runWithHook('not-a-repo')
+      expect(checks).not.toContain('Git commit check')
+    })
+
+    it('does not check the hook in a project without JOURNAL.md', async () => {
+      const { checks } = await runWithHook('current', undefined, p => !p.endsWith('JOURNAL.md'))
+      expect(checks).not.toContain('Git commit check')
+      const { installGitHook } = await import('../steps/git-hook.js')
+      expect(vi.mocked(installGitHook)).not.toHaveBeenCalled()
+    })
+
+    it('places the check after the journal size check and before the MCP checks', async () => {
+      await bigJournal()
+      const lines = (await runWithHook('current')).checks.split('\n')
+      const at = (s: string) => lines.findIndex(l => l.includes(s))
+      expect(at('JOURNAL.md is')).toBeLessThan(at('Git commit check installed'))
+      expect(at('Git commit check installed')).toBeLessThan(at('MCP context7'))
+    })
+
+    it('never checks the hook in --quick mode', async () => {
+      const { execa } = await import('execa')
+      vi.mocked(execa).mockResolvedValue({ stdout: 'value' } as any)
+      const { existsSync, readFileSync } = await import('node:fs')
+      vi.mocked(existsSync).mockReturnValue(true)
+      vi.mocked(readFileSync).mockImplementation(withManifest('<!-- goodvibes:start -->\n<!-- goodvibes:end -->'))
+      const log = vi.spyOn(console, 'log').mockImplementation(() => {})
+      const { registerDoctorCommand } = await import('./doctor.js')
+      let capturedAction: (o: { quick: boolean }) => Promise<void> = async () => {}
+      const program = { command: vi.fn().mockReturnThis(), description: vi.fn().mockReturnThis(),
+        option: vi.fn().mockReturnThis(), action: vi.fn((fn) => { capturedAction = fn; return { command: vi.fn() } }) }
+      registerDoctorCommand(program as any)
+      await capturedAction({ quick: true })
+      log.mockRestore()
+      const { installGitHook } = await import('../steps/git-hook.js')
+      expect(vi.mocked(installGitHook)).not.toHaveBeenCalled()
     })
   })
 })

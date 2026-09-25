@@ -3,7 +3,7 @@ import { existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, rmSync, st
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { execFileSync } from 'node:child_process'
-import { installGitHook } from './git-hook.js'
+import { gitHookLine, installGitHook } from './git-hook.js'
 import { resolveHooksDir } from './copy-templates.js'
 
 // Real temp repos: the installer is git plumbing, so mocking git would test nothing.
@@ -129,5 +129,31 @@ describe('installGitHook', () => {
 describe('resolveHooksDir', () => {
   it('points at a folder holding the goodvibes pre-commit hook', () => {
     expect(readFileSync(join(resolveHooksDir(), 'pre-commit'), 'utf-8')).toContain('# goodvibes-pre-commit')
+  })
+})
+
+describe('gitHookLine', () => {
+  const at = '/p/.git/hooks/pre-commit'
+  const INSTALLED = 'Git commit check installed: commits that leave out JOURNAL.md are blocked in every tool (.git/hooks/pre-commit)'
+  const UPDATED = 'Git commit check updated (.git/hooks/pre-commit)'
+  const NOT_A_REPO = 'Git commit check skipped: this folder is not a git repository yet. Run git init, then goodvibes update.'
+  const EXISTING = 'Git commit check skipped: .git/hooks/pre-commit already exists and is not from goodvibes, so it was left alone.'
+
+  it('prints the spec line for every status and nothing for current', () => {
+    expect(gitHookLine({ status: 'installed', path: at }, false)).toBe(INSTALLED)
+    expect(gitHookLine({ status: 'updated', path: at }, false)).toBe(UPDATED)
+    expect(gitHookLine({ status: 'current', path: at }, false)).toBeNull()
+    expect(gitHookLine({ status: 'not-a-repo', path: at }, false)).toBe(NOT_A_REPO)
+    expect(gitHookLine({ status: 'custom-path', path: at, detail: '.husky' }, false)).toBe(
+      'Git commit check skipped: git uses its own hooks folder here (core.hooksPath = .husky), so goodvibes left your hooks alone.')
+    expect(gitHookLine({ status: 'existing-hook', path: at }, false)).toBe(EXISTING)
+  })
+
+  it('prefixes only the installed and updated lines with "Would: " on a dry run', () => {
+    expect(gitHookLine({ status: 'installed', path: at }, true)).toBe(`Would: ${INSTALLED}`)
+    expect(gitHookLine({ status: 'updated', path: at }, true)).toBe(`Would: ${UPDATED}`)
+    expect(gitHookLine({ status: 'current', path: at }, true)).toBeNull()
+    expect(gitHookLine({ status: 'not-a-repo', path: at }, true)).toBe(NOT_A_REPO)
+    expect(gitHookLine({ status: 'existing-hook', path: at }, true)).toBe(EXISTING)
   })
 })
