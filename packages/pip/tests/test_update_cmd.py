@@ -812,3 +812,25 @@ def test_update_answering_no_leaves_the_git_hook_and_manifest_unchanged(plain_di
     confirm.assert_called_once()
     hook.assert_called_once_with(project_dir, True)
     assert (project_dir / ".goodvibes.json").read_text(encoding="utf-8") == before
+
+
+def test_update_merges_the_goodvibes_hooks_into_existing_gemini_and_codex_hook_files_and_keeps_the_user_settings_and_hooks(merge_dirs):
+    real = pathlib.Path(__file__).resolve().parents[3] / "templates"
+    tpl = merge_dirs.parent / "templates"
+    user_group = {"matcher": "write_file", "hooks": [{"type": "command", "command": "npx prettier --check ."}]}
+    for rel in (".gemini/settings.json", ".codex/hooks.json"):
+        (tpl / rel).parent.mkdir(parents=True, exist_ok=True)
+        (tpl / rel).write_text((real / rel).read_text(encoding="utf-8"), encoding="utf-8")
+        (merge_dirs / rel).parent.mkdir(parents=True, exist_ok=True)
+    (merge_dirs / ".gemini" / "settings.json").write_text(json.dumps({"theme": "GitHub", "hooks": {"BeforeTool": [user_group]}}), encoding="utf-8")
+    (merge_dirs / ".codex" / "hooks.json").write_text(json.dumps({"hooks": {"PreToolUse": [user_group]}}), encoding="utf-8")
+    _write_manifest(merge_dirs, {})
+
+    result = runner.invoke(app, ["update", "--force"])
+
+    assert result.exit_code == 0, result.output
+    gemini = json.loads((merge_dirs / ".gemini" / "settings.json").read_text(encoding="utf-8"))
+    assert gemini["theme"] == "GitHub"
+    assert gemini["hooks"]["BeforeTool"] == [user_group, *json.loads((real / ".gemini" / "settings.json").read_text(encoding="utf-8"))["hooks"]["BeforeTool"]]
+    codex = json.loads((merge_dirs / ".codex" / "hooks.json").read_text(encoding="utf-8"))
+    assert codex["hooks"]["PreToolUse"] == [user_group, *json.loads((real / ".codex" / "hooks.json").read_text(encoding="utf-8"))["hooks"]["PreToolUse"]]

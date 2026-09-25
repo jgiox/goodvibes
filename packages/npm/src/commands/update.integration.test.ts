@@ -235,6 +235,25 @@ describe('update command — JSON-aware merge of settings.json and .mcp.json (UP
     expect(m.mcpServers.context7).toEqual(JSON.parse(tplMcp).mcpServers.context7)
   })
 
+  it('merges the goodvibes hooks into existing Gemini CLI and Codex hook files and keeps the user settings and hooks', async () => {
+    const userGroup = { matcher: 'write_file', hooks: [{ type: 'command', command: 'npx prettier --check .' }] }
+    for (const rel of ['.gemini/settings.json', '.codex/hooks.json']) {
+      mkdirSync(join(templateDir, rel, '..'), { recursive: true })
+      writeFileSync(join(templateDir, rel), readFileSync(join(realTemplates, rel), 'utf-8'))
+      mkdirSync(join(projectDir, rel, '..'), { recursive: true })
+    }
+    writeFileSync(join(projectDir, '.gemini', 'settings.json'), JSON.stringify({ theme: 'GitHub', hooks: { BeforeTool: [userGroup] } }))
+    writeFileSync(join(projectDir, '.codex', 'hooks.json'), JSON.stringify({ hooks: { PreToolUse: [userGroup] } }))
+    writeManifestFile({})
+
+    await runUpdate('--force')
+
+    const gemini = readJson('.gemini/settings.json')
+    expect(gemini.theme).toBe('GitHub')
+    expect(gemini.hooks.BeforeTool).toEqual([userGroup, ...JSON.parse(readFileSync(join(realTemplates, '.gemini', 'settings.json'), 'utf-8')).hooks.BeforeTool])
+    expect(readJson('.codex/hooks.json').hooks.PreToolUse).toEqual([userGroup, ...JSON.parse(readFileSync(join(realTemplates, '.codex', 'hooks.json'), 'utf-8')).hooks.PreToolUse])
+  })
+
   describe('context7 in the Cursor and VS Code MCP files', () => {
     const context7 = { type: 'http', url: 'https://mcp.context7.com/mcp' }
     const tpl = { '.cursor/mcp.json': { mcpServers: { context7: { url: context7.url } } }, '.vscode/mcp.json': { servers: { context7 } } }
