@@ -70,7 +70,11 @@
       "Bash(npm run deploy*)",
       "Bash(npm run release*)",
       "Bash(npm run publish*)",
-      "Bash(node node_modules/.bin/*)"
+      "Bash(node node_modules/.bin/*)",
+      "Edit(./.claude/settings.json)",
+      "Edit(./.claude/settings.local.json)",
+      "Edit(./.mcp.json)",
+      "Edit(./.claude/hooks/**)"
     ]
   },
   "hooks": {
