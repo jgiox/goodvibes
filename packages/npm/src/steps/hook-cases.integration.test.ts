@@ -70,7 +70,7 @@ const FIXTURES: Record<string, (dir: string, ...args: string[]) => Promise<unkno
 const fill = (v: unknown, dir: string): unknown =>
   typeof v === 'string' ? v.replaceAll('{dir}', dir) : Array.isArray(v) ? v.map(x => fill(x, dir)) : v && typeof v === 'object' ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, fill(x, dir)])) : v
 
-for (const file of readdirSync(CASES_DIR).filter(f => f.endsWith('.cases.json')).sort()) {
+for (const file of readdirSync(CASES_DIR).filter(f => f.endsWith('.cases.json') && !f.startsWith('git-')).sort()) {
   const id = file.replace(/\.cases\.json$/, '')
   const cases: Case[] = JSON.parse(readFileSync(join(CASES_DIR, file), 'utf-8'))
   describe(`${id} hook cases`, () => {

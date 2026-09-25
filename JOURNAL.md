@@ -2075,3 +2075,8 @@ Added a Standing decisions section to this journal.
 **Why:** the maintainer asked for the journal check to work outside Claude Code.
 
 **Decision:** goodvibes writes the hook into the local `.git/hooks/` from its own package copy. It never points `core.hooksPath` at a folder inside the repo, because that would let a cloned repo run its own scripts once goodvibes turned the setting on.
+
+## 2026-09-25: npm installs the git commit check (.git/hooks/pre-commit)
+
+**What:** the npm package ships `hooks/pre-commit` and installs it from `init` and `update`. `doctor` reports it. The manifest records `gitHook` so a hook the user deleted stays deleted.
+- `src/steps/hook-cases.integration.test.ts` now skips `git-*.cases.json`. Those cases are git commits, not Claude hook payloads, and `git-hook-cases.integration.test.ts` runs them.
