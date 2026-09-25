@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { mkdtempSync, rmSync, mkdirSync, readFileSync, writeFileSync } from 'fs'
+import { existsSync, mkdtempSync, rmSync, mkdirSync, readFileSync, writeFileSync } from 'fs'
 import { join } from 'path'
 import { tmpdir } from 'os'
 import { execa } from 'execa'
@@ -14,10 +14,14 @@ function getHookCommand(): string {
   return data.hooks.PreToolUse[0].hooks[0].command
 }
 
-async function runHook(command: string, cwd: string): Promise<{ exitCode: number; stderr: string }> {
+async function runHook(
+  command: string,
+  cwd: string,
+  env: Record<string, string> = {},
+): Promise<{ exitCode: number; stderr: string }> {
   const hookCmd = getHookCommand()
   const payload = JSON.stringify({ tool_name: 'Bash', tool_input: { command } })
-  const result = await execa('sh', ['-c', hookCmd], { input: payload, cwd, reject: false })
+  const result = await execa('sh', ['-c', hookCmd], { input: payload, cwd, env, reject: false })
   return { exitCode: result.exitCode ?? -1, stderr: result.stderr }
 }
 
@@ -324,4 +328,128 @@ describe('journal-gate hook', () => {
     const { exitCode } = await runHook('bash<<EOF\ngit commit -m x\nEOF', repoDir)
     expect(exitCode).toBe(2)
   })
+
+  it('does not run the core.fsmonitor command of a bare repo that the command text only mentions', async () => {
+    const marker = join(repoDir, 'fsmonitor-ran')
+    const evil = join(repoDir, 'vendor', 'evil')
+    await execa('git', ['init', '--bare', evil])
+    await execa('git', ['config', '-f', join(evil, 'config'), 'core.bare', 'false'])
+    await execa('git', ['config', '-f', join(evil, 'config'), 'core.worktree', '../..'])
+    await execa('git', ['config', '-f', join(evil, 'config'), 'core.fsmonitor', `touch '${marker}' #`])
+    await runHook('# git -C vendor/evil commit', repoDir)
+    await runHook('echo git -C vendor/evil commit -m wip', repoDir)
+    expect(existsSync(marker)).toBe(false)
+  })
+
+  for (const command of [
+    'npm test&&git commit -m x',
+    'true|git commit -m x',
+    'echo $(git commit -m x)',
+    '(git commit -m x)',
+    'a;git commit -m x',
+  ]) {
+    it(`blocks a commit whose git is glued to a shell operator: ${command}`, async () => {
+      const { exitCode } = await runHook(command, repoDir)
+      expect(exitCode).toBe(2)
+    })
+  }
+
+  for (const command of [
+    'git log --oneline | grep commit',
+    'git help commit',
+    'git cat-file commit HEAD',
+    'git log -1 && echo last commit',
+  ]) {
+    it(`allows a git command whose subcommand is not commit: ${command}`, async () => {
+      const { exitCode } = await runHook(command, repoDir)
+      expect(exitCode).toBe(0)
+    })
+  }
+
+  it('blocks a commit split across lines with a backslash-newline continuation', async () => {
+    const { exitCode } = await runHook('git \\\n  commit -m x', repoDir)
+    expect(exitCode).toBe(2)
+  })
+
+  it('blocks a commit that follows a full-line comment containing an apostrophe', async () => {
+    const { exitCode } = await runHook("# don't forget the journal\ngit commit -m x\necho 'done'", repoDir)
+    expect(exitCode).toBe(2)
+  })
+
+  it('blocks a commit when only a later commit in the same command uses --amend', async () => {
+    const { exitCode } = await runHook('git commit -m x && git commit --amend --no-edit', repoDir)
+    expect(exitCode).toBe(2)
+  })
+
+  it('blocks a commit whose --amend appears only in a trailing comment', async () => {
+    const { exitCode } = await runHook('git commit -m x # --amend', repoDir)
+    expect(exitCode).toBe(2)
+  })
+
+  it('allows a command in which every commit uses --amend', async () => {
+    const { exitCode } = await runHook('git commit --amend -m x && git commit --amend --no-edit', repoDir)
+    expect(exitCode).toBe(0)
+  })
+
+  async function initRepoWithJournal(dir: string, staged: boolean): Promise<void> {
+    mkdirSync(dir, { recursive: true })
+    await execa('git', ['init'], { cwd: dir })
+    writeFileSync(join(dir, 'JOURNAL.md'), '# journal\n')
+    if (staged) await execa('git', ['add', 'JOURNAL.md'], { cwd: dir })
+  }
+
+  it('blocks cd proj && git commit run from a folder that is not a repo when proj has JOURNAL.md unstaged', async () => {
+    const outer = mkdtempSync(join(tmpdir(), 'gv-outer-'))
+    try {
+      await initRepoWithJournal(join(outer, 'proj'), false)
+      const { exitCode, stderr } = await runHook('cd proj && git commit -m x', outer)
+      expect(exitCode).toBe(2)
+      expect(stderr.trim()).toBe('BLOCKED: JOURNAL.md not staged. Update JOURNAL.md, then: git add JOURNAL.md')
+    } finally {
+      rmSync(outer, { recursive: true, force: true })
+    }
+  })
+
+  it('allows cd proj && git commit from an unstaged repo when proj has JOURNAL.md staged', async () => {
+    await initRepoWithJournal(join(repoDir, 'proj'), true)
+    const { exitCode } = await runHook('cd proj && git commit -m x', repoDir)
+    expect(exitCode).toBe(0)
+  })
+
+  it('blocks cd proj && git commit from a staged repo when proj has JOURNAL.md unstaged', async () => {
+    await execa('git', ['add', 'JOURNAL.md'], { cwd: repoDir })
+    await initRepoWithJournal(join(repoDir, 'proj'), false)
+    const { exitCode } = await runHook('cd proj && git commit -m x', repoDir)
+    expect(exitCode).toBe(2)
+  })
+
+  it('blocks a commit that comes after more than one cd because its folder is ambiguous', async () => {
+    await execa('git', ['add', 'JOURNAL.md'], { cwd: repoDir })
+    const { exitCode, stderr } = await runHook('cd a && cd b && git commit -m x', repoDir)
+    expect(exitCode).toBe(2)
+    expect(stderr).toContain('more than one cd')
+  })
+
+  it('blocks a commit after cd to a $ variable because the folder cannot be worked out', async () => {
+    await execa('git', ['add', 'JOURNAL.md'], { cwd: repoDir })
+    const { exitCode, stderr } = await runHook('cd $PROJ && git commit -m x', repoDir)
+    expect(exitCode).toBe(2)
+    expect(stderr).toContain('cannot work out the folder')
+  })
+
+  it('blocks git -C with a $ variable other than $HOME because the folder cannot be worked out', async () => {
+    await execa('git', ['add', 'JOURNAL.md'], { cwd: repoDir })
+    const { exitCode, stderr } = await runHook('git -C $OTHER/p commit -m x', repoDir)
+    expect(exitCode).toBe(2)
+    expect(stderr).toContain('cannot work out the folder')
+  })
+
+  for (const command of ['git -C ~/p commit -m x', 'git -C $HOME/p commit -m x', 'cd ~/p && git commit -m x']) {
+    it(`expands a leading ~ or $HOME to the home folder: ${command}`, async () => {
+      const home = join(repoDir, 'home')
+      await initRepoWithJournal(join(home, 'p'), true)
+      const { exitCode } = await runHook(command, repoDir, { HOME: home })
+      expect(exitCode).toBe(0)
+    })
+  }
 })
