@@ -173,6 +173,26 @@ describe('update command — JSON-aware merge of settings.json and .mcp.json (UP
     rmSync(projectDir, { recursive: true, force: true })
   })
 
+  it('deletes an unchanged project skill file goodvibes no longer ships and keeps an edited one', async () => {
+    mkdirSync(join(projectDir, '.claude', 'skills', 'gone'), { recursive: true })
+    mkdirSync(join(projectDir, '.claude', 'skills', 'mine'), { recursive: true })
+    writeFileSync(join(projectDir, '.claude', 'skills', 'gone', 'SKILL.md'), 'old\n')
+    writeFileSync(join(projectDir, '.claude', 'skills', 'mine', 'SKILL.md'), 'edited\n')
+    writeFileSync(join(projectDir, '.mcp.json'), tplMcp)
+    writeManifestFile({
+      '.claude/skills/gone/SKILL.md': sha256('old\n'),
+      '.claude/skills/mine/SKILL.md': sha256('old\n'),
+      '.mcp.json': sha256(tplMcp),
+    })
+
+    await runUpdate('--force')
+
+    expect(existsSync(join(projectDir, '.claude', 'skills', 'gone'))).toBe(false)
+    expect(readFileSync(join(projectDir, '.claude', 'skills', 'mine', 'SKILL.md'), 'utf-8')).toBe('edited\n')
+    const files = JSON.parse(readFileSync(join(projectDir, '.goodvibes.json'), 'utf-8')).files
+    expect(files).not.toHaveProperty('.claude/skills/gone/SKILL.md')
+  })
+
   it('removes the allow rules older goodvibes versions shipped from a hand-edited project settings.json', async () => {
     const old = JSON.stringify({ permissions: { allow: ['Read(**)'] } }, null, 2)
     const userEdited = { permissions: { allow: ['Read(**)', 'Bash(node*)', 'Bash(uv*)', 'Bash(make*)'] } }

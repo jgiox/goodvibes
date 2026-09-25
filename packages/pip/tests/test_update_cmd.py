@@ -262,6 +262,23 @@ def _read(project_dir, rel):
     return json.loads((project_dir / rel).read_text(encoding="utf-8"))
 
 
+def test_update_deletes_an_unchanged_project_skill_goodvibes_no_longer_ships_and_keeps_an_edited_one(merge_dirs):
+    for name, text in (("gone", "old\n"), ("mine", "edited\n")):
+        (merge_dirs / ".claude" / "skills" / name).mkdir(parents=True)
+        (merge_dirs / ".claude" / "skills" / name / "SKILL.md").write_text(text, encoding="utf-8")
+    (merge_dirs / ".mcp.json").write_text(_TPL_MCP, encoding="utf-8")
+    _write_manifest(merge_dirs, {
+        ".claude/skills/gone/SKILL.md": _sha("old\n"),
+        ".claude/skills/mine/SKILL.md": _sha("old\n"),
+        ".mcp.json": _sha(_TPL_MCP),
+    })
+    result = runner.invoke(app, ["update", "--force"])
+    assert result.exit_code == 0, result.output
+    assert not (merge_dirs / ".claude" / "skills" / "gone").exists()
+    assert (merge_dirs / ".claude" / "skills" / "mine" / "SKILL.md").read_text() == "edited\n"
+    assert ".claude/skills/gone/SKILL.md" not in _read(merge_dirs, ".goodvibes.json")["files"]
+
+
 def test_update_removes_allow_rules_older_versions_shipped_from_hand_edited_project_settings(merge_dirs):
     old = json.dumps({"permissions": {"allow": ["Read(**)"]}}, indent=2)
     user = {"permissions": {"allow": ["Read(**)", "Bash(node*)", "Bash(uv*)", "Bash(make*)"]}}

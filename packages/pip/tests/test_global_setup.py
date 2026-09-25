@@ -305,3 +305,40 @@ def test_init_records_a_recreated_user_removed_skill_as_user_owned_and_keeps_it(
 
     assert skill.read_text(encoding="utf-8") == "my own caveman\n"
     assert json.loads((cfg / ".goodvibes.json").read_text(encoding="utf-8"))["files"]["skills/caveman/SKILL.md"] == "user-owned"
+
+
+def _plant_retired_skill(content, recorded):
+    d = _cfg() / "skills" / "cavecrew"
+    d.mkdir(parents=True, exist_ok=True)
+    (d / "SKILL.md").write_text(content, encoding="utf-8")
+    m = json.loads((_cfg() / ".goodvibes.json").read_text(encoding="utf-8"))
+    m["files"]["skills/cavecrew/SKILL.md"] = hashlib.sha256(recorded.encode("utf-8")).hexdigest()
+    (_cfg() / ".goodvibes.json").write_text(json.dumps(m), encoding="utf-8")
+
+
+def test_apply_global_config_deletes_an_unchanged_skill_file_goodvibes_no_longer_ships():
+    from goodvibes_cli.steps.global_setup import format_global
+    apply_global_config(TEMPLATES, "1.8.0", dry_run=False)
+    _plant_retired_skill("old skill\n", "old skill\n")
+    r = apply_global_config(TEMPLATES, "1.8.0", dry_run=False)
+    assert not (_cfg() / "skills" / "cavecrew").exists()
+    assert r["retired"] == ["skills/cavecrew/SKILL.md"]
+    assert "skills/cavecrew/SKILL.md: removed, no longer shipped by goodvibes" in format_global(r, None, None)
+    assert "skills/cavecrew/SKILL.md" not in json.loads((_cfg() / ".goodvibes.json").read_text())["files"]
+
+
+def test_apply_global_config_keeps_a_no_longer_shipped_skill_file_the_user_edited():
+    apply_global_config(TEMPLATES, "1.8.0", dry_run=False)
+    _plant_retired_skill("my edits\n", "old skill\n")
+    r = apply_global_config(TEMPLATES, "1.8.0", dry_run=False)
+    assert (_cfg() / "skills" / "cavecrew" / "SKILL.md").read_text() == "my edits\n"
+    assert r["retired"] == []
+    assert "skills/cavecrew/SKILL.md" not in json.loads((_cfg() / ".goodvibes.json").read_text())["files"]
+
+
+def test_apply_global_config_only_reports_a_retired_skill_file_in_dry_run():
+    apply_global_config(TEMPLATES, "1.8.0", dry_run=False)
+    _plant_retired_skill("old skill\n", "old skill\n")
+    r = apply_global_config(TEMPLATES, "1.8.0", dry_run=True)
+    assert r["retired"] == ["skills/cavecrew/SKILL.md"]
+    assert (_cfg() / "skills" / "cavecrew" / "SKILL.md").exists()

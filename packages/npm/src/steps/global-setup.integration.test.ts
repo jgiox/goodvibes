@@ -139,4 +139,46 @@ describe('applyGlobalConfig (real temp CLAUDE_CONFIG_DIR)', () => {
 
     expect(readFileSync(join(cfg, 'rules', 'goodvibes.md'), 'utf-8')).toBe('my own rules\n')
   })
+
+  const plantRetiredSkill = (content: string, recorded: string) => {
+    mkdirSync(join(cfg, 'skills', 'cavecrew'), { recursive: true })
+    writeFileSync(join(cfg, 'skills', 'cavecrew', 'SKILL.md'), content)
+    const m = readJson('.goodvibes.json')
+    m.files['skills/cavecrew/SKILL.md'] = createHash('sha256').update(recorded, 'utf8').digest('hex')
+    writeFileSync(join(cfg, '.goodvibes.json'), JSON.stringify(m))
+  }
+
+  it('deletes an unchanged skill file goodvibes no longer ships and reports it', async () => {
+    await applyGlobalConfig(templateDir, '1.8.0', false)
+    plantRetiredSkill('old skill\n', 'old skill\n')
+    const { formatGlobal } = await import('./global-setup.js')
+
+    const r = await applyGlobalConfig(templateDir, '1.8.0', false)
+
+    expect(existsSync(join(cfg, 'skills', 'cavecrew'))).toBe(false)
+    expect(r.retired).toEqual(['skills/cavecrew/SKILL.md'])
+    expect(formatGlobal(r, undefined, undefined)).toContain('skills/cavecrew/SKILL.md: removed, no longer shipped by goodvibes')
+    expect(readJson('.goodvibes.json').files).not.toHaveProperty('skills/cavecrew/SKILL.md')
+  })
+
+  it('keeps a skill file goodvibes no longer ships when the user edited it', async () => {
+    await applyGlobalConfig(templateDir, '1.8.0', false)
+    plantRetiredSkill('my edits\n', 'old skill\n')
+
+    const r = await applyGlobalConfig(templateDir, '1.8.0', false)
+
+    expect(readFileSync(join(cfg, 'skills', 'cavecrew', 'SKILL.md'), 'utf-8')).toBe('my edits\n')
+    expect(r.retired).toEqual([])
+    expect(readJson('.goodvibes.json').files).not.toHaveProperty('skills/cavecrew/SKILL.md')
+  })
+
+  it('only reports a retired skill file in dry-run mode', async () => {
+    await applyGlobalConfig(templateDir, '1.8.0', false)
+    plantRetiredSkill('old skill\n', 'old skill\n')
+
+    const r = await applyGlobalConfig(templateDir, '1.8.0', true)
+
+    expect(r.retired).toEqual(['skills/cavecrew/SKILL.md'])
+    expect(existsSync(join(cfg, 'skills', 'cavecrew', 'SKILL.md'))).toBe(true)
+  })
 })

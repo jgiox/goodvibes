@@ -1797,3 +1797,17 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 **Tests run:** RED: npm 2 failed (json-merge, update integration); pip 2 failed (json_merge, update_cmd). GREEN: npm typecheck 0, vitest 432 passed, 1 skipped; pip pytest 352 passed.
 
 **Docs updated:** JOURNAL.md.
+
+---
+
+## 2026-09-25 · update deletes unchanged skills goodvibes no longer ships
+
+**What I did:** caveman-compress, caveman-stats and cavecrew were removed from the templates because they depend on code goodvibes never shipped, but installs that already had them kept them: the global setup dropped them from its manifest and left the files, and project update skipped copying a file whose template is gone yet kept recording it. Now a tracked file under the skills folder (`skills/` in the Claude config dir, `.claude/skills/` in a project) that goodvibes no longer ships and that is unchanged since goodvibes wrote it is deleted, its empty folder removed, and the deletion reported ("removed, no longer shipped by goodvibes"). An edited copy is the user's and stays. Dry run only reports. npm and pip.
+
+**Files changed:** packages/npm/src/steps/global-setup.ts, packages/npm/src/commands/update.ts, packages/pip/src/goodvibes_cli/steps/global_setup.py, packages/pip/src/goodvibes_cli/commands/update_cmd.py, their tests, JOURNAL.md.
+
+**Why:** Audit follow-up: the removed skills would otherwise stay installed forever.
+
+**Tests run:** RED: npm 4 failed (global-setup integration x3, update integration); pip 4 failed.
+
+**Docs updated:** JOURNAL.md.
