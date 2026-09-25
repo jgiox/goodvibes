@@ -1859,3 +1859,4 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 **What I did:** pip side of a shared spec (npm is done separately to the same strings). Each item lands as a failing-test commit, then the implementation.
 
 - RED: doctor tests for ok/warn/fail/skip statuses, optional headroom and PATH checks, and the summary line.
+- GREEN: `CheckResult.status` replaces `passed`; headroom and a missing goodvibes CLI warn; only `fail` exits 1; summary line ends full doctor.

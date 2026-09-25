@@ -3,9 +3,10 @@ from __future__ import annotations
 
 import importlib.metadata
 import pathlib
+import shutil
 import subprocess
 from dataclasses import dataclass, field
-from typing import Annotated
+from typing import Annotated, Literal
 
 import typer
 from rich.console import Console
@@ -28,11 +29,24 @@ def _installed_version() -> str:
         return "unknown"
 
 
+Status = Literal["ok", "warn", "fail", "skip"]
+SYMBOLS: dict[str, str] = {"ok": "✓", "warn": "!", "fail": "✗", "skip": "-"}
+HEADROOM_REMEDY = 'Run: uv tool install "headroom-ai[all]"  (or re-run goodvibes init)'
+
+
 @dataclass
 class CheckResult:
     label: str
-    passed: bool
+    status: Status
     remedy: str = field(default="")
+
+
+def summary_line(results: list[CheckResult]) -> str:
+    fails = sum(r.status == "fail" for r in results)
+    warns = sum(r.status == "warn" for r in results)
+    if fails:
+        return f"Not ready: {fails} problem(s)."
+    return f"Ready, with {warns} warning(s)." if warns else "Ready."
 
 
 def _check_headroom() -> CheckResult:
@@ -41,13 +55,17 @@ def _check_headroom() -> CheckResult:
             ["headroom", "--version"],
             capture_output=True, text=True, check=True, timeout=10
         )
-        return CheckResult(label="headroom installed and working", passed=True)
-    except (FileNotFoundError, subprocess.CalledProcessError, subprocess.TimeoutExpired):
-        return CheckResult(
-            label="headroom installed and working",
-            passed=False,
-            remedy='Run: uv tool install "headroom-ai[all]"  (or re-run goodvibes init)',
-        )
+        return CheckResult(label="headroom installed and working", status="ok")
+    except FileNotFoundError:
+        return CheckResult("headroom not installed (optional: compresses what Claude reads)", "warn", HEADROOM_REMEDY)
+    except (subprocess.CalledProcessError, subprocess.TimeoutExpired):
+        return CheckResult("headroom not working (optional: compresses what Claude reads)", "warn", HEADROOM_REMEDY)
+
+
+def _check_goodvibes_cli() -> CheckResult:
+    if shutil.which("goodvibes"):
+        return CheckResult("goodvibes CLI on PATH", "ok")
+    return CheckResult("goodvibes CLI not on PATH", "warn", "Run: uv tool install goodvibes-cli")
 
 
 def _check_git_config(key: str) -> CheckResult:
@@ -61,13 +79,13 @@ def _check_git_config(key: str) -> CheckResult:
         passed = bool(result.stdout.strip())
         return CheckResult(
             label=f"git {key}",
-            passed=passed,
+            status="ok" if passed else "fail",
             remedy="" if passed else f'Run: git config --global {key} "Your Value"',
         )
     except (subprocess.CalledProcessError, FileNotFoundError):
         return CheckResult(
             label=f"git {key}",
-            passed=False,
+            status="fail",
             remedy=f'Run: git config --global {key} "Your Value"',
         )
 
@@ -76,7 +94,7 @@ def _check_claude_md(cwd: pathlib.Path) -> CheckResult:
     present = (cwd / "CLAUDE.md").exists()
     return CheckResult(
         label="CLAUDE.md present",
-        passed=present,
+        status="ok" if present else "fail",
         remedy="" if present else "Run: goodvibes init",
     )
 
@@ -84,12 +102,12 @@ def _check_claude_md(cwd: pathlib.Path) -> CheckResult:
 def _check_sentinel(cwd: pathlib.Path) -> CheckResult:
     path = cwd / "CLAUDE.md"
     if not path.exists():
-        return CheckResult(label="goodvibes sentinel block", passed=False, remedy="Run: goodvibes init")
+        return CheckResult(label="goodvibes sentinel block", status="fail", remedy="Run: goodvibes init")
     content = path.read_text(encoding="utf-8")
     ok = SENTINEL_START in content and SENTINEL_END in content
     return CheckResult(
         label="goodvibes sentinel block",
-        passed=ok,
+        status="ok" if ok else "fail",
         remedy="" if ok else "Run: goodvibes init (will merge sentinel block)",
     )
 
@@ -98,7 +116,7 @@ def _project_scope(cwd: pathlib.Path) -> tuple[str | None, list[CheckResult]]:
     try:
         manifest = read_manifest(cwd)
     except ManifestError as e:
-        return "project", [CheckResult(label=".goodvibes.json is valid JSON", passed=False, remedy=str(e))]
+        return "project", [CheckResult(label=".goodvibes.json is valid JSON", status="fail", remedy=str(e))]
     if manifest is None:
         return None, []
     return ("global" if manifest.get("scope") == "global" else "project"), []
@@ -106,7 +124,7 @@ def _project_scope(cwd: pathlib.Path) -> tuple[str | None, list[CheckResult]]:
 
 def _check_global_rules() -> CheckResult:
     ok = (claude_config_dir() / "rules" / "goodvibes.md").exists()
-    return CheckResult(label="goodvibes rules in Claude config", passed=ok, remedy="" if ok else "Run: goodvibes init")
+    return CheckResult(label="goodvibes rules in Claude config", status="ok" if ok else "fail", remedy="" if ok else "Run: goodvibes init")
 
 
 def _rule_checks(cwd: pathlib.Path, scope: str | None) -> list[CheckResult]:
@@ -126,13 +144,14 @@ def doctor_cmd(
         scope, manifest_checks = _project_scope(cwd)
         checks = [_check_git_config("user.name"), _check_git_config("user.email"), *manifest_checks, *(_rule_checks(cwd, scope) if scope else [])]
         for r in checks:
-            if not r.passed:
-                typer.echo(f"goodvibes doctor: ✗ {r.label}." + (f" {r.remedy}" if r.remedy else ""))
+            if r.status in ("warn", "fail"):
+                typer.echo(f"goodvibes doctor: {SYMBOLS[r.status]} {r.label}." + (f" {r.remedy}" if r.remedy else ""))
         return
 
     scope, manifest_checks = _project_scope(cwd)
     results = [
         _check_headroom(),
+        _check_goodvibes_cli(),
         _check_git_config("user.name"),
         _check_git_config("user.email"),
         *manifest_checks,
@@ -140,13 +159,12 @@ def doctor_cmd(
     ]
 
     version = _installed_version()
-    lines = [f"goodvibes v{version}"] + [f"{'✓' if r.passed else '✗'} {r.label}" for r in results]
+    lines = [f"goodvibes v{version}"] + [f"{SYMBOLS[r.status]} {r.label}" for r in results]
     console.print(Panel("\n".join(lines), title="goodvibes doctor"))
 
-    failures = [r for r in results if not r.passed]
-    if failures:
-        remediation = "\n".join(r.remedy for r in failures if r.remedy)
-        console.print(Panel(remediation, title="How to fix"))
+    fixes = [f"{r.label} — {r.remedy}" for r in results if r.status in ("warn", "fail") and r.remedy]
+    if fixes:
+        console.print(Panel("\n".join(fixes), title="How to fix"))
+    typer.echo(summary_line(results))
+    if any(r.status == "fail" for r in results):
         raise typer.Exit(1)
-
-    console.rule("[green]All checks passed.[/green]")
