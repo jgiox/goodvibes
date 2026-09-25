@@ -11,12 +11,15 @@ import typer
 from typer.testing import CliRunner
 
 from goodvibes_cli.commands.doctor_cmd import (
+    SYMBOLS,
     CheckResult,
     _check_claude_md,
     _check_git_config,
+    _check_goodvibes_cli,
     _check_headroom,
     _check_sentinel,
     doctor_cmd,
+    summary_line,
 )
 
 runner = CliRunner()
@@ -30,36 +33,72 @@ def test_check_headroom_returns_pass_when_headroom_working(mocker):
         ),
     )
     result = _check_headroom()
-    assert result.passed is True
+    assert result.status == "ok"
     assert result.label == "headroom installed and working"
 
 
-def test_check_headroom_returns_fail_when_headroom_not_found(mocker):
+def test_check_headroom_warns_as_optional_when_headroom_not_found(mocker):
     mocker.patch(
         "goodvibes_cli.commands.doctor_cmd.subprocess.run",
         side_effect=FileNotFoundError("headroom not found"),
     )
     result = _check_headroom()
-    assert result.passed is False
+    assert result.status == "warn"
+    assert result.label == "headroom not installed (optional: compresses what Claude reads)"
     assert "uv tool install" in result.remedy
 
 
-def test_check_headroom_returns_fail_when_headroom_broken(mocker):
+def test_check_headroom_warns_when_headroom_broken(mocker):
     mocker.patch(
         "goodvibes_cli.commands.doctor_cmd.subprocess.run",
         side_effect=subprocess.CalledProcessError(1, ["headroom", "--version"]),
     )
     result = _check_headroom()
-    assert result.passed is False
+    assert result.status == "warn"
+    assert "optional: compresses what Claude reads" in result.label
 
 
-def test_check_headroom_returns_fail_when_headroom_times_out(mocker):
+def test_check_headroom_warns_when_headroom_times_out(mocker):
     mocker.patch(
         "goodvibes_cli.commands.doctor_cmd.subprocess.run",
         side_effect=subprocess.TimeoutExpired(cmd=["headroom", "--version"], timeout=10),
     )
     result = _check_headroom()
-    assert result.passed is False
+    assert result.status == "warn"
+
+
+def test_check_goodvibes_cli_is_ok_when_goodvibes_is_on_path(mocker):
+    mocker.patch("goodvibes_cli.commands.doctor_cmd.shutil.which", return_value="/usr/local/bin/goodvibes")
+    assert _check_goodvibes_cli() == CheckResult(label="goodvibes CLI on PATH", status="ok")
+
+
+def test_check_goodvibes_cli_warns_when_goodvibes_is_not_on_path(mocker):
+    mocker.patch("goodvibes_cli.commands.doctor_cmd.shutil.which", return_value=None)
+    result = _check_goodvibes_cli()
+    assert result.status == "warn"
+    assert result.label == "goodvibes CLI not on PATH"
+    assert result.remedy == "Run: uv tool install goodvibes-cli"
+
+
+def test_check_git_config_fails_when_git_is_missing(mocker):
+    mocker.patch("goodvibes_cli.commands.doctor_cmd.subprocess.run", side_effect=FileNotFoundError("git"))
+    assert _check_git_config("user.email").status == "fail"
+
+
+def test_summary_line_says_ready_when_every_check_is_ok_or_skip():
+    assert summary_line([CheckResult("a", "ok"), CheckResult("b", "skip")]) == "Ready."
+
+
+def test_summary_line_counts_warnings_when_nothing_fails():
+    assert summary_line([CheckResult("a", "ok"), CheckResult("b", "warn"), CheckResult("c", "warn")]) == "Ready, with 2 warning(s)."
+
+
+def test_summary_line_counts_problems_when_any_check_fails():
+    assert summary_line([CheckResult("a", "fail"), CheckResult("b", "warn"), CheckResult("c", "fail")]) == "Not ready: 2 problem(s)."
+
+
+def test_symbols_render_each_status():
+    assert SYMBOLS == {"ok": "✓", "warn": "!", "fail": "✗", "skip": "-"}
 
 
 def test_check_git_config_returns_pass_when_name_set(mocker):
@@ -68,7 +107,7 @@ def test_check_git_config_returns_pass_when_name_set(mocker):
     mock_result.returncode = 0
     mocker.patch("goodvibes_cli.commands.doctor_cmd.subprocess.run", return_value=mock_result)
     result = _check_git_config("user.name")
-    assert result.passed is True
+    assert result.status == "ok"
 
 
 def test_check_git_config_returns_fail_with_remedy_when_not_set(mocker):
@@ -77,82 +116,108 @@ def test_check_git_config_returns_fail_with_remedy_when_not_set(mocker):
         side_effect=subprocess.CalledProcessError(1, ["git", "config", "user.name"]),
     )
     result = _check_git_config("user.name")
-    assert result.passed is False
+    assert result.status == "fail"
     assert "git config --global user.name" in result.remedy
 
 
 def test_check_claude_md_returns_pass_when_file_exists(tmp_path):
     (tmp_path / "CLAUDE.md").write_text("# goodvibes")
-    assert _check_claude_md(tmp_path).passed is True
+    assert _check_claude_md(tmp_path).status == "ok"
 
 
 def test_check_claude_md_returns_fail_when_file_absent(tmp_path):
-    assert _check_claude_md(tmp_path).passed is False
+    assert _check_claude_md(tmp_path).status == "fail"
 
 
 def test_check_sentinel_returns_pass_when_both_markers_present(tmp_path):
     (tmp_path / "CLAUDE.md").write_text("<!-- goodvibes:start -->\ncontent\n<!-- goodvibes:end -->")
-    assert _check_sentinel(tmp_path).passed is True
+    assert _check_sentinel(tmp_path).status == "ok"
 
 
 def test_check_sentinel_returns_fail_when_sentinel_missing(tmp_path):
     (tmp_path / "CLAUDE.md").write_text("# just a header, no sentinel")
-    assert _check_sentinel(tmp_path).passed is False
+    assert _check_sentinel(tmp_path).status == "fail"
+
+
+def _mock_checks(mocker, tmp_path, headroom="ok", git=("ok", "ok")):
+    mocker.patch("goodvibes_cli.commands.doctor_cmd._check_headroom", return_value=CheckResult(label="headroom check", status=headroom, remedy="Run: uv tool install headroom"))
+    mocker.patch("goodvibes_cli.commands.doctor_cmd._check_git_config", side_effect=[
+        CheckResult(label="git user.name", status=git[0], remedy='Run: git config --global user.name "Your Value"'),
+        CheckResult(label="git user.email", status=git[1], remedy='Run: git config --global user.email "Your Value"'),
+    ])
+    mocker.patch("goodvibes_cli.commands.doctor_cmd._check_claude_md", return_value=CheckResult(label="CLAUDE.md present", status="ok"))
+    mocker.patch("goodvibes_cli.commands.doctor_cmd._check_sentinel", return_value=CheckResult(label="goodvibes sentinel block", status="ok"))
+    mocker.patch("goodvibes_cli.commands.doctor_cmd.pathlib.Path.cwd", return_value=tmp_path)
+
+
+@pytest.fixture(autouse=True)
+def _goodvibes_on_path(mocker):
+    mocker.patch("goodvibes_cli.commands.doctor_cmd.shutil.which", return_value="/usr/local/bin/goodvibes")
 
 
 def test_doctor_cmd_raises_exit_1_when_any_check_fails(mocker, tmp_path):
-    mocker.patch("goodvibes_cli.commands.doctor_cmd._check_headroom", return_value=CheckResult(label="headroom installed and working", passed=False, remedy="Run: uv tool install"))
-    # _check_git_config is called twice (user.name, user.email); return pass for both
-    mocker.patch("goodvibes_cli.commands.doctor_cmd._check_git_config", return_value=CheckResult(label="git user.name", passed=True))
-    mocker.patch("goodvibes_cli.commands.doctor_cmd._check_claude_md", return_value=CheckResult(label="CLAUDE.md present", passed=True))
-    mocker.patch("goodvibes_cli.commands.doctor_cmd._check_sentinel", return_value=CheckResult(label="goodvibes sentinel block", passed=True))
-    mocker.patch("goodvibes_cli.commands.doctor_cmd.pathlib.Path.cwd", return_value=tmp_path)
+    _mock_checks(mocker, tmp_path, git=("fail", "ok"))
     with pytest.raises(typer.Exit) as exc:
         doctor_cmd()
     assert exc.value.exit_code == 1
 
 
 def test_doctor_cmd_does_not_raise_when_all_checks_pass(mocker, tmp_path):
-    mocker.patch("goodvibes_cli.commands.doctor_cmd._check_headroom", return_value=CheckResult(label="headroom installed and working", passed=True))
-    mocker.patch("goodvibes_cli.commands.doctor_cmd._check_git_config", return_value=CheckResult(label="git user.name", passed=True))
-    mocker.patch("goodvibes_cli.commands.doctor_cmd._check_claude_md", return_value=CheckResult(label="CLAUDE.md present", passed=True))
-    mocker.patch("goodvibes_cli.commands.doctor_cmd._check_sentinel", return_value=CheckResult(label="goodvibes sentinel block", passed=True))
-    mocker.patch("goodvibes_cli.commands.doctor_cmd.pathlib.Path.cwd", return_value=tmp_path)
-    # Should complete without raising typer.Exit
+    _mock_checks(mocker, tmp_path)
     doctor_cmd()
 
 
-def test_doctor_cmd_collects_all_failures_before_exiting(mocker, tmp_path):
+def test_doctor_exits_0_and_counts_warnings_when_only_optional_parts_are_missing(mocker, tmp_path):
     from goodvibes_cli.main import app
-
-    mocker.patch("goodvibes_cli.commands.doctor_cmd._check_headroom", return_value=CheckResult(label="headroom installed and working", passed=False, remedy="Run: uv tool install"))
-    mocker.patch("goodvibes_cli.commands.doctor_cmd._check_git_config", side_effect=[
-        CheckResult(label="git user.name", passed=False, remedy='Run: git config --global user.name "Your Value"'),
-        CheckResult(label="git user.email", passed=True),
-    ])
-    mocker.patch("goodvibes_cli.commands.doctor_cmd._check_claude_md", return_value=CheckResult(label="CLAUDE.md present", passed=True))
-    mocker.patch("goodvibes_cli.commands.doctor_cmd._check_sentinel", return_value=CheckResult(label="goodvibes sentinel block", passed=True))
-    mocker.patch("goodvibes_cli.commands.doctor_cmd.pathlib.Path.cwd", return_value=tmp_path)
-
+    _mock_checks(mocker, tmp_path, headroom="warn")
+    mocker.patch("goodvibes_cli.commands.doctor_cmd.shutil.which", return_value=None)
     result = runner.invoke(app, ["doctor"])
+    assert result.exit_code == 0
+    assert "! headroom check" in result.output
+    assert "! goodvibes CLI not on PATH" in result.output
+    assert result.output.rstrip().splitlines()[-1] == "Ready, with 2 warning(s)."
 
+
+def test_doctor_ends_with_ready_when_every_check_is_ok(mocker, tmp_path):
+    from goodvibes_cli.main import app
+    _mock_checks(mocker, tmp_path)
+    result = runner.invoke(app, ["doctor"])
+    assert result.exit_code == 0
+    assert result.output.rstrip().splitlines()[-1] == "Ready."
+
+
+def test_doctor_collects_all_failures_and_ends_with_not_ready(mocker, tmp_path):
+    from goodvibes_cli.main import app
+    _mock_checks(mocker, tmp_path, headroom="warn", git=("fail", "fail"))
+    result = runner.invoke(app, ["doctor"])
     assert result.exit_code == 1
-    # Both failure labels must appear in output before exit — collect-all behavior
-    assert "headroom" in result.output
-    assert "user.name" in result.output
+    assert "✗ git user.name" in result.output
+    assert "✗ git user.email" in result.output
+    assert "! headroom check" in result.output
+    assert result.output.rstrip().splitlines()[-1] == "Not ready: 2 problem(s)."
 
 
 def test_doctor_output_starts_with_version_line(mocker, tmp_path):
     mocker.patch("goodvibes_cli.commands.doctor_cmd.importlib.metadata.version", return_value="1.6.2")
-    mocker.patch("goodvibes_cli.commands.doctor_cmd._check_headroom", return_value=CheckResult(label="headroom installed and working", passed=True))
-    mocker.patch("goodvibes_cli.commands.doctor_cmd._check_git_config", return_value=CheckResult(label="git user.name", passed=True))
-    mocker.patch("goodvibes_cli.commands.doctor_cmd._check_claude_md", return_value=CheckResult(label="CLAUDE.md present", passed=True))
-    mocker.patch("goodvibes_cli.commands.doctor_cmd._check_sentinel", return_value=CheckResult(label="goodvibes sentinel block", passed=True))
-    mocker.patch("goodvibes_cli.commands.doctor_cmd.pathlib.Path.cwd", return_value=tmp_path)
+    _mock_checks(mocker, tmp_path)
     from goodvibes_cli.main import app
-    from typer.testing import CliRunner as TR
-    result = TR().invoke(app, ["doctor"])
+    result = runner.invoke(app, ["doctor"])
     assert "goodvibes v1.6.2" in result.output
+
+
+def test_doctor_quick_prints_warnings_and_failures_and_exits_0(mocker, tmp_path):
+    from goodvibes_cli.main import app
+    mocker.patch("pathlib.Path.cwd", return_value=tmp_path)
+    mocker.patch("goodvibes_cli.commands.doctor_cmd._check_git_config", side_effect=[
+        CheckResult(label="git user.name", status="fail", remedy="Fix name"),
+        CheckResult(label="git user.email", status="warn", remedy="Fix email"),
+    ])
+    result = runner.invoke(app, ["doctor", "--quick"])
+    assert result.exit_code == 0
+    assert result.output.splitlines() == [
+        "goodvibes doctor: ✗ git user.name. Fix name",
+        "goodvibes doctor: ! git user.email. Fix email",
+    ]
 
 
 def test_doctor_quick_prints_nothing_and_skips_headroom_when_all_quick_checks_pass(mocker, tmp_path):
