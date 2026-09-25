@@ -35,10 +35,9 @@ function packageArg(args: string[], uvx: boolean): string | undefined {
   return undefined
 }
 
-// `pkg@latest` still fetches whatever is newest, so only a real version or range counts as pinned.
 const pinnedAfter = (pkg: string, sep: string, from: number): boolean => {
   const at = pkg.indexOf(sep, from)
-  return at >= 0 && pkg.slice(at + sep.length) !== '' && pkg.slice(at + sep.length) !== 'latest'
+  return at >= 0 && pkg.slice(at + sep.length) !== ''
 }
 
 function problems(s: Server): Problem[] {
@@ -57,7 +56,8 @@ function problems(s: Server): Problem[] {
 
   const launcher = isPath ? null : cmd === 'npx' || cmd === 'bunx' || cmd === 'uvx' ? cmd : cmd === 'pnpm' && args[0] === 'dlx' ? 'pnpm dlx' : null
   if (launcher) {
-    const pkg = packageArg(launcher === 'pnpm dlx' ? args.slice(1) : args, launcher === 'uvx')
+    // `pkg@latest` still fetches whatever is newest, so it is reported as the bare, unpinned name.
+    const pkg = packageArg(launcher === 'pnpm dlx' ? args.slice(1) : args, launcher === 'uvx')?.replace(/@latest$/, '')
     if (pkg && launcher === 'uvx' && !pinnedAfter(pkg, '==', 0) && !pinnedAfter(pkg, '@', 0)) {
       out.push([`uvx fetches unpinned ${pkg} on every run`, `Pin a version: ${pkg}==<version>.`])
     } else if (pkg && launcher !== 'uvx' && !pinnedAfter(pkg, '@', 1)) {

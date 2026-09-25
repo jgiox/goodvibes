@@ -1884,4 +1884,5 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 - Usage RED: tests for the spec's blank lines (after the header, and before the note and footer).
 - Usage GREEN: `usage.ts` prints a blank line after the header and after the breakdown line.
 - MCP @latest RED: test that `<pkg>@latest` is reported and fixed as `<pkg>` (label and remedy), per coordinator follow-up.
+- MCP @latest GREEN: `mcp-check.ts` strips a trailing `@latest` from the package before the pin check, so label and remedy name the bare package. (a) still matches full-path `sh`/`bash`; `@next` stays pinned.
 
