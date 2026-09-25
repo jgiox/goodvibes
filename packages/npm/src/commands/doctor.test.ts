@@ -336,6 +336,27 @@ describe('doctor command', () => {
     })
   })
 
+  describe('program lookup', () => {
+    it('runs headroom and git without searching the project folder for them', async () => {
+      const { execa } = await import('execa')
+      vi.mocked(execa).mockResolvedValue({ stdout: 'value' } as any)
+      const { existsSync, readFileSync } = await import('node:fs')
+      vi.mocked(existsSync).mockReturnValue(true)
+      vi.mocked(readFileSync).mockImplementation(withManifest('<!-- goodvibes:start -->\n<!-- goodvibes:end -->'))
+      const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never)
+      const { registerDoctorCommand } = await import('./doctor.js')
+      let capturedAction: () => Promise<void> = async () => {}
+      const program = { command: vi.fn().mockReturnThis(), description: vi.fn().mockReturnThis(),
+        option: vi.fn().mockReturnThis(), action: vi.fn((fn) => { capturedAction = fn; return { command: vi.fn() } }) }
+      registerDoctorCommand(program as any)
+      await capturedAction()
+      exitSpy.mockRestore()
+
+      expect(vi.mocked(execa).mock.calls.map(c => c[0])).toEqual(['headroom', 'git', 'git'])
+      for (const c of vi.mocked(execa).mock.calls) expect(c[2]).toEqual(expect.objectContaining({ env: expect.objectContaining({ NoDefaultCurrentDirectoryInExePath: '1' }) }))
+    })
+  })
+
   describe('version line', () => {
     it('doctor output includes goodvibes version as first line', async () => {
       const { execa } = await import('execa')

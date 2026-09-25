@@ -743,3 +743,11 @@ def test_doctor_quick_never_runs_the_git_hook_check(mocker, tmp_path):
     result = runner.invoke(app, ["doctor", "--quick"])
     assert result.exit_code == 0
     check.assert_not_called()
+
+
+def test_doctor_runs_headroom_and_git_without_searching_the_project_folder_for_them(mocker):
+    run = mocker.patch("goodvibes_cli.commands.doctor_cmd.subprocess.run", return_value=subprocess.CompletedProcess(args=[], returncode=0, stdout="x", stderr=""))
+    _check_headroom()
+    _check_git_config("user.name")
+    assert [c.args[0][0] for c in run.call_args_list] == ["headroom", "git"]
+    assert all(c.kwargs["env"]["NoDefaultCurrentDirectoryInExePath"] == "1" for c in run.call_args_list)

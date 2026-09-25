@@ -175,3 +175,10 @@ def test_hook_line_prefixes_would_only_for_installed_and_updated_in_a_dry_run():
     assert hook_line({"status": "linked-hooks", "path": ""}, False) == "Git commit check skipped: .git/hooks is a link or points outside this repository's git folder, so goodvibes left it alone."
     assert hook_line({"status": "linked-hooks", "path": ""}, True) == "Git commit check skipped: .git/hooks is a link or points outside this repository's git folder, so goodvibes left it alone."
 
+
+
+def test_runs_every_git_call_without_searching_the_project_folder_for_git(repo, mocker):
+    spy = mocker.spy(subprocess, "run")
+    install_git_hook(repo, True)
+    assert spy.call_count == 3
+    assert all(c.kwargs["env"]["NoDefaultCurrentDirectoryInExePath"] == "1" for c in spy.call_args_list)

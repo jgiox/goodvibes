@@ -351,3 +351,10 @@ def test_apply_global_config_only_reports_a_retired_skill_file_in_dry_run():
     r = apply_global_config(TEMPLATES, "1.8.0", dry_run=True)
     assert r["retired"] == ["skills/cavecrew/SKILL.md"]
     assert (_cfg() / "skills" / "cavecrew" / "SKILL.md").exists()
+
+
+def test_ensure_global_cli_runs_uv_without_searching_the_project_folder_for_it(mocker):
+    mocker.patch("goodvibes_cli.steps.global_setup.shutil.which", return_value=None)
+    run = mocker.patch("goodvibes_cli.steps.global_setup.subprocess.run", return_value=_done())
+    ensure_global_cli("1.8.0", dry_run=False)
+    assert run.call_args.kwargs["env"]["NoDefaultCurrentDirectoryInExePath"] == "1"

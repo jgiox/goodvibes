@@ -136,6 +136,16 @@ describe('upgrade command', () => {
     expect(vi.mocked(execa)).toHaveBeenCalledWith('npm', ['view', 'goodvibes-cli', 'version'], expect.objectContaining({ cwd: homedir() }))
   })
 
+  it('runs npm view, npm install and the re-run without searching the project folder for the program', async () => {
+    const { execa } = await import('execa')
+    vi.mocked(execa).mockResolvedValue({ stdout: '1.0.1' } as never)
+
+    await runUpgrade().catch(() => {})
+
+    expect(vi.mocked(execa).mock.calls).toHaveLength(3)
+    for (const c of vi.mocked(execa).mock.calls) expect(c[2]).toEqual(expect.objectContaining({ env: expect.objectContaining({ NoDefaultCurrentDirectoryInExePath: '1' }) }))
+  })
+
   it('skips the version check when _GV_UPGRADING is set', async () => {
     const { execa } = await import('execa')
     process.env._GV_UPGRADING = '1'
