@@ -5,6 +5,71 @@ import { resolveTemplatesDir } from './copy-templates.js'
 
 const read = (name: string) => readFileSync(join(resolveTemplatesDir(), '.github', 'workflows', name), 'utf-8')
 const WORKFLOWS = ['ci-node.yml', 'ci-python.yml', 'ci-both.yml', 'security.yml', 'dependency-review.yml', 'file-size.yml']
+const NODE_IF = "if: hashFiles('package.json') != ''"
+const PY_IF = "if: hashFiles('pyproject.toml', 'requirements.txt') != ''"
+const job = (f: string, lang: 'node' | 'python') => {
+  const text = read(f)
+  if (f !== 'ci-both.yml') return text
+  const [node, python] = text.split('\n  test-python:')
+  return lang === 'node' ? node : python
+}
+const stepsAfterCheckout = (text: string) => text.split('\n      - ').slice(1).filter(s => !s.includes('actions/checkout@'))
+
+describe('template CI on a project without a manifest', () => {
+  it.each(['ci-node.yml', 'ci-both.yml'])('%s skips every Node.js step instead of failing when the project has no package.json', f => {
+    const steps = stepsAfterCheckout(job(f, 'node'))
+    expect(steps.length).toBeGreaterThan(1)
+    for (const step of steps) expect(step).toMatch(/if: hashFiles\('package\.json'\) (!=|==) ''/)
+    expect(steps.filter(s => s.includes(NODE_IF)).length).toBe(steps.length - 1)
+  })
+
+  it.each(['ci-python.yml', 'ci-both.yml'])('%s skips every Python step instead of failing when the project has no pyproject.toml or requirements.txt', f => {
+    const steps = stepsAfterCheckout(job(f, 'python'))
+    expect(steps.length).toBeGreaterThan(1)
+    for (const step of steps) expect(step).toMatch(/if: hashFiles\('pyproject\.toml', 'requirements\.txt'\) (!=|==) ''/)
+    expect(steps.filter(s => s.includes(PY_IF)).length).toBe(steps.length - 1)
+  })
+
+  it.each(['ci-python.yml', 'ci-both.yml'])('%s creates a virtual environment, because uv pip install -r requirements.txt fails without one', f => {
+    expect(job(f, 'python')).toContain('activate-environment: true')
+  })
+
+  it.each(['ci-python.yml', 'ci-both.yml'])('%s installs pytest for a requirements.txt project so its tests can run', f => {
+    const install = job(f, 'python').split('elif [ -f "requirements.txt" ]; then')[1].split('fi')[0]
+    expect(install).toContain('uv pip install -r requirements.txt')
+    expect(install).toContain('uv pip install pytest')
+  })
+
+  it('gives each CI variant its own concurrency group, because the template repo ships all three and they would cancel each other', () => {
+    const groups = ['ci-node.yml', 'ci-python.yml', 'ci-both.yml'].map(f => read(f).match(/\n {2}group: (.+)\n/)?.[1])
+    expect(new Set(groups).size).toBe(3)
+  })
+
+  it.each(['ci-node.yml', 'ci-both.yml'])('%s tests on Node 22 and 24, not Node 20 which is end of life', f => {
+    expect(read(f)).toContain("node: ['22', '24']")
+  })
+})
+
+describe('template CodeQL', () => {
+  const detect = () => read('security.yml').split('- name: Detect languages')[1].split('- name: Initialize CodeQL')[0]
+
+  it('detects JavaScript and TypeScript in .mjs, .cjs, .jsx and .tsx files too', () => {
+    for (const ext of ['js', 'mjs', 'cjs', 'jsx', 'ts', 'tsx']) expect(detect()).toContain(`-name '*.${ext}'`)
+  })
+
+  it('skips the CodeQL steps instead of analysing Python when the project has no supported source files', () => {
+    expect(detect()).not.toMatch(/\[ -z "\$langs" \] && langs=/)
+    const codeql = read('security.yml').split('\n      - ').filter(s => s.includes('github/codeql-action/'))
+    expect(codeql.length).toBe(3)
+    for (const step of codeql) expect(step).toContain("if: steps.langs.outputs.value != ''")
+  })
+
+  it('skips CodeQL on private repos in the weekly scheduled run too, where github.event carries no repository', () => {
+    expect(read('security.yml')).toContain("- cron: '0 8 * * 1'")
+    expect(detect()).toContain('gh api "repos/$GITHUB_REPOSITORY" --jq .private')
+    expect(detect()).toContain('GH_TOKEN: ${{ github.token }}')
+  })
+})
 
 describe('template workflows', () => {
   it.each(['ci-python.yml', 'ci-both.yml'])('%s runs pytest without --extra dev, which fails for [dependency-groups] dev projects', f => {
@@ -49,8 +114,16 @@ describe('template workflows', () => {
 
 describe('template workflow limits', () => {
   it.each(WORKFLOWS)('%s cancels superseded pull request runs but never runs on main', f => {
+    const variant = f.match(/^ci-(\w+)\.yml$/)?.[1]
+    const group = variant ? `\${{ github.workflow }}-${variant}-\${{ github.ref }}` : '${{ github.workflow }}-${{ github.ref }}'
     expect(read(f)).toContain(
-      "\nconcurrency:\n  group: ${{ github.workflow }}-${{ github.ref }}\n  cancel-in-progress: ${{ github.event_name == 'pull_request' }}\n",
+      `\nconcurrency:\n  group: ${group}\n  cancel-in-progress: \${{ github.event_name == 'pull_request' }}\n`,
+    )
+  })
+
+  it('pins dependency review to the v5.0.0 commit, not the movable v5 branch', () => {
+    expect(read('dependency-review.yml')).toContain(
+      'uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0',
     )
   })
 
@@ -80,7 +153,13 @@ describe('template workflow limits', () => {
   it('Dependabot waits seven days, longer than GitHub\'s 3-day default, before proposing a new release', () => {
     const text = readFileSync(join(resolveTemplatesDir(), '.github', 'dependabot.yml'), 'utf-8')
     const entries = text.split('  - package-ecosystem:').slice(1)
-    expect(entries.length).toBe(3)
+    expect(entries.length).toBeGreaterThan(0)
     for (const entry of entries) expect(entry).toContain('\n    cooldown:\n      default-days: 7\n')
+  })
+
+  it('Dependabot updates only GitHub Actions by default, because an npm or pip entry fails every week in a project without that manifest', () => {
+    const text = readFileSync(join(resolveTemplatesDir(), '.github', 'dependabot.yml'), 'utf-8')
+    expect([...text.matchAll(/^ {2}- package-ecosystem: "(\S+)"/gm)].map(m => m[1])).toEqual(['github-actions'])
+    expect(text).toContain('docs/getting-started.md')
   })
 })
