@@ -1,12 +1,14 @@
 #!/bin/sh
 # goodvibes-pre-commit: blocks a commit that leaves out JOURNAL.md. Skip once: git commit --no-verify
 [ "${GOODVIBES_JOURNAL_CHECK:-}" = off ] && exit 0
-top=$(git rev-parse --show-toplevel 2>/dev/null) || exit 0
+# A cloned repo's config could name an fsmonitor program; never let this hook run it.
+g() { git -c core.fsmonitor=false -c safe.bareRepository=explicit "$@"; }
+top=$(g rev-parse --show-toplevel 2>/dev/null) || exit 0
 [ -f "$top/JOURNAL.md" ] || exit 0
 # Nothing staged is a message-only amend; a plain commit stops at "nothing to commit" anyway.
-git diff --cached --quiet && exit 0
-git diff --cached --name-only | grep -qx 'JOURNAL.md' && exit 0
-gd=$(git rev-parse --git-dir)
+g diff --cached --quiet && exit 0
+g diff --cached --name-only | grep -qx 'JOURNAL.md' && exit 0
+gd=$(g rev-parse --git-dir)
 for f in MERGE_HEAD CHERRY_PICK_HEAD REVERT_HEAD; do [ -f "$gd/$f" ] && exit 0; done
 { [ -d "$gd/rebase-merge" ] || [ -d "$gd/rebase-apply" ]; } && exit 0
 echo "goodvibes: this commit leaves out JOURNAL.md. Add a short entry saying what changed and why, then run: git add JOURNAL.md" >&2

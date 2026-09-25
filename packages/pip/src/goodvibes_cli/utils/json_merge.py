@@ -102,7 +102,7 @@ def present_ids(rel: str, tpl: dict, content: dict) -> list[str]:
 
 
 # Allow rules goodvibes shipped up to 1.9.1: they auto-approved running arbitrary code, so update takes them back out.
-RETIRED_ALLOW = ['Bash(npm install*)', 'Bash(npm run*)', 'Bash(npx*)', 'Bash(pip install*)', 'Bash(uv*)', 'Bash(python*)', 'Bash(node*)', 'Bash(git restore *)']
+RETIRED_ALLOW = ['Bash(npm install*)', 'Bash(npm run*)', 'Bash(npx*)', 'Bash(pip install*)', 'Bash(uv*)', 'Bash(python*)', 'Bash(node*)', 'Bash(git restore *)', 'Write(**)']
 
 
 def merge_managed_json(

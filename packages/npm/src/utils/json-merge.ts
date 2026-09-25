@@ -83,7 +83,7 @@ export function presentIds(rel: string, tpl: Json, content: Json): string[] {
 
 // An id in `installed` but absent from `user` was removed by the user and stays removed.
 // Allow rules goodvibes shipped up to 1.9.1: they auto-approved running arbitrary code, so update takes them back out.
-export const RETIRED_ALLOW = ['Bash(npm install*)', 'Bash(npm run*)', 'Bash(npx*)', 'Bash(pip install*)', 'Bash(uv*)', 'Bash(python*)', 'Bash(node*)', 'Bash(git restore *)']
+export const RETIRED_ALLOW = ['Bash(npm install*)', 'Bash(npm run*)', 'Bash(npx*)', 'Bash(pip install*)', 'Bash(uv*)', 'Bash(python*)', 'Bash(node*)', 'Bash(git restore *)', 'Write(**)']
 
 export function mergeManagedJson(
   rel: string,
