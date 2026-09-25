@@ -231,7 +231,7 @@ Linux, macOS and Windows through WSL2 are supported. Native Windows works on a b
 
 ## Privacy
 
-`goodvibes init` sends one anonymous install count: an empty request with a random ID made fresh for that run. Nothing about you, your machine or your code is included, though like any web request the server sees your IP address. It is skipped in CI (`CI=true`). To turn it off, set `DO_NOT_TRACK=1` (or `true`, `yes`) or `GOODVIBES_NO_TELEMETRY=1`. The counter has no accounts or keys, so its totals are approximate.
+`goodvibes init` sends one anonymous install count: an empty request with a random ID made fresh for that run. Nothing about you, your machine or your code is included, though like any web request the server sees your IP address. It is skipped in CI (when `CI` is set to anything other than `0` or `false`). To turn it off, set `DO_NOT_TRACK=1` (or `true`, `yes`) or `GOODVIBES_NO_TELEMETRY=1`. The counter has no accounts or keys, so its totals are approximate.
 
 `goodvibes usage` and `goodvibes doctor` never send anything.
 

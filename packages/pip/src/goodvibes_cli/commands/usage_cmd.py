@@ -39,7 +39,8 @@ def session_usage(path: pathlib.Path) -> dict | None:
     text = path.read_text(encoding="utf-8", errors="replace")
     mtime = path.stat().st_mtime
     messages: dict[object, dict] = {}
-    for n, line in enumerate(text.splitlines()):
+    # Not splitlines(): it also breaks on U+2028 and friends, which JSON text may hold raw.
+    for n, line in enumerate(text.split("\n")):
         try:
             entry = json.loads(line)
         except ValueError:

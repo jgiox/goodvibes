@@ -1,6 +1,7 @@
 import type { Command } from 'commander'
 import { intro, note } from '@clack/prompts'
 import { execa } from 'execa'
+import { homedir } from 'node:os'
 import { versionGte } from '../utils/sentinel-merge.js'
 import { packageVersion } from '../utils/version.js'
 import { runUpdate } from './update.js'
@@ -9,24 +10,35 @@ import { claudeConfigDir } from '../steps/global-setup.js'
 
 const _GV_UPGRADING = '_GV_UPGRADING'
 
+const npmErrorText = (e: unknown): string => {
+  const err = e as { stderr?: unknown; message?: string }
+  return `${String(err.stderr ?? '')}\n${err.message ?? String(e)}`
+}
+
+const firstErrorLine = (text: string): string => {
+  const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean)
+  return lines.find(l => /error/i.test(l)) ?? lines[0] ?? 'unknown error'
+}
+
 async function checkLatestNpmVersion(): Promise<string | null> {
   try {
-    const { stdout } = await execa('npm', ['view', 'goodvibes-cli', 'version'])
-    return stdout.trim() || null
-  } catch {
-    return null
+    // From the home folder, so a project's .npmrc cannot point npm at another registry.
+    const { stdout } = await execa('npm', ['view', 'goodvibes-cli', 'version'], { cwd: homedir() })
+    if (stdout.trim()) return stdout.trim()
+    note('Could not check npm for a newer version (npm printed no version); updating with the installed version')
+  } catch (e) {
+    note(`Could not check npm for a newer version (${firstErrorLine(npmErrorText(e))}); updating with the installed version`)
   }
+  return null
 }
 
 function npmInstallFailure(e: unknown, version: string): string {
-  const err = e as { stderr?: unknown; message?: string }
-  const text = `${String(err.stderr ?? '')}\n${err.message ?? String(e)}`
+  const text = npmErrorText(e)
   const retry = `Then run: npm install -g goodvibes-cli@${version}`
   if (/EACCES|permission denied/i.test(text)) {
     return `npm cannot write its global folder (permission denied).\nFix: https://docs.npmjs.com/resolving-eacces-permissions-errors-when-installing-packages-globally\n${retry}`
   }
-  const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean)
-  return `npm install -g goodvibes-cli@${version} failed: ${lines.find(l => /error/i.test(l)) ?? lines[0] ?? 'unknown error'}\n${retry}`
+  return `npm install -g goodvibes-cli@${version} failed: ${firstErrorLine(text)}\n${retry}`
 }
 
 export function registerUpgradeCommand(program: Command): void {

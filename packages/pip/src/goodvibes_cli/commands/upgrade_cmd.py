@@ -5,6 +5,7 @@ import importlib.metadata
 import json
 import os
 import pathlib
+import shlex
 import subprocess
 import sys
 import urllib.request
@@ -58,7 +59,7 @@ def _self_update_pip(latest: str) -> None:
             return
         except (subprocess.CalledProcessError, FileNotFoundError):
             continue
-    console.print(f"[red]Could not upgrade goodvibes.[/red] Run: {' '.join(attempts[0])}")
+    console.print(f"[red]Could not upgrade goodvibes.[/red] Run: {shlex.join(attempts[0])}")
     raise typer.Exit(1)
 
 

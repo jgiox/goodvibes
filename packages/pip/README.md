@@ -50,7 +50,7 @@ Linux, macOS and Windows through WSL2 are supported; native Windows is best effo
 
 ## Privacy
 
-`goodvibes init` sends one anonymous install count: an empty request with a random ID, nothing about you or your code (the server sees your IP address, as with any request). It is skipped in CI. Set `DO_NOT_TRACK=1` (or `true`, `yes`) or `GOODVIBES_NO_TELEMETRY=1` to turn it off. `doctor` and `usage` never send anything.
+`goodvibes init` sends one anonymous install count: an empty request with a random ID, nothing about you or your code (the server sees your IP address, as with any request). It is skipped in CI (when `CI` is set to anything other than `0` or `false`). Set `DO_NOT_TRACK=1` (or `true`, `yes`) or `GOODVIBES_NO_TELEMETRY=1` to turn it off. `doctor` and `usage` never send anything.
 
 ## Links
 

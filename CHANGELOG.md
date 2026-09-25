@@ -19,6 +19,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/2.0.0/),
 
 ### Fixed
 
+- Telemetry is now skipped whenever `CI` is set to anything other than `0` or `false` (for example `CI=1`), not only for `CI=true`. npm and pip use the same rule
+- `goodvibes upgrade` (npm) now says "Could not check npm for a newer version (...); updating with the installed version" when the version check fails, like pip does for PyPI, instead of carrying on silently. It runs `npm view` from your home folder, so a project's `.npmrc` cannot choose which version counts as newest
+- `goodvibes upgrade` (pip): the "Could not upgrade goodvibes. Run: ..." line now quotes `'goodvibes-cli>=X'`, so pasting it into a terminal no longer treats `>` as a redirect that creates a file named `=X`
+- `goodvibes usage` (pip) no longer undercounts when a logged message contains a Unicode line separator (U+2028); its totals now match npm's
 - `goodvibes upgrade` run outside a goodvibes project (for example in your home folder) now says the new version is installed and how to update a project, instead of ending with a "No .goodvibes.json ... not set up here yet" box that looked like the upgrade had failed
 - `goodvibes update` no longer crashes (pip) or damages the file (npm) when a JSON file it merges is valid but has a key of the wrong type, for example `"mcpServers": []` in `.cursor/mcp.json`, `"hooks": []` in `.claude/settings.json`, or a `permissions.deny` written as one string instead of a list. npm used to split such a string into single characters and save that. The file is now left unchanged, and update names the key to fix
 - File Size check in projects that already have their own GitHub workflows: `goodvibes init` now adds `.github/workflows/file-size.yml` together with the script it runs (the other goodvibes workflows are still skipped there), and `goodvibes update` adds it to projects that got only the script. An existing `file-size.yml` is never overwritten, and `--minimal` still skips all of `.github/`
