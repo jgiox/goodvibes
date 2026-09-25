@@ -1861,3 +1861,4 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 - 1 GREEN: `CheckResult` now has `status` (ok/warn/fail/skip, shown as ✓ ! ✗ -); headroom missing and goodvibes not on PATH are warnings; `How to fix` lists `label: remedy` for warnings and failures; the last line is `Ready.`, `Ready, with N warning(s).` or `Not ready: N problem(s).`; exit 1 only on a failure.
 - 2 RED: doctor and doctor --quick tests for the JOURNAL.md size warning (over 10 KB).
 - 2 GREEN: `checkJournal` warns when JOURNAL.md is over 10 KB (size shown rounded up to whole KB) in doctor and doctor --quick; the file is only stat-ed.
+- 3 RED: `mcp-check.test.ts` (real temp files, CLAUDE_CONFIG_DIR and HOME stubbed) for the MCP server check: sources, ok lines, and the four warnings; doctor tests that the full doctor shows it and --quick never runs it.

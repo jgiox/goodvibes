@@ -15,6 +15,8 @@ vi.mock('node:fs', () => ({
   statSync: vi.fn(),
 }))
 
+vi.mock('./mcp-check.js', () => ({ checkMcpServers: vi.fn(() => []) }))
+
 vi.mock('../utils/version.js', () => ({ packageVersion: () => '1.6.2' }))
 
 // existsSync is true for every path in some tests, so .goodvibes.json must read as a real manifest there.
@@ -27,6 +29,8 @@ describe('doctor command', () => {
     vi.resetModules()
     const { statSync } = await import('node:fs')
     vi.mocked(statSync).mockReturnValue({ size: 100 } as any)
+    const { checkMcpServers } = await import('./mcp-check.js')
+    vi.mocked(checkMcpServers).mockReturnValue([])
   })
 
   const JOURNAL_WARNING = 'JOURNAL.md is 13 KB; agents read it every session. Keep lasting decisions in its "Standing decisions" section and keep new entries short.'
@@ -466,6 +470,38 @@ describe('doctor command', () => {
     })
   })
 
+  describe('MCP servers in the full doctor', () => {
+    it('lists the MCP check results and counts their warnings without failing', async () => {
+      const { execa } = await import('execa')
+      vi.mocked(execa).mockResolvedValue({ stdout: 'value' } as any)
+      const { existsSync, readFileSync } = await import('node:fs')
+      vi.mocked(existsSync).mockReturnValue(true)
+      vi.mocked(readFileSync).mockImplementation(withManifest('<!-- goodvibes:start -->\nx\n<!-- goodvibes:end -->'))
+      const { checkMcpServers } = await import('./mcp-check.js')
+      vi.mocked(checkMcpServers).mockReturnValue([
+        { label: 'MCP context7 (project)', status: 'ok' },
+        { label: 'MCP remote (user): uses plain http to mcp.example.com', status: 'warn', remedy: 'Use an https:// URL.' },
+      ])
+      const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never)
+      const { note, outro } = await import('@clack/prompts')
+
+      const { registerDoctorCommand } = await import('./doctor.js')
+      let capturedAction: () => Promise<void> = async () => {}
+      const program = { command: vi.fn().mockReturnThis(), description: vi.fn().mockReturnThis(),
+        option: vi.fn().mockReturnThis(), action: vi.fn((fn) => { capturedAction = fn; return { command: vi.fn() } }) }
+      registerDoctorCommand(program as any)
+      await capturedAction()
+
+      expect(vi.mocked(checkMcpServers)).toHaveBeenCalledWith(process.cwd())
+      const notes = vi.mocked(note).mock.calls.map(c => String(c[0])).join('\n')
+      expect(notes).toContain('✓ MCP context7 (project)')
+      expect(notes).toContain('! MCP remote (user): uses plain http to mcp.example.com')
+      expect(notes).toContain('MCP remote (user): uses plain http to mcp.example.com: Use an https:// URL.')
+      expect(vi.mocked(outro)).toHaveBeenCalledWith('Ready, with 1 warning(s).')
+      expect(exitSpy).not.toHaveBeenCalled()
+    })
+  })
+
   describe('summaryLine', () => {
     it('returns Ready. when every check is ok or skip', async () => {
       const { summaryLine } = await import('./doctor.js')
@@ -575,6 +611,18 @@ describe('doctor command', () => {
 
       expect(logs).toEqual([`goodvibes doctor: ! ${JOURNAL_WARNING}`])
       expect(exitSpy).not.toHaveBeenCalled()
+    })
+
+    it('never runs the MCP server check', async () => {
+      const { execa } = await import('execa')
+      vi.mocked(execa).mockResolvedValue({ stdout: 'value' } as any)
+      const { existsSync } = await import('node:fs')
+      vi.mocked(existsSync).mockReturnValue(false)
+      const { checkMcpServers } = await import('./mcp-check.js')
+
+      await runQuick()
+
+      expect(vi.mocked(checkMcpServers)).not.toHaveBeenCalled()
     })
 
     it('checks the rules file in the Claude config, not the project CLAUDE.md, in a global-scope project', async () => {
