@@ -9,6 +9,13 @@ export const GLOBAL_OWNED = (rel: string): boolean => {
   return p === '.mcp.json' || p === '.claude/skills' || p.startsWith('.claude/skills/')
 }
 
+// --minimal skips docs and the CI side of .github, but Copilot reads its rules and hooks only from .github.
+export const MINIMAL_SKIPPED = (rel: string): boolean => {
+  const p = rel.split('\\').join('/')
+  if (p === 'docs' || p.startsWith('docs/')) return true
+  return p.startsWith('.github/') && p !== '.github/copilot-instructions.md' && p !== '.github/hooks' && !p.startsWith('.github/hooks/')
+}
+
 export function goodvibesBlock(claudeTemplate: string): string {
   const start = claudeTemplate.indexOf(SENTINEL_START)
   const end = claudeTemplate.indexOf(SENTINEL_END)

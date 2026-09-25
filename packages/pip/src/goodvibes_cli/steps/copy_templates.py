@@ -6,7 +6,7 @@ import pathlib
 import shutil
 
 from goodvibes_cli.utils.safe_path import SymlinkError, check_writable
-from goodvibes_cli.utils.scope import global_owned, project_stub
+from goodvibes_cli.utils.scope import global_owned, minimal_skipped, project_stub
 from goodvibes_cli.utils.sentinel_merge import ClaudeMdError, merge_claude
 
 FILE_SIZE_WORKFLOW = ".github/workflows/file-size.yml"
@@ -73,7 +73,7 @@ def copy_templates(
     skipped_files: list[str] = []
 
     dest_workflows = dest_dir / ".github" / "workflows"
-    dest_has_workflows = dest_workflows.is_dir() and any(dest_workflows.glob("*.yml"))
+    dest_has_workflows = dest_workflows.is_dir() and any(f.suffix in (".yml", ".yaml") for f in dest_workflows.iterdir())
 
     def ignore_fn(directory: str, contents: list[str]) -> set[str]:
         ignored: set[str] = set()
@@ -91,10 +91,11 @@ def copy_templates(
                 continue
             if name == "CLAUDE.md":
                 ignored.add(name)  # sentinel merge handles it separately
+                continue
             if scope == "global" and global_owned(str(rel)):
                 ignored.add(name)
-            if minimal and (".github" in rel.parts or "docs" in rel.parts):
-                ignored.add(name)  # ponytail: MIN-01
+            if minimal and minimal_skipped(rel.as_posix()):
+                ignored.add(name)
             # Skip CI variants not matching the detected project type
             if name in ci_variants and name != selected_variant:
                 ignored.add(name)

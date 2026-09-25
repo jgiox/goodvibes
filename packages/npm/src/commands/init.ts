@@ -1,5 +1,5 @@
 import type { Command } from 'commander'
-import { readdirSync } from 'node:fs'
+import { existsSync, readdirSync, realpathSync } from 'node:fs'
 import { packageVersion } from '../utils/version.js'
 import { intro, outro, note, tasks, cancel } from '@clack/prompts'
 import { copyTemplates, listTemplateFiles, resolveTemplatesDir } from '../steps/copy-templates.js'
@@ -9,8 +9,8 @@ import { detectProjectType } from '../utils/detect-project-type.js'
 import { sendTelemetry, telemetryOptedOut } from '../steps/telemetry.js'
 import { readManifest, writeManifest, type Manifest } from '../steps/write-manifest.js'
 import { managedRecord } from '../utils/json-merge.js'
-import { applyGlobalConfig, ensureGlobalCli, registerContext7, formatGlobal, type GlobalResult, type CliStatus, type McpStatus } from '../steps/global-setup.js'
-import { GLOBAL_OWNED, type Scope } from '../utils/scope.js'
+import { applyGlobalConfig, claudeConfigDir, ensureGlobalCli, registerContext7, formatGlobal, type GlobalResult, type CliStatus, type McpStatus } from '../steps/global-setup.js'
+import { GLOBAL_OWNED, MINIMAL_SKIPPED, type Scope } from '../utils/scope.js'
 import { gitHookLine, hookInPlace, installGitHook, type GitHookResult } from '../steps/git-hook.js'
 import { homedir } from 'node:os'
 import { resolve, parse } from 'node:path'
@@ -40,12 +40,24 @@ function formatHeadroomStatus(hr: HeadroomResult | undefined, mr: McpResult | un
   return lines.join('\n')
 }
 
+const NEXT_STEPS = [
+  '1. Open this project in your AI coding tool',
+  '2. Optional, in the Claude Code terminal, for /ponytail-review and /ponytail-audit:',
+  '   /plugin marketplace add DietrichGebert/ponytail',
+  '   /plugin install ponytail@ponytail',
+  '   Other IDEs (Cursor, Windsurf, Kiro, Antigravity, etc.): rules already active',
+  '3. Start coding — CLAUDE.md rules are already active',
+]
+
+// cwd is already a real path, so the config folder is compared by its real path too (it may be a symlink).
+const realPath = (p: string) => existsSync(p) ? realpathSync(p) : resolve(p)
+
 export function registerInitCommand(program: Command): void {
   program
     .command('init')
     .description('Bootstrap a project with goodvibes configuration')
     .option('--dry-run', 'Preview files without writing to disk')
-    .option('--minimal', 'Skip headroom install and CI workflows')
+    .option('--minimal', "Skip headroom, docs/ and the .github CI files (workflows, scripts, Dependabot, issue and PR templates); Copilot's rules and hooks in .github are still added")
     .option('--scope <scope>', 'global (default): set up Claude Code for every project and install goodvibes globally; project: this folder only', 'global')
     .action(async (options: { dryRun: boolean; minimal: boolean; scope?: string }) => {
       const dryRun = options.dryRun ?? false
@@ -56,8 +68,14 @@ export function registerInitCommand(program: Command): void {
         process.exit(1)
       }
       const cwd = process.cwd()
+      // The Claude Code settings folder holds the global manifest; a project setup there would replace it.
+      const inConfigDir = realPath(cwd) === realPath(claudeConfigDir())
+      if (inConfigDir && scope === 'project') {
+        cancel(`${cwd} is your Claude Code settings folder, not a project.\nRun goodvibes init --scope project inside your project folder.`)
+        process.exit(1)
+      }
       // Running init from the home folder (or a drive root) sets up global config only, never scatters project files there.
-      const inProject = !(scope === 'global' && (resolve(cwd) === resolve(homedir()) || resolve(cwd) === parse(resolve(cwd)).root))
+      const inProject = !inConfigDir && !(scope === 'global' && (resolve(cwd) === resolve(homedir()) || resolve(cwd) === parse(resolve(cwd)).root))
       const projectType = detectProjectType(cwd)
       const templateDir = resolveTemplatesDir()
 
@@ -82,19 +100,14 @@ export function registerInitCommand(program: Command): void {
         }
         const allFiles = inProject ? (await listTemplateFiles(templateDir)).filter(f => scope === 'project' || !GLOBAL_OWNED(f)) : []
         const files = minimal
-          ? allFiles.filter(f => !f.startsWith('.github') && !f.startsWith('docs'))
+          ? allFiles.filter(f => !MINIMAL_SKIPPED(f))
           : allFiles.filter(f => !ciVariants.some((v: string) => f.endsWith(v) && v !== selectedVariant))
+            .map(f => f.endsWith(selectedVariant) ? f.slice(0, -selectedVariant.length) + 'ci.yml' : f)
         note(files.map(f => `  Would write: ${f}`).join('\n') || '  (no project files: run init inside a project folder)', 'Dry run — no files written')
         const hookLine = inProject ? gitHookLine(await installGitHook(cwd, true), true) : null
         if (hookLine) note(hookLine, 'Git commit check')
         note(
-          [
-            '1. Open this project in your AI coding tool',
-            '2. Claude Code users: /plugin marketplace add DietrichGebert/ponytail',
-            '   Other IDEs (Cursor, Windsurf, Kiro, Antigravity, etc.): rules already active',
-            '3. Start coding — CLAUDE.md rules are already active',
-            ...(minimal ? ['4. Run without --minimal to also add CI workflows and docs.'] : []),
-          ].join('\n'),
+          [...NEXT_STEPS, ...(minimal ? ['4. Run without --minimal to also add CI workflows and docs.'] : [])].join('\n'),
           'Next steps'
         )
         outro('Run without --dry-run to apply these changes.')
@@ -213,7 +226,7 @@ export function registerInitCommand(program: Command): void {
 
       if (globalResult) note(formatGlobal(globalResult, cliResult, context7Result), `Global setup (${globalResult.configDir})`)
       if (inProject) note(createdFiles.join('\n') || '(none)', `Files written (${createdFiles.length})`)
-      else note(`No project files written: ${cwd} is your home folder.\nRun goodvibes init inside a project folder to add JOURNAL.md, CI and IDE rule files.`, 'Project files')
+      else note(`No project files written: ${cwd} is your ${inConfigDir ? 'Claude Code settings' : 'home'} folder.\nRun goodvibes init inside a project folder to add JOURNAL.md, CI and IDE rule files.`, 'Project files')
       if (skippedFiles.length > 0) {
         note(skippedFiles.join('\n'), `Files skipped (${skippedFiles.length})`)
       }
@@ -226,13 +239,7 @@ export function registerInitCommand(program: Command): void {
         note(formatHeadroomStatus(headroomResult, mcpResult), 'Headroom')
       }
 
-      const nextSteps = [
-        '1. Open this project in your AI coding tool',
-        '2. Claude Code users: /plugin marketplace add DietrichGebert/ponytail',
-        '   Other IDEs (Cursor, Windsurf, Kiro, Antigravity, etc.): rules already active',
-        '3. Start coding — CLAUDE.md rules are already active',
-      ].join('\n')
-      note(nextSteps, 'Next steps')
+      note(NEXT_STEPS.join('\n'), 'Next steps')
 
       if (minimal) {
         note(

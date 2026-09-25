@@ -605,6 +605,21 @@ def test_update_adds_new_github_and_docs_files_only_to_groups_the_manifest_alrea
     assert not (project_dir / "docs").exists()
 
 
+def test_update_adds_copilots_rules_and_hooks_to_a_minimal_project_but_no_workflows_other_github_files_or_docs(plain_dirs):
+    template_dir, project_dir = plain_dirs
+    _tpl(template_dir, ["AGENTS.md", ".github/copilot-instructions.md", ".github/hooks/goodvibes.json", ".github/dependabot.yml", ".github/workflows/security.yml", "docs/guide.md"])
+    (project_dir / "AGENTS.md").write_text("template AGENTS.md\n", encoding="utf-8")
+    _write_manifest(project_dir, {"AGENTS.md": _sha("template AGENTS.md\n")})
+
+    result = runner.invoke(app, ["update", "--force"])
+
+    assert result.exit_code == 0, result.output
+    assert (project_dir / ".github" / "copilot-instructions.md").read_text(encoding="utf-8") == "template .github/copilot-instructions.md\n"
+    assert (project_dir / ".github" / "hooks" / "goodvibes.json").exists()
+    assert sorted(p.name for p in (project_dir / ".github").iterdir()) == ["copilot-instructions.md", "hooks"]
+    assert not (project_dir / "docs").exists()
+
+
 def test_update_adds_a_new_workflow_when_the_manifest_tracks_a_workflow_but_not_other_github_files(plain_dirs):
     template_dir, project_dir = plain_dirs
     _tpl(template_dir, [".github/workflows/ci-both.yml", ".github/workflows/security.yml", ".github/dependabot.yml", "docs/onboarding.md"])

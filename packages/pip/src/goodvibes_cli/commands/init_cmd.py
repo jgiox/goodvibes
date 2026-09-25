@@ -16,8 +16,8 @@ from goodvibes_cli.steps.write_manifest import USER_OWNED, USER_REMOVED, Manifes
 from goodvibes_cli.utils.detect_project_type import detect_project_type
 from goodvibes_cli.utils.json_merge import managed_record
 from goodvibes_cli.utils.safe_path import SymlinkError
-from goodvibes_cli.steps.global_setup import apply_global_config, ensure_global_cli, format_global, register_context7
-from goodvibes_cli.utils.scope import global_owned
+from goodvibes_cli.steps.global_setup import apply_global_config, claude_config_dir, ensure_global_cli, format_global, register_context7
+from goodvibes_cli.utils.scope import global_owned, minimal_skipped
 
 console = Console()
 
@@ -45,7 +45,9 @@ def _format_headroom_status(hr: dict[str, str], mr: dict[str, str]) -> str:
 
 _NEXT_STEPS = (
     "1. Open this project in your AI coding tool\n"
-    "2. Claude Code users: /plugin marketplace add DietrichGebert/ponytail\n"
+    "2. Optional, in the Claude Code terminal, for /ponytail-review and /ponytail-audit:\n"
+    "   /plugin marketplace add DietrichGebert/ponytail\n"
+    "   /plugin install ponytail@ponytail\n"
     "   Other IDEs (Cursor, Windsurf, Kiro, Antigravity, etc.): rules already active\n"
     "3. Start coding — CLAUDE.md rules are already active"
 )
@@ -53,7 +55,7 @@ _NEXT_STEPS = (
 
 def init_cmd(
     dry_run: Annotated[bool, typer.Option("--dry-run", help="Preview files without writing")] = False,
-    minimal: Annotated[bool, typer.Option("--minimal", help="Skip headroom install and CI workflows")] = False,
+    minimal: Annotated[bool, typer.Option("--minimal", help="Skip headroom, docs/ and the .github CI files (workflows, scripts, Dependabot, issue and PR templates); Copilot's rules and hooks in .github are still added")] = False,
     scope: Annotated[str, typer.Option("--scope", help="global (default): set up Claude Code for every project and install goodvibes globally; project: this folder only")] = "global",
 ) -> None:
     """Bootstrap a project with goodvibes configuration."""
@@ -62,8 +64,13 @@ def init_cmd(
         raise typer.Exit(1)
     template_dir = resolve_templates_dir()
     cwd = pathlib.Path.cwd()
+    # The Claude Code settings folder holds the global manifest; a project setup there would replace it.
+    in_config_dir = cwd.resolve() == claude_config_dir().resolve()
+    if in_config_dir and scope == "project":
+        console.print(f"{cwd} is your Claude Code settings folder, not a project.\nRun goodvibes init --scope project inside your project folder.", style="red", markup=False)
+        raise typer.Exit(1)
     # Running init from the home folder (or a drive root) sets up global config only, never scatters project files there.
-    in_project = not (scope == "global" and (cwd.resolve() == pathlib.Path.home().resolve() or cwd.resolve() == pathlib.Path(cwd.resolve().anchor)))
+    in_project = not in_config_dir and not (scope == "global" and (cwd.resolve() == pathlib.Path.home().resolve() or cwd.resolve() == pathlib.Path(cwd.resolve().anchor)))
     project_type = detect_project_type(cwd)
 
     console.rule("[bold]goodvibes init[/bold]")
@@ -83,9 +90,10 @@ def init_cmd(
         ci_variants = ["ci-node.yml", "ci-python.yml", "ci-both.yml"]
         selected = f"ci-{project_type}.yml"
         if minimal:
-            files = [f for f in all_files if not f.startswith(".github") and not f.startswith("docs")]
+            files = [f for f in all_files if not minimal_skipped(f)]
         else:
-            files = [f for f in all_files if not any(f.endswith(v) and not f.endswith(selected) for v in ci_variants)]
+            files = [f[: -len(selected)] + "ci.yml" if f.endswith(selected) else f
+                     for f in all_files if not any(f.endswith(v) and not f.endswith(selected) for v in ci_variants)]
         file_list = "\n".join(f"  Would write: {f}" for f in files) or "  (no project files: run init inside a project folder)"
         console.print(Panel(file_list, title="Dry run — no files written"))
         dry_hook = hook_line(install_git_hook(cwd, True), True) if in_project else None
@@ -184,7 +192,7 @@ def init_cmd(
         written_str = "\n".join(created_files) if created_files else "(none)"
         console.print(Panel(written_str, title=f"Files written ({len(created_files)})"))
     else:
-        console.print(Panel(f"No project files written: {cwd} is your home folder.\nRun goodvibes init inside a project folder to add JOURNAL.md, CI and IDE rule files.", title="Project files"))
+        console.print(Panel(f"No project files written: {cwd} is your {'Claude Code settings' if in_config_dir else 'home'} folder.\nRun goodvibes init inside a project folder to add JOURNAL.md, CI and IDE rule files.", title="Project files"))
     if skipped_files_list:
         skipped_str = "\n".join(skipped_files_list)
         console.print(Panel(skipped_str, title=f"Files skipped ({len(skipped_files_list)})"))

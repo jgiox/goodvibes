@@ -81,6 +81,31 @@ describe('built CLI (dist/index.js)', () => {
     expect(result.stdout).toMatch(/context7 MCP: skipped/)
   })
 
+  it('init inside the CLAUDE_CONFIG_DIR folder does the global part only and keeps the global manifest global', async () => {
+    const cfg = join(configDir, 'cfg')
+    mkdirSync(cfg)
+    const inCfg = (...args: string[]) =>
+      execa(join(binDir, 'node'), [distCli, ...args], { cwd: cfg, env: { ...env, CLAUDE_CONFIG_DIR: cfg }, extendEnv: false, input: '', reject: false })
+
+    expect((await inCfg('init', '--minimal')).exitCode).toBe(0)
+    const manifest = readFileSync(join(cfg, '.goodvibes.json'), 'utf-8')
+    expect(JSON.parse(manifest).files['rules/goodvibes.md']).toBeDefined()
+
+    const project = await inCfg('init', '--minimal', '--scope', 'project')
+    expect(project.exitCode).toBe(1)
+    await inCfg('init', '--minimal')
+
+    expect(readFileSync(join(cfg, '.goodvibes.json'), 'utf-8')).toBe(manifest)
+    expect(existsSync(join(cfg, 'CLAUDE.md'))).toBe(false)
+    expect(existsSync(join(cfg, 'JOURNAL.md'))).toBe(false)
+  })
+
+  it('help texts say what --minimal skips and that update --force still keeps edited files', async () => {
+    const flat = (s: string) => s.replace(/\s+/g, ' ')
+    expect(flat((await run('init', '--help')).stdout)).toContain("--minimal Skip headroom, docs/ and the .github CI files (workflows, scripts, Dependabot, issue and PR templates); Copilot's rules and hooks in .github are still added")
+    expect(flat((await run('update', '--help')).stdout)).toContain('--force Skip the confirmation prompt (files you edited are still kept)')
+  })
+
   it('a second global init leaves a rules file the user edited alone', async () => {
     await run('init', '--minimal')
     const rules = join(configDir, 'rules', 'goodvibes.md')

@@ -6,7 +6,7 @@ import { mergeClaude, MarkerError } from '../utils/sentinel-merge.js'
 import { MANAGED_JSON, mergeManagedJson, managedRecord, isJsonObject, shapeError } from '../utils/json-merge.js'
 import { assertSafe, printable, removeRetired, writeBlocked, writeFileAtomic } from '../utils/fs-safe.js'
 import { applyGlobalConfig, claudeConfigDir, formatGlobal } from '../steps/global-setup.js'
-import { GLOBAL_OWNED, type Scope } from '../utils/scope.js'
+import { GLOBAL_OWNED, MINIMAL_SKIPPED, type Scope } from '../utils/scope.js'
 import { detectProjectType } from '../utils/detect-project-type.js'
 import { readFile } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
@@ -20,11 +20,11 @@ const removedNote = (rel: string) => `${rel}: removed by you, not re-added (run 
 // Keys and JSON errors come from repo files: keep our own line breaks, replace every other control character.
 const shown = (lines: (string | null | false | undefined)[]): string => lines.filter(Boolean).join('\n').split('\n').map(printable).join('\n')
 
-// init skips a whole layer (CI when the project had workflows, .github/docs under --minimal); update must not add it later.
+// init skips a whole layer (CI when the project had workflows, what --minimal skips); update must not add it later.
 const layer = (rel: string) =>
   // file-size.yml travels with its script in .github/scripts, so it is in the github layer
   rel.startsWith('.github/workflows/') && rel !== '.github/workflows/file-size.yml' ? 'workflows'
-    : rel.startsWith('.github/') ? 'github' : rel.startsWith('docs/') ? 'docs' : null
+    : !MINIMAL_SKIPPED(rel) ? null : rel.startsWith('.github/') ? 'github' : 'docs'
 
 async function categorise(
   templateDir: string,
@@ -112,7 +112,7 @@ export function registerUpdateCommand(program: Command): void {
     .command('update')
     .description('Update goodvibes-managed files using the manifest')
     .option('--dry-run', 'Preview what would change without writing')
-    .option('--force', 'Skip confirmation prompt and overwrite without asking')
+    .option('--force', 'Skip the confirmation prompt (files you edited are still kept)')
     .action(async (options: { dryRun: boolean; force: boolean }) => {
       intro('goodvibes update')
       await runUpdate(options.dryRun ?? false, options.force ?? false)

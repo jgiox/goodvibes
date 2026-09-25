@@ -99,7 +99,7 @@ The journal check and the read guard also run in these tools. Each file runs the
 |---|---|---|
 | OpenAI Codex CLI | `.codex/hooks.json` | Codex asks you once to trust the project's hooks before they run (a review screen at startup) |
 | Gemini CLI | `.gemini/settings.json` | Hooks under `BeforeTool`. Gemini runs project hooks only in a trusted folder and shows a warning the first time it sees them |
-| GitHub Copilot cloud agent, Copilot in VS Code | `.github/hooks/goodvibes.json` | Skipped by `--minimal`, like the rest of `.github/` |
+| GitHub Copilot cloud agent, Copilot in VS Code | `.github/hooks/goodvibes.json` | Written with `--minimal` too |
 | Devin CLI | `.devin/hooks.v1.json` | |
 | Windsurf | `.windsurf/hooks.json` | Before a command and before a file read |
 | Kiro | `.kiro/hooks/goodvibes.json` | |
@@ -122,13 +122,13 @@ None of these tools were tested by running them: the file formats were checked a
 - **Dependabot** for your GitHub Actions, waiting 7 days before proposing a new release (add npm, pip or uv with one short block, see the getting-started guide), plus issue and pull request templates.
 - **Guides** in `docs/`: getting started, git basics, and setup notes for each AI tool.
 
-`goodvibes init --minimal` skips headroom, `.github/` and `docs/`. Running `init` again is safe: existing files are kept and `CLAUDE.md` is merged, not replaced.
+`goodvibes init --minimal` skips headroom, `docs/` and the CI files in `.github/` (workflows, scripts, Dependabot, issue and pull request templates). It still writes Copilot's rules (`.github/copilot-instructions.md`) and hooks (`.github/hooks/`). A project whose `.github/workflows/` already holds a `.yml` or `.yaml` file gets only `file-size.yml` from the goodvibes workflows. Running `init` again is safe: existing files are kept and `CLAUDE.md` is merged, not replaced.
 
 ## Commands
 
 | Command | What it does |
 |---|---|
-| `goodvibes init` | Set goodvibes up. `--scope project` keeps everything in this folder, `--minimal` skips headroom, `.github/` and `docs/`, `--dry-run` shows what would be written |
+| `goodvibes init` | Set goodvibes up. `--scope project` keeps everything in this folder, `--minimal` skips headroom, `docs/` and the CI files in `.github/` (Copilot's rules and hooks are still added), `--dry-run` shows what would be written |
 | `goodvibes doctor` | Check git, headroom, the rules, the journal and your MCP servers. Each line is ✓ fine, ! warning or ✗ problem, and it exits with an error only for problems |
 | `goodvibes update` | Bring your goodvibes files up to date with the installed version. It shows the full plan and asks once. `--dry-run` only shows it |
 | `goodvibes upgrade` | Install the newest goodvibes, then run `update` |
@@ -180,7 +180,7 @@ By default, `goodvibes init` sets goodvibes up for every project on your compute
 | Claude Code user MCP settings | context7 |
 | This folder | `JOURNAL.md`, `CHANGELOG.md`, CI workflows, rule files for other AI tools, context7 for Cursor and VS Code (`.cursor/mcp.json`, `.vscode/mcp.json`), hook files for other AI tools (see [Guard rails in other AI tools](#guard-rails-in-other-ai-tools)), `.claude/settings.json`, and a `CLAUDE.md` with a project section to fill in |
 
-In your other projects, Claude Code then asks before pushing, publishing or deploying, refuses force-push, `git reset --hard` and secret files, and reads big files in ranges. The journal check acts only in repos that have a `JOURNAL.md`, and the session check stays quiet outside goodvibes projects. Run `goodvibes init` inside a project folder, never in your home folder: there the default setup does the global part only, and `--scope project` would put the project files straight into your home folder.
+In your other projects, Claude Code then asks before pushing, publishing or deploying, refuses force-push, `git reset --hard` and secret files, and reads big files in ranges. The journal check acts only in repos that have a `JOURNAL.md`, and the session check stays quiet outside goodvibes projects. Run `goodvibes init` inside a project folder, never in your home folder: there the default setup does the global part only, and `--scope project` would put the project files straight into your home folder. Inside your Claude Code settings folder (`~/.claude`, or `CLAUDE_CONFIG_DIR` if you set it) `init` also does the global part only, and `--scope project` stops with an error.
 
 To keep everything inside one project instead:
 

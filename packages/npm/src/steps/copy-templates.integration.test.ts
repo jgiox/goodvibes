@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { mkdtempSync, writeFileSync, existsSync, readFileSync, mkdirSync, symlinkSync, readdirSync } from 'fs'
+import { mkdtempSync, writeFileSync, existsSync, readFileSync, mkdirSync, symlinkSync, readdirSync, chmodSync } from 'fs'
 import { rmSync } from 'fs'
 import { join } from 'path'
 import { tmpdir } from 'os'
@@ -120,6 +120,20 @@ describe('copyTemplates', () => {
     const foreign = (f: string) => f.startsWith('.git/') || f.startsWith('node_modules/')
     expect([...written, ...skipped].filter(foreign)).toEqual([])
     expect(skipped).toContain('JOURNAL.md')
+  })
+
+  // root reads any folder, so the unreadable folder only exists for a normal user (as on CI).
+  it.skipIf(process.getuid?.() === 0)('finishes and reports its files when a project folder it does not own cannot be read', async () => {
+    mkdirSync(join(tmpDir, 'private'))
+    chmodSync(join(tmpDir, 'private'), 0o000)
+    writeFileSync(join(tmpDir, 'AGENTS.md'), '# mine\n')
+    try {
+      const { written, skipped } = await copyTemplates(resolveTemplatesDir(), tmpDir, false, false)
+      expect(written).toContain('JOURNAL.md')
+      expect(skipped).toContain('AGENTS.md')
+    } finally {
+      chmodSync(join(tmpDir, 'private'), 0o755)
+    }
   })
 })
 
@@ -244,6 +258,12 @@ describe('copyTemplates — minimal filter scope', () => {
     const { written } = await copyTemplates(templateDir, tmpDir, false, true)
     expect(written.includes('CLAUDE.md') || existsSync(join(tmpDir, 'CLAUDE.md'))).toBe(true)
   })
+
+  it('--minimal writes Copilot\'s rules and hooks but no other .github file', async () => {
+    const { written } = await copyTemplates(templateDir, tmpDir, false, true)
+    expect(written.filter(f => f.startsWith('.github')).sort()).toEqual(['.github/copilot-instructions.md', '.github/hooks/goodvibes.json'])
+    expect(readdirSync(join(tmpDir, '.github')).sort()).toEqual(['copilot-instructions.md', 'hooks'])
+  })
 })
 
 describe('copyTemplates — IDE rule files', () => {
@@ -288,9 +308,9 @@ describe('copyTemplates — IDE rule files', () => {
     expect(skipped.some(f => f.includes('goodvibes.mdc'))).toBe(true)
   })
 
-  it('--minimal skips .github/copilot-instructions.md (IDE-04)', async () => {
+  it('--minimal writes .github/copilot-instructions.md, which Copilot reads as its rules (IDE-04)', async () => {
     await copyTemplates(templateDir, tmpDir, false, true)
-    expect(existsSync(join(tmpDir, '.github', 'copilot-instructions.md'))).toBe(false)
+    expect(existsSync(join(tmpDir, '.github', 'copilot-instructions.md'))).toBe(true)
   })
 
   it('--minimal writes .cursor/rules/goodvibes.mdc (IDE-04)', async () => {
@@ -565,6 +585,18 @@ describe('copyTemplates — workflow conflict guard', () => {
     expect(existsSync(join(workflowsDir, 'file-size.yml'))).toBe(false)
     expect(existsSync(join(workflowsDir, 'ci.yml'))).toBe(false)
     expect(existsSync(join(tmpDir, '.github', 'scripts'))).toBe(false)
+  })
+
+  it('counts a workflow written as .yaml as the project\'s own CI, so ci.yml and security.yml are not added next to it', async () => {
+    const workflowsDir = join(tmpDir, '.github', 'workflows')
+    mkdirSync(workflowsDir, { recursive: true })
+    writeFileSync(join(workflowsDir, 'build.yaml'), '# my own CI\n')
+
+    await copyTemplates(templateDir, tmpDir, false, false)
+
+    expect(existsSync(join(workflowsDir, 'ci.yml'))).toBe(false)
+    expect(existsSync(join(workflowsDir, 'security.yml'))).toBe(false)
+    expect(existsSync(join(workflowsDir, 'file-size.yml'))).toBe(true)
   })
 
   it('keeps the user\'s own file-size.yml and reports it as skipped when the project has its own workflows', async () => {
