@@ -528,3 +528,14 @@ def test_update_never_overwrites_a_removed_file_the_user_recreated(plain_dirs):
     assert result.exit_code == 0, result.output
     assert (project_dir / "AGENTS.md").read_text(encoding="utf-8") == "my own agents\n"
     assert _read(project_dir, ".goodvibes.json")["files"]["AGENTS.md"] == "user-owned"
+
+
+def test_update_does_not_add_new_docs_when_every_tracked_doc_is_user_removed(plain_dirs):
+    template_dir, project_dir = plain_dirs
+    _tpl(template_dir, ["JOURNAL.md", "docs/onboarding.md", "docs/new-guide.md"])
+    (project_dir / "JOURNAL.md").write_text("template JOURNAL.md\n", encoding="utf-8")
+    _write_manifest(project_dir, {"JOURNAL.md": _sha("template JOURNAL.md\n"), "docs/onboarding.md": "user-removed"})
+
+    assert runner.invoke(app, ["update", "--force"]).exit_code == 0
+
+    assert not (project_dir / "docs").exists()

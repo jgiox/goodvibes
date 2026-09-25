@@ -290,3 +290,17 @@ def test_deleted_rules_stay_deleted_across_two_updates_and_init_restores_them():
 
     assert rules.exists()
     assert json.loads((cfg / ".goodvibes.json").read_text(encoding="utf-8"))["files"]["rules/goodvibes.md"] == hashlib.sha256(rules.read_bytes()).hexdigest()
+
+
+def test_init_records_a_recreated_user_removed_skill_as_user_owned_and_keeps_it():
+    cfg = _cfg()
+    apply_global_config(TEMPLATES, "1.8.0", dry_run=False)
+    skill = cfg / "skills" / "caveman" / "SKILL.md"
+    skill.unlink()
+    apply_global_config(TEMPLATES, "1.8.1", dry_run=False, restore=False)
+    skill.write_text("my own caveman\n", encoding="utf-8")
+
+    apply_global_config(TEMPLATES, "1.8.1", dry_run=False)
+
+    assert skill.read_text(encoding="utf-8") == "my own caveman\n"
+    assert json.loads((cfg / ".goodvibes.json").read_text(encoding="utf-8"))["files"]["skills/caveman/SKILL.md"] == "user-owned"

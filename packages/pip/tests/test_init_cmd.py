@@ -345,3 +345,17 @@ def test_deleted_agents_md_stays_deleted_across_two_updates_and_init_restores_it
 
     assert agents.exists()
     assert _manifest_files(real_project)["AGENTS.md"] == hashlib.sha256(agents.read_bytes()).hexdigest()
+
+
+def test_init_records_a_recreated_user_removed_file_as_user_owned_and_keeps_it(runner, real_project):
+    from goodvibes_cli.main import app as main_app
+    agents = real_project / "AGENTS.md"
+    assert runner.invoke(main_app, ["init"]).exit_code == 0
+    agents.unlink()
+    assert runner.invoke(main_app, ["update", "--force"]).exit_code == 0
+    agents.write_text("my own agents\n", encoding="utf-8")
+
+    assert runner.invoke(main_app, ["init"]).exit_code == 0
+
+    assert agents.read_text(encoding="utf-8") == "my own agents\n"
+    assert _manifest_files(real_project)["AGENTS.md"] == "user-owned"
