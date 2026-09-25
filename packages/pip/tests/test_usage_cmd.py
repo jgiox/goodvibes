@@ -69,6 +69,12 @@ def test_session_usage_dedupes_by_message_id_and_skips_bad_lines_and_entries_wit
     assert s["mtime"].endswith("Z")
 
 
+def test_session_usage_counts_entries_with_a_non_string_message_id_separately_instead_of_crashing(tmp_path):
+    lines = [_assistant(["a"], out=1), _assistant(["a"], out=2), _assistant({"x": 1}, out=4), _assistant(7, out=8), _assistant(7, out=16)]
+    path = _write_session(tmp_path, "s", lines)
+    assert session_usage(path)["output"] == 31
+
+
 def test_session_usage_returns_none_when_no_entry_has_usage(tmp_path):
     path = _write_session(tmp_path, "s", [json.dumps({"type": "user"}), "not json"])
     assert session_usage(path) is None

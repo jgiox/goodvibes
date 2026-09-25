@@ -72,6 +72,12 @@ describe('usage', () => {
       expect(summarizeTranscript([JSON.stringify({ type: 'user', message: {} }), assistant('m', undefined), 'nope'].join('\n'))).toBeNull()
     })
 
+    it('counts entries with a non-string message id separately', () => {
+      const line = (id: unknown, out: number) => JSON.stringify({ type: 'assistant', message: { id, usage: { output_tokens: out } } })
+      const text = [line(['a'], 1), line(['a'], 2), line({ x: 1 }, 4), line(7, 8), line(7, 16)].join('\n')
+      expect(summarizeTranscript(text)?.output).toBe(31)
+    })
+
     it('counts entries without a message id separately and reports a zero ratio when nothing was read', () => {
       const text = [assistant(undefined, { output_tokens: 3 }), assistant(undefined, { output_tokens: 4 })].join('\n')
       expect(summarizeTranscript(text)).toEqual({ input: 0, output: 7, cacheRead: 0, cacheCreation: 0, cacheHitRatio: 0, peakContext: 0 })

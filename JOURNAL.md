@@ -2041,3 +2041,9 @@ Added a Standing decisions section to this journal.
 **Why:** the maintainer asked for docs that let novices and experienced developers understand what goodvibes is, what it does and how they benefit.
 
 **Tests:** checked every relative link and anchor in the rewritten files. No code changed.
+- Codex review on the PR (3 findings, all P2):
+  - pip `usage` crashed with a TypeError on a non-string `message.id`, such as a list or object.
+  - A ranged Read call skipped the read guard's size check completely: `limit: 5000`, or `offset: 1` with no limit, returned a whole 2000-line file.
+  - The file-size check trusts `HEAD^` when `main` is first pushed. Kept by design: existing code is grandfathered, and checking every file on the first push would fail every existing project with a big file.
+
+  RED tests for the first two: a pip usage test plus an npm parity guard, and 6 read-guard cases.
