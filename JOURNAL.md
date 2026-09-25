@@ -2075,3 +2075,4 @@ Added a Standing decisions section to this journal.
 **Why:** the maintainer asked for the journal check to work outside Claude Code.
 
 **Decision:** goodvibes writes the hook into the local `.git/hooks/` from its own package copy. It never points `core.hooksPath` at a folder inside the repo, because that would let a cloned repo run its own scripts once goodvibes turned the setting on.
+- caveman ultra on by default: RED tests require every rule file to turn caveman ultra on from the first reply (with the never-shorten list and how to switch it off), and CLAUDE.md's goodvibes block to load the caveman skill at ultra.

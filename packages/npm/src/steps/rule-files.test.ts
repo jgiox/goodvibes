@@ -142,4 +142,17 @@ describe('caveman default (CAVE-01)', () => {
     expect(skill).toContain('Default: **ultra**')
     expect(skill).toContain('/caveman lite|full|ultra')
   })
+
+  it.each(RULE_FILES)('%s turns caveman ultra on from the first reply and says how to switch it off', rel => {
+    const text = read(rel)
+    expect(text).toContain('Reply in caveman ultra from the first message')
+    expect(text).toContain('Never shorten code, commands, file names, API names or error messages')
+    expect(text).toContain('stop caveman')
+  })
+
+  it('CLAUDE.md loads the caveman skill at ultra at the start of every session, inside the goodvibes block', () => {
+    const text = read('CLAUDE.md')
+    const block = text.slice(text.indexOf('<!-- goodvibes:start -->'), text.indexOf('<!-- goodvibes:end -->'))
+    expect(block).toContain('Use the caveman skill at ultra')
+  })
 })
