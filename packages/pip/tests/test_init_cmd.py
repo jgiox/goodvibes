@@ -501,6 +501,16 @@ def test_init_in_the_claude_config_folder_does_the_global_part_only_and_keeps_th
     hook.assert_not_called()
 
 
+@pytest.mark.parametrize("dry", [False, True])
+def test_init_prints_rich_markup_in_global_setup_lines_as_plain_text(runner, real_project, mocker, dry):
+    from goodvibes_cli.main import app as main_app
+    result = {"config_dir": "/cfg", "written": ["skills/[bold red]x[/bold red]/SKILL.md"], "kept": [], "removed": [], "retired": [], "settings_changes": [], "settings_error": None}
+    mocker.patch("goodvibes_cli.commands.init_cmd.apply_global_config", return_value=result)
+    out = runner.invoke(main_app, ["init", "--minimal", *(["--dry-run"] if dry else [])])
+    assert out.exit_code == 0, out.output
+    assert "written: skills/[bold red]x[/bold red]/SKILL.md" in _plain(out)
+
+
 def test_init_dry_run_in_the_claude_config_folder_lists_no_project_files(runner, real_project, monkeypatch):
     from goodvibes_cli.main import app as main_app
     monkeypatch.setenv("CLAUDE_CONFIG_DIR", str(real_project))

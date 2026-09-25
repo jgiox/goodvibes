@@ -177,6 +177,11 @@ def test_hook_line_prefixes_would_only_for_installed_and_updated_in_a_dry_run():
 
 
 
+def test_hook_line_prints_question_marks_for_terminal_escape_codes_in_the_core_hooks_path_value():
+    from goodvibes_cli.steps.git_hook import hook_line
+    assert hook_line({"status": "custom-path", "detail": "x\x1b[2J\x07"}, False) == "Git commit check skipped: git uses its own hooks folder here (core.hooksPath = x?[2J?), so goodvibes left your hooks alone."
+
+
 def test_runs_every_git_call_without_searching_the_project_folder_for_git(repo, mocker):
     spy = mocker.spy(subprocess, "run")
     install_git_hook(repo, True)
