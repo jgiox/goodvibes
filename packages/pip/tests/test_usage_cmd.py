@@ -1,6 +1,7 @@
 """Unit tests for usage_cmd, using real fixture JSONL in temp dirs."""
 from __future__ import annotations
 
+import datetime
 import json
 import os
 import pathlib
@@ -73,8 +74,9 @@ def test_session_usage_returns_none_when_no_entry_has_usage(tmp_path):
     assert session_usage(path) is None
 
 
-def test_session_usage_returns_none_for_an_unreadable_file(tmp_path):
-    assert session_usage(tmp_path / "missing.jsonl") is None
+def test_session_usage_raises_for_an_unreadable_file_so_the_caller_can_report_it(tmp_path):
+    with pytest.raises(OSError):
+        session_usage(tmp_path / "missing.jsonl")
 
 
 def test_collect_sessions_keeps_the_current_project_within_the_day_window_newest_first(projects):
@@ -100,49 +102,95 @@ def test_usage_says_the_project_has_no_sessions_and_suggests_all(projects):
     projects.mkdir(parents=True)
     result = runner.invoke(app, ["usage"])
     assert result.exit_code == 0
-    assert "No Claude Code sessions found for this project" in result.output
-    assert "goodvibes usage --all" in result.output
+    folder = projects / project_folder_name(pathlib.Path.cwd())
+    assert result.output.splitlines() == [
+        f"No Claude Code sessions found for this project (looked in {folder}). Run goodvibes usage --all to see every project.",
+        FOOTER,
+    ]
     assert result.output.rstrip().splitlines()[-1] == FOOTER
 
 
 def test_usage_is_friendly_when_there_are_no_logs_at_all(projects):
     result = runner.invoke(app, ["usage", "--all"])
     assert result.exit_code == 0
-    assert "No Claude Code session logs found" in result.output
-    assert result.output.rstrip().splitlines()[-1] == FOOTER
+    assert result.output.splitlines() == [f"No Claude Code session logs found in {projects}. They appear after you use Claude Code.", FOOTER]
 
 
-def test_usage_prints_a_table_totals_near_limit_mark_and_footer_without_message_content(projects):
+def _row(first, total, hit, peak):
+    return first + total.rjust(12) + hit.rjust(11) + peak.rjust(14)
+
+
+def _day(path):
+    return datetime.datetime.fromtimestamp(path.stat().st_mtime).strftime("%Y-%m-%d")
+
+
+def test_usage_prints_the_canonical_table_layout_without_message_content(projects):
     folder = projects / project_folder_name(pathlib.Path.cwd())
-    _write_session(folder, "aaaaaaaa-1111", FIXTURE, age_days=1)
-    _write_session(folder, "bbbbbbbb-2222", [_assistant("x", inp=5, out=100, cr=170000, cc=1000)])
+    older = _write_session(folder, "aaaaaaaa-1111", FIXTURE, age_days=1)
+    newer = _write_session(folder, "bbbbbbbb-2222", [_assistant("x", inp=5, out=100, cr=170000, cc=1000)])
     result = runner.invoke(app, ["usage"])
-    lines = result.output.rstrip().splitlines()
     assert result.exit_code == 0
     assert "SECRET-CONTENT" not in result.output
-    rows = [l for l in lines if l.split()[1:2] in (["bbbbbbbb"], ["aaaaaaaa"])]
-    assert rows[0].split()[1:] == ["bbbbbbbb", "171,105", "99%", "171,005", "!"]
-    assert rows[1].split()[1:] == ["aaaaaaaa", "1,357", "77%", "1,210"]
-    assert any(l.startswith("Totals (2 sessions): 172,462 tokens") for l in lines)
-    assert NEAR_LIMIT in lines
-    assert lines[-1] == FOOTER
+    assert result.output.splitlines() == [
+        "Token usage for this project, last 7 days: 2 session(s)",
+        "",
+        _row("Date".ljust(12) + "Session".ljust(10), "Total tokens", "Cache hit", "Peak context"),
+        _row(_day(newer).ljust(12) + "bbbbbbbb".ljust(10), "171,105", "99%", "171,005") + " !",
+        _row(_day(older).ljust(12) + "aaaaaaaa".ljust(10), "1,357", "76%", "1,210"),
+        _row("Total".ljust(22), "172,462", "99%", "171,005"),
+        "Input 105, output 157, cache read 171,000, cache creation 1,200",
+        "",
+        NEAR_LIMIT,
+        FOOTER,
+    ]
+
+
+def test_usage_leaves_out_the_near_limit_note_when_no_session_is_marked(projects):
+    _write_session(projects / project_folder_name(pathlib.Path.cwd()), "small", [_assistant("m", inp=10)])
+    lines = runner.invoke(app, ["usage"]).output.splitlines()
+    assert lines[-3:] == ["Input 10, output 0, cache read 0, cache creation 0", "", FOOTER]
 
 
 def test_usage_shows_only_the_ten_most_recent_sessions(projects):
     for i in range(12):
         _write_session(projects / "-p", f"s{i:02d}xxxxxx", [_assistant(f"m{i}", inp=1)], age_days=i / 10)
     result = runner.invoke(app, ["usage", "--all"])
+    assert result.output.splitlines()[0] == "Token usage for all projects, last 7 days: 12 session(s), showing the 10 most recent"
     assert "s00xxxxx" in result.output and "s09xxxxx" in result.output
     assert "s10xxxxx" not in result.output
-    assert "Totals (12 sessions)" in result.output
     assert NEAR_LIMIT not in result.output
+
+
+def test_usage_says_when_no_session_falls_inside_the_day_window(projects):
+    _write_session(projects / project_folder_name(pathlib.Path.cwd()), "old", [_assistant("m", inp=1)], age_days=3)
+    result = runner.invoke(app, ["usage", "--days", "1"])
+    assert result.exit_code == 0
+    assert result.output.splitlines() == ["No Claude Code sessions with token usage in the last 1 day(s).", FOOTER]
+
+
+def test_usage_reports_an_unreadable_log_on_stderr_and_counts_the_rest(projects):
+    folder = projects / project_folder_name(pathlib.Path.cwd())
+    _write_session(folder, "good", [_assistant("m", inp=10)])
+    (folder / "broken.jsonl").mkdir()
+    result = runner.invoke(app, ["usage"])
+    assert result.exit_code == 0
+    assert result.stderr.splitlines() == [f"Skipped {folder / 'broken.jsonl'}: could not read it (EISDIR)."]
+    assert "1 session(s)" in result.stdout
+
+
+@pytest.mark.parametrize("value", ["0", "abc", "-3", "1.5"])
+def test_usage_rejects_days_that_are_not_a_whole_number_of_1_or_more(projects, value):
+    result = runner.invoke(app, ["usage", "--days", value])
+    assert result.exit_code == 1
+    assert result.stderr.strip() == f'--days must be a whole number of 1 or more (got "{value}").'
 
 
 def test_usage_json_prints_machine_output_with_camel_case_keys(projects):
     folder = projects / project_folder_name(pathlib.Path.cwd())
     path = _write_session(folder, "abc", FIXTURE)
     result = runner.invoke(app, ["usage", "--json"])
-    data = json.loads(result.output)
+    data = json.loads(result.stdout)
+    assert result.stderr.strip() == FOOTER
     assert result.exit_code == 0
     assert list(data["sessions"][0]) == ["id", "file", "mtime", "input", "output", "cacheRead", "cacheCreation", "cacheHitRatio", "peakContext"]
     assert data["sessions"][0]["file"] == str(path)
@@ -152,6 +200,7 @@ def test_usage_json_prints_machine_output_with_camel_case_keys(projects):
 def test_usage_json_prints_empty_valid_json_when_the_project_has_no_sessions(projects):
     result = runner.invoke(app, ["usage", "--json"])
     assert result.exit_code == 0
+    assert "No Claude Code sessions found for this project" in result.stderr
     assert json.loads(result.stdout) == {"sessions": [], "totals": {"input": 0, "output": 0, "cacheRead": 0, "cacheCreation": 0, "cacheHitRatio": 0, "peakContext": 0}}
 
 
@@ -160,4 +209,4 @@ def test_usage_reads_home_claude_projects_when_claude_config_dir_is_unset(tmp_pa
     monkeypatch.setenv("HOME", str(tmp_path))
     _write_session(tmp_path / ".claude" / "projects" / "-x", "fromhome", [_assistant("m", inp=1)])
     result = runner.invoke(app, ["usage", "--all", "--json"])
-    assert [s["id"] for s in json.loads(result.output)["sessions"]] == ["fromhome"]
+    assert [s["id"] for s in json.loads(result.stdout)["sessions"]] == ["fromhome"]
