@@ -218,7 +218,7 @@ Do not make direct repo edits outside a GSD workflow unless the user explicitly 
 <!-- GSD:profile-end -->
 
 <!-- goodvibes:start -->
-# goodvibes: v1.10.0
+# goodvibes: v1.11.0
 
 ## Engineering Rules
 
