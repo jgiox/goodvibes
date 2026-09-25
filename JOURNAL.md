@@ -1872,3 +1872,28 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 **Docs updated:** JOURNAL.md, NOTICE. README/FAQ/CHANGELOG still need a line about the new check (not in this task's scope).
 - File-size check: on a push, compare with the commit before the push (`PUSH_BEFORE` from `github.event.before`) instead of only `HEAD^`, so growth in an earlier commit of a multi-commit push fails. RED test committed first. Tests: `file-size-check.integration.test.ts`.
 - GREEN: `check-file-sizes.mjs` reads `PUSH_BEFORE` (ignored when all zeros or unknown); `file-size.yml` passes `github.event.before`. 19/19 file-size tests pass, actionlint clean.
+
+## 2026-09-25 · Secret-file guard, guard-rail asks, journal budget, rule additions, CI hardening, skill size cap
+
+**What I did:** Six template features, each as a RED test commit then a GREEN change commit (lines below).
+
+**Files changed:** templates/.claude/settings.json (permissions only), templates/CLAUDE.md, templates/AGENTS.md and its six copies, templates/.github/copilot-instructions.md, templates/.cursor/rules/goodvibes.mdc, templates/.kiro/steering/goodvibes.md, templates/replit.md, templates/.bolt/prompt, templates/JOURNAL.md, templates/.github/workflows/*.yml, templates/.github/dependabot.yml, packages/npm/src/steps/{settings-permissions,rule-files,workflow-templates}.test.ts, packages/pip/tests/{test_settings_permissions,test_skills}.py, JOURNAL.md.
+
+**Why:** Keep secrets out of the agent's context, make the agent ask before editing its own guard rails, keep JOURNAL.md cheap to read, and harden the shipped CI.
+
+**Tests run:** see the per-commit lines and the final line.
+
+**Docs updated:** none (README/FAQ/CHANGELOG are written separately).
+
+- RED 1: tests for secret-file Read denies (with `.env.example` left readable) and the Security rule line.
+- GREEN 1: `permissions.deny` gains Read rules for `./.env`, `./.env.local`, `./.env.*.local`, `./.env.development`, `./.env.production`, `./.env.staging`, `./.env.test`, `**/.env`, `~/.ssh/**`, `~/.aws/credentials`, `~/.git-credentials`, `~/.netrc`, `**/*.pem`, `**/id_rsa`, `**/id_ed25519`; every rule file's Security section forbids opening or pasting secret files. Decision: no `Read(./.env.*)`, because rules are gitignore-style and `.env.*` also matches `.env.example`, and a deny cannot be re-allowed (deny is checked before allow). Named variants instead; a test proves no Read deny matches `.env.example` at the root or in a subfolder. Read rules do not cover Bash (`cat .env`). npm vitest 453 passed; pip 360 passed.
+- RED 2: tests that editing .claude/settings*.json, .mcp.json and .claude/hooks asks first, and CLAUDE.md/JOURNAL.md never do.
+- GREEN 2: `permissions.ask` gains `Edit(./.claude/settings.json)`, `Edit(./.claude/settings.local.json)`, `Edit(./.mcp.json)`, `Edit(./.claude/hooks/**)`; ask is checked before the `Edit(**)` allow. CLAUDE.md and JOURNAL.md left out on purpose. The merge also adds these asks to `~/.claude/settings.json` in global scope. npm vitest 455 passed; pip 361 passed.
+- RED 3: tests that every rule file and JOURNAL.md read only Standing decisions plus the last five entries and record lasting decisions there, and that JOURNAL.md opens with a Standing decisions list.
+- GREEN 3: templates/JOURNAL.md opens with `## Standing decisions` (one placeholder bullet); every rule file now says read Standing decisions plus the last five entries (older only when needed) and add or update one Standing decisions line per lasting decision. npm vitest 470 passed; pip 361 passed.
+- RED 4: tests that every rule file carries the six new command/evidence rules and CLAUDE.md has a summarising section inside its goodvibes block.
+- GREEN 4: new "Commands and evidence" section (six one-line rules) in every rule file; "When summarising or compacting context" section in templates/CLAUDE.md only. Version stamp unchanged. npm vitest 484 passed; pip 361 passed.
+- RED 5: tests for workflow concurrency, per-job timeouts, the dependency-review licence allow-list and a 3-day Dependabot cooldown.
+- GREEN 5: every template workflow gets a top-level `concurrency` block (cancel in progress only for pull_request) and per-job `timeout-minutes` (tests 15, CodeQL 20, dependency review and gitleaks 10); dependency-review gets `allow-licenses` (MIT, Apache-2.0, BSD-2/3-Clause, ISC, 0BSD, Unlicense, CC0-1.0, Python-2.0, BlueOak-1.0.0, MPL-2.0), no `fail-on-severity` was set before and none is added; each Dependabot entry gets `cooldown: default-days: 3` (key names written from memory, docs.github.com unreachable). actionlint 1.7.12 clean; npm vitest 496 passed; pip 361 passed.
+- 6 (test only): npm and pip tests fail when any templates/.claude/skills/*/SKILL.md exceeds 12 KB (12288 bytes), naming file and size. All six skills already fit (largest caveman 5056 bytes), so there is no GREEN change; RED was shown by padding caveman/SKILL.md to 13056 bytes locally (both tests failed with "caveman/SKILL.md is 13056 bytes (limit 12288)"), then restored.
+- Final: npm prebuild, typecheck 0 errors, build ok, vitest 497 passed 1 skipped; pip pytest 362 passed; actionlint 1.7.12 clean; verify-phase1..5 PASS (19/32/19/17/13 checks).

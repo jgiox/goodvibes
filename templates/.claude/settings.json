@@ -24,7 +24,22 @@
       "Bash(git push * -f*)",
       "Bash(git push * --force*)",
       "Bash(git push * +*)",
-      "Bash(git reset --hard*)"
+      "Bash(git reset --hard*)",
+      "Read(./.env)",
+      "Read(./.env.local)",
+      "Read(./.env.*.local)",
+      "Read(./.env.development)",
+      "Read(./.env.production)",
+      "Read(./.env.staging)",
+      "Read(./.env.test)",
+      "Read(**/.env)",
+      "Read(~/.ssh/**)",
+      "Read(~/.aws/credentials)",
+      "Read(~/.git-credentials)",
+      "Read(~/.netrc)",
+      "Read(**/*.pem)",
+      "Read(**/id_rsa)",
+      "Read(**/id_ed25519)"
     ],
     "ask": [
       "Bash(git push*)",
@@ -55,7 +70,11 @@
       "Bash(npm run deploy*)",
       "Bash(npm run release*)",
       "Bash(npm run publish*)",
-      "Bash(node node_modules/.bin/*)"
+      "Bash(node node_modules/.bin/*)",
+      "Edit(./.claude/settings.json)",
+      "Edit(./.claude/settings.local.json)",
+      "Edit(./.mcp.json)",
+      "Edit(./.claude/hooks/**)"
     ]
   },
   "hooks": {
