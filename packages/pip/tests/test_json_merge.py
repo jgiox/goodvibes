@@ -139,3 +139,28 @@ def test_retiring_removes_allow_rules_that_auto_approved_arbitrary_code_and_keep
 def test_allow_rules_are_left_alone_when_not_retiring():
     merged, _ = merge_managed_json(".claude/settings.json", {}, RETIRE_USER)
     assert merged["permissions"]["allow"] == RETIRE_USER["permissions"]["allow"]
+
+
+def test_write_json_keeps_a_symlinked_config_file_a_symlink_and_updates_its_target(tmp_path):
+    import json as _json
+    import os
+    from goodvibes_cli.utils.json_merge import write_json
+    (tmp_path / "dotfiles").mkdir()
+    target = tmp_path / "dotfiles" / "settings.json"
+    target.write_text("{}\n", encoding="utf-8")
+    link = tmp_path / "settings.json"
+    os.symlink(target, link)
+    write_json(link, {"a": 1})
+    assert link.is_symlink()
+    assert _json.loads(target.read_text(encoding="utf-8")) == {"a": 1}
+
+
+def test_write_json_keeps_a_restrictive_0600_mode(tmp_path):
+    import os
+    import stat
+    from goodvibes_cli.utils.json_merge import write_json
+    f = tmp_path / "settings.json"
+    f.write_text("{}\n", encoding="utf-8")
+    os.chmod(f, 0o600)
+    write_json(f, {"a": 1})
+    assert stat.S_IMODE(f.stat().st_mode) == 0o600

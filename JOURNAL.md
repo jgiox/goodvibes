@@ -1837,3 +1837,17 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 **Tests run:** actionlint 1.7.12 clean on all repo and template workflows; YAML loads; prebuild leaves only the 6 shipped skills; `npm ci` (npm 11) accepts the lockfile; `npm audit` 0 vulnerabilities (incl. dev); npm typecheck 0, vitest 436 passed; pip 356 passed; verify-phase1 to 5 PASS.
 
 **Docs updated:** JOURNAL.md.
+
+---
+
+## 2026-09-25 · Atomic JSON writes keep file modes and symlinks (both packages)
+
+**What I did:** Codex review on PR #41. npm `writeFileAtomic` created the temp file with the umask default and renamed it over the target, so a `0600` `~/.claude/settings.json` or `.mcp.json` became `0644` (P1). pip `write_json` renamed the temp file over the path itself, so a symlinked settings file (dotfiles repo) became a regular file and its real target went stale (P2). Each package already got the other half right. Now both resolve a symlink to its target, write the temp file next to the target, give it the target's mode, and rename it onto the target.
+
+**Files changed:** packages/npm/src/utils/fs-safe.ts, packages/npm/src/utils/fs-safe.integration.test.ts (new, real temp files), packages/pip/src/goodvibes_cli/utils/json_merge.py, packages/pip/tests/test_json_merge.py, JOURNAL.md.
+
+**Why:** Review findings on PR #41 (P1 permission widening, P2 symlink replaced).
+
+**Tests run:** RED: npm mode test failed (symlink test passed); pip symlink test failed (mode test passed).
+
+**Docs updated:** JOURNAL.md.
