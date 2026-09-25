@@ -1,9 +1,10 @@
 """Shared pytest fixtures for goodvibes_cli tests."""
 import os
 
-# GitHub Actions sets FORCE_COLOR, and Rich then splits words with colour codes; text checks must not depend on the runner.
+# Typer forces a Rich terminal when GITHUB_ACTIONS or FORCE_COLOR is set, and its style codes split words; text checks must not depend on the runner.
 os.environ.pop("FORCE_COLOR", None)
 os.environ["NO_COLOR"] = "1"
+os.environ["_TYPER_FORCE_DISABLE_TERMINAL"] = "1"
 
 import pytest
 
