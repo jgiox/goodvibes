@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/2.0.0/),
 
 ## [Unreleased]
 
+## [1.10.0] - 2026-09-25
+
 ### Added
 
 - Journal check in every tool: `goodvibes init` and `update` install a git pre-commit hook (`.git/hooks/pre-commit`) that blocks any commit leaving out `JOURNAL.md`, whether it comes from Cursor, Copilot, another AI tool or you. It lets merges, rebases, cherry-picks, reverts and message-only amends through, never replaces a pre-commit hook you already have, leaves `core.hooksPath` setups such as husky alone, and stays deleted if you delete it. `git commit --no-verify` skips it once; `GOODVIBES_JOURNAL_CHECK=off` turns it off. `goodvibes doctor` reports whether it is active

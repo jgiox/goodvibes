@@ -2103,3 +2103,11 @@ Added a Standing decisions section to this journal.
 - Tests: `npm run prebuild && npm run typecheck && npm run build && npx vitest run` gives 34 files passed and 1 skipped, 778 tests passed and 1 skipped. verify-phase1 and phase2 PASS. Phases 3 to 5 fail here only on pip's `test_hook_cases.py`, which also loads `git-pre-commit.cases.json`. With the pip branch's one-line `git-` filter applied (not committed here), all three PASS.
 - npm init listed every file already in the project (.git internals, node_modules) as "Files skipped", because copyTemplates classified the whole destination tree; pip lists only goodvibes files. RED test in copy-templates.integration.test.ts.
 - GREEN: copyTemplates counts only template paths (plus the renamed ci.yml) as written or skipped. npm vitest 793 passed, 1 skipped.
+
+## 2026-09-25: Release 1.10.0 prepared
+
+**What:** version 1.10.0 in `packages/npm/package.json` and `package-lock.json`, `packages/pip/pyproject.toml` and `uv.lock`, and the `templates/CLAUDE.md` and root `CLAUDE.md` stamps. CHANGELOG `[1.10.0] - 2026-09-25`. The FAQ now names 1.10.0 as the release that fixes the uv pin.
+
+**Why:** the maintainer asked to try the first release through the new `release` environment. After merge, the maintainer pushes `npm-v1.10.0` and `pip-v1.10.0` on main and approves both runs.
+
+**Tests:** npm vitest 793 passed, 1 skipped; pip 667 passed; `--version` prints 1.10.0 in both CLIs; verify-phase1 to 5 PASS.

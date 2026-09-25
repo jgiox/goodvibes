@@ -160,7 +160,7 @@ uv tool install goodvibes-cli@latest
 goodvibes --version
 ```
 
-That installs the newest version and removes the pin, so later upgrades work. In releases after 1.9.1, `goodvibes upgrade` replaces the pin itself, and if the new version still does not take effect, it stops with an error and the exact command to run instead of saying "Updated".
+That installs the newest version and removes the pin, so later upgrades work. From 1.10.0, `goodvibes upgrade` replaces the pin itself, and if the new version still does not take effect, it stops with an error and the exact command to run instead of saying "Updated".
 
 ### Why does my `CLAUDE.md` have the full rules block after `goodvibes upgrade`?
 
