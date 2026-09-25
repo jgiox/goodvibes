@@ -4,7 +4,9 @@
 
 The git commit check also works here: `goodvibes init` adds a git hook that blocks any commit that leaves out `JOURNAL.md`.
 
-**What you do not get:** the Claude Code guard rails (the read guard, the session-start check and the permissions), the Claude Code skills such as caveman, `goodvibes usage`, and the Claude Code slash commands such as `/ponytail-review`. goodvibes sets up context7 and headroom for Claude Code only. See [Getting started](../getting-started.md) for what each piece does.
+The journal check and the read guard run in Kiro too: `goodvibes init` writes them to `.kiro/hooks/goodvibes.json`, which runs the same two scripts as Claude Code. This was checked against Kiro's documentation or source code, not by running Kiro. See [Which AI tools run the hooks](../getting-started.md#which-ai-tools-run-the-hooks).
+
+**What you do not get:** the other Claude Code guard rails (the session-start check and the permissions), the Claude Code skills such as caveman, `goodvibes usage`, and the Claude Code slash commands such as `/ponytail-review`. goodvibes sets up context7 and headroom for Claude Code only. See [Getting started](../getting-started.md) for what each piece does.
 
 ## Setup
 
@@ -16,4 +18,4 @@ Open the project in Kiro and ask: "Which rules do you follow in this project?" T
 
 ## Turn it off
 
-Delete `.kiro/steering/goodvibes.md`. `goodvibes update` does not bring it back.
+Delete `.kiro/steering/goodvibes.md`. To turn off the hooks too, delete `.kiro/hooks/goodvibes.json`. `goodvibes update` does not bring either back.

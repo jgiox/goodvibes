@@ -39,7 +39,7 @@ Answers to common questions about goodvibes, with the exact steps to fix the usu
 
 goodvibes sets up your project so an AI coding tool works more carefully. One command (`npx goodvibes-cli init`) gives the AI a clear set of working rules, adds checks that stop common mistakes, and sets up GitHub to test every change.
 
-You do not need Claude Code. The rules work in 14 AI tools, including Cursor, GitHub Copilot and Windsurf, and the GitHub checks run whichever tool wrote the code. The journal check works everywhere too, as a git hook (a script git runs before every commit). The other guard rails are Claude Code only: the read guard, the session check, the permissions, the skills and `goodvibes usage`. They rely on Claude Code hooks (small scripts Claude Code runs before an action), which other tools do not have. See [How it works](README.md#how-it-works).
+You do not need Claude Code. The rules work in 14 AI tools, including Cursor, GitHub Copilot and Windsurf, and the GitHub checks run whichever tool wrote the code. The journal check works everywhere too, as a git hook (a script git runs before every commit). The journal check and the read guard also run as hooks (small scripts an AI tool runs before an action) in Codex CLI, Gemini CLI, GitHub Copilot, Cursor, Devin CLI, Windsurf and Kiro: see [Guard rails in other AI tools](README.md#guard-rails-in-other-ai-tools). The session check, the permissions, the skills and `goodvibes usage` are Claude Code only. See [How it works](README.md#how-it-works).
 
 ### Does goodvibes cost anything or need an account?
 
@@ -70,7 +70,7 @@ npx goodvibes-cli init --dry-run
 
 ### Where did goodvibes put its files?
 
-By default, in two places. Things that should apply to every project go into your Claude Code settings folder (`~/.claude`): the rules (`rules/goodvibes.md`), the skills, and the hooks and ask and deny rules in `settings.json`. context7 goes into your Claude Code user MCP settings. Things that belong to one project go into the folder where you ran `goodvibes init`: `JOURNAL.md`, `CHANGELOG.md`, CI workflows, rule files for other AI tools, context7 for Cursor (`.cursor/mcp.json`) and VS Code (`.vscode/mcp.json`), `.claude/settings.json`, and a `CLAUDE.md` with a project section to fill in.
+By default, in two places. Things that should apply to every project go into your Claude Code settings folder (`~/.claude`): the rules (`rules/goodvibes.md`), the skills, and the hooks and ask and deny rules in `settings.json`. context7 goes into your Claude Code user MCP settings. Things that belong to one project go into the folder where you ran `goodvibes init`: `JOURNAL.md`, `CHANGELOG.md`, CI workflows, rule files for other AI tools, context7 for Cursor (`.cursor/mcp.json`) and VS Code (`.vscode/mcp.json`), hook files for other AI tools (`.codex/hooks.json`, `.gemini/settings.json`, `.github/hooks/goodvibes.json`, `.devin/hooks.v1.json`, `.windsurf/hooks.json`, `.kiro/hooks/goodvibes.json`), `.claude/settings.json`, and a `CLAUDE.md` with a project section to fill in.
 
 If you ran `goodvibes init --scope project`, everything is inside the project and nothing was written to `~/.claude`. The one exception is headroom, which is always registered in your Claude Code user settings. The project's `.goodvibes.json` records which scope it uses, and `goodvibes update` follows it. [Global or one project](README.md#global-or-one-project) has the full table.
 
@@ -127,6 +127,8 @@ goodvibes is plain files, so removing it means deleting them. Do the steps that 
 goodvibes upgrade --dry-run
 ```
 
+If you run `goodvibes upgrade` in a folder goodvibes never set up, and you have no global setup in `~/.claude` either, it installs the new version and stops with "Nothing to update here". That is not an error. To update a project, go into its folder and run `goodvibes update`; for a new project, go into its folder and run `goodvibes init`. Never run `goodvibes init` in your home folder: with `--scope project` it would put the project files there.
+
 ### How does `goodvibes update` decide which files to change?
 
 When goodvibes writes a file, it records a fingerprint of its content (a SHA-256 hash) in `.goodvibes.json`. On `update`, it compares each file with that fingerprint:
@@ -143,9 +145,11 @@ No. If you never edited them, update replaces them with the new version. If you 
 
 The same goes for `.cursor/mcp.json` and `.vscode/mcp.json`: update adds or refreshes only the `context7` entry and keeps your other servers. If you delete the `context7` entry or the whole file, it stays deleted.
 
+In `.gemini/settings.json` (Gemini CLI) and `.codex/hooks.json` (Codex CLI), update adds or refreshes only the goodvibes hooks and keeps your own settings and hooks. The other tools' hook files (`.github/hooks/goodvibes.json`, `.devin/hooks.v1.json`, `.windsurf/hooks.json`, `.kiro/hooks/goodvibes.json`) are added if missing and left alone if you already have one.
+
 One exception: versions up to 1.9.1 put allow rules for `node`, `python`, `npx`, `uv`, `npm run`, `npm install`, `pip install` and `git restore` into the project settings. Those let any command run without a prompt, so update removes exactly those rules and lists each one it removes. Allow rules you wrote yourself are kept. It never touches allow rules in `~/.claude/settings.json`.
 
-Run `goodvibes update --dry-run` first to see every entry it would add or change. If one of your JSON files is not valid JSON, update leaves it unchanged and tells you.
+Run `goodvibes update --dry-run` first to see every entry it would add or change. If one of your JSON files is not valid JSON, update leaves it unchanged and tells you. The same goes for a file that is valid JSON but has a setting of the wrong type, for example `"mcpServers": []` (a list where goodvibes expects an object): update leaves it unchanged and names the key to fix.
 
 If you delete a goodvibes part on purpose (for example the journal check hook), update remembers that in `.goodvibes.json` and does not add it back.
 
@@ -172,9 +176,9 @@ In 1.9.0, `upgrade` used its own copy step that ignored the install scope. If yo
 
 ### Why is my commit blocked by the journal check?
 
-The journal check stops a commit that leaves out `JOURNAL.md`, so every change leaves a note for the next session. It is a git hook (`.git/hooks/pre-commit`), so it works in every AI tool and for commits you type yourself, plus a Claude Code hook that stops Claude before it runs the commit. It acts only in repositories that have a `JOURNAL.md`.
+The journal check stops a commit that leaves out `JOURNAL.md`, so every change leaves a note for the next session. It is a git hook (`.git/hooks/pre-commit`), so it works in every AI tool and for commits you type yourself, plus a hook that stops the AI before it runs the commit, in Claude Code and the tools listed in [Guard rails in other AI tools](README.md#guard-rails-in-other-ai-tools). It acts only in repositories that have a `JOURNAL.md`.
 
-If git says `this commit leaves out JOURNAL.md`, or Claude Code says `JOURNAL.md not staged`, add a short entry to the journal and stage it with the rest of the change. To skip the check once, use `git commit --no-verify`.
+If git says `this commit leaves out JOURNAL.md`, or your AI tool says `JOURNAL.md not staged`, add a short entry to the journal and stage it with the rest of the change. To skip the check once, use `git commit --no-verify`.
 
 For example:
 
@@ -194,12 +198,12 @@ To turn the check off, see [Journal check](docs/getting-started.md#journal-check
 
 ### Why does Claude Code say "goodvibes read guard" and not read a file?
 
-That is the read guard hook. It stops two kinds of read:
+That is the read guard hook. It runs in Claude Code and in the tools listed in [Guard rails in other AI tools](README.md#guard-rails-in-other-ai-tools). It stops two kinds of read:
 
 - **Big files**: a whole file over 800 lines or 100 KB. Claude should read part of it (a range of lines) or search it instead; it usually does this by itself after the message.
 - **Secret files**: `.env` files, SSH keys and credential files. Claude should ask you for the one value it needs instead of reading the whole file.
 
-If you really want Claude to read the file, set `GOODVIBES_READ_GUARD=off` before starting Claude Code, for example:
+If you really want Claude to read the file, set `GOODVIBES_READ_GUARD=off` before starting Claude Code (or your other AI tool), for example:
 
 ```sh
 GOODVIBES_READ_GUARD=off claude

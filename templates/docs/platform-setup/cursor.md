@@ -4,7 +4,9 @@
 
 The git commit check also works here: `goodvibes init` adds a git hook that blocks any commit that leaves out `JOURNAL.md`.
 
-**What you do not get:** the Claude Code guard rails (the read guard, the session-start check and the permissions), the Claude Code skills such as caveman, `goodvibes usage`, and the Claude Code slash commands such as `/ponytail-review`. goodvibes sets up headroom for Claude Code only; context7 is set up for Cursor too (see below). See [Getting started](../getting-started.md) for what each piece does.
+The journal check and the read guard run in Cursor too, from the Claude Code hooks in `.claude/settings.json`. Cursor runs those while its "Include Third-Party Plugins, Skills, and Other Configs" setting is on, which is the default. This was checked against Cursor's documentation or source code, not by running Cursor. See [Which AI tools run the hooks](../getting-started.md#which-ai-tools-run-the-hooks).
+
+**What you do not get:** the other Claude Code guard rails (the session-start check and the permissions), the Claude Code skills such as caveman, `goodvibes usage`, and the Claude Code slash commands such as `/ponytail-review`. goodvibes sets up headroom for Claude Code only; context7 is set up for Cursor too (see below). See [Getting started](../getting-started.md) for what each piece does.
 
 ## Setup
 

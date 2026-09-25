@@ -7,8 +7,8 @@ goodvibes gives your AI coding assistant a set of working rules, adds guard rail
 `goodvibes init` did three things.
 
 1. **It gave your AI tool working rules.** The rules tell the AI to plan first, keep changes small, run the tests, write down decisions and ask before risky steps. They are plain text files that your AI tool reads on its own. Claude Code reads `~/.claude/rules/goodvibes.md` (`~` means your home folder), or this project's `CLAUDE.md` if you used `--scope project`. Every other tool reads its own rule file, listed in the [README](https://github.com/jgiox/goodvibes#works-with).
-2. **It added guard rails to Claude Code.** Hooks (small scripts Claude Code runs before certain actions) and permissions stop a few common mistakes before they happen. These work in Claude Code only.
-3. **It added files to this folder.** `JOURNAL.md` (a log of decisions), `CHANGELOG.md`, `CONTRIBUTING.md`, `SECURITY.md`, a `CLAUDE.md` with a project section for you to fill in, these guides, rule files for other AI tools, and GitHub workflows that test and scan every change.
+2. **It added guard rails to your AI tool.** Hooks (small scripts an AI tool runs before certain actions) and permissions stop a few common mistakes before they happen. All of them work in Claude Code. Two of the hooks, the journal check and the read guard, also run in Codex CLI, Gemini CLI, GitHub Copilot, Cursor, Devin CLI, Windsurf and Kiro.
+3. **It added files to this folder.** `JOURNAL.md` (a log of decisions), `CHANGELOG.md`, `CONTRIBUTING.md`, `SECURITY.md`, a `CLAUDE.md` with a project section for you to fill in, these guides, rule files and hook files for other AI tools, and GitHub workflows that test and scan every change.
 
 By default the rules and guard rails apply to every project on your computer, not just this one. [Global or one project](https://github.com/jgiox/goodvibes#global-or-one-project) in the README lists exactly what went where.
 
@@ -147,7 +147,7 @@ Every agent reads the journal at the start of every session, so a long one costs
 **What it is.** Two small checks that stop a commit which leaves out `JOURNAL.md`:
 
 - a **git hook** (`.git/hooks/pre-commit`, a script git runs before every commit). It works in every AI tool and for commits you type yourself.
-- a **Claude Code hook** that stops Claude Code before it even runs the commit.
+- a **hook in your AI tool** that stops the AI before it even runs the commit. It runs in Claude Code and in the tools listed in [Which AI tools run the hooks](#which-ai-tools-run-the-hooks).
 
 **Why it helps you.** The journal only works if every change leaves a note. The check makes that impossible to forget, whoever or whatever makes the commit.
 
@@ -158,43 +158,67 @@ goodvibes: this commit leaves out JOURNAL.md. Add a short entry saying what chan
 To skip the check once: git commit --no-verify
 ```
 
-In Claude Code you may see `BLOCKED: JOURNAL.md not staged` instead; it means the same. Add an entry, stage it with `git add JOURNAL.md`, and commit again. Details:
+From the AI tool's hook you may see `BLOCKED: JOURNAL.md not staged` instead; it means the same. Add an entry, stage it with `git add JOURNAL.md`, and commit again. Details:
 
 - It acts only in repositories that have a `JOURNAL.md` in the top folder.
 - Merges, rebases, cherry-picks, reverts and amends that only change the message are let through.
 - `goodvibes init` and `goodvibes update` put the git hook in `.git/hooks/`, which is your own copy of the project and is never committed. So everyone who clones the project runs `goodvibes update` once to get it. If the folder was not a git repository yet, run `git init`, then `goodvibes update`.
 - goodvibes never replaces a pre-commit hook you already have, and leaves hook managers such as husky alone (they set `core.hooksPath`). `goodvibes doctor` tells you whether the check is active.
-- The Claude Code hook follows the commit to the right repository, including `cd somewhere && git commit` and `git -C somewhere commit`. If it cannot tell which repository a commit runs in, it blocks with a "cannot verify" message; run the commit as its own command from inside the repository.
+- The AI tool's hook ignores actions that carry no shell command, so it never blocks a file edit whose text happens to mention `git commit`.
+- The AI tool's hook follows the commit to the right repository, including `cd somewhere && git commit` and `git -C somewhere commit`. If it cannot tell which repository a commit runs in, it blocks with a "cannot verify" message; run the commit as its own command from inside the repository.
 - Both are a safety net for honest mistakes, not a security boundary.
 
 **Turn it off.**
 
 - Once: `git commit --no-verify`.
 - For a terminal session: set `GOODVIBES_JOURNAL_CHECK=off` (git hook only).
-- For good: delete `.git/hooks/pre-commit`; `goodvibes update` does not add it back (`goodvibes init` does). For the Claude Code hook, delete the `PreToolUse` entry whose command starts with `: goodvibes-journal-gate` from `~/.claude/settings.json` and from this project's `.claude/settings.json`; `goodvibes update` does not add it back.
+- For good: delete `.git/hooks/pre-commit`; `goodvibes update` does not add it back (`goodvibes init` does). For the Claude Code hook, delete the `PreToolUse` entry whose command starts with `: goodvibes-journal-gate` from `~/.claude/settings.json` and from this project's `.claude/settings.json`; `goodvibes update` does not add it back. For the other tools, delete the entry whose command starts with `: goodvibes-journal-gate` from that tool's hook file (listed in [Which AI tools run the hooks](#which-ai-tools-run-the-hooks)).
 
 <a id="about-the-read-guard-claude-code-only"></a>
+<a id="read-guard-claude-code-only"></a>
 
-## Read guard (Claude Code only)
+## Read guard
 
-**What it is.** A second Claude Code hook. It runs before Claude reads a file or runs a terminal command.
+**What it is.** A second hook, in Claude Code and the same other tools as the journal check. It runs before the AI reads a file or runs a terminal command.
 
 **Why it helps you.** Reading a whole large file fills the context window and costs tokens, usually for one function Claude could have found with a search. Reading a secrets file puts your passwords in the conversation.
 
 **What it does.**
 
-- **Big files:** when Claude tries to read a whole file over 800 lines or 100 KB at once (with its Read tool, or with `cat`, `less`, `more`, `nl`, a large `head` or `tail`, or `sed -n 1,5000p`), the hook stops it and tells it to read a range of lines or search with Grep first. Reading a range, and piping into `head`, `tail`, `grep` or `wc`, is allowed. Images, PDFs and notebooks opened with the Read tool are not limited. Change the limits with the `GOODVIBES_READ_GUARD_LINES` and `GOODVIBES_READ_GUARD_KB` environment variables.
+- **Big files:** when Claude tries to read a whole file over 800 lines or 100 KB at once (with its Read tool, or with `cat`, `less`, `more`, `nl`, a large `head` or `tail`, or `sed -n 1,5000p`), the hook stops it and tells it to read a range of lines or search with Grep first. Reading a range, and piping into `head`, `tail`, `grep` or `wc`, is allowed. In other tools, the read guard understands each tool's own way of reading a file, for example a line range given as a start and an end line. Images, PDFs and notebooks opened with Claude Code's Read tool are not limited. Change the limits with the `GOODVIBES_READ_GUARD_LINES` and `GOODVIBES_READ_GUARD_KB` environment variables.
 - **Secret files:** it stops Claude from reading `.env` files, anything in `~/.ssh`, `~/.aws/credentials`, `.git-credentials`, `.netrc`, and `.pem`, `id_rsa`, `id_ed25519` or `id_ecdsa` files, and tells it to ask you for the value it needs. `.env.example`, `.env.sample` and `.env.template` stay readable.
 
 It is a safety net, not a security boundary: it does not see every way a command can read a file.
 
-**Turn it off.** Start Claude Code with `GOODVIBES_READ_GUARD=off` set, which turns off both parts:
+**Turn it off.** Start Claude Code (or your other AI tool) with `GOODVIBES_READ_GUARD=off` set, which turns off both parts. Other tools see it only if they pass your environment on to their hooks; Gemini CLI running in CI does not:
 
 ```sh
 GOODVIBES_READ_GUARD=off claude
 ```
 
-To remove it for good, delete the `PreToolUse` entry whose command starts with `: goodvibes-read-guard` from `~/.claude/settings.json` and from this project's `.claude/settings.json`. `goodvibes update` does not add it back. The [permissions](#permissions-claude-code-only) still stop Claude's own Read tool from opening `.env` files and keys.
+To remove it for good, delete the `PreToolUse` entry whose command starts with `: goodvibes-read-guard` from `~/.claude/settings.json` and from this project's `.claude/settings.json`, and from the other tools' hook files. `goodvibes update` does not add it back. The [permissions](#permissions-claude-code-only) still stop Claude's own Read tool from opening `.env` files and keys.
+
+### Which AI tools run the hooks
+
+The journal check and the read guard run in these tools. Every file runs the exact same two scripts.
+
+| Tool | Where the hooks are |
+|---|---|
+| Claude Code | `~/.claude/settings.json` and this project's `.claude/settings.json` |
+| Cursor | No file of its own: it runs the hooks in `.claude/settings.json` while its "Include Third-Party Plugins, Skills, and Other Configs" setting is on (the default) |
+| GitHub Copilot CLI | `.claude/settings.json` and `.github/hooks/goodvibes.json`, so each check runs twice (same result) |
+| GitHub Copilot cloud agent, Copilot in VS Code | `.github/hooks/goodvibes.json` (not written with `--minimal`, like the rest of `.github/`) |
+| OpenAI Codex CLI | `.codex/hooks.json`. Codex asks you once to trust the project's hooks before they run (a review screen at startup) |
+| Gemini CLI | `.gemini/settings.json`, under `BeforeTool`. Gemini runs project hooks only in a trusted folder and shows a warning the first time it sees them |
+| Devin CLI | `.devin/hooks.v1.json` |
+| Windsurf | `.windsurf/hooks.json`, before a command and before a file read |
+| Kiro | `.kiro/hooks/goodvibes.json` |
+
+Not covered: Cline (its hooks stop the whole task instead of one action), Antigravity (its hook format is not documented well enough to target), Continue (its hooks are not switched on yet), Amazon Q Developer CLI (discontinued, replaced by Kiro), and Replit, Bolt, Lovable, Base44 and ChatGPT (no hooks). The git commit check still covers the journal in every tool that makes git commits.
+
+`goodvibes update` merges the goodvibes hooks into an existing `.gemini/settings.json` or `.codex/hooks.json` and keeps your own settings and hooks. The other files are added if missing and left alone if you already have one. Claude Code asks before it edits any of these files, so an agent cannot quietly turn the checks off for another tool.
+
+None of these tools were tested by running them: the file formats were checked against each tool's documentation or source code. The checks are POSIX sh scripts, so on Windows they may not run in tools other than Claude Code (unverified). The Copilot hook file sets only the `bash` field, so on Windows Copilot skips it rather than failing.
 
 ## Permissions (Claude Code only)
 
@@ -202,7 +226,7 @@ To remove it for good, delete the `PreToolUse` entry whose command starts with `
 
 **Why it helps you.** You are not interrupted for safe, everyday steps such as editing files, committing and running tests. You are always asked before anything that is hard to undo or leaves your computer, such as pushing, publishing or deploying. Force-push, `git reset --hard` and reading secret files are refused outright.
 
-**What it does.** The full lists are in the README: [What Claude Code can do without asking](https://github.com/jgiox/goodvibes#what-claude-code-can-do-without-asking). The "ask" and "never" lists go into `~/.claude/settings.json` and this project's `.claude/settings.json`; the "without asking" list goes into the project file only. Claude asks before it edits either settings file itself.
+**What it does.** The full lists are in the README: [What Claude Code can do without asking](https://github.com/jgiox/goodvibes#what-claude-code-can-do-without-asking). The "ask" and "never" lists go into `~/.claude/settings.json` and this project's `.claude/settings.json`; the "without asking" list goes into the project file only. Claude asks before it edits either settings file itself, or any of the other tools' hook files.
 
 **Turn it off.** Edit the `permissions` block in `.claude/settings.json` (and `~/.claude/settings.json`): remove a rule to drop it, or move it between `allow`, `ask` and `deny`. `goodvibes update` keeps your changes and does not put back rules you removed.
 

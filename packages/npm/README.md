@@ -23,8 +23,9 @@ Then open the folder in your AI coding tool and ask for what you want to build. 
 - **Rules for 14 AI tools**: Claude Code, Cursor, GitHub Copilot, Windsurf, Devin Desktop, Kiro, Antigravity, Cline, Amazon Q, Continue.dev, OpenAI Codex CLI, Lovable, Replit Agent and Bolt.new. Plan first, smallest change that works, tests before "done", decisions recorded in `JOURNAL.md`, ask before risky steps.
 - **Journal check in every tool**: a git hook blocks any commit that leaves out `JOURNAL.md`, from any AI tool or from you.
 - **Claude Code guard rails**: whole-file reads of big files and reads of `.env`, SSH keys and credential files are blocked; it asks before pushing, publishing, deploying or editing its own settings, and refuses force-push and `git reset --hard`.
+- **Checks in more AI tools**: the journal check and the read guard also run as hooks in Codex CLI, Gemini CLI, GitHub Copilot, Cursor, Devin CLI, Windsurf and Kiro. Not tested by running those tools; see [Guard rails in other AI tools](https://github.com/jgiox/goodvibes#guard-rails-in-other-ai-tools).
 - **Fewer tokens**: the read guard, caveman (short replies from the first message; `/caveman full` or `stop caveman` if too terse), headroom (compresses what Claude reads) and `goodvibes usage` (where your tokens went).
-- **context7**: current library docs for Claude Code. Free, no key.
+- **context7**: current library docs for Claude Code, Cursor and VS Code (GitHub Copilot). Free, no key.
 - **GitHub checks**: tests, CodeQL and gitleaks scans, dependency review, a file size check, and Dependabot.
 
 By default the Claude Code parts are set up for every project on your computer (in `~/.claude`) and the project files go in the current folder. `--scope project` keeps everything in the folder. Existing files and your own settings are kept. Details: [What goodvibes init sets up](https://github.com/jgiox/goodvibes#what-goodvibes-init-sets-up).
@@ -36,7 +37,7 @@ By default the Claude Code parts are set up for every project on your computer (
 | `goodvibes init` | Set goodvibes up. `--scope project`, `--minimal` (skips headroom, `.github/` and `docs/`), `--dry-run` |
 | `goodvibes doctor` | Check the setup and your MCP servers: ✓ fine, ! warning, ✗ problem |
 | `goodvibes update` | Bring goodvibes files up to date, keeping your edits. Shows the plan and asks once; `--dry-run` only shows it |
-| `goodvibes upgrade` | Install the newest goodvibes, then run `update` |
+| `goodvibes upgrade` | Install the newest goodvibes, then run `update`. In a folder with no goodvibes setup (and none in `~/.claude`), it only installs and says how to update a project |
 | `goodvibes usage` | Tokens used by recent Claude Code sessions in this project. `--all`, `--days N`, `--json`. Offline |
 
 ## Requirements
