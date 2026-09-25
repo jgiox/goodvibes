@@ -2080,3 +2080,4 @@ Added a Standing decisions section to this journal.
 
 **What:** the npm package ships `hooks/pre-commit` and installs it from `init` and `update`. `doctor` reports it. The manifest records `gitHook` so a hook the user deleted stays deleted.
 - `src/steps/hook-cases.integration.test.ts` now skips `git-*.cases.json`. Those cases are git commits, not Claude hook payloads, and `git-hook-cases.integration.test.ts` runs them.
+- RED: `src/steps/git-hook.test.ts` covers every installer status in real temp repos: dry run, mode 0755, a symlinked target, `core.hooksPath`, a subfolder and a linked worktree. `src/steps/git-hook-cases.integration.test.ts` runs the 17 shared cases against the installed hook. Both fail because `git-hook.ts` does not exist yet.
