@@ -1,6 +1,7 @@
 """goodvibes doctor command — checks that goodvibes setup is complete."""
 from __future__ import annotations
 
+import errno
 import importlib.metadata
 import json
 import math
@@ -93,21 +94,43 @@ def claude_json_path() -> pathlib.Path:
     return plain if not dotted.exists() and plain.exists() else dotted
 
 
-def _unpinned_package(command: str, args: list[str]) -> str | None:
-    name = pathlib.PurePath(command).name.lower().removesuffix(".cmd").removesuffix(".exe")
-    if name == "pnpm":
-        if args[:1] != ["dlx"]:
-            return None
-        name, args = "npx", args[1:]
-    if name not in ("npx", "bunx", "uvx"):
+UVX_VALUE_OPTIONS = {"-p", "--python", "--with", "--index", "--index-url", "--default-index", "--extra-index-url"}
+
+
+def _option_value(args: list[str], names: tuple[str, ...]) -> str | None:
+    for i, a in enumerate(args):
+        if a in names:
+            return args[i + 1] if i + 1 < len(args) else None
+        for n in names:
+            if n.startswith("--") and a.startswith(n + "="):
+                return a[len(n) + 1:]
+    return None
+
+
+def _unpinned_package(command: str, args: list[str]) -> tuple[str, str] | None:
+    """(launcher, package) when a launcher fetches a package with no pinned version on every run."""
+    if command.startswith((".", "/")) or "/" in command or "\\" in command:
         return None
-    pkg = next((a for a in args if not a.startswith("-")), None)
-    if pkg is None or pkg.startswith((".", "/")):
+    name = command[:-4] if command.lower().endswith((".cmd", ".exe")) else command
+    if name == "pnpm" and args[:1] == ["dlx"]:
+        name, args = "pnpm dlx", args[1:]
+    if name not in ("npx", "bunx", "pnpm dlx", "uvx"):
         return None
-    if name == "uvx":
-        return None if "==" in pkg or "@" in pkg else pkg
+    uvx = name == "uvx"
+    pkg = _option_value(args, ("--from",) if uvx else ("-p", "--package"))
+    i = 0
+    while pkg is None and i < len(args):
+        if uvx and args[i] in UVX_VALUE_OPTIONS:
+            i += 2
+            continue
+        if not args[i].startswith("-"):
+            pkg = args[i]
+        i += 1
+    if pkg is None:
+        return None
     at = pkg.rfind("@")
-    return None if 0 < at < len(pkg) - 1 else pkg
+    pinned = 0 < at and pkg[at + 1:] not in ("", "latest")
+    return None if pinned or (uvx and "==" in pkg) else (name, pkg.removesuffix("@latest"))
 
 
 def server_problems(server: dict) -> list[tuple[str, str]]:
@@ -118,10 +141,11 @@ def server_problems(server: dict) -> list[tuple[str, str]]:
     if pathlib.PurePath(command).name in ("sh", "bash") and "-c" in args[:-1]:
         script = args[args.index("-c") + 1]
         if ("curl" in script or "wget" in script) and "|" in script:
-            problems.append(("pipes a download into a shell", ""))
-    pkg = _unpinned_package(command, args) if command else None
-    if pkg:
-        problems.append((f"unpinned package {pkg} is fetched every run", "Pin a version"))
+            problems.append(("pipes a download into a shell", "Install the tool once from a release you trust and run it directly."))
+    unpinned = _unpinned_package(command, args) if command else None
+    if unpinned:
+        launcher, pkg = unpinned
+        problems.append((f"{launcher} fetches unpinned {pkg} on every run", f"Pin a version: {pkg}{'==' if launcher == 'uvx' else '@'}<version>."))
     url = server.get("url")
     if isinstance(url, str):
         try:
@@ -130,24 +154,26 @@ def server_problems(server: dict) -> list[tuple[str, str]]:
         except ValueError:
             parts, host = None, None
         if parts and parts.scheme == "http" and host not in LOOPBACK:
-            problems.append((f"insecure http:// URL to {host}", "Use https"))
+            problems.append((f"uses plain http to {host}", "Use an https:// URL."))
     for where in ("env", "headers"):
         values = server.get(where)
         for key, value in (values.items() if isinstance(values, dict) else []):
             if SECRET_KEY.search(key) and isinstance(value, str) and len(value) > 16 and not re.search(r"\$\{[^}]+\}", value):
-                problems.append((f"literal secret in {where}.{key}", "Move it to an environment variable and reference ${VAR}"))
+                problems.append((f"literal secret in {where}.{key}", "Move it to an environment variable and reference ${VAR}."))
     return problems
 
 
 def _load_json(path: pathlib.Path) -> tuple[dict, list[CheckResult]]:
+    path = path.absolute()
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
     except FileNotFoundError:
         return {}, []
     except (json.JSONDecodeError, UnicodeDecodeError):
-        return {}, [CheckResult(f"MCP config {path} is not valid JSON", "warn")]
+        return {}, [CheckResult(f"{path} is not valid JSON; its MCP servers were not checked", "warn")]
     except OSError as e:
-        return {}, [CheckResult(f"MCP config {path} could not be read ({e.strerror})", "warn")]
+        code = errno.errorcode.get(e.errno, type(e).__name__) if e.errno else type(e).__name__
+        return {}, [CheckResult(f"{path} could not be read ({code}); its MCP servers were not checked", "warn")]
     return (data if isinstance(data, dict) else {}), []
 
 
@@ -157,15 +183,18 @@ def _servers(section: object) -> dict:
 
 
 def _check_mcp(cwd: pathlib.Path) -> list[CheckResult]:
-    user, results = _load_json(claude_json_path())
-    project, project_errors = _load_json(cwd / ".mcp.json")
-    results += project_errors
-    projects = user.get("projects") if isinstance(user.get("projects"), dict) else {}
-    for scope, servers in (("user", _servers(user)), ("local", _servers(projects.get(str(cwd)))), ("project", _servers(project))):
+    def report(servers: dict, scope: str) -> list[CheckResult]:
+        out: list[CheckResult] = []
         for name, server in servers.items():
             problems = server_problems(server) if isinstance(server, dict) else []
-            results += [CheckResult(f"MCP {name} ({scope}): {p}", "warn", r) for p, r in problems] or [CheckResult(f"MCP {name} ({scope})", "ok")]
-    return results
+            out += [CheckResult(f"MCP {name} ({scope}): {p}", "warn", r) for p, r in problems] or [CheckResult(f"MCP {name} ({scope})", "ok")]
+        return out
+
+    user, results = _load_json(claude_json_path())
+    projects = user.get("projects") if isinstance(user.get("projects"), dict) else {}
+    results += report(_servers(user), "user") + report(_servers(projects.get(str(cwd))), "local")
+    project, project_errors = _load_json(cwd / ".mcp.json")
+    return results + project_errors + report(_servers(project), "project")
 
 
 def _check_goodvibes_cli() -> CheckResult:
