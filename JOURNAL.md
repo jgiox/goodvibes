@@ -1882,3 +1882,4 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 - RED: doctor "How to fix" joins with `: `; PATH check says "goodvibes command"; `--quick` period rules; manifest error listed first.
 - GREEN: those doctor changes in `doctor_cmd.py`.
 - RED: MCP wording from npm; `@latest` unpinned; uvx `--from` and value-taking options (`--python 3.12`); a path command is not a launcher; bad-file warnings with error code, each in its own scope position.
+- RED: `<pkg>@latest` is reported and remedied as `<pkg>` (coordinator addendum).

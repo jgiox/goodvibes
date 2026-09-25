@@ -405,7 +405,8 @@ def test_server_problems_allows_a_shell_command_without_a_piped_download():
 @pytest.mark.parametrize("server,launcher,pkg", [
     ({"command": "npx", "args": ["-y", "some-mcp"]}, "npx", "some-mcp"),
     ({"command": "npx", "args": ["@scope/some-mcp"]}, "npx", "@scope/some-mcp"),
-    ({"command": "npx", "args": ["some-mcp@latest"]}, "npx", "some-mcp@latest"),
+    ({"command": "npx", "args": ["some-mcp@latest"]}, "npx", "some-mcp"),
+    ({"command": "npx", "args": ["@scope/some-mcp@latest"]}, "npx", "@scope/some-mcp"),
     ({"command": "npx", "args": ["-p", "some-mcp", "some-bin"]}, "npx", "some-mcp"),
     ({"command": "npx", "args": ["--package=some-mcp", "some-bin"]}, "npx", "some-mcp"),
     ({"command": "bunx", "args": ["some-mcp"]}, "bunx", "some-mcp"),
@@ -423,7 +424,7 @@ def test_server_problems_flags_an_unpinned_npm_package_fetched_every_run(server,
     (["-p", "3.12", "--with", "extra", "--index-url", "https://pypi.example/simple", "some-mcp"], "some-mcp"),
     (["--from", "some-mcp", "some-bin"], "some-mcp"),
     (["--from=some-mcp", "some-bin"], "some-mcp"),
-    (["some-mcp@latest"], "some-mcp@latest"),
+    (["some-mcp@latest"], "some-mcp"),
 ])
 def test_server_problems_flags_an_unpinned_uvx_package_fetched_every_run(args, pkg):
     assert server_problems({"command": "uvx", "args": args}) == [(f"uvx fetches unpinned {pkg} on every run", f"Pin a version: {pkg}==<version>.")]
