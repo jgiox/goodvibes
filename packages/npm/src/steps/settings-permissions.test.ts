@@ -120,3 +120,43 @@ describe('templates/.claude/settings.json permissions', () => {
     expect(settings.hooks.PreToolUse.length).toBeGreaterThan(0)
   })
 })
+
+const SECRET_READ_DENY = [
+  'Read(./.env)',
+  'Read(./.env.local)',
+  'Read(./.env.production)',
+  'Read(**/.env)',
+  'Read(~/.ssh/**)',
+  'Read(~/.aws/credentials)',
+  'Read(~/.git-credentials)',
+  'Read(~/.netrc)',
+  'Read(**/*.pem)',
+  'Read(**/id_rsa)',
+  'Read(**/id_ed25519)',
+]
+
+// Gitignore-style: `**/` spans folders, `*` stays inside one path segment.
+const matches = (rule: string, path: string) => {
+  const glob = rule.slice('Read('.length, -1).replace(/^\.\//, '')
+  const re = glob
+    .split('**/')
+    .map(s => s.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '[^/]*'))
+    .join('(.*/)?')
+  return new RegExp(`^${re}$`).test(path)
+}
+
+describe('secret files', () => {
+  it('denies reading .env files, SSH keys, cloud credentials and private keys', async () => {
+    const { deny } = (await loadSettings()).permissions
+    for (const p of SECRET_READ_DENY) expect(deny).toContain(p)
+  })
+
+  it('leaves .env.example readable at the root and in subfolders', async () => {
+    const reads = ((await loadSettings()).permissions.deny as string[]).filter(p => p.startsWith('Read('))
+    expect(reads.length).toBeGreaterThan(0)
+    for (const path of ['.env.example', 'app/.env.example']) {
+      expect(reads.filter(r => matches(r, path))).toEqual([])
+    }
+    expect(matches('Read(./.env.*)', '.env.example')).toBe(true)
+  })
+})

@@ -43,6 +43,12 @@ describe('agent rule files (AGENT-01..04)', () => {
     )
   })
 
+  it.each(RULE_FILES)('%s forbids opening or pasting .env files, private keys and credential files', rel => {
+    expect(read(rel)).toContain(
+      'Never open, print, or paste the contents of `.env` files (except `.env.example`), private keys, or credential files; ask the user for the specific values you need.',
+    )
+  })
+
   it('CLAUDE.md forbids re-asking for information and names every source', () => {
     expect(read('CLAUDE.md')).toContain(
       'Never ask the user for information already answered in README.md, CLAUDE.md, AGENTS.md, JOURNAL.md, or the codebase.',

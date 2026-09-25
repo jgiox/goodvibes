@@ -1851,3 +1851,19 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 **Tests run:** RED: npm mode test failed (symlink test passed); pip symlink test failed (mode test passed). GREEN: npm typecheck 0, vitest 438 passed, 1 skipped (the fs-safe unit mock gained stat and chmod); pip pytest 358 passed.
 
 **Docs updated:** JOURNAL.md.
+
+---
+
+## 2026-09-25 · Secret-file guard, guard-rail asks, journal budget, rule additions, CI hardening, skill size cap
+
+**What I did:** Six template features, each as a RED test commit then a GREEN change commit (lines below).
+
+**Files changed:** templates/.claude/settings.json (permissions only), templates/CLAUDE.md, templates/AGENTS.md and its six copies, templates/.github/copilot-instructions.md, templates/.cursor/rules/goodvibes.mdc, templates/.kiro/steering/goodvibes.md, templates/replit.md, templates/.bolt/prompt, templates/JOURNAL.md, templates/.github/workflows/*.yml, templates/.github/dependabot.yml, packages/npm/src/steps/{settings-permissions,rule-files,workflow-templates}.test.ts, packages/pip/tests/{test_settings_permissions,test_skills}.py, JOURNAL.md.
+
+**Why:** Keep secrets out of the agent's context, make the agent ask before editing its own guard rails, keep JOURNAL.md cheap to read, and harden the shipped CI.
+
+**Tests run:** see the per-commit lines and the final line.
+
+**Docs updated:** none (README/FAQ/CHANGELOG are written separately).
+
+- RED 1: tests for secret-file Read denies (with `.env.example` left readable) and the Security rule line.
