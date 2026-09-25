@@ -160,3 +160,17 @@ describe('secret files', () => {
     expect(matches('Read(./.env.*)', '.env.example')).toBe(true)
   })
 })
+
+describe('guard rails', () => {
+  const GUARD_ASK = ['Edit(./.claude/settings.json)', 'Edit(./.claude/settings.local.json)', 'Edit(./.mcp.json)', 'Edit(./.claude/hooks/**)']
+
+  it('asks before the agent edits its own settings, MCP servers or hooks', async () => {
+    const { ask } = (await loadSettings()).permissions
+    for (const p of GUARD_ASK) expect(ask).toContain(p)
+  })
+
+  it('never asks before editing CLAUDE.md or JOURNAL.md, which the rules tell the agent to edit', async () => {
+    const { ask } = (await loadSettings()).permissions
+    expect((ask as string[]).filter(p => /CLAUDE\.md|JOURNAL\.md/.test(p))).toEqual([])
+  })
+})
