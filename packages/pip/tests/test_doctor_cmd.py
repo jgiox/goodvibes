@@ -77,6 +77,12 @@ def test_check_goodvibes_cli_is_ok_when_goodvibes_is_on_path(mocker):
     assert _check_goodvibes_cli() == CheckResult(label="goodvibes command on PATH", status="ok")
 
 
+def test_check_goodvibes_cli_looks_goodvibes_up_on_path_only_never_in_the_project_folder(mocker):
+    which = mocker.patch("goodvibes_cli.commands.doctor_cmd.which", return_value="/usr/local/bin/goodvibes")
+    assert _check_goodvibes_cli().status == "ok"
+    which.assert_called_once_with("goodvibes")
+
+
 def test_check_goodvibes_cli_warns_when_goodvibes_is_not_on_path(mocker):
     mocker.patch("goodvibes_cli.commands.doctor_cmd.shutil.which", return_value=None)
     result = _check_goodvibes_cli()

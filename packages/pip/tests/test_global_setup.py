@@ -43,6 +43,20 @@ def test_register_context7_reports_manual_command_when_claude_cli_missing(mocker
     assert "claude mcp add --transport http --scope user context7" in r["reason"]
 
 
+def test_register_context7_runs_both_claude_calls_through_proc_run_with_the_windows_no_current_folder_switch(mocker):
+    run = mocker.patch("goodvibes_cli.utils.proc.subprocess.run", side_effect=[_done(""), _done()])
+    assert register_context7(dry_run=False) == {"status": "registered"}
+    assert run.call_count == 2
+    for call in run.call_args_list:
+        assert call.kwargs["env"]["NoDefaultCurrentDirectoryInExePath"] == "1"
+
+
+def test_ensure_global_cli_looks_goodvibes_up_on_path_only_never_in_the_project_folder(mocker):
+    which = mocker.patch("goodvibes_cli.steps.global_setup.which", return_value="/usr/bin/goodvibes")
+    assert ensure_global_cli("1.8.0", dry_run=False) == {"status": "already-installed"}
+    which.assert_called_with("goodvibes")
+
+
 def test_ensure_global_cli_skips_when_goodvibes_is_on_path(mocker):
     mocker.patch("goodvibes_cli.steps.global_setup.shutil.which", return_value="/usr/bin/goodvibes")
     run = mocker.patch("goodvibes_cli.steps.global_setup.subprocess.run")

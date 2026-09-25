@@ -179,6 +179,16 @@ def test_self_update_re_runs_with_the_target_version_in_the_environment(mocker):
     assert execve.call_args.args[2]["_GV_UPGRADING"] == "1.0.1"
 
 
+def test_self_update_re_runs_with_the_windows_no_current_folder_switch_like_every_other_child_process(mocker, monkeypatch):
+    monkeypatch.delenv("NoDefaultCurrentDirectoryInExePath", raising=False)
+    mocker.patch("goodvibes_cli.commands.upgrade_cmd._check_pypi_version", return_value="1.0.1")
+    mocker.patch("goodvibes_cli.commands.upgrade_cmd._self_update_pip")
+    execve = mocker.patch("goodvibes_cli.commands.upgrade_cmd.os.execve")
+    mocker.patch("goodvibes_cli.commands.upgrade_cmd.update_cmd")
+    runner.invoke(app, ["upgrade"])
+    assert execve.call_args.args[2]["NoDefaultCurrentDirectoryInExePath"] == "1"
+
+
 from goodvibes_cli.commands import upgrade_cmd as _upgrade_module  # noqa: E402
 
 _REAL_CHECK_PYPI = _upgrade_module._check_pypi_version
