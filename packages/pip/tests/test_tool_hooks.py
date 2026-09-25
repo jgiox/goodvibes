@@ -26,10 +26,17 @@ def _nested(hooks, field="command"):
     return [(event, g["matcher"], _id(h[field])) for event, groups in hooks.items() for g in groups for h in g["hooks"]]
 
 
-def test_routes_claude_code_cursor_copilot_cli_and_devin_cli_shell_and_read_tools_through_claude_settings():
+def test_keeps_the_claude_code_matchers_that_cursor_and_the_copilot_cli_map_onto_their_own_shell_and_read_tools():
     assert _nested({"PreToolUse": CLAUDE["hooks"]["PreToolUse"]}) == [
-        ("PreToolUse", "Bash|exec", "journal-gate"),
-        ("PreToolUse", "Read|read|Bash|exec", "read-guard"),
+        ("PreToolUse", "Bash", "journal-gate"),
+        ("PreToolUse", "Read|Bash", "read-guard"),
+    ]
+
+
+def test_gives_devin_cli_both_checks_on_exec_and_the_read_guard_on_read_in_a_hooks_file_without_a_wrapper():
+    assert _nested(_read(".devin/hooks.v1.json")) == [
+        ("PreToolUse", "^exec$", "journal-gate"),
+        ("PreToolUse", "^(read|exec)$", "read-guard"),
     ]
 
 
@@ -74,12 +81,13 @@ def test_gives_kiro_both_checks_on_shell_and_the_read_guard_on_read():
 
 def test_runs_the_exact_claude_settings_command_in_every_file_so_the_checks_cannot_drift_apart():
     commands = [
+        *(h["command"] for g in _read(".devin/hooks.v1.json")["PreToolUse"] for h in g["hooks"]),
         *(h["command"] for g in _read(".codex/hooks.json")["hooks"]["PreToolUse"] for h in g["hooks"]),
         *(h["command"] for g in _read(".gemini/settings.json")["hooks"]["BeforeTool"] for h in g["hooks"]),
         *(h["bash"] for g in _read(".github/hooks/goodvibes.json")["hooks"]["PreToolUse"] for h in g["hooks"]),
         *(h["command"] for hs in _read(".windsurf/hooks.json")["hooks"].values() for h in hs),
         *(h["action"]["command"] for h in _read(".kiro/hooks/goodvibes.json")["hooks"]),
     ]
-    assert len(commands) == 11
+    assert len(commands) == 14
     for cmd in commands:
         assert cmd == _command(_id(cmd))

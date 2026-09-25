@@ -16,10 +16,17 @@ const nested = (hooks: Record<string, any[]>, field = 'command'): Route[] =>
   Object.entries(hooks).flatMap(([event, groups]) => groups.flatMap(g => g.hooks.map((h: any) => [event, g.matcher, id(h[field])] as Route)))
 
 describe('hook files for other AI tools', () => {
-  it('routes Claude Code, Cursor, Copilot CLI and Devin CLI shell and read tools through .claude/settings.json', () => {
+  it('keeps the Claude Code matchers that Cursor and the Copilot CLI map onto their own shell and read tools', () => {
     expect(nested({ PreToolUse: claude.hooks.PreToolUse })).toEqual([
-      ['PreToolUse', 'Bash|exec', 'journal-gate'],
-      ['PreToolUse', 'Read|read|Bash|exec', 'read-guard'],
+      ['PreToolUse', 'Bash', 'journal-gate'],
+      ['PreToolUse', 'Read|Bash', 'read-guard'],
+    ])
+  })
+
+  it('gives Devin CLI both checks on exec and the read guard on read in .devin/hooks.v1.json, which has no hooks wrapper', () => {
+    expect(nested(read('.devin/hooks.v1.json'))).toEqual([
+      ['PreToolUse', '^exec$', 'journal-gate'],
+      ['PreToolUse', '^(read|exec)$', 'read-guard'],
     ])
   })
 
@@ -71,13 +78,14 @@ describe('hook files for other AI tools', () => {
 
   it('runs the exact .claude/settings.json command in every file, so the checks cannot drift apart', () => {
     const all = [
+      ...read('.devin/hooks.v1.json').PreToolUse.flatMap((g: any) => g.hooks.map((h: any) => h.command)),
       ...read('.codex/hooks.json').hooks.PreToolUse.flatMap((g: any) => g.hooks.map((h: any) => h.command)),
       ...read('.gemini/settings.json').hooks.BeforeTool.flatMap((g: any) => g.hooks.map((h: any) => h.command)),
       ...read('.github/hooks/goodvibes.json').hooks.PreToolUse.flatMap((g: any) => g.hooks.map((h: any) => h.bash)),
       ...Object.values<any[]>(read('.windsurf/hooks.json').hooks).flatMap(hs => hs.map(h => h.command)),
       ...read('.kiro/hooks/goodvibes.json').hooks.map((h: any) => h.action.command),
     ]
-    expect(all.length).toBe(11)
+    expect(all.length).toBe(14)
     for (const cmd of all) expect(cmd).toBe(command(id(cmd)!))
   })
 })

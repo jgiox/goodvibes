@@ -8,10 +8,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/2.0.0/),
 
 ### Added
 
+- The journal check and the read guard now run in more AI tools, not only Claude Code. `goodvibes init` writes each tool's hook file: `.codex/hooks.json` (Codex CLI), `.gemini/settings.json` (Gemini CLI), `.github/hooks/goodvibes.json` (GitHub Copilot cloud agent and Copilot in VS Code), `.devin/hooks.v1.json` (Devin CLI), `.windsurf/hooks.json` (Windsurf) and `.kiro/hooks/goodvibes.json` (Kiro). Cursor and the Copilot CLI already run the checks from `.claude/settings.json`. Every file runs the exact same two scripts. `goodvibes update` merges the goodvibes hooks into an existing `.gemini/settings.json` or `.codex/hooks.json` and keeps your own settings and hooks. Codex and Gemini ask you once to trust a project's hooks before they run. Not covered: Cline (its hooks stop the whole task instead of one action), Antigravity, Continue, Amazon Q, Replit, Bolt and Lovable. The git commit check still covers the journal in every tool
+- The read guard understands each tool's file-read format: Gemini CLI `read_file` with `start_line` and `end_line`, Kiro `fs_read`, Devin `read`, Windsurf `pre_read_code`, and a `path` key where a tool sends one instead of `file_path`. The journal check reads Windsurf's `command_line`, and it now ignores any action that carries no shell command, so a tool that runs every hook for every action (Copilot in VS Code) never blocks a file edit whose text mentions `git commit`
 - context7 in Cursor and VS Code (GitHub Copilot): `goodvibes init` writes `.cursor/mcp.json` and `.vscode/mcp.json` with the context7 server, in every scope and with `--minimal`. `goodvibes update` adds or refreshes only the `context7` entry, keeps your other servers, and never brings back an entry or file you deleted. Windsurf keeps its MCP servers outside the project, so its setup note explains the one manual step
 
 ### Security
 
+- Claude Code also asks before editing the other tools' hook files (`.codex/hooks.json`, `.gemini/settings.json`, `.github/hooks/`, `.devin/hooks.v1.json`, `.windsurf/hooks.json`, `.kiro/hooks/`), so an agent cannot quietly turn the checks off for another tool
 - Claude Code also asks before editing `.cursor/mcp.json` and `.vscode/mcp.json`, so an agent cannot quietly add an MCP server for Cursor or VS Code
 
 ### Fixed

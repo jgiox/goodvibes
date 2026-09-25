@@ -11,7 +11,8 @@ import shutil
 # MCP files and the key each tool keeps its servers under.
 _MCP_KEY = {".mcp.json": "mcpServers", ".cursor/mcp.json": "mcpServers", ".vscode/mcp.json": "servers"}
 
-MANAGED_JSON = [".claude/settings.json", *_MCP_KEY]
+# Gemini CLI and Codex keep hooks in Claude Code's shape, so their files merge like settings.json.
+MANAGED_JSON = [".claude/settings.json", ".gemini/settings.json", ".codex/hooks.json", *_MCP_KEY]
 
 _MARKER = re.compile(r"^: (goodvibes-[a-z0-9-]+);")
 

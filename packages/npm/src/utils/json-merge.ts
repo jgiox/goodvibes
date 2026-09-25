@@ -5,7 +5,8 @@ import { join } from 'node:path'
 // MCP files and the key each tool keeps its servers under.
 const MCP_KEY: Record<string, string> = { '.mcp.json': 'mcpServers', '.cursor/mcp.json': 'mcpServers', '.vscode/mcp.json': 'servers' }
 
-export const MANAGED_JSON = ['.claude/settings.json', ...Object.keys(MCP_KEY)]
+// Gemini CLI and Codex keep hooks in Claude Code's shape, so their files merge like settings.json.
+export const MANAGED_JSON = ['.claude/settings.json', '.gemini/settings.json', '.codex/hooks.json', ...Object.keys(MCP_KEY)]
 
 type Json = Record<string, any>
 
