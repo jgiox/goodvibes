@@ -1,0 +1,4 @@
+# A Windows checkout with core.autocrlf would add CR, which breaks the shebang and sh itself.
+hooks/pre-commit text eol=lf
+*.sh text eol=lf
+*.mjs text eol=lf

@@ -19,6 +19,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/2.0.0/),
 - The dependency review workflow pins `actions/dependency-review-action` to the exact v5.0.0 commit instead of the movable `v5` branch
 - `goodvibes update` no longer deletes files outside goodvibes' own when a project ships a hostile `.goodvibes.json`. A file path such as `.claude/skills/../../.git/HEAD` used to pass the "retired skill" check, and `update --force` deleted `.git/HEAD`. Every file path in the project and Claude config manifests must now be a plain relative path (no leading `/`, drive letter, `.`, `..`, empty part or control character); otherwise init and update stop, and doctor reports a failed check, with a message that names the entry
 - `goodvibes update` and global setup print `?` instead of raw terminal escape codes that come from repo files (file paths, JSON error text, key names), and pip no longer reads `[...]` in a file path as Rich markup (`docs/[/x]` used to crash it)
+- Releases: the npm and PyPI packages are built and tested in a job that cannot publish. Only a small job in the `release` environment holds the publish token, and it uploads exactly the files that were tested. Checkouts no longer keep their credentials, `npm ci` skips install scripts, release jobs use no build cache, and the pip build backend (hatchling) is pinned to an exact version
+
+### Changed
+
+- The goodvibes-template repo now gets one CI workflow, `.github/workflows/ci.yml` (the same file `goodvibes init` writes), instead of `ci-both.yml`, `ci-node.yml` and `ci-python.yml`, which cancelled each other there. Each sync replaces the template repo's contents, so change `templates/` in this repo, not the template repo
+- The GitHub Node.js tests run on Node 22 and 24 instead of 20 and 22, because Node 20 is end of life
+- The `.github/dependabot.yml` that goodvibes adds now updates only your GitHub Actions. Dependabot fails every week for a package manager whose files a project does not have, and the same file went into every project. The getting-started guide shows the short block that turns on npm, pip or uv updates. `goodvibes update` changes an unedited copy of the file the same way, so add that block if your project relied on npm or pip updates
+- The pip source package (sdist) no longer carries a second copy of the templates and the pre-commit hook under `src/goodvibes_cli/`; a wheel built from it still ships them once
 
 ### Fixed
 
@@ -37,11 +45,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/2.0.0/),
 - The `SECURITY.md` that goodvibes adds to projects says what to do when GitHub's "Report a vulnerability" button is not available
 - The Replit (`replit.md`) and Bolt.new (`.bolt/prompt`) rule files now carry the ask-first rules (confirm before a push, explicit approval before deploy or publish), the dependency rule and the rule against sending secrets in documentation lookups, as the other rule files do
 - The caveman-help card and the caveman README now say the default is `ultra`, and no longer describe a config file and environment variable that goodvibes does not use
-
-### Changed
-
-- The GitHub Node.js tests run on Node 22 and 24 instead of 20 and 22, because Node 20 is end of life
-- The `.github/dependabot.yml` that goodvibes adds now updates only your GitHub Actions. Dependabot fails every week for a package manager whose files a project does not have, and the same file went into every project. The getting-started guide shows the short block that turns on npm, pip or uv updates. `goodvibes update` changes an unedited copy of the file the same way, so add that block if your project relied on npm or pip updates
 
 ## [1.10.0] - 2026-09-25
 

@@ -30,7 +30,8 @@ Homepage = "https://github.com/jgiox/goodvibes"
 Repository = "https://github.com/jgiox/goodvibes"
 
 [build-system]
-requires = ["hatchling"]
+# Exact pin: the release build runs this code before publishing, so bump it by hand after reading its changelog.
+requires = ["hatchling==1.32.4"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.hooks.custom]

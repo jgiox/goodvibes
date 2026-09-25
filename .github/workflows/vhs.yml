@@ -10,6 +10,11 @@ on:
 permissions:
   contents: read
 
+# A newer demo.tape supersedes an older one; one run at a time keeps two GIF pushes from racing.
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: true
+
 jobs:
   # Recording runs npm, apt and VHS code, so it gets no write token; only the commit job can push.
   record:
@@ -40,7 +45,7 @@ jobs:
       - name: Build goodvibes from the checkout and link it globally so the VHS shell can run it
         working-directory: packages/npm
         run: |
-          npm ci
+          npm ci --ignore-scripts
           npm run prebuild
           npm run build
           npm link
