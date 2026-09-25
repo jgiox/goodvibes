@@ -1665,3 +1665,43 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 **Tests run (final):** npm prebuild + build + vitest, pip pytest, verify-phase1 to 5 (results in the hand-off report).
 
 **Docs updated:** JOURNAL.md only (docs are written separately).
+
+## 2026-09-24 · npm CLI: fix 15 verified bugs (symlinks, manifest, markers, hooks, update order, headroom, Windows, Node gate)
+
+**What I did:** Fixing the verified-bug list in `packages/npm/src/` item by item, each as a RED test commit followed by a GREEN fix commit. The pip package gets the same list from a second worker.
+
+**Files changed:** packages/npm/** (source, tests, package.json, tsup config), JOURNAL.md.
+
+**Why:** Verified bugs: writes through symlinks, init wiping the manifest, CLAUDE.md marker handling losing text, hook merge deleting user hooks, update touching ~/.claude before its prompt, update re-adding removed files, headroom install killed after 10 s, headroom MCP registered without arguments, Windows manifest keys, pre-release version comparison, broken manifest treated as missing, upgrade on Windows, Node 20 crash on import, DO_NOT_TRACK values, non-atomic JSON writes.
+
+**Tests run:** vitest per item (RED then GREEN); full `npm run prebuild && npm run typecheck && npm run build && npx vitest run` at the end.
+
+**Docs updated:** JOURNAL.md.
+
+**Commits:**
+- RED: version comparison with pre-releases and strict CLAUDE.md marker lines (items 3, 10).
+- GREEN: parse pre-release/post versions (never throws); markers only count alone on their line, ambiguous markers throw MarkerError without writing, CRLF kept (items 3, 10).
+- RED: hook merge must keep user hooks that share a group with a goodvibes hook (item 4).
+- GREEN: replace only the marked hook object inside a user group (item 4).
+- RED: DO_NOT_TRACK / GOODVIBES_NO_TELEMETRY accept 1, true, yes (item 14).
+- GREEN: telemetryOptedOut() shared by init and sendTelemetry (item 14).
+- RED: headroom install timeout 15 min with a heads-up; MCP registered with '-- <path> mcp serve', broken entries repaired, first line of where (items 7, 8).
+- GREEN: install commands get a 15-minute timeout (probes stay 10 s); MCP add passes '-- <path> mcp serve', 'claude mcp get' detects and repairs old entries; first non-empty line of where (items 7, 8).
+- RED: broken .goodvibes.json is an error (update/doctor exit 1); backslash manifest keys normalised (items 9, 11).
+- GREEN: parseManifest() throws '<path> is not valid JSON (...)'; update and doctor report it and exit 1 (doctor --quick prints it, exits 0); manifest keys forward-slash on read and write (items 9, 11). Existing doctor/update unit mocks adjusted to return a valid manifest / posixKey.
+- RED: JSON files written via temp file + rename; non-object user JSON reported, not a crash (item 15).
+- GREEN: utils/fs-safe.ts writeFileAtomic (temp + rename, symlinked config file keeps its link) for settings.json, .mcp.json and both manifests; isJsonObject guard in update, global setup and managedRecord (item 15).
+- RED: never write through a symlink (init copy, CLAUDE.md, update copy/merge, manifest), real-path assertSafe; broken CLAUDE.md markers reported by callers, update exits 1 (items 1, 3).
+- GREEN: fs-safe writeBlocked()/assertSafe() (lstat walk + real paths via path.relative); copyTemplates filter, CI rename, CLAUDE.md, update categorise/apply and writeManifest skip symlinked destinations and report '<path>: symlink, not written'; MarkerError reported by init ('Needs your attention') and update (exit 1 after the other files). init/update unit mocks gained problems/fs-safe (items 1, 3).
+- RED: re-running init must merge with the previous manifest and managed record (item 2).
+- GREEN: init reads the previous manifest first (broken one stops init with exit 1), keeps its entries for files not written this run and passes its managed record to managedRecord (item 2).
+- RED: update plans global + project changes, asks once, and cancel writes nothing anywhere (item 5).
+- GREEN: runUpdate plans global (applyGlobalConfig dry run) and project changes, shows the plan, asks once (unless --force/--dry-run), then applies; cancel exits 0 with nothing written (item 5).
+- RED: update must not re-create removed tracked files (project and global) nor add workflows/.github/docs groups the manifest never tracked (item 6).
+- GREEN: tracked-but-deleted files (project and config dir) are reported 'removed by you, not re-added (run goodvibes init to restore)' and dropped from the manifest; net-new workflows/.github/docs only when the manifest tracks that layer (item 6).
+- RED: upgrade re-runs via process.execPath and turns npm install -g failures into an actionable message with exit 1 (item 12).
+- GREEN: upgrade re-runs with process.execPath + argv[1]; npm install -g failure prints the EACCES docs link or the first npm error line and exits 1 (item 12).
+- RED: Node gate (>=22.12) must run before any dependency loads; engines.node >=22.12.0 (item 13).
+- GREEN: src/node-check.ts gate runs first in src/index.ts, CLI body moved to src/cli.ts and loaded by dynamic import (tsup emits dist/index.js + one chunk, both in npm pack); engines.node >=22.12.0 (lockfile root engines synced with npm@11, one line), tsup target node22 (item 13).
+- RED (coordinator decision on item 6): a removed file is recorded as 'user-removed' instead of dropped; deleted AGENTS.md and rules/goodvibes.md stay absent over two updates, reported once; init restores both; a recreated user-removed file is never overwritten.
+- GREEN: USER_OWNED/USER_REMOVED sentinels exported from write-manifest.ts; update records newly deleted files as 'user-removed' (reported once), never re-adds them, treats a recreated one as user-owned, and ignores user-removed entries when deciding if a layer is tracked; applyGlobalConfig does the same in the config dir, and init passes restore=true so it brings them back with real hashes.

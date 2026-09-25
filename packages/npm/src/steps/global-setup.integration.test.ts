@@ -90,4 +90,53 @@ describe('applyGlobalConfig (real temp CLAUDE_CONFIG_DIR)', () => {
     expect(readFileSync(join(cfg, 'settings.json'), 'utf-8')).toBe('{ nope')
     expect(r.settingsError).toContain('not valid JSON')
   })
+
+  it('reports a global settings.json that is JSON but not an object and leaves it unchanged', async () => {
+    mkdirSync(cfg, { recursive: true })
+    writeFileSync(join(cfg, 'settings.json'), '[]')
+    const r = await applyGlobalConfig(templateDir, '1.8.0', false)
+    expect(readFileSync(join(cfg, 'settings.json'), 'utf-8')).toBe('[]')
+    expect(r.settingsError).toContain('not a JSON object; left unchanged')
+  })
+
+  it('keeps a deleted rules file absent over two runs, reports it once and records it as user-removed', async () => {
+    await applyGlobalConfig(templateDir, '1.8.0', false)
+    rmSync(join(cfg, 'rules', 'goodvibes.md'))
+    const { formatGlobal } = await import('./global-setup.js')
+
+    const first = await applyGlobalConfig(templateDir, '1.8.0', false)
+    expect(first.removed).toEqual(['rules/goodvibes.md'])
+    expect(first.written).not.toContain('rules/goodvibes.md')
+    expect(formatGlobal(first, undefined, undefined)).toContain('rules/goodvibes.md: removed by you, not re-added (run goodvibes init to restore)')
+    expect(readJson('.goodvibes.json').files['rules/goodvibes.md']).toBe('user-removed')
+
+    const second = await applyGlobalConfig(templateDir, '1.8.0', false)
+    expect(existsSync(join(cfg, 'rules', 'goodvibes.md'))).toBe(false)
+    expect(second.removed).toEqual([])
+    expect(formatGlobal(second, undefined, undefined)).not.toContain('rules/goodvibes.md')
+    expect(readJson('.goodvibes.json').files['rules/goodvibes.md']).toBe('user-removed')
+  })
+
+  it('restores a user-removed rules file when asked to (init) and records its real hash', async () => {
+    await applyGlobalConfig(templateDir, '1.8.0', false)
+    const content = readFileSync(join(cfg, 'rules', 'goodvibes.md'), 'utf-8')
+    rmSync(join(cfg, 'rules', 'goodvibes.md'))
+    await applyGlobalConfig(templateDir, '1.8.0', false)
+
+    await applyGlobalConfig(templateDir, '1.8.0', false, true)
+
+    expect(readFileSync(join(cfg, 'rules', 'goodvibes.md'), 'utf-8')).toBe(content)
+    expect(readJson('.goodvibes.json').files['rules/goodvibes.md']).toBe(createHash('sha256').update(content, 'utf8').digest('hex'))
+  })
+
+  it('never overwrites a user-removed rules file the user created again, even when restoring', async () => {
+    mkdirSync(join(cfg, 'rules'), { recursive: true })
+    writeFileSync(join(cfg, 'rules', 'goodvibes.md'), 'my own rules\n')
+    writeFileSync(join(cfg, '.goodvibes.json'), JSON.stringify({ version: '1.8.0', scope: 'global', files: { 'rules/goodvibes.md': 'user-removed' } }))
+
+    await applyGlobalConfig(templateDir, '1.8.0', false)
+    await applyGlobalConfig(templateDir, '1.8.0', false, true)
+
+    expect(readFileSync(join(cfg, 'rules', 'goodvibes.md'), 'utf-8')).toBe('my own rules\n')
+  })
 })

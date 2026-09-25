@@ -5,6 +5,7 @@ import { join } from 'node:path'
 import { execa } from 'execa'
 import { packageVersion } from '../utils/version.js'
 import { claudeConfigDir } from '../steps/global-setup.js'
+import { MANIFEST_PATH, parseManifest } from '../steps/write-manifest.js'
 
 // ponytail: not imported from sentinel-merge.ts — those constants are module-private
 const SENTINEL_START = '<!-- goodvibes:start -->'
@@ -70,13 +71,14 @@ function checkSentinel(cwd: string): CheckResult {
   }
 }
 
-function projectScope(cwd: string): 'global' | 'project' | null {
-  const path = join(cwd, '.goodvibes.json')
-  if (!existsSync(path)) return null
+// A broken manifest is a failed check of its own; the CLAUDE.md checks still run so every problem shows at once.
+function manifestCheck(cwd: string): { scope: 'global' | 'project' | null; failure?: CheckResult } {
+  const path = join(cwd, MANIFEST_PATH)
+  if (!existsSync(path)) return { scope: null }
   try {
-    return JSON.parse(readFileSync(path, 'utf-8')).scope === 'global' ? 'global' : 'project'
-  } catch {
-    return 'project' // unreadable manifest: fall back to the project CLAUDE.md checks, which report the real problem
+    return { scope: parseManifest(readFileSync(path, 'utf-8'), path).scope === 'global' ? 'global' : 'project' }
+  } catch (e) {
+    return { scope: 'project', failure: { label: `${MANIFEST_PATH} readable`, pass: false, remedy: (e as Error).message } }
   }
 }
 
@@ -101,15 +103,16 @@ export function registerDoctorCommand(program: Command): void {
       if (options.quick) {
         // Exit 2 from a SessionStart hook blocks the session, so quick mode reports and always exits 0.
         // Outside a goodvibes project (no manifest) only the machine-wide git checks apply.
-        const scope = projectScope(cwd)
-        const quick = [...(await checkGit()), ...(scope ? ruleChecks(cwd, scope) : [])].filter(r => !r.pass)
+        const { scope, failure } = manifestCheck(cwd)
+        const quick = [...(failure ? [failure] : []), ...(await checkGit()), ...(scope ? ruleChecks(cwd, scope) : [])].filter(r => !r.pass)
         for (const r of quick) console.log(`goodvibes doctor: ✗ ${r.label}.${r.remedy ? ` ${r.remedy}` : ''}`)
         return
       }
 
       const headroomResult = await checkHeadroom()
       const gitResults = await checkGit()
-      const all: CheckResult[] = [headroomResult, ...gitResults, ...ruleChecks(cwd, projectScope(cwd))]
+      const { scope, failure } = manifestCheck(cwd)
+      const all: CheckResult[] = [...(failure ? [failure] : []), headroomResult, ...gitResults, ...ruleChecks(cwd, scope)]
 
       const version = packageVersion()
       const lines = [`goodvibes v${version}`, ...all.map(r => `${r.pass ? '✓' : '✗'} ${r.label}`)]

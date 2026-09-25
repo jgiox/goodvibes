@@ -5,11 +5,6 @@ import { execa } from 'execa'
 
 const _require = createRequire(import.meta.url)
 
-describe('index: Node version check', () => {
-  it.todo('exits 1 with message when Node < 20')
-  it.todo('continues when Node >= 20')
-})
-
 describe('index: --version flag', () => {
   // ponytail: build guard — run `npm run build` first if this skips
   const distExists = existsSync(new URL('../../dist/index.js', import.meta.url).pathname)

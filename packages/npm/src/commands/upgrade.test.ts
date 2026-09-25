@@ -36,8 +36,48 @@ describe('upgrade command', () => {
 
     await runUpgrade().catch(() => {})
 
-    expect(vi.mocked(execa)).toHaveBeenCalledWith('npm', ['install', '-g', 'goodvibes-cli@1.0.1'], expect.objectContaining({ stdio: 'inherit' }))
-    expect(vi.mocked(execa)).toHaveBeenCalledWith(process.argv[1], expect.any(Array), expect.objectContaining({ env: expect.objectContaining({ _GV_UPGRADING: '1.0.1' }) }))
+    expect(vi.mocked(execa)).toHaveBeenCalledWith('npm', ['install', '-g', 'goodvibes-cli@1.0.1'], expect.anything())
+    expect(vi.mocked(execa)).toHaveBeenCalledWith(
+      process.execPath,
+      [process.argv[1], ...process.argv.slice(2)],
+      expect.objectContaining({ env: expect.objectContaining({ _GV_UPGRADING: '1.0.1' }) }),
+    )
+  })
+
+  it('prints the npm permissions fix and exits 1 when npm install -g fails with EACCES', async () => {
+    const { execa } = await import('execa')
+    const { note } = await import('@clack/prompts')
+    const { runUpdate } = await import('./update.js')
+    vi.mocked(execa).mockImplementation((async (cmd: string, args: string[]) => {
+      if (args[0] === 'view') return { stdout: '1.0.1' }
+      throw Object.assign(new Error('Command failed with exit code 243: npm install -g goodvibes-cli@1.0.1'), {
+        stderr: 'npm error code EACCES\nnpm error syscall mkdir\nnpm error path /usr/lib/node_modules/goodvibes-cli',
+      })
+    }) as never)
+
+    await expect(runUpgrade()).rejects.toThrow('process.exit')
+
+    expect(exitSpy).toHaveBeenCalledWith(1)
+    const out = vi.mocked(note).mock.calls.flat().join(' ')
+    expect(out).toContain('https://docs.npmjs.com/resolving-eacces-permissions-errors-when-installing-packages-globally')
+    expect(vi.mocked(runUpdate)).not.toHaveBeenCalled()
+    expect(vi.mocked(execa)).not.toHaveBeenCalledWith(process.execPath, expect.anything(), expect.anything())
+  })
+
+  it('prints the first npm error line and exits 1 when npm install -g fails for another reason', async () => {
+    const { execa } = await import('execa')
+    const { note } = await import('@clack/prompts')
+    vi.mocked(execa).mockImplementation((async (cmd: string, args: string[]) => {
+      if (args[0] === 'view') return { stdout: '1.0.1' }
+      throw Object.assign(new Error('Command failed with exit code 1: npm install -g goodvibes-cli@1.0.1'), {
+        stderr: 'npm warn deprecated x\nnpm error code ETARGET\nnpm error notarget No matching version',
+      })
+    }) as never)
+
+    await expect(runUpgrade()).rejects.toThrow('process.exit')
+
+    expect(exitSpy).toHaveBeenCalledWith(1)
+    expect(vi.mocked(note).mock.calls.flat().join(' ')).toContain('npm error code ETARGET')
   })
 
   it('does not install anything during --dry-run and previews the update instead', async () => {

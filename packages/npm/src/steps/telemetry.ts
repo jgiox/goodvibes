@@ -1,12 +1,14 @@
 const TELEMETRY_URL =
   process.env.GOODVIBES_TELEMETRY_URL ?? 'https://goodvibes-telemetry.igiokas.workers.dev/'
 
+const truthy = (v: string | undefined) => ['1', 'true', 'yes'].includes((v ?? '').trim().toLowerCase())
+
+export function telemetryOptedOut(env: NodeJS.ProcessEnv = process.env): boolean {
+  return truthy(env.DO_NOT_TRACK) || truthy(env.GOODVIBES_NO_TELEMETRY) || env.CI === 'true'
+}
+
 export async function sendTelemetry(): Promise<void> {
-  if (
-    process.env.DO_NOT_TRACK === '1' ||
-    process.env.GOODVIBES_NO_TELEMETRY === '1' ||
-    process.env.CI === 'true'
-  ) return
+  if (telemetryOptedOut()) return
 
   const { randomUUID } = await import('node:crypto')
   const id = randomUUID() // per-invocation, never stored to disk (TEL-02)
