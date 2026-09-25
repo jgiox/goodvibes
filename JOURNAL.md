@@ -1899,3 +1899,4 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 - Final: npm prebuild, typecheck 0 errors, build ok, vitest 497 passed 1 skipped; pip pytest 362 passed; actionlint 1.7.12 clean; verify-phase1..5 PASS (19/32/19/17/13 checks).
 - Dependabot cooldown: verified `cooldown.default-days` in github/docs source (content/code-security/reference/supply-chain-security/dependabot-options-reference.md). GitHub.com already applies 3 days by default, so the template now sets 7. RED test first.
 - GREEN: templates/.github/dependabot.yml cooldown default-days 7 on all three ecosystems; workflow-templates tests 36/36.
+- dependency-review: RED test for CC-BY-4.0 (caniuse-lite), CC-BY-3.0 (spdx-exceptions), PSF-2.0 (typing_extensions) and Zlib (pako) in allow-licenses; without them routine Dependabot bumps fail in beginner projects. Checked the action README: unknown licences only warn.

@@ -72,6 +72,11 @@ describe('template workflow limits', () => {
     )
   })
 
+  it('dependency review allows the permissive licences of common packages (caniuse-lite, spdx-exceptions, typing_extensions, pako)', () => {
+    const line = read('dependency-review.yml').split('\n').find(l => l.includes('allow-licenses:')) ?? ''
+    for (const id of ['CC-BY-4.0', 'CC-BY-3.0', 'PSF-2.0', 'Zlib']) expect(line.split(/,\s*|:\s*/)).toContain(id)
+  })
+
   it('Dependabot waits seven days, longer than GitHub\'s 3-day default, before proposing a new release', () => {
     const text = readFileSync(join(resolveTemplatesDir(), '.github', 'dependabot.yml'), 'utf-8')
     const entries = text.split('  - package-ecosystem:').slice(1)
