@@ -545,6 +545,43 @@ def test_update_adds_a_new_workflow_when_the_manifest_tracks_a_workflow_but_not_
     assert not (project_dir / "docs").exists()
 
 
+def test_update_adds_the_file_size_workflow_but_no_other_workflow_when_the_manifest_tracks_the_file_size_script(plain_dirs):
+    template_dir, project_dir = plain_dirs
+    _tpl(template_dir, [".github/scripts/check-file-sizes.mjs", ".github/workflows/file-size.yml", ".github/workflows/security.yml"])
+    script = project_dir / ".github" / "scripts" / "check-file-sizes.mjs"
+    script.parent.mkdir(parents=True)
+    script.write_text("template .github/scripts/check-file-sizes.mjs\n", encoding="utf-8")
+    mine = project_dir / ".github" / "workflows" / "mine.yml"
+    mine.parent.mkdir(parents=True)
+    mine.write_text("my own ci\n", encoding="utf-8")
+    _write_manifest(project_dir, {".github/scripts/check-file-sizes.mjs": _sha("template .github/scripts/check-file-sizes.mjs\n")})
+
+    result = runner.invoke(app, ["update", "--force"])
+
+    assert result.exit_code == 0, result.output
+    assert (project_dir / ".github" / "workflows" / "file-size.yml").read_text(encoding="utf-8") == "template .github/workflows/file-size.yml\n"
+    assert _read(project_dir, ".goodvibes.json")["files"][".github/workflows/file-size.yml"] == _sha("template .github/workflows/file-size.yml\n")
+    assert not (project_dir / ".github" / "workflows" / "security.yml").exists()
+
+
+def test_update_keeps_the_users_own_file_size_workflow_when_the_manifest_tracks_the_file_size_script(plain_dirs):
+    template_dir, project_dir = plain_dirs
+    _tpl(template_dir, [".github/scripts/check-file-sizes.mjs", ".github/workflows/file-size.yml"])
+    script = project_dir / ".github" / "scripts" / "check-file-sizes.mjs"
+    script.parent.mkdir(parents=True)
+    script.write_text("template .github/scripts/check-file-sizes.mjs\n", encoding="utf-8")
+    own = project_dir / ".github" / "workflows" / "file-size.yml"
+    own.parent.mkdir(parents=True)
+    own.write_text("my own size check\n", encoding="utf-8")
+    _write_manifest(project_dir, {".github/scripts/check-file-sizes.mjs": _sha("template .github/scripts/check-file-sizes.mjs\n")})
+
+    result = runner.invoke(app, ["update", "--force"])
+
+    assert result.exit_code == 0, result.output
+    assert own.read_text(encoding="utf-8") == "my own size check\n"
+    assert _read(project_dir, ".goodvibes.json")["files"][".github/workflows/file-size.yml"] == "user-owned"
+
+
 def test_update_never_overwrites_a_removed_file_the_user_recreated(plain_dirs):
     template_dir, project_dir = plain_dirs
     _tpl(template_dir, ["AGENTS.md"])

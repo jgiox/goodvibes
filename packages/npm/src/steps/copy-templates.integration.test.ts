@@ -527,6 +527,44 @@ describe('copyTemplates — workflow conflict guard', () => {
     await copyTemplates(templateDir, tmpDir, false, false)
     expect(existsSync(join(tmpDir, '.github', 'workflows', 'ci.yml'))).toBe(true)
   })
+
+  it('adds file-size.yml but not ci.yml when the project already has its own workflow', async () => {
+    const workflowsDir = join(tmpDir, '.github', 'workflows')
+    mkdirSync(workflowsDir, { recursive: true })
+    writeFileSync(join(workflowsDir, 'codeql.yml'), '# existing CodeQL\n')
+
+    const { written } = await copyTemplates(templateDir, tmpDir, false, false)
+
+    expect(readFileSync(join(workflowsDir, 'file-size.yml'), 'utf-8')).toBe(readFileSync(join(templateDir, '.github', 'workflows', 'file-size.yml'), 'utf-8'))
+    expect(written).toContain('.github/workflows/file-size.yml')
+    expect(existsSync(join(tmpDir, '.github', 'scripts', 'check-file-sizes.mjs'))).toBe(true)
+    expect(existsSync(join(workflowsDir, 'ci.yml'))).toBe(false)
+    expect(existsSync(join(workflowsDir, 'security.yml'))).toBe(false)
+  })
+
+  it('adds neither file-size.yml nor ci.yml under --minimal when the project has its own workflow', async () => {
+    const workflowsDir = join(tmpDir, '.github', 'workflows')
+    mkdirSync(workflowsDir, { recursive: true })
+    writeFileSync(join(workflowsDir, 'codeql.yml'), '# existing CodeQL\n')
+
+    await copyTemplates(templateDir, tmpDir, false, true)
+
+    expect(existsSync(join(workflowsDir, 'file-size.yml'))).toBe(false)
+    expect(existsSync(join(workflowsDir, 'ci.yml'))).toBe(false)
+    expect(existsSync(join(tmpDir, '.github', 'scripts'))).toBe(false)
+  })
+
+  it('keeps the user\'s own file-size.yml and reports it as skipped when the project has its own workflows', async () => {
+    const workflowsDir = join(tmpDir, '.github', 'workflows')
+    mkdirSync(workflowsDir, { recursive: true })
+    writeFileSync(join(workflowsDir, 'file-size.yml'), '# my own size check\n')
+
+    const { written, skipped } = await copyTemplates(templateDir, tmpDir, false, false)
+
+    expect(readFileSync(join(workflowsDir, 'file-size.yml'), 'utf-8')).toBe('# my own size check\n')
+    expect(written).not.toContain('.github/workflows/file-size.yml')
+    expect(skipped).toContain('.github/workflows/file-size.yml')
+  })
 })
 
 describe('copyTemplates — never writes through a symlink', () => {

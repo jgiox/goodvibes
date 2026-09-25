@@ -2131,3 +2131,10 @@ Added a Standing decisions section to this journal.
 
 **Dogfood sync:** this repo's rule files are copied from `templates/`: `.amazonq`, `.clinerules`, `.continue`, `.cursor`, `.devin`, `.kiro`, `.windsurfrules`, `AGENTS.md`, `GEMINI.md` and `.github/copilot-instructions.md`. `.claude/skills/` is copied from `templates/.claude/skills/`, which adds `model-regression`. The goodvibes block of `CLAUDE.md` is replaced from the template; the project sections above it are unchanged. Not synced, because they are this repo's own: CHANGELOG, JOURNAL, CONTRIBUTING, SECURITY, `.github/dependabot.yml`, the repo workflows, and `.claude/settings.json` (hooks already identical; the repo deliberately has no permissions block).
 - Rulesets: `main` requires a PR with green CI and blocks force-push and deletion; only admins can create the `npm-v*`, `pip-v*` and `v*` tags (maintainer confirmed).
+
+## 2026-09-25: File Size workflow reaches projects with their own workflows
+
+**What:** `.github/workflows/file-size.yml` now travels with `.github/scripts/check-file-sizes.mjs`. `init` adds it even when the project already has workflows (other template workflows are still skipped there), `--minimal` still skips all of `.github/`, and `update` counts it in the `.github` layer, so a project that got only the script gets the workflow on its next update. An existing `file-size.yml` is never overwritten.
+- RED: npm `copy-templates.integration.test.ts` and `update.integration.test.ts`, pip `test_copy_templates.py` and `test_update_cmd.py`: own workflow gets `file-size.yml` but not `ci.yml`; `--minimal` adds neither; update adds it when the manifest tracks the script; a user's own `file-size.yml` is kept.
+- GREEN: `copyTemplates` / `copy_templates` no longer skip `file-size.yml` when the project has workflows (no-clobber still applies), and update's `layer()` / `_group()` put it in the `.github` layer.
+- Docs: getting-started (and its template copy) says projects with their own workflows get `file-size.yml` only; CHANGELOG `[Unreleased]` Fixed entry.

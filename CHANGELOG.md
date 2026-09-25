@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/2.0.0/),
 
 ## [Unreleased]
 
+### Fixed
+
+- File Size check in projects that already have their own GitHub workflows: `goodvibes init` now adds `.github/workflows/file-size.yml` together with the script it runs (the other goodvibes workflows are still skipped there), and `goodvibes update` adds it to projects that got only the script. An existing `file-size.yml` is never overwritten, and `--minimal` still skips all of `.github/`
+
 ## [1.10.0] - 2026-09-25
 
 ### Added

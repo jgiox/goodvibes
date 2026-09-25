@@ -731,4 +731,38 @@ describe('update command — respects files the user removed and layers init ski
     expect(readFileSync(join(projectDir, 'docs', 'new.md'), 'utf-8')).toBe('new\n')
     expect(existsSync(join(projectDir, '.github', 'ISSUE_TEMPLATE', 'bug.md'))).toBe(false)
   })
+
+  it('adds file-size.yml but no other workflow when the manifest tracks the file-size script and the project has its own workflows', async () => {
+    put(templateDir, '.github/scripts/check-file-sizes.mjs', 'script\n')
+    put(templateDir, '.github/workflows/file-size.yml', 'size\n')
+    put(templateDir, '.github/workflows/security.yml', 'sec\n')
+    put(projectDir, '.github/scripts/check-file-sizes.mjs', 'script\n')
+    put(projectDir, '.github/workflows/mine.yml', 'my own ci\n')
+    writeFileSync(join(projectDir, '.goodvibes.json'), JSON.stringify({
+      version: '1.0.0',
+      files: { '.github/scripts/check-file-sizes.mjs': sha256('script\n') },
+    }))
+
+    await runUpdate('--force')
+
+    expect(readFileSync(join(projectDir, '.github', 'workflows', 'file-size.yml'), 'utf-8')).toBe('size\n')
+    expect(manifestFiles()['.github/workflows/file-size.yml']).toBe(sha256('size\n'))
+    expect(existsSync(join(projectDir, '.github', 'workflows', 'security.yml'))).toBe(false)
+  })
+
+  it('keeps the user\'s own file-size.yml when the manifest tracks the file-size script', async () => {
+    put(templateDir, '.github/scripts/check-file-sizes.mjs', 'script\n')
+    put(templateDir, '.github/workflows/file-size.yml', 'size\n')
+    put(projectDir, '.github/scripts/check-file-sizes.mjs', 'script\n')
+    put(projectDir, '.github/workflows/file-size.yml', 'my own size check\n')
+    writeFileSync(join(projectDir, '.goodvibes.json'), JSON.stringify({
+      version: '1.0.0',
+      files: { '.github/scripts/check-file-sizes.mjs': sha256('script\n') },
+    }))
+
+    await runUpdate('--force')
+
+    expect(readFileSync(join(projectDir, '.github', 'workflows', 'file-size.yml'), 'utf-8')).toBe('my own size check\n')
+    expect(manifestFiles()['.github/workflows/file-size.yml']).toBe('user-owned')
+  })
 })
