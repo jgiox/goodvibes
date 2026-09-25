@@ -6,7 +6,7 @@ import { mergeClaude, MarkerError } from '../utils/sentinel-merge.js'
 import { MANAGED_JSON, mergeManagedJson, managedRecord, isJsonObject, shapeError } from '../utils/json-merge.js'
 import { assertSafe, printable, removeRetired, writeBlocked, writeFileAtomic } from '../utils/fs-safe.js'
 import { applyGlobalConfig, claudeConfigDir, formatGlobal } from '../steps/global-setup.js'
-import { GLOBAL_OWNED, MINIMAL_SKIPPED, type Scope } from '../utils/scope.js'
+import { GLOBAL_OWNED, MINIMAL_SKIPPED, samePath, type Scope } from '../utils/scope.js'
 import { detectProjectType } from '../utils/detect-project-type.js'
 import { readFile } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
@@ -125,7 +125,8 @@ export async function runUpdate(dryRun: boolean, force: boolean): Promise<void> 
   let manifest: Manifest | null
   let globalManifest: Manifest | null
   try {
-    manifest = await readManifest(cwd)
+    // In the Claude Code settings folder the manifest there is the global one: update only the global part.
+    manifest = samePath(cwd, claudeConfigDir()) ? null : await readManifest(cwd)
     globalManifest = await readManifest(claudeConfigDir())
   } catch (e) {
     cancel((e as Error).message)

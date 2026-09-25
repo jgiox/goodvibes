@@ -1,3 +1,6 @@
+import { realpathSync } from 'node:fs'
+import { resolve } from 'node:path'
+
 const SENTINEL_START = '<!-- goodvibes:start -->'
 const SENTINEL_END = '<!-- goodvibes:end -->'
 
@@ -15,6 +18,17 @@ export const MINIMAL_SKIPPED = (rel: string): boolean => {
   if (p === 'docs' || p.startsWith('docs/')) return true
   return p.startsWith('.github/') && p !== '.github/copilot-instructions.md' && p !== '.github/hooks' && !p.startsWith('.github/hooks/')
 }
+
+// cwd is already a real path, so the other side is compared by its real path too (it may be a symlink).
+const realPath = (p: string): string => {
+  try {
+    return realpathSync(p)
+  } catch (e) {
+    if ((e as NodeJS.ErrnoException).code !== 'ENOENT') throw e
+    return resolve(p)
+  }
+}
+export const samePath = (a: string, b: string): boolean => realPath(a) === realPath(b)
 
 export function goodvibesBlock(claudeTemplate: string): string {
   const start = claudeTemplate.indexOf(SENTINEL_START)

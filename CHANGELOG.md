@@ -33,6 +33,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/2.0.0/),
 
 ### Fixed
 
+- `goodvibes update` run inside the Claude Code settings folder (`~/.claude`, or `CLAUDE_CONFIG_DIR`) now updates only the global setup. It used to read the global `.goodvibes.json` as a project one and add about 25 project files (JOURNAL.md, AGENTS.md and others) to that folder
 - Telemetry is now skipped whenever `CI` is set to anything other than `0` or `false` (for example `CI=1`), not only for `CI=true`. npm and pip use the same rule
 - `goodvibes upgrade` (npm) now says "Could not check npm for a newer version (...); updating with the installed version" when the version check fails, like pip does for PyPI, instead of carrying on silently. It runs `npm view` from your home folder, so a project's `.npmrc` cannot choose which version counts as newest
 - `goodvibes upgrade` (pip): the "Could not upgrade goodvibes. Run: ..." line now quotes `'goodvibes-cli>=X'`, so pasting it into a terminal no longer treats `>` as a redirect that creates a file named `=X`

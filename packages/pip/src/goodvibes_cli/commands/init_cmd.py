@@ -17,7 +17,7 @@ from goodvibes_cli.utils.detect_project_type import detect_project_type
 from goodvibes_cli.utils.json_merge import managed_record
 from goodvibes_cli.utils.safe_path import SymlinkError
 from goodvibes_cli.steps.global_setup import apply_global_config, claude_config_dir, ensure_global_cli, format_global, register_context7
-from goodvibes_cli.utils.scope import global_owned, minimal_skipped
+from goodvibes_cli.utils.scope import global_owned, minimal_skipped, same_path
 
 console = Console()
 
@@ -65,7 +65,7 @@ def init_cmd(
     template_dir = resolve_templates_dir()
     cwd = pathlib.Path.cwd()
     # The Claude Code settings folder holds the global manifest; a project setup there would replace it.
-    in_config_dir = cwd.resolve() == claude_config_dir().resolve()
+    in_config_dir = same_path(cwd, claude_config_dir())
     if in_config_dir and scope == "project":
         console.print(f"{cwd} is your Claude Code settings folder, not a project.\nRun goodvibes init --scope project inside your project folder.", style="red", markup=False)
         raise typer.Exit(1)

@@ -2235,3 +2235,4 @@ Added a Standing decisions section to this journal.
 
 **What:** round 2 audit fixes in npm and pip (branch `fix/audit-round2`).
 - RED 1: npm `update.integration.test.ts` and pip `test_update_cmd.py`: `update` run inside the Claude Code settings folder (`CLAUDE_CONFIG_DIR`) must plan and apply only the global part, add no project files there and keep the global manifest. Both fail today (JOURNAL.md is planned as net-new).
+- GREEN 1: new `samePath` (npm `utils/scope.ts`, real paths, falls back to the plain path when it does not exist) / `same_path` (pip `utils/scope.py`); init and update both use it. `update` ignores the manifest in the current folder when that folder is the settings folder, so only the global part is planned and applied. CHANGELOG Fixed. npm tsc clean, vitest 938 passed, 2 skipped; pip 803 passed.

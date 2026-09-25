@@ -20,7 +20,7 @@ from goodvibes_cli.utils.detect_project_type import detect_project_type
 from goodvibes_cli.utils.json_merge import MANAGED_JSON, managed_record, merge_managed_json, shape_error, write_json
 from goodvibes_cli.steps.global_setup import apply_global_config, claude_config_dir, format_global
 from goodvibes_cli.utils.safe_path import SymlinkError, check_writable, printable, remove_retired
-from goodvibes_cli.utils.scope import global_owned, minimal_skipped
+from goodvibes_cli.utils.scope import global_owned, minimal_skipped, same_path
 from goodvibes_cli.utils.sentinel_merge import ClaudeMdError, merge_claude
 
 console = Console()
@@ -57,7 +57,8 @@ def update_cmd(
     console.rule("[bold]goodvibes update[/bold]")
     cwd = pathlib.Path.cwd()
     try:
-        manifest = read_manifest(cwd)
+        # In the Claude Code settings folder the manifest there is the global one: update only the global part.
+        manifest = None if same_path(cwd, claude_config_dir()) else read_manifest(cwd)
         global_manifest = read_manifest(claude_config_dir())
     except ManifestError as e:
         console.print(str(e), style="red", markup=False)
