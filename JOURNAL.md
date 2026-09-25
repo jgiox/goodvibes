@@ -1851,3 +1851,18 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 **Tests run:** RED: npm mode test failed (symlink test passed); pip symlink test failed (mode test passed). GREEN: npm typecheck 0, vitest 438 passed, 1 skipped (the fs-safe unit mock gained stat and chmod); pip pytest 358 passed.
 
 **Docs updated:** JOURNAL.md.
+
+---
+
+## 2026-09-25 · Read guard hook and shared hook test cases
+
+**What I did:** Added a second PreToolUse hook, `: goodvibes-read-guard;` (matcher `Read|Bash`, placed after the journal gate). It blocks whole-file reads of big files (over 800 lines or 100 KB; `GOODVIBES_READ_GUARD_LINES` / `_KB` override) and any Read or Bash read of secret files (`.env*` except example/sample/template, `*.pem`, `id_rsa`/`id_ed25519`/`id_ecdsa`, `.ssh/`, `.aws/credentials`, `.git-credentials`, `.netrc`). `GOODVIBES_READ_GUARD=off` turns it off. Hook test cases now live in `tests/hooks/<id>.cases.json`, run by one vitest and one pytest runner against the real hook command in `templates/.claude/settings.json`.
+
+**Files changed:** tests/hooks/read-guard.cases.json, packages/npm/src/steps/hook-cases.integration.test.ts, packages/pip/tests/test_hook_cases.py, JOURNAL.md.
+
+**Why:** Whole-file reads of big files waste context tokens, and the Read deny rules do not cover `cat .env` through Bash.
+
+**Tests run:**
+- RED: read-guard cases and runners committed with the hook absent; all 132 read-guard cases fail in both runners.
+
+**Docs updated:** JOURNAL.md.
