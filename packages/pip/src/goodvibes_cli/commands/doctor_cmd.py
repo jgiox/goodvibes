@@ -23,6 +23,7 @@ from goodvibes_cli.steps.git_hook import install_git_hook
 from goodvibes_cli.steps.global_setup import claude_config_dir
 from goodvibes_cli.steps.write_manifest import ManifestError, read_manifest
 from goodvibes_cli.utils.safe_path import printable as _printable
+from goodvibes_cli.utils.proc import run
 
 # ponytail: not imported from sentinel_merge — define locally to avoid coupling
 SENTINEL_START = "<!-- goodvibes:start -->"
@@ -60,7 +61,7 @@ def summary_line(results: list[CheckResult]) -> str:
 
 def _check_headroom() -> CheckResult:
     try:
-        subprocess.run(
+        run(
             ["headroom", "--version"],
             capture_output=True, text=True, check=True, timeout=10
         )
@@ -100,6 +101,7 @@ def _check_git_hook(cwd: pathlib.Path) -> list[CheckResult]:
         "installed": [CheckResult("Git commit check not installed", "warn", "Run: goodvibes update")],
         "custom-path": [CheckResult("Git commit check not managed (core.hooksPath is set)", "skip")],
         "existing-hook": [CheckResult("Git commit check not managed (your own pre-commit hook)", "skip")],
+        "linked-hooks": [CheckResult("Git commit check not managed (.git/hooks is a link or outside the git folder)", "skip")],
     }.get(status, [])
 
 
@@ -231,7 +233,7 @@ def _check_goodvibes_cli() -> CheckResult:
 
 def _check_git_config(key: str) -> CheckResult:
     try:
-        result = subprocess.run(
+        result = run(
             ["git", "config", key],
             capture_output=True,
             text=True,
@@ -264,7 +266,7 @@ def _check_sentinel(cwd: pathlib.Path) -> CheckResult:
     path = cwd / "CLAUDE.md"
     if not path.exists():
         return CheckResult(label="goodvibes sentinel block", status="fail", remedy="Run: goodvibes init")
-    content = path.read_text(encoding="utf-8")
+    content = path.read_text(encoding="utf-8", errors="replace")
     ok = SENTINEL_START in content and SENTINEL_END in content
     return CheckResult(
         label="goodvibes sentinel block",
@@ -277,7 +279,7 @@ def _project_scope(cwd: pathlib.Path) -> tuple[str | None, list[CheckResult]]:
     try:
         manifest = read_manifest(cwd)
     except ManifestError as e:
-        return "project", [CheckResult(label=".goodvibes.json is valid JSON", status="fail", remedy=str(e))]
+        return "project", [CheckResult(label=".goodvibes.json is valid JSON", status="fail", remedy=_printable(str(e)))]
     if manifest is None:
         return None, []
     return ("global" if manifest.get("scope") == "global" else "project"), []
@@ -302,8 +304,13 @@ def doctor_cmd(
     if quick:
         # Exit 2 from a SessionStart hook blocks the session, so quick mode reports and always exits 0.
         # Outside a goodvibes project (no manifest) only the machine-wide git checks apply.
-        scope, manifest_checks = _project_scope(cwd)
-        checks = [*manifest_checks, _check_git_config("user.name"), _check_git_config("user.email"), *(_rule_checks(cwd, scope) if scope else []), *_check_journal(cwd)]
+        try:
+            scope, manifest_checks = _project_scope(cwd)
+            checks = [*manifest_checks, _check_git_config("user.name"), _check_git_config("user.email"), *(_rule_checks(cwd, scope) if scope else []), *_check_journal(cwd)]
+        except Exception as e:
+            reason = errno.errorcode.get(e.errno, str(e)) if isinstance(e, OSError) and e.errno else (str(e).splitlines() or [type(e).__name__])[0]
+            typer.echo(f"goodvibes doctor: ✗ Could not finish the checks ({_printable(reason)}). Run: goodvibes doctor")
+            return
         for r in checks:
             if r.status in ("warn", "fail"):
                 head = r.label if r.label.endswith(".") else f"{r.label}."

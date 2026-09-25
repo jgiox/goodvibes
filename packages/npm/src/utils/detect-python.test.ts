@@ -24,7 +24,7 @@ describe('detectPython', () => {
     const { detectPython } = await import('./detect-python.js')
     const result = await detectPython()
     expect(result).toBe('python3')
-    expect(mockedExeca).toHaveBeenCalledWith('python3', ['--version'])
+    expect(mockedExeca).toHaveBeenCalledWith('python3', ['--version'], expect.objectContaining({ env: expect.objectContaining({ NoDefaultCurrentDirectoryInExePath: '1' }) }))
   })
 
   it('falls back to python command when python3 is ENOENT and python returns 3.11.0', async () => {
@@ -39,8 +39,8 @@ describe('detectPython', () => {
     const { detectPython } = await import('./detect-python.js')
     const result = await detectPython()
     expect(result).toBe('python')
-    expect(mockedExeca).toHaveBeenNthCalledWith(1, 'python3', ['--version'])
-    expect(mockedExeca).toHaveBeenNthCalledWith(2, 'python', ['--version'])
+    expect(mockedExeca).toHaveBeenNthCalledWith(1, 'python3', ['--version'], expect.objectContaining({ env: expect.objectContaining({ NoDefaultCurrentDirectoryInExePath: '1' }) }))
+    expect(mockedExeca).toHaveBeenNthCalledWith(2, 'python', ['--version'], expect.objectContaining({ env: expect.objectContaining({ NoDefaultCurrentDirectoryInExePath: '1' }) }))
   })
 
   it('returns null when python3 ENOENT and python returns Python 2.7.18 (version too old)', async () => {

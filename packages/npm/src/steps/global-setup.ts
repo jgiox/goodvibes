@@ -10,6 +10,7 @@ import { mergeManagedJson, presentIds, isJsonObject, shapeError } from '../utils
 import { printable, removeRetired, writeFileAtomic } from '../utils/fs-safe.js'
 import { goodvibesBlock } from '../utils/scope.js'
 import { versionGte } from '../utils/sentinel-merge.js'
+import { EXEC_ENV } from '../utils/exec-env.js'
 
 const CONTEXT7_URL = 'https://mcp.context7.com/mcp'
 
@@ -40,12 +41,12 @@ export type CliStatus = { status: 'installed' | 'already-installed' | 'failed' |
 
 export async function ensureGlobalCli(version: string, dryRun: boolean): Promise<CliStatus> {
   try {
-    const { stdout } = await execa('npm', ['ls', '-g', 'goodvibes-cli', '--depth=0', '--json'], { reject: false, timeout: 30_000 })
+    const { stdout } = await execa('npm', ['ls', '-g', 'goodvibes-cli', '--depth=0', '--json'], { reject: false, timeout: 30_000, env: EXEC_ENV })
     const current = JSON.parse(stdout || '{}').dependencies?.['goodvibes-cli']?.version
     // Never downgrade: an older npx run must not replace a newer global install.
     if (current && versionGte(current, version)) return { status: 'already-installed' }
     if (dryRun) return { status: 'skipped', reason: `dry run; would run npm install -g goodvibes-cli@${version}` }
-    await execa('npm', ['install', '-g', `goodvibes-cli@${version}`], { timeout: 120_000 })
+    await execa('npm', ['install', '-g', `goodvibes-cli@${version}`], { timeout: 120_000, env: EXEC_ENV })
     return { status: 'installed' }
   } catch (e) {
     const msg = (e as Error).message

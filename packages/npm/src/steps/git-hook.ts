@@ -1,17 +1,18 @@
 import { execa } from 'execa'
 import { randomUUID } from 'node:crypto'
-import { chmod, lstat, mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises'
-import { join, resolve } from 'node:path'
+import { chmod, lstat, mkdir, readFile, realpath, rename, rm, writeFile } from 'node:fs/promises'
+import { isAbsolute, join, relative, resolve } from 'node:path'
 import { resolveHooksDir } from './copy-templates.js'
+import { EXEC_ENV } from '../utils/exec-env.js'
 
-export type GitHookStatus = 'installed' | 'updated' | 'current' | 'not-a-repo' | 'custom-path' | 'existing-hook'
+export type GitHookStatus = 'installed' | 'updated' | 'current' | 'not-a-repo' | 'custom-path' | 'existing-hook' | 'linked-hooks'
 export interface GitHookResult { status: GitHookStatus; path: string; detail?: string }
 
 const HOOK_MARKER = '# goodvibes-pre-commit'
 
 // A repo's own config must never run code or redirect git while goodvibes inspects it.
 const git = (cwd: string, args: string[]) =>
-  execa('git', ['-c', 'core.fsmonitor=false', '-c', 'safe.bareRepository=explicit', '-C', cwd, ...args], { reject: false })
+  execa('git', ['-c', 'core.fsmonitor=false', '-c', 'safe.bareRepository=explicit', '-C', cwd, ...args], { reject: false, env: EXEC_ENV })
 
 async function lstatOrNull(p: string) {
   try {
@@ -35,7 +36,14 @@ export async function installGitHook(cwd: string, dryRun: boolean): Promise<GitH
 
   const common = await git(cwd, ['rev-parse', '--git-common-dir'])
   if (common.exitCode !== 0) throw new Error(`git rev-parse --git-common-dir failed in ${cwd}: ${common.stderr}`)
-  const hooksDir = resolve(cwd, common.stdout.trim(), 'hooks')
+  const gitDir = resolve(cwd, common.stdout.trim())
+  const hooksDir = join(gitDir, 'hooks')
+  // A repo can ship .git/hooks as a link (or a Windows junction); writing through it would drop an executable wherever it points.
+  const hooksStat = await lstatOrNull(hooksDir)
+  if (hooksStat) {
+    const rel = relative(await realpath(gitDir), await realpath(hooksDir))
+    if (hooksStat.isSymbolicLink() || !rel || rel.startsWith('..') || isAbsolute(rel)) return { status: 'linked-hooks', path: '' }
+  }
   const path = join(hooksDir, 'pre-commit')
   const packaged = await readFile(join(resolveHooksDir(), 'pre-commit'))
 
@@ -75,6 +83,7 @@ export function gitHookLine(r: GitHookResult, dryRun: boolean): string | null {
     'not-a-repo': 'Git commit check skipped: this folder is not a git repository yet. Run git init, then goodvibes update.',
     'custom-path': `Git commit check skipped: git uses its own hooks folder here (core.hooksPath = ${r.detail}), so goodvibes left your hooks alone.`,
     'existing-hook': 'Git commit check skipped: .git/hooks/pre-commit already exists and is not from goodvibes, so it was left alone.',
+    'linked-hooks': "Git commit check skipped: .git/hooks is a link or points outside this repository's git folder, so goodvibes left it alone.",
   }[r.status]
   return line && dryRun && (r.status === 'installed' || r.status === 'updated') ? `Would: ${line}` : line
 }

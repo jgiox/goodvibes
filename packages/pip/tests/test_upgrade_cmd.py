@@ -150,6 +150,18 @@ def test_self_update_stops_with_the_manual_command_when_every_installer_fails(mo
     assert e.value.exit_code == 1
 
 
+def test_self_update_failure_remedy_quotes_the_requirement_so_the_shell_does_not_treat_greater_than_as_a_redirect(mocker, tmp_path):
+    import subprocess
+    import typer
+    from goodvibes_cli.commands.upgrade_cmd import _self_update_pip
+    _prefix(mocker, tmp_path, uv_tool=True)
+    mocker.patch("goodvibes_cli.commands.upgrade_cmd.subprocess.run", side_effect=subprocess.CalledProcessError(1, "uv"))
+    printed = mocker.patch("goodvibes_cli.commands.upgrade_cmd.console.print")
+    with pytest.raises(typer.Exit):
+        _self_update_pip("1.0.1")
+    assert "Run: uv tool install 'goodvibes-cli>=1.0.1'" in printed.call_args.args[0]
+
+
 def test_upgrade_fails_loudly_instead_of_claiming_success_when_still_on_the_old_version(mocker):
     mock_update = mocker.patch("goodvibes_cli.commands.upgrade_cmd.update_cmd")
     result = runner.invoke(app, ["upgrade"], env={"_GV_UPGRADING": "1.0.1"})
@@ -225,3 +237,11 @@ def test_upgrade_says_the_install_worked_and_how_to_update_a_project_instead_of_
         "To update a project, go into its folder and run: goodvibes update "
         "To set up a new project, go into its folder and run: goodvibes init"
     ) in out
+
+
+def test_self_update_runs_uv_without_searching_the_project_folder_for_it(mocker, tmp_path):
+    from goodvibes_cli.commands.upgrade_cmd import _self_update_pip
+    _prefix(mocker, tmp_path, uv_tool=True)
+    run = mocker.patch("goodvibes_cli.commands.upgrade_cmd.subprocess.run")
+    _self_update_pip("1.0.1")
+    assert run.call_args.kwargs["env"]["NoDefaultCurrentDirectoryInExePath"] == "1"

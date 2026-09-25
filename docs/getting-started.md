@@ -163,7 +163,7 @@ From the AI tool's hook you may see `BLOCKED: JOURNAL.md not staged` instead; it
 - It acts only in repositories that have a `JOURNAL.md` in the top folder.
 - Merges, rebases, cherry-picks, reverts and amends that only change the message are let through.
 - `goodvibes init` and `goodvibes update` put the git hook in `.git/hooks/`, which is your own copy of the project and is never committed. So everyone who clones the project runs `goodvibes update` once to get it. If the folder was not a git repository yet, run `git init`, then `goodvibes update`.
-- goodvibes never replaces a pre-commit hook you already have, and leaves hook managers such as husky alone (they set `core.hooksPath`). `goodvibes doctor` tells you whether the check is active.
+- goodvibes never replaces a pre-commit hook you already have, and leaves hook managers such as husky alone (they set `core.hooksPath`). It also leaves `.git/hooks` alone when that folder is a link, so it never writes through a link to somewhere else. `goodvibes doctor` tells you whether the check is active.
 - The AI tool's hook ignores actions that carry no shell command, so it never blocks a file edit whose text happens to mention `git commit`.
 - The AI tool's hook follows the commit to the right repository, including `cd somewhere && git commit` and `git -C somewhere commit`. If it cannot tell which repository a commit runs in, it blocks with a "cannot verify" message; run the commit as its own command from inside the repository.
 - Both are a safety net for honest mistakes, not a security boundary.

@@ -8,6 +8,7 @@ import { claudeConfigDir } from '../steps/global-setup.js'
 import { MANIFEST_PATH, parseManifest } from '../steps/write-manifest.js'
 import { checkMcpServers } from './mcp-check.js'
 import { installGitHook } from '../steps/git-hook.js'
+import { EXEC_ENV } from '../utils/exec-env.js'
 
 // ponytail: not imported from sentinel-merge.ts — those constants are module-private
 const SENTINEL_START = '<!-- goodvibes:start -->'
@@ -18,6 +19,8 @@ export type CheckResult = { label: string; status: Status; remedy?: string }
 
 const SYMBOL: Record<Status, string> = { ok: '✓', warn: '!', fail: '✗', skip: '-' }
 const okOr = (ok: boolean, status: Status): Status => (ok ? 'ok' : status)
+// Same rule as mcp-check.ts: text from repo files can carry escape codes that rewrite what the terminal shows.
+const printable = (s: string): string => s.replace(/[\u0000-\u001f\u007f-\u009f]/g, '?')
 
 export const formatCheck = (r: CheckResult): string => `${SYMBOL[r.status]} ${r.label}`
 
@@ -30,7 +33,7 @@ export function summaryLine(results: CheckResult[]): string {
 
 async function checkHeadroom(): Promise<CheckResult> {
   try {
-    await execa('headroom', ['--version'], { timeout: 10_000 })
+    await execa('headroom', ['--version'], { timeout: 10_000, env: EXEC_ENV })
     return { label: 'headroom installed and working', status: 'ok' }
   } catch (e) {
     const missing = (e as NodeJS.ErrnoException).code === 'ENOENT'
@@ -47,7 +50,7 @@ async function checkGit(): Promise<CheckResult[]> {
   const results: CheckResult[] = []
   for (const key of keys) {
     try {
-      const { stdout } = await execa('git', ['config', key])
+      const { stdout } = await execa('git', ['config', key], { env: EXEC_ENV })
       results.push({
         label: `git ${key}`,
         status: okOr(stdout.trim().length > 0, 'fail'),
@@ -95,7 +98,7 @@ function manifestCheck(cwd: string): { scope: 'global' | 'project' | null; gitHo
     const m = parseManifest(readFileSync(path, 'utf-8'), path)
     return { scope: m.scope === 'global' ? 'global' : 'project', gitHook: m.gitHook }
   } catch (e) {
-    return { scope: 'project', failure: { label: `${MANIFEST_PATH} readable`, status: 'fail', remedy: (e as Error).message } }
+    return { scope: 'project', failure: { label: `${MANIFEST_PATH} readable`, status: 'fail', remedy: printable((e as Error).message) } }
   }
 }
 
@@ -138,6 +141,7 @@ async function checkGitHook(cwd: string, gitHook: string | undefined): Promise<C
       : { label: 'Git commit check not installed', status: 'warn', remedy: update },
     'custom-path': { label: 'Git commit check not managed (core.hooksPath is set)', status: 'skip' },
     'existing-hook': { label: 'Git commit check not managed (your own pre-commit hook)', status: 'skip' },
+    'linked-hooks': { label: 'Git commit check not managed (.git/hooks is a link or outside the git folder)', status: 'skip' },
   }
   return result[status] ? [result[status]] : []
 }
@@ -158,9 +162,14 @@ export function registerDoctorCommand(program: Command): void {
       if (options.quick) {
         // Exit 2 from a SessionStart hook blocks the session, so quick mode reports and always exits 0.
         // Outside a goodvibes project (no manifest) only the machine-wide git checks apply.
-        const { scope, failure } = manifestCheck(cwd)
-        const quick = [...(failure ? [failure] : []), ...(await checkGit()), ...(scope ? ruleChecks(cwd, scope) : []), ...checkJournal(cwd)].filter(r => r.status === 'warn' || r.status === 'fail')
-        for (const r of quick) console.log(`goodvibes doctor: ${formatCheck(r)}${r.label.endsWith('.') ? '' : '.'}${r.remedy ? ` ${r.remedy}` : ''}`)
+        try {
+          const { scope, failure } = manifestCheck(cwd)
+          const quick = [...(failure ? [failure] : []), ...(await checkGit()), ...(scope ? ruleChecks(cwd, scope) : []), ...checkJournal(cwd)].filter(r => r.status === 'warn' || r.status === 'fail')
+          for (const r of quick) console.log(`goodvibes doctor: ${formatCheck(r)}${r.label.endsWith('.') ? '' : '.'}${r.remedy ? ` ${r.remedy}` : ''}`)
+        } catch (e) {
+          const reason = (e as NodeJS.ErrnoException).code ?? String((e as Error)?.message ?? e).split('\n')[0]
+          console.log(`goodvibes doctor: ✗ Could not finish the checks (${printable(reason)}). Run: goodvibes doctor`)
+        }
         return
       }
 

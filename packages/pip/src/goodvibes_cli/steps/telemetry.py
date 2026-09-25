@@ -13,7 +13,8 @@ TELEMETRY_URL = os.environ.get(
 def opted_out() -> bool:
     return (
         any(os.environ.get(v, "").strip().lower() in ("1", "true", "yes") for v in ("DO_NOT_TRACK", "GOODVIBES_NO_TELEMETRY"))
-        or os.environ.get("CI") == "true"
+        # CI services set CI to true, 1 or their own name; only an explicit 0 or false means not CI. npm uses the same rule.
+        or os.environ.get("CI", "").strip().lower() not in ("", "0", "false")
     )
 
 

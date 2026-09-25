@@ -1,4 +1,5 @@
 import { execa } from 'execa'
+import { EXEC_ENV } from './exec-env.js'
 
 /**
  * Probe python3 → python → py in order.
@@ -13,7 +14,7 @@ import { execa } from 'execa'
 export async function detectPython(): Promise<string | null> {
   for (const cmd of ['python3', 'python', 'py']) {
     try {
-      const { stdout, stderr } = await execa(cmd, ['--version'])
+      const { stdout, stderr } = await execa(cmd, ['--version'], { env: EXEC_ENV })
       // Python < 3.4 printed version to stderr; check both
       const output = stdout || stderr
       const match = output.match(/Python (\d+)\.(\d+)/)

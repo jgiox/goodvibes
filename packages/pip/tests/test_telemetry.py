@@ -106,3 +106,23 @@ def test_opts_out_when_opt_out_variable_is_true_or_yes_in_any_case(mocker, monke
 
     assert start_telemetry_thread() is None
     urlopen.assert_not_called()
+
+
+@pytest.mark.parametrize("value", ["1", "true", "TRUE", "yes", "woodpecker"])
+def test_opts_out_when_ci_is_1_or_any_other_value_except_0_and_false(monkeypatch, value):
+    for var in ("DO_NOT_TRACK", "GOODVIBES_NO_TELEMETRY"):
+        monkeypatch.delenv(var, raising=False)
+    monkeypatch.setenv("CI", value)
+    from goodvibes_cli.steps.telemetry import opted_out
+
+    assert opted_out() is True
+
+
+@pytest.mark.parametrize("value", ["", " ", "0", "false", "FALSE"])
+def test_does_not_opt_out_when_ci_is_empty_0_or_false(monkeypatch, value):
+    for var in ("DO_NOT_TRACK", "GOODVIBES_NO_TELEMETRY"):
+        monkeypatch.delenv(var, raising=False)
+    monkeypatch.setenv("CI", value)
+    from goodvibes_cli.steps.telemetry import opted_out
+
+    assert opted_out() is False

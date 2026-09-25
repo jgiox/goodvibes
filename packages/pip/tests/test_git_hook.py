@@ -95,6 +95,26 @@ def test_leaves_a_dangling_symlinked_hook_alone(repo, tmp_path):
     assert not missing.exists()
 
 
+def test_refuses_to_write_through_a_git_hooks_symlink_to_a_folder_outside_the_repository(repo, tmp_path):
+    import shutil
+    outside = tmp_path / "external"
+    outside.mkdir()
+    shutil.rmtree(repo / ".git" / "hooks")
+    (repo / ".git" / "hooks").symlink_to(outside)
+    assert install_git_hook(repo, False) == {"status": "linked-hooks", "path": ""}
+    assert install_git_hook(repo, True) == {"status": "linked-hooks", "path": ""}
+    assert not (outside / "pre-commit").exists()
+
+
+def test_refuses_a_git_hooks_symlink_even_when_it_points_inside_the_git_folder(repo):
+    import shutil
+    shutil.rmtree(repo / ".git" / "hooks")
+    (repo / ".git" / "my-hooks").mkdir()
+    (repo / ".git" / "hooks").symlink_to(repo / ".git" / "my-hooks")
+    assert install_git_hook(repo, False)["status"] == "linked-hooks"
+    assert not (repo / ".git" / "my-hooks" / "pre-commit").exists()
+
+
 def test_returns_custom_path_and_writes_nothing_when_core_hookspath_is_set(repo):
     _git(repo, "config", "core.hooksPath", "my-hooks")
     result = install_git_hook(repo, False)
@@ -152,3 +172,13 @@ def test_hook_line_prefixes_would_only_for_installed_and_updated_in_a_dry_run():
     assert hook_line({"status": "updated"}, False) == "Git commit check updated (.git/hooks/pre-commit)"
     assert hook_line({"status": "custom-path", "detail": "x"}, True) == "Git commit check skipped: git uses its own hooks folder here (core.hooksPath = x), so goodvibes left your hooks alone."
     assert hook_line({"status": "current"}, True) is None
+    assert hook_line({"status": "linked-hooks", "path": ""}, False) == "Git commit check skipped: .git/hooks is a link or points outside this repository's git folder, so goodvibes left it alone."
+    assert hook_line({"status": "linked-hooks", "path": ""}, True) == "Git commit check skipped: .git/hooks is a link or points outside this repository's git folder, so goodvibes left it alone."
+
+
+
+def test_runs_every_git_call_without_searching_the_project_folder_for_git(repo, mocker):
+    spy = mocker.spy(subprocess, "run")
+    install_git_hook(repo, True)
+    assert spy.call_count == 3
+    assert all(c.kwargs["env"]["NoDefaultCurrentDirectoryInExePath"] == "1" for c in spy.call_args_list)

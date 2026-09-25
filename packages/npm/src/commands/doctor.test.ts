@@ -313,6 +313,48 @@ describe('doctor command', () => {
       expect(exitSpy).toHaveBeenCalledWith(1)
       exitSpy.mockRestore()
     })
+
+    it('prints an escape code from a broken .goodvibes.json as ? instead of sending it to the terminal', async () => {
+      const { execa } = await import('execa')
+      vi.mocked(execa).mockResolvedValue({ stdout: 'value' } as any)
+      const { existsSync, readFileSync } = await import('node:fs')
+      vi.mocked(existsSync).mockReturnValue(true)
+      vi.mocked(readFileSync).mockImplementation(p => (String(p).endsWith('.goodvibes.json') ? '{"a":\u001b[2J}' : '<!-- goodvibes:start -->\n<!-- goodvibes:end -->'))
+      const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never)
+      const { note } = await import('@clack/prompts')
+      const { registerDoctorCommand } = await import('./doctor.js')
+      let capturedAction: () => Promise<void> = async () => {}
+      const program = { command: vi.fn().mockReturnThis(), description: vi.fn().mockReturnThis(),
+        option: vi.fn().mockReturnThis(), action: vi.fn((fn) => { capturedAction = fn; return { command: vi.fn() } }) }
+      registerDoctorCommand(program as any)
+      await capturedAction()
+      exitSpy.mockRestore()
+
+      const out = vi.mocked(note).mock.calls.map(c => String(c[0])).join('\n')
+      expect(out).not.toContain('\u001b')
+      expect(out).toContain('?[2J')
+    })
+  })
+
+  describe('program lookup', () => {
+    it('runs headroom and git without searching the project folder for them', async () => {
+      const { execa } = await import('execa')
+      vi.mocked(execa).mockResolvedValue({ stdout: 'value' } as any)
+      const { existsSync, readFileSync } = await import('node:fs')
+      vi.mocked(existsSync).mockReturnValue(true)
+      vi.mocked(readFileSync).mockImplementation(withManifest('<!-- goodvibes:start -->\n<!-- goodvibes:end -->'))
+      const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never)
+      const { registerDoctorCommand } = await import('./doctor.js')
+      let capturedAction: () => Promise<void> = async () => {}
+      const program = { command: vi.fn().mockReturnThis(), description: vi.fn().mockReturnThis(),
+        option: vi.fn().mockReturnThis(), action: vi.fn((fn) => { capturedAction = fn; return { command: vi.fn() } }) }
+      registerDoctorCommand(program as any)
+      await capturedAction()
+      exitSpy.mockRestore()
+
+      expect(vi.mocked(execa).mock.calls.map(c => c[0])).toEqual(['headroom', 'git', 'git'])
+      for (const c of vi.mocked(execa).mock.calls as unknown[][]) expect(c[2]).toEqual(expect.objectContaining({ env: expect.objectContaining({ NoDefaultCurrentDirectoryInExePath: '1' }) }))
+    })
   })
 
   describe('version line', () => {
@@ -622,6 +664,35 @@ describe('doctor command', () => {
       expect(exitSpy).not.toHaveBeenCalled()
     })
 
+    it('prints an escape code from a broken .goodvibes.json as ? instead of sending it to the terminal', async () => {
+      const { execa } = await import('execa')
+      vi.mocked(execa).mockResolvedValue({ stdout: 'value' } as any)
+      const { existsSync, readFileSync } = await import('node:fs')
+      vi.mocked(existsSync).mockReturnValue(true)
+      vi.mocked(readFileSync).mockImplementation(p => (String(p).endsWith('.goodvibes.json') ? '{"a":\u001b[2J}' : '<!-- goodvibes:start -->\n<!-- goodvibes:end -->'))
+
+      const { logs } = await runQuick()
+
+      expect(logs.join('\n')).not.toContain('\u001b')
+      expect(logs.join('\n')).toContain('?[2J')
+    })
+
+    it('reports a check that throws as one line and still does not exit non-zero', async () => {
+      const { execa } = await import('execa')
+      vi.mocked(execa).mockResolvedValue({ stdout: 'value' } as any)
+      const { existsSync, readFileSync } = await import('node:fs')
+      vi.mocked(existsSync).mockReturnValue(true)
+      vi.mocked(readFileSync).mockImplementation(p => {
+        if (String(p).endsWith('.goodvibes.json')) return '{"version":"1.0.0","files":{}}'
+        throw Object.assign(new Error("EACCES: permission denied, open 'CLAUDE.md'"), { code: 'EACCES' })
+      })
+
+      const { logs, exitSpy } = await runQuick()
+
+      expect(logs).toEqual(['goodvibes doctor: ✗ Could not finish the checks (EACCES). Run: goodvibes doctor'])
+      expect(exitSpy).not.toHaveBeenCalled()
+    })
+
     it('prints the journal size warning as one ! line and does not exit when JOURNAL.md is larger than 10 KB', async () => {
       const { execa } = await import('execa')
       vi.mocked(execa).mockResolvedValue({ stdout: 'value' } as any)
@@ -719,6 +790,11 @@ describe('doctor command', () => {
     it('skips as not managed when the user has their own pre-commit hook', async () => {
       const { checks } = await runWithHook('existing-hook')
       expect(checks).toContain('- Git commit check not managed (your own pre-commit hook)')
+    })
+
+    it('skips as not managed when .git/hooks is a link', async () => {
+      const { checks } = await runWithHook('linked-hooks')
+      expect(checks).toContain('- Git commit check not managed (.git/hooks is a link or outside the git folder)')
     })
 
     it('shows no git commit check outside a git repository', async () => {

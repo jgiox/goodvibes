@@ -396,3 +396,10 @@ def test_apply_global_config_reports_no_file_as_written_on_a_second_run_when_not
     r = apply_global_config(TEMPLATES, "1.8.0", dry_run=False)
     assert r["written"] == []
     assert r["kept"] == []
+
+
+def test_ensure_global_cli_runs_uv_without_searching_the_project_folder_for_it(mocker):
+    mocker.patch("goodvibes_cli.steps.global_setup.shutil.which", return_value=None)
+    run = mocker.patch("goodvibes_cli.steps.global_setup.subprocess.run", return_value=_done())
+    ensure_global_cli("1.8.0", dry_run=False)
+    assert run.call_args.kwargs["env"]["NoDefaultCurrentDirectoryInExePath"] == "1"

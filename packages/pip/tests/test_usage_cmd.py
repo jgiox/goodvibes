@@ -75,6 +75,14 @@ def test_session_usage_counts_entries_with_a_non_string_message_id_separately_in
     assert session_usage(path)["output"] == 31
 
 
+def test_session_usage_counts_an_entry_whose_text_contains_a_unicode_line_separator(tmp_path):
+    usage = {"input_tokens": 3, "output_tokens": 4}
+    line = json.dumps({"type": "assistant", "message": {"id": "m", "content": "a\u2028b\u2029c\x85d", "usage": usage}}, ensure_ascii=False)
+    path = _write_session(tmp_path, "s", [line])
+    s = session_usage(path)
+    assert (s["input"], s["output"]) == (3, 4)
+
+
 def test_session_usage_returns_none_when_no_entry_has_usage(tmp_path):
     path = _write_session(tmp_path, "s", [json.dumps({"type": "user"}), "not json"])
     assert session_usage(path) is None
