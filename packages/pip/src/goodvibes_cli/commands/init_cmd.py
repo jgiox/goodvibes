@@ -9,6 +9,7 @@ from rich.panel import Panel
 
 from goodvibes_cli.steps.configure_mcp import configure_mcp
 from goodvibes_cli.steps.copy_templates import copy_templates, list_template_files, resolve_templates_dir
+from goodvibes_cli.steps.git_hook import KEEPS, hook_line, install_git_hook
 from goodvibes_cli.steps.install_headroom import install_headroom
 from goodvibes_cli.steps.telemetry import opted_out, start_telemetry_thread
 from goodvibes_cli.steps.write_manifest import USER_OWNED, USER_REMOVED, ManifestError, read_manifest, write_manifest
@@ -87,6 +88,9 @@ def init_cmd(
             files = [f for f in all_files if not any(f.endswith(v) and not f.endswith(selected) for v in ci_variants)]
         file_list = "\n".join(f"  Would write: {f}" for f in files) or "  (no project files: run init inside a project folder)"
         console.print(Panel(file_list, title="Dry run — no files written"))
+        dry_hook = hook_line(install_git_hook(cwd, True), True) if in_project else None
+        if dry_hook:
+            console.print(dry_hook, markup=False)
         if minimal:
             console.print(Panel(
                 "CI workflows and docs were skipped.\nRun goodvibes init without --minimal to add them.",
@@ -107,6 +111,7 @@ def init_cmd(
     skipped_files_list: list[str] = []
 
     global_result = cli_result = c7_result = None
+    hook_result: dict | None = None
     try:
         # Read before writing anything: a broken manifest stops init instead of being overwritten.
         prev = (read_manifest(cwd) if in_project else None) or {}
@@ -121,6 +126,7 @@ def init_cmd(
                 written, skipped = copy_templates(template_dir, cwd, dry_run=False, minimal=minimal, project_type=project_type, scope=scope)
                 created_files.extend(written)
                 skipped_files_list.extend(skipped)
+            hook_result = install_git_hook(cwd, False)
 
         # ponytail: default to skipped — minimal path never enters the block
         headroom_result: dict[str, str] = {"status": "skipped", "reason": ""}
@@ -164,6 +170,7 @@ def init_cmd(
                 preserved={k: v for k, v in previous.items() if k not in written},
                 managed=managed_record(cwd, template_dir, prev.get("managed")),
                 scope=scope,
+                git_hook="installed" if hook_result and hook_result["status"] in KEEPS else prev.get("gitHook"),
             )
         except SymlinkError as e:
             skipped_files_list.append(str(e))
@@ -181,6 +188,9 @@ def init_cmd(
     if skipped_files_list:
         skipped_str = "\n".join(skipped_files_list)
         console.print(Panel(skipped_str, title=f"Files skipped ({len(skipped_files_list)})"))
+    hook_msg = hook_line(hook_result, False) if hook_result else None
+    if hook_msg:
+        console.print(hook_msg, markup=False)
     if not minimal:
         console.print(Panel(_format_headroom_status(headroom_result, mcp_result), title="Headroom"))
     console.print(Panel(_NEXT_STEPS, title="Next steps"))

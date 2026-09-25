@@ -6,3 +6,5 @@ __pycache__/
 .env.*
 !.env.example
 .claude/settings.local.json
+# Build-time copy made by packages/pip/hatch_build.py, removed after the build
+packages/pip/src/goodvibes_cli/hooks/

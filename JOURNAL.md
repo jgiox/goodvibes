@@ -2079,3 +2079,12 @@ Added a Standing decisions section to this journal.
 - Fix: the Claude hook case runners (npm and pip) loaded every tests/hooks/*.cases.json, including the new git-pre-commit cases, and failed 17 cases. They now skip git-*.cases.json. npm vitest 727 passed, 1 skipped; pip 593 passed.
 - GREEN: a new "Replies" section in all 13 rule files turns caveman ultra on from the first message, lists what is never shortened (code, commands, file names, API names, error messages) and where normal prose is kept (code, commits, PRs, docs, security warnings, irreversible actions), and says how to switch or stop. CLAUDE.md also tells Claude Code to use the caveman skill at ultra from the first reply. rule-files tests 110/110; verify-phase1-5 PASS.
 - Docs for caveman on by default: README, getting-started (and template copy), package READMEs, CHANGELOG. Link check 0 problems.
+
+
+## 2026-09-25: pip installs the git pre-commit journal check
+
+**What:** the pip package ships `hooks/pre-commit` and installs it into `.git/hooks/` from `init` and `update`; `doctor` reports on it. Follows the shared spec, so strings match npm.
+- RED: installer unit tests (`tests/test_git_hook.py`) and the shared-cases runner (`tests/test_git_hook_cases.py`); `test_hook_cases.py` now skips `git-*.cases.json`, which the new runner owns.
+- GREEN: `steps/git_hook.py` (`install_git_hook`), `resolve_hooks_dir()`; `hatch_build.py` copies `hooks/` into the wheel (source and sdist builds) and the sdist force-includes `../../hooks`; root `.gitignore` ignores the build-time copy. Wheel has `goodvibes_cli/hooks/pre-commit` (0755).
+- RED: init/update flow tests (manifest `gitHook` transitions, dry-run `Would: ` lines, the hook line in the plan before the single question, no install from the home folder) and one doctor test per row, plus placement and `--quick` exclusion.
+- GREEN: `init` and `update` call the installer and record `gitHook` ("installed" / "user-removed") in `.goodvibes.json`; a deleted hook stays deleted on update; dry runs print `Would: ` lines and write nothing; the hook line prints under update's plan, before its one question; `doctor` (full mode) reports the hook after the journal-size check. conftest mocks the installer in init/update tests, because pytest runs inside this repo. Tests: pip 667 passed (default Python and 3.10).

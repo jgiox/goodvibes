@@ -25,6 +25,7 @@ def write_manifest(
     preserved: dict[str, str] | None = None,
     managed: dict[str, list[str]] | None = None,
     scope: str | None = None,
+    git_hook: str | None = None,
 ) -> None:
     # Preserved hashes come only from the prior manifest, never re-read from dest,
     # so a skipped (user-modified) file can't be silently reclassified as unmodified.
@@ -37,6 +38,8 @@ def write_manifest(
         manifest["managed"] = managed
     if scope is not None:
         manifest["scope"] = scope
+    if git_hook is not None:
+        manifest["gitHook"] = git_hook
     check_writable(dest_dir, dest_dir / MANIFEST_PATH)
     write_json(dest_dir / MANIFEST_PATH, manifest)
 
