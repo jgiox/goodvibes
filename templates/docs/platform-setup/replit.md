@@ -1,26 +1,25 @@
-# Replit Agent — goodvibes setup
+# goodvibes in Replit Agent
 
-Replit Agent does not read files from your project automatically. Instead, you provide the rules as a system prompt for the Agent.
+**What you get:** the goodvibes rules (plan first, keep changes small, run the tests, record decisions in `JOURNAL.md`, ask before risky steps), for every Replit Agent task in this project. If the project is also on GitHub, the GitHub checks run on it as for any other tool.
 
-## One-time setup
+The git commit check also works here: `goodvibes init` adds a git hook that blocks any commit that leaves out `JOURNAL.md`.
 
-1. Open your Repl.
-2. Find **System prompt** or **AI instructions** in the Agent settings panel.
-3. Copy the whole of `AGENTS.md` from your project (goodvibes writes the same rules there).
-4. Paste into the system prompt field and click **Save**.
+**What you do not get:** the Claude Code guard rails (the read guard, the session-start check and the permissions), the Claude Code skills such as caveman, `goodvibes usage`, and the Claude Code slash commands. goodvibes sets up context7 and headroom for Claude Code only, and does not install anything inside Replit. See [Getting started](../getting-started.md) for what each piece does.
 
-That is it. Replit Agent will follow the goodvibes rules for every task in this project.
+## Setup
 
-> If you do not see a system prompt field, look for **Agent instructions** or **Custom rules** in the project settings.
+`goodvibes init` wrote `replit.md` into your project. Replit Agent reads it from the project root.
 
-## Ponytail on Replit
+1. Get the goodvibes files into your Replit project, for example by pushing this folder to GitHub (see [Git and GitHub basics](../onboarding.md)) and importing it into Replit.
+2. Check that `replit.md` is at the top level of the project, next to `JOURNAL.md`.
+3. Commit `replit.md` to git. Replit Agent may rewrite this file, and a commit lets you get your version back.
 
-Once the system prompt is set, Replit Agent follows the ponytail rules for every task: minimal code, no over-engineering, and explicit error handling. The AI will tell you if it is skipping something because it is not needed yet.
+If your Replit project does not have the goodvibes files, create `replit.md` at the top level of the project and paste in the contents of `replit.md` from the folder where you ran `goodvibes init`.
 
-## Headroom
+## Check that the rules are on
 
-Replit manages its own context. Headroom is not applicable inside Replit — skip the headroom install step if you are Replit-only.
+Ask Replit Agent: "Which rules do you follow in this project?" The answer should mention the goodvibes engineering rules, for example reading `JOURNAL.md` before acting.
 
----
+## Turn it off
 
-## Last verified: 2026-07-01
+Delete `replit.md`, or remove the goodvibes rules from it.

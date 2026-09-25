@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { mkdtempSync, rmSync, existsSync, readFileSync, symlinkSync, mkdirSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, rmSync, existsSync, readFileSync, symlinkSync, mkdirSync, writeFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { fileURLToPath } from 'node:url'
@@ -40,6 +40,17 @@ describe('built CLI (dist/index.js)', () => {
     expect(manifest.version).toBe(pkgVersion)
     expect(readFileSync(join(projectDir, 'CLAUDE.md'), 'utf-8')).toContain('<!-- goodvibes:start -->')
     expect(existsSync(join(configDir, 'rules', 'goodvibes.md'))).toBe(false)
+  })
+
+  it('init --minimal --scope project installs the git commit check from the packaged hooks folder', async () => {
+    await execa('git', ['init', '-q'], { cwd: projectDir, env, extendEnv: false })
+    const result = await run('init', '--minimal', '--scope', 'project')
+    expect(result.exitCode).toBe(0)
+    expect(result.stdout).toContain('Git commit check installed: commits that leave out JOURNAL.md') // clack wraps the rest
+    const hook = join(projectDir, '.git', 'hooks', 'pre-commit')
+    expect(readFileSync(hook, 'utf-8')).toBe(readFileSync(fileURLToPath(new URL('../hooks/pre-commit', import.meta.url)), 'utf-8'))
+    expect(statSync(hook).mode & 0o777).toBe(0o755)
+    expect(JSON.parse(readFileSync(join(projectDir, '.goodvibes.json'), 'utf-8')).gitHook).toBe('installed')
   })
 
   it('init --minimal defaults to global scope: rules, skills and hooks go to the Claude config, not the project', async () => {
@@ -149,5 +160,12 @@ describe('built CLI (dist/index.js)', () => {
     expect(readFileSync(rules, 'utf-8')).toBe(rulesContent)
     expect(JSON.parse(readFileSync(join(projectDir, '.goodvibes.json'), 'utf-8')).files['AGENTS.md']).toMatch(/^[0-9a-f]{64}$/)
     expect(JSON.parse(readFileSync(join(configDir, '.goodvibes.json'), 'utf-8')).files['rules/goodvibes.md']).toMatch(/^[0-9a-f]{64}$/)
+  })
+
+  it('usage is registered and exits 0 with a friendly message when there are no session logs', async () => {
+    const result = await run('usage')
+    expect(result.exitCode).toBe(0)
+    expect(result.stdout).toContain(`No Claude Code session logs found in ${join(configDir, 'projects')}.`)
+    expect(result.stdout).toContain("Claude Code's log format is internal and can change; these numbers are best effort.")
   })
 })

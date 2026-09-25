@@ -59,3 +59,12 @@ headroom
 Copyright 2025 Headroom Contributors
 Licensed under the Apache License, Version 2.0
 https://github.com/chopratejas/headroom
+
+buzz
+----
+Copyright 2026 Block, Inc.
+Licensed under the Apache License, Version 2.0
+https://github.com/block/buzz
+
+templates/.github/scripts/check-file-sizes.mjs is derived from
+scripts/check-file-sizes-core.mjs in buzz and was modified by goodvibes.

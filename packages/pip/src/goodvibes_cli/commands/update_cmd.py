@@ -13,6 +13,7 @@ from rich.console import Console
 from rich.panel import Panel
 
 from goodvibes_cli.steps.copy_templates import list_template_files, resolve_templates_dir
+from goodvibes_cli.steps.git_hook import KEEPS, REMOVED_LINE, hook_line, install_git_hook
 from goodvibes_cli.steps.write_manifest import USER_OWNED, USER_REMOVED, ManifestError, read_manifest, write_manifest
 from goodvibes_cli.utils.detect_project_type import detect_project_type
 from goodvibes_cli.utils.json_merge import MANAGED_JSON, managed_record, merge_managed_json, write_json
@@ -201,13 +202,31 @@ def update_cmd(
     lines += merge_lines
     lines += not_written
     lines += [f"{rel}: {REMOVED}" for rel in removed]
+
+    git_hook = manifest.get("gitHook")
+    hook_plan: dict | None = None
+    hook_removed = False
+    hook_notes: list[str] = []
+    if git_hook != USER_REMOVED:
+        hook_plan = install_git_hook(cwd, True)
+        # "installed" means the target is missing: the user deleted the hook goodvibes wrote.
+        if git_hook == "installed" and hook_plan["status"] == "installed":
+            hook_plan, hook_removed = None, True
+            hook_notes.append(REMOVED_LINE)
+        elif hook_line(hook_plan, True):
+            hook_notes.append(hook_line(hook_plan, True))
+    hook_changes = hook_plan is not None and hook_plan["status"] in ("installed", "updated")
     if dry_run:
         console.print(Panel("\n".join(lines), title="Dry run — no files written"))
+        for note in hook_notes:
+            console.print(note, markup=False)
         console.rule("Run without --dry-run to apply.")
         return
 
-    if not force and (overwrite or merges or retired or global_changes):
+    if not force and (overwrite or merges or retired or global_changes or hook_changes):
         console.print(Panel("\n".join(lines), title="Planned — project files"))
+        for note in hook_notes:
+            console.print(note, markup=False)
         also_global = f" and apply {global_changes} change(s) to your Claude Code settings" if global_changes else ""
         confirmed = typer.confirm(
             f"Overwrite {len(overwrite)} managed file(s) and merge goodvibes keys into {len(merges)} file(s){also_global}?"
@@ -261,6 +280,12 @@ def update_cmd(
     for rel in retired:
         remove_retired(cwd, rel, ".claude/skills")
 
+    hook_result = install_git_hook(cwd, False) if hook_plan is not None else None
+    if hook_removed:
+        git_hook = USER_REMOVED
+    elif hook_result and hook_result["status"] in KEEPS:
+        git_hook = "installed"
+
     # Preserve skipped (user-modified) files' prior hashes so they stay
     # protected on every later run instead of dropping out of the manifest.
     preserved = {rel: manifest["files"][rel] for rel in skip + blocked}
@@ -273,6 +298,7 @@ def update_cmd(
             cwd, applied, version, preserved=preserved,
             managed=managed_record(cwd, template_dir, manifest.get("managed")),
             scope=scope,
+            git_hook=git_hook,
         )
     except SymlinkError as e:
         not_written.append(str(e))
@@ -285,6 +311,9 @@ def update_cmd(
         console.print(Panel("\n".join(not_written), title="Not written (symlinks are never followed)"))
     for rel in removed:
         console.print(f"{rel}: {REMOVED}", markup=False)
+    hook_msg = REMOVED_LINE if hook_removed else hook_line(hook_result, False) if hook_result else None
+    if hook_msg:
+        console.print(hook_msg, markup=False)
     if problems:
         console.print(Panel("\n".join(problems), title="Not updated — needs your attention"))
         console.rule("[red]Update finished with problems.[/red]")

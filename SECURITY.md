@@ -19,4 +19,4 @@ Only the latest release on npm (`goodvibes-cli`) and PyPI (`goodvibes-cli`) rece
 
 ## Scope
 
-This security policy applies to the code in this repository, including the files goodvibes installs into projects and `~/.claude` (hooks, permissions, CI templates, skills) and the telemetry counter in `workers/telemetry/`. It does not apply to issues in third-party dependencies — please report those to the upstream project.
+This security policy applies to the code in this repository, including the files goodvibes installs into projects and `~/.claude` (hooks, permissions, CI templates, skills) and the telemetry counter in `workers/telemetry/`. Problems in third-party dependencies belong with that project; please report them upstream.

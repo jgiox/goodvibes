@@ -43,7 +43,7 @@ Thanks for wanting to improve this project. Every contribution helps, no matter 
 
    Replace `fix/my-fix` with your actual branch name.
 
-7. **Open a pull request.** Go to your fork on GitHub. You will usually see a banner at the top saying "You recently pushed a branch — open a pull request." Click the button. If the banner is not there, click the "Pull requests" tab, then "New pull request", and select your branch.
+7. **Open a pull request.** Go to your fork on GitHub. You will usually see a yellow banner near the top that names your branch, with a "Compare & pull request" button. Click it. If the banner is not there, click the "Pull requests" tab, then "New pull request", and select your branch.
 
 ## What makes a good pull request
 
@@ -51,6 +51,36 @@ Thanks for wanting to improve this project. Every contribution helps, no matter 
 - **Write a clear title** that says what the PR does, not just what files you changed. Example: "Fix login page crash on empty password" is better than "Update auth.js".
 - **If the change is large, open an issue first** to discuss your approach before writing the code. This saves time for everyone.
 - **All automated checks must pass** before your PR will be reviewed. If checks fail, look at the error output and fix the issue.
+
+## Working on goodvibes itself
+
+goodvibes ships two command-line tools that must behave the same and print the same text: the npm package in `packages/npm` (TypeScript) and the pip package in `packages/pip` (Python). The files they install live in `templates/`. A change to one package almost always needs the same change in the other, in the same pull request.
+
+Run the checks before you open a pull request:
+
+```
+cd packages/npm
+npm ci
+npm run prebuild
+npm run typecheck
+npm run build
+npm test
+```
+
+```
+cd packages/pip
+uv run --extra dev pytest tests/
+```
+
+Run the Python tests from `packages/pip`, not the repo root, or pytest cannot find its plugins. `npm run prebuild` copies `templates/` into the npm package; run it after you add a template file.
+
+House rules, written out in full in `CLAUDE.md`:
+
+- **Bug fixes start with a failing test.** Commit the test that reproduces the bug first, then the fix, as two commits. Name the test after the symptom.
+- **Test names are sentences**, for example `it('returns null when Python version is below 3.10')`.
+- **Unit tests never touch the real system**: no real `~/.claude`, global installs, network or `claude` CLI. Mock them, or use a temporary folder in integration tests.
+- **Hooks stay portable**: POSIX `sh` and POSIX `awk` only (no `jq`, no bash-only syntax), because they run on every user's machine. The hook tests run the real hook from `templates/.claude/settings.json`; add cases to `tests/hooks/*.cases.json`.
+- **Add a `JOURNAL.md` entry** to every commit, and update the docs and `CHANGELOG.md` when behaviour changes.
 
 ## Questions
 

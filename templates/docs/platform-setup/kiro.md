@@ -1,19 +1,19 @@
-# Kiro — goodvibes setup
+# goodvibes in Kiro
 
-goodvibes init wrote `.kiro/steering/goodvibes.md` into your project. Kiro applies steering files automatically to all AI interactions in the project.
+**What you get:** the goodvibes rules (plan first, keep changes small, run the tests, record decisions in `JOURNAL.md`, ask before risky steps), in every Kiro conversation in this project. The GitHub checks run on your code as for any other tool.
 
-## Ponytail is already active
+The git commit check also works here: `goodvibes init` adds a git hook that blocks any commit that leaves out `JOURNAL.md`.
 
-The ponytail rules in `.kiro/steering/goodvibes.md` enforce simplicity-first coding, fail-loud error handling, and surgical changes. You do not need to paste anything or configure anything — the steering file is active as soon as you open the project in Kiro.
+**What you do not get:** the Claude Code guard rails (the read guard, the session-start check and the permissions), the Claude Code skills such as caveman, `goodvibes usage`, and the Claude Code slash commands such as `/ponytail-review`. goodvibes sets up context7 and headroom for Claude Code only. See [Getting started](../getting-started.md) for what each piece does.
 
-## Verify activation
+## Setup
 
-Open Kiro and check the steering files panel in your project settings. You should see `goodvibes.md` listed as an always-on steering file.
+There is nothing to do. `goodvibes init` wrote `.kiro/steering/goodvibes.md` into your project. Kiro calls rule files like this "steering files". This one starts with `inclusion: always`, so Kiro applies it to every conversation in the project.
 
-## Headroom (context compression)
+## Check that the rules are on
 
-Kiro does not use Claude Code's MCP protocol. If you want context compression, install headroom separately and use it via its CLI. See [headroom docs](https://headroom-docs.vercel.app/).
+Open the project in Kiro and ask: "Which rules do you follow in this project?" The answer should mention the goodvibes engineering rules, for example reading `JOURNAL.md` before acting.
 
----
+## Turn it off
 
-## Last verified: 2026-07-01
+Delete `.kiro/steering/goodvibes.md`. `goodvibes update` does not bring it back.

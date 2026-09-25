@@ -1,0 +1,19 @@
+[
+  {"name": "blocks a commit that leaves out JOURNAL.md", "script": "echo change >> a.txt && git add a.txt && git commit -q -m change", "expect": 1, "stderr_contains": "goodvibes: this commit leaves out JOURNAL.md"},
+  {"name": "allows a commit that includes JOURNAL.md", "script": "echo change >> a.txt && echo entry >> JOURNAL.md && git add a.txt JOURNAL.md && git commit -q -m change", "expect": 0},
+  {"name": "allows a commit of only JOURNAL.md", "script": "echo entry >> JOURNAL.md && git add JOURNAL.md && git commit -q -m journal", "expect": 0},
+  {"name": "allows any commit in a repo without JOURNAL.md", "script": "git rm -q JOURNAL.md && git commit -q --no-verify -m drop && echo change >> a.txt && git add a.txt && git commit -q -m change", "expect": 0},
+  {"name": "allows a commit that deletes JOURNAL.md", "script": "git rm -q JOURNAL.md && git commit -q -m drop", "expect": 0},
+  {"name": "does not count a JOURNAL.md in a subfolder", "script": "mkdir -p docs && echo x > docs/JOURNAL.md && echo change >> a.txt && git add a.txt docs/JOURNAL.md && git commit -q -m change", "expect": 1, "stderr_contains": "leaves out JOURNAL.md"},
+  {"name": "allows commit -a when JOURNAL.md has changes", "script": "echo change >> a.txt && echo entry >> JOURNAL.md && git commit -q -a -m change", "expect": 0},
+  {"name": "blocks commit -a when JOURNAL.md is unchanged", "script": "echo change >> a.txt && git commit -q -a -m change", "expect": 1, "stderr_contains": "leaves out JOURNAL.md"},
+  {"name": "blocks a commit of a named path when JOURNAL.md is only staged, not named", "script": "echo change >> a.txt && echo entry >> JOURNAL.md && git add JOURNAL.md && git commit -q -m change a.txt", "expect": 1, "stderr_contains": "leaves out JOURNAL.md"},
+  {"name": "blocks the first commit of a new file when JOURNAL.md exists but is not staged", "script": "echo new > b.txt && git add b.txt && git commit -q -m add", "expect": 1, "stderr_contains": "leaves out JOURNAL.md"},
+  {"name": "allows a message-only amend", "script": "git commit -q --amend -m reworded", "expect": 0},
+  {"name": "blocks an amend that adds a file without JOURNAL.md", "script": "echo change >> a.txt && git add a.txt && git commit -q --amend -m more", "expect": 1, "stderr_contains": "leaves out JOURNAL.md"},
+  {"name": "allows concluding a merge after resolving a conflict", "script": "git checkout -q -b side && echo side > a.txt && git commit -q --no-verify -am side && git checkout -q - && echo main > a.txt && git commit -q --no-verify -am main && { git merge -q side >/dev/null 2>&1 || true; } && echo resolved > a.txt && git add a.txt && git commit -q --no-edit", "expect": 0},
+  {"name": "allows git commit --no-verify", "script": "echo change >> a.txt && git add a.txt && git commit -q --no-verify -m change", "expect": 0},
+  {"name": "allows the commit when GOODVIBES_JOURNAL_CHECK is off", "script": "echo change >> a.txt && git add a.txt && GOODVIBES_JOURNAL_CHECK=off git commit -q -m change", "expect": 0},
+  {"name": "checks the repository when committing from a subfolder", "script": "mkdir -p src && echo x > src/x.txt && cd src && git add x.txt && git commit -q -m add", "expect": 1, "stderr_contains": "leaves out JOURNAL.md"},
+  {"name": "tells the user how to skip the check once", "script": "echo change >> a.txt && git add a.txt && git commit -q -m change", "expect": 1, "stderr_contains": "To skip the check once: git commit --no-verify"}
+]

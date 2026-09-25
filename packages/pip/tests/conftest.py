@@ -16,7 +16,7 @@ def _auto_mock_write_manifest(request, mocker):
 
 @pytest.fixture(autouse=True)
 def _isolate_global_setup(request, mocker, tmp_path, monkeypatch):
-    """No test may touch the real ~/.claude, npm/uv global installs, the claude CLI, or telemetry."""
+    """No test may touch the real ~/.claude, npm/uv global installs, the claude CLI, telemetry, or a real git hook."""
     monkeypatch.setenv("CLAUDE_CONFIG_DIR", str(tmp_path / "claude-config"))
     if "test_telemetry" not in request.module.__name__:
         mocker.patch("goodvibes_cli.commands.init_cmd.start_telemetry_thread", return_value=None)
@@ -25,8 +25,24 @@ def _isolate_global_setup(request, mocker, tmp_path, monkeypatch):
     result = {"config_dir": str(tmp_path / "claude-config"), "written": [], "kept": [], "removed": [], "retired": [], "settings_changes": [], "settings_error": None}
     for mod in ("init_cmd", "update_cmd"):
         mocker.patch(f"goodvibes_cli.commands.{mod}.apply_global_config", return_value=result)
+        # pytest's cwd is inside this repo: a real call would write the repo's own .git/hooks/pre-commit.
+        mocker.patch(f"goodvibes_cli.commands.{mod}.install_git_hook", return_value={"status": "current", "path": str(tmp_path / ".git" / "hooks" / "pre-commit")})
     mocker.patch("goodvibes_cli.commands.init_cmd.ensure_global_cli", return_value={"status": "already-installed"})
     mocker.patch("goodvibes_cli.commands.init_cmd.register_context7", return_value={"status": "already-registered"})
+
+
+@pytest.fixture
+def git_env(tmp_path, monkeypatch):
+    """Real git with no user, system or inherited GIT_* config; returns the env for child processes."""
+    import os
+    for k in list(os.environ):
+        if k.startswith(("GIT_", "GOODVIBES_")):
+            monkeypatch.delenv(k)
+    for k, v in {"HOME": str(tmp_path), "GIT_CONFIG_GLOBAL": os.devnull, "GIT_CONFIG_NOSYSTEM": "1",
+                 "GIT_CEILING_DIRECTORIES": str(tmp_path.parent),
+                 "GIT_AUTHOR_NAME": "T", "GIT_AUTHOR_EMAIL": "t@e", "GIT_COMMITTER_NAME": "T", "GIT_COMMITTER_EMAIL": "t@e"}.items():
+        monkeypatch.setenv(k, v)
+    return dict(os.environ)
 
 
 @pytest.fixture

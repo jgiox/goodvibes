@@ -21,6 +21,13 @@ export function resolveTemplatesDir(): string {
   return fileURLToPath(new URL('../../../../templates', import.meta.url))
 }
 
+// Same two-candidate probe as resolveTemplatesDir: dist → packages/npm/hooks (prebuild copy), source → repo-root hooks/.
+export function resolveHooksDir(): string {
+  const distRelative = fileURLToPath(new URL('../hooks', import.meta.url))
+  if (existsSync(distRelative)) return distRelative
+  return fileURLToPath(new URL('../../../../hooks', import.meta.url))
+}
+
 export async function listTemplateFiles(templateDir: string): Promise<string[]> {
   const results: string[] = []
 
@@ -159,8 +166,10 @@ export async function copyTemplates(
   }
 
   // Walk destDir so return shows ci.yml (not ci-node.yml) — per RESEARCH.md Pitfall 6
+  // Only goodvibes paths count: the project's own files (.git, node_modules) are neither written nor skipped by us.
+  const ours = new Set([...await listTemplateFiles(templateDir), '.github/workflows/ci.yml'])
   const destFiles = await walkDir(destDir, destDir)
-  const allDestFiles = destFiles.sort()
+  const allDestFiles = destFiles.filter(f => ours.has(f)).sort()
   const written = allDestFiles.filter(f => !existingBefore.has(f))
   // CLAUDE.md is always in 'written' — sentinel merge runs regardless (per RESEARCH.md note)
   const writtenWithClaude = written.includes('CLAUDE.md') || !claudeMerged ? written : ['CLAUDE.md', ...written]

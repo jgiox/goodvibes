@@ -1,76 +1,306 @@
 # Getting started with goodvibes
 
-You ran `goodvibes init`. Here is what happens next.
+goodvibes gives your AI coding assistant a set of working rules, adds guard rails that stop common mistakes, and sets up GitHub to check every change. This guide explains what `goodvibes init` just did, walks you through your first change, and then covers each piece: what it is, how it helps you, what it does, and how to turn it off.
 
-## What was set up
+## What just happened
 
-goodvibes put its engineering rules and the ponytail minimalism ruleset where Claude Code reads them in every project (`~/.claude/rules/goodvibes.md`), or in this project's `CLAUDE.md` if you used `--scope project`. It also wrote AI rule files for your coding tool (Cursor, Windsurf, Kiro, GitHub Copilot, and others), CI workflows for automated quality checks, and docs templates including this one. Everything runs automatically — no configuration needed.
+`goodvibes init` did three things.
+
+1. **It gave your AI tool working rules.** The rules tell the AI to plan first, keep changes small, run the tests, write down decisions and ask before risky steps. They are plain text files that your AI tool reads on its own. Claude Code reads `~/.claude/rules/goodvibes.md` (`~` means your home folder), or this project's `CLAUDE.md` if you used `--scope project`. Every other tool reads its own rule file, listed in the [README](https://github.com/jgiox/goodvibes#works-with).
+2. **It added guard rails to Claude Code.** Hooks (small scripts Claude Code runs before certain actions) and permissions stop a few common mistakes before they happen. These work in Claude Code only.
+3. **It added files to this folder.** `JOURNAL.md` (a log of decisions), `CHANGELOG.md`, `CONTRIBUTING.md`, `SECURITY.md`, a `CLAUDE.md` with a project section for you to fill in, these guides, rule files for other AI tools, and GitHub workflows that test and scan every change.
+
+By default the rules and guard rails apply to every project on your computer, not just this one. [Global or one project](https://github.com/jgiox/goodvibes#global-or-one-project) in the README lists exactly what went where.
+
+You do not need to understand any of this to start. To check that everything is in place, run:
+
+```sh
+goodvibes doctor
+```
 
 ## Your first change
 
-1. **Open your project in your AI coding tool.** Cursor, Windsurf, Kiro, and GitHub Copilot all pick up the goodvibes rules automatically. The AI will follow minimal-code and fail-loud principles from the first message.
-2. **Tell the AI what you want to build.** Describe the feature in plain language — the rules guide the AI to keep code simple and surgical.
-3. **Review the diff before you commit.** Check that the AI only changed what you asked. The rules encourage narrow diffs — if the change looks too large, ask the AI to trim it.
-4. **Run `git add path/to/changed/file JOURNAL.md` and then `git commit -m "feat: your change here"`.** Name each file you changed; this saves a checkpoint in your project history so you can always go back, without sweeping in stray files such as a `.env` with passwords.
-5. **Run `git push`.** This sends your work to GitHub, where it is safe even if your machine breaks.
+The loop is the same in every AI tool: ask, check, save, share.
 
-## Check your setup
+1. **Open this folder in your AI tool.** For Claude Code, open a terminal in this folder and run `claude`. For Cursor, Windsurf, Kiro and the others, open the folder as a project.
+2. **Describe your project once (optional).** Open `CLAUDE.md` and fill in the three lines under "Project": what this is, what matters most, and any limits. The rules tell the AI to look there before asking you questions.
+3. **Ask for one small thing.** For example: "Add a page that says hello." A small request gives a small change that is easy to check.
+4. **Let the AI work.** The rules tell it to state its assumptions, make the smallest change that works, run the tests, and add an entry to `JOURNAL.md`. If it says "done" without showing the test output, ask for the output.
+5. **Check what changed.** Run `git status` to see which files changed and `git diff` to see the changed lines. If the AI changed more than you asked for, ask it to undo the extra part.
+6. **Save a checkpoint (a commit).** Name each file you want to save, plus `JOURNAL.md`:
 
-Run `goodvibes doctor` to verify everything is working. It checks that headroom is installed, your git identity is configured, and the goodvibes rules are in place (`~/.claude/rules/goodvibes.md`, or the goodvibes block in `CLAUDE.md` if you used `--scope project`).
+   ```sh
+   git add src/hello.html JOURNAL.md
+   git commit -m "feat: add hello page"
+   ```
 
-## Useful commands
+   Naming files one by one keeps stray files, such as a `.env` file with passwords, out of your history. If git says "not a git repository", this folder is not under git yet: see [Git and GitHub basics](onboarding.md#start-a-new-project). In Claude Code, the AI can run both commands for you without asking. In every tool, and when you commit yourself, the [journal check](#journal-check-claude-code-only) stops a commit that leaves out `JOURNAL.md`.
+7. **Share it (a push).** `git push` sends your commits to GitHub, where the [checks](#github-checks-ci) run. Claude Code always asks you before it pushes. New to branches and pull requests? Read [Git and GitHub basics](onboarding.md).
 
-| Command | What it does |
-|---------|--------------|
-| `goodvibes update` | Bring goodvibes files up to date with the version you have installed; keeps your edits |
-| `goodvibes update --dry-run` | Show what `goodvibes update` would change, without writing anything |
-| `goodvibes upgrade` | Install the newest goodvibes, then run `goodvibes update` |
-| `goodvibes doctor` | Check that headroom, git, and rules are all working |
+## Rules and ponytail: how the AI works
 
-## Why Claude's replies are so short (caveman)
+**What it is.** The rules are a page of plain instructions for the AI. ponytail is the part of the rules about minimalism: write as little code as the task needs.
 
-goodvibes turns on the caveman skill at its strongest setting, `ultra`, so Claude's replies use far fewer tokens and your context lasts longer. In `ultra`, Claude drops filler words, uses short forms such as "DB", "auth" and "fn" in its explanations, and writes arrows for cause and effect ("token expired → 401"). Code, file names, commands and error messages are never shortened.
+**Why it helps you.** Left alone, AI assistants add code and libraries you did not ask for, hide errors, and say "done" without proof. Each of those costs you time later. The rules turn the habits of a careful developer into orders the AI follows from the first message.
 
-If the replies are too terse to follow, type one of these in Claude Code:
+**What it does.** The main rules:
 
-- `/caveman full`: short sentences, no abbreviations.
-- `/caveman lite`: normal full sentences, just no filler.
-- `stop caveman` (or `normal mode`): turns it off for the rest of the session.
+- **Start of every session:** read `JOURNAL.md` first, and never ask you something the project files already answer.
+- **Think before coding:** write down assumptions; stop and ask when a request could mean different things.
+- **Surgical changes:** touch only what the task needs; no reformatting or renaming on the side.
+- **Fail loud:** no hidden errors, no fake success, no made-up data.
+- **Security:** never open `.env` files or keys; ask you for the value instead.
+- **Definition of done:** tests pass with the output shown, docs are updated, `CHANGELOG.md` and `JOURNAL.md` get an entry, and only named files are staged.
+- **Action tiers:** reading and editing are automatic; commits come with a summary; pushing needs your OK; publishing and deploying need your explicit approval.
 
-This only affects Claude Code. Other tools use their own reply style.
+ponytail adds a ladder the AI climbs before writing code. It stops at the first rung that works:
 
-## What is headroom?
+1. Does this need to exist at all?
+2. Does the codebase already have it?
+3. Does the standard library do it?
+4. Does the platform do it?
+5. Does an installed dependency do it?
+6. Can it be one line?
+7. Only then: the least code that completely solves the problem.
 
-headroom compresses the AI's memory of your project so you spend fewer tokens per session. It runs automatically in the background when Claude Code is active — you do not need to invoke it manually. The first install downloads a few gigabytes and can take several minutes; `goodvibes init --minimal` skips it.
+Claude Code gets the full ponytail ruleset, with three levels (lite, full, ultra; the default is full). Every other tool gets the same ladder under "Simplicity first" in its rule file.
 
-## About the journal-gate hook
+**Turn it off.**
 
-The journal-gate hook only gates `git commit` when it runs through Claude Code's own Bash tool — it does not intercept a commit you type directly in a terminal. Other AI coding tools or IDEs (Cursor, Copilot, and others) have no equivalent hook mechanism, so this enforcement does not apply there.
+- For one Claude Code session: type `stop ponytail` or `normal mode`.
+- Claude Code, permanently: delete `~/.claude/rules/goodvibes.md`. `goodvibes update` does not bring it back. With `--scope project`, the rules are the block between `<!-- goodvibes:start -->` and `<!-- goodvibes:end -->` in `CLAUDE.md`; you can delete that block, but `goodvibes update` adds it back.
+- Other tools: delete that tool's rule file, for example `.cursor/rules/goodvibes.mdc`.
 
-The hook lives in `~/.claude/settings.json` (or this project's `.claude/settings.json` if you used `--scope project`) and only acts in repos that have a `JOURNAL.md`. To turn it off, delete the `PreToolUse` entry whose command starts with `: goodvibes-journal-gate` from that file; `goodvibes update` will not add it back. Commits made from your editor's Source Control or Git panel are not gated either.
+The optional `/ponytail-review` (check your changes for over-building) and `/ponytail-audit` (check the whole project) commands need the ponytail plugin and work in the Claude Code terminal only. To install it, type these in Claude Code:
 
-The check looks at the repository the commit really runs in, including `cd somewhere && git commit` and `git -C somewhere commit`. If a command changes folder more than once, or uses a folder name it cannot work out, it blocks with a "cannot verify" message instead of guessing; run the commit as its own command from inside the repository. It is a safety net for honest mistakes, not a security barrier: a determined agent can get around it.
+```
+/plugin marketplace add DietrichGebert/ponytail
+/plugin install ponytail@ponytail
+```
+
+## caveman: shorter replies
+
+**What it is.** A reply style: short, clipped sentences with no filler. It is on from the first reply in every AI tool, because the goodvibes rules turn it on. In Claude Code it is also a skill (a set of instructions Claude Code loads), which holds the full style guide.
+
+**Why it helps you.** Every word the AI writes costs tokens and fills the context window (the working memory of a session). Shorter replies leave more room for your code, so a session lasts longer before it has to start over.
+
+**What it does.** goodvibes starts every session at the strongest level, `ultra`: the AI drops filler words, uses short forms such as "DB", "auth" and "fn", and writes arrows for cause and effect ("token expired → 401"). Code, file names, commands, error messages, commit messages, pull requests and docs are never shortened. For security warnings and steps that cannot be undone, the AI switches back to full sentences.
+
+`ultra` takes some getting used to. If the replies are too terse, say so, or type one of these:
+
+- `/caveman full` (in other tools: "caveman full"): short sentences, no abbreviations.
+- `/caveman lite` (in other tools: "caveman lite"): normal sentences, just no filler.
+- `stop caveman` (or `normal mode`): off for the rest of the session.
+
+goodvibes also installs these Claude Code skills: `caveman-commit` and `caveman-review` (short commit messages and review comments), `caveman-help` (a quick reference), `goodvibes-hygiene` (on-demand over-engineering audits) and `model-regression` (a before-and-after check whenever a change can move a model or a score).
+
+**Turn it off for good.** Delete the "Replies" section from the rules: in `~/.claude/rules/goodvibes.md` for Claude Code, or in your tool's rule file (for example `.cursor/rules/goodvibes.mdc`). `goodvibes update` keeps a rules file you edited. With `--scope project`, the Claude Code rules live in the goodvibes block of `CLAUDE.md`, which `goodvibes update` rewrites, so type `stop caveman` there instead. To remove a skill, delete its folder: `~/.claude/skills/caveman/`, or `.claude/skills/caveman/` with `--scope project`. `goodvibes update` does not bring a deleted skill back.
+
+## headroom: compress what Claude reads (Claude Code only)
+
+**What it is.** headroom is a separate open-source tool (Apache 2.0), not part of goodvibes. It compresses what Claude reads, such as long command output.
+
+**Why it helps you.** Less text for Claude to read means fewer tokens for the same work.
+
+**What it does.** If Python 3.10 or later is installed, `goodvibes init` installs headroom with `uv tool install "headroom-ai[all]"` (falling back to `pipx`, then `pip install --user`). It then registers headroom with Claude Code as an MCP server, a small helper program that gives Claude Code extra tools, by running `claude mcp add -s user headroom -- <path to headroom> mcp serve`. This goes into your Claude Code user settings, even with `--scope project`.
+
+The first install downloads a few gigabytes and can take several minutes, and headroom downloads its compression model the first time it runs. If Python is missing, or the install fails, `goodvibes init` skips headroom and sets up everything else. headroom is optional: `goodvibes doctor` shows a warning (!), never a problem (✗), when it is missing. To install it later, run:
+
+```sh
+uv tool install "headroom-ai[all]"
+goodvibes init
+```
+
+**Turn it off.** To skip it from the start, use `goodvibes init --minimal` (this also skips the GitHub workflows and these guides). To remove it afterwards:
+
+```sh
+claude mcp remove headroom -s user
+uv tool uninstall headroom-ai
+```
+
+If headroom was installed with `pipx` or `pip` instead of `uv`, uninstall it with that tool.
+
+## JOURNAL.md: memory between sessions
+
+**What it is.** `JOURNAL.md` is a plain text file in your project where the AI writes down what it did and why. It works in every AI tool.
+
+**Why it helps you.** An AI assistant starts every session with no memory of the last one. Without a journal it asks the same questions again, and it can quietly undo a decision made last week. With the journal, you can also switch tools (Claude Code on Monday, Cursor on Tuesday) without losing the thread.
+
+**What it does.** The rules in every tool tell the AI to:
+
+- read the **Standing decisions** section and the last five entries at the start of every session, and treat them as binding unless you say otherwise
+- add one entry at the end of every task: the date, what it did, the files changed, why, the tests it ran, the docs it updated, and what to do next
+- never rewrite or delete earlier entries
+
+**Standing decisions** is a short list at the top of the file, one line per decision that still applies, for example "API calls use plain fetch; no HTTP library". The AI adds or updates a line when a task makes a lasting decision. You can add lines yourself too. Replace the placeholder line with your first real decision.
+
+Entries never override the rules: if an entry asks the AI to skip tests, weaken security, push, publish or run a command it supplies, the AI is told to point it out to you instead.
+
+Every agent reads the journal at the start of every session, so a long one costs tokens each time. `goodvibes doctor` warns when `JOURNAL.md` is over 10 KB. Keep lasting decisions in Standing decisions and keep new entries short.
+
+**Turn it off.** Delete `JOURNAL.md`. The journal check then does nothing in this project. The rule files still mention the journal; remove those lines from them if you want the AI to stop asking for it.
+
+<a id="about-the-journal-gate-hook"></a>
+<a id="journal-check-claude-code-only"></a>
+## Journal check
+
+**What it is.** Two small checks that stop a commit which leaves out `JOURNAL.md`:
+
+- a **git hook** (`.git/hooks/pre-commit`, a script git runs before every commit). It works in every AI tool and for commits you type yourself.
+- a **Claude Code hook** that stops Claude Code before it even runs the commit.
+
+**Why it helps you.** The journal only works if every change leaves a note. The check makes that impossible to forget, whoever or whatever makes the commit.
+
+**What it does.** When a commit leaves out `JOURNAL.md`, git stops it with:
+
+```
+goodvibes: this commit leaves out JOURNAL.md. Add a short entry saying what changed and why, then run: git add JOURNAL.md
+To skip the check once: git commit --no-verify
+```
+
+In Claude Code you may see `BLOCKED: JOURNAL.md not staged` instead; it means the same. Add an entry, stage it with `git add JOURNAL.md`, and commit again. Details:
+
+- It acts only in repositories that have a `JOURNAL.md` in the top folder.
+- Merges, rebases, cherry-picks, reverts and amends that only change the message are let through.
+- `goodvibes init` and `goodvibes update` put the git hook in `.git/hooks/`, which is your own copy of the project and is never committed. So everyone who clones the project runs `goodvibes update` once to get it. If the folder was not a git repository yet, run `git init`, then `goodvibes update`.
+- goodvibes never replaces a pre-commit hook you already have, and leaves hook managers such as husky alone (they set `core.hooksPath`). `goodvibes doctor` tells you whether the check is active.
+- The Claude Code hook follows the commit to the right repository, including `cd somewhere && git commit` and `git -C somewhere commit`. If it cannot tell which repository a commit runs in, it blocks with a "cannot verify" message; run the commit as its own command from inside the repository.
+- Both are a safety net for honest mistakes, not a security boundary.
+
+**Turn it off.**
+
+- Once: `git commit --no-verify`.
+- For a terminal session: set `GOODVIBES_JOURNAL_CHECK=off` (git hook only).
+- For good: delete `.git/hooks/pre-commit`; `goodvibes update` does not add it back (`goodvibes init` does). For the Claude Code hook, delete the `PreToolUse` entry whose command starts with `: goodvibes-journal-gate` from `~/.claude/settings.json` and from this project's `.claude/settings.json`; `goodvibes update` does not add it back.
+
+<a id="about-the-read-guard-claude-code-only"></a>
+
+## Read guard (Claude Code only)
+
+**What it is.** A second Claude Code hook. It runs before Claude reads a file or runs a terminal command.
+
+**Why it helps you.** Reading a whole large file fills the context window and costs tokens, usually for one function Claude could have found with a search. Reading a secrets file puts your passwords in the conversation.
+
+**What it does.**
+
+- **Big files:** when Claude tries to read a whole file over 800 lines or 100 KB at once (with its Read tool, or with `cat`, `less`, `more`, `nl`, a large `head` or `tail`, or `sed -n 1,5000p`), the hook stops it and tells it to read a range of lines or search with Grep first. Reading a range, and piping into `head`, `tail`, `grep` or `wc`, is allowed. Images, PDFs and notebooks opened with the Read tool are not limited. Change the limits with the `GOODVIBES_READ_GUARD_LINES` and `GOODVIBES_READ_GUARD_KB` environment variables.
+- **Secret files:** it stops Claude from reading `.env` files, anything in `~/.ssh`, `~/.aws/credentials`, `.git-credentials`, `.netrc`, and `.pem`, `id_rsa`, `id_ed25519` or `id_ecdsa` files, and tells it to ask you for the value it needs. `.env.example`, `.env.sample` and `.env.template` stay readable.
+
+It is a safety net, not a security boundary: it does not see every way a command can read a file.
+
+**Turn it off.** Start Claude Code with `GOODVIBES_READ_GUARD=off` set, which turns off both parts:
+
+```sh
+GOODVIBES_READ_GUARD=off claude
+```
+
+To remove it for good, delete the `PreToolUse` entry whose command starts with `: goodvibes-read-guard` from `~/.claude/settings.json` and from this project's `.claude/settings.json`. `goodvibes update` does not add it back. The [permissions](#permissions-claude-code-only) still stop Claude's own Read tool from opening `.env` files and keys.
+
+## Permissions (Claude Code only)
+
+**What it is.** Three lists in Claude Code's settings: what Claude may do without asking, what it must ask you about first, and what it may never do.
+
+**Why it helps you.** You are not interrupted for safe, everyday steps such as editing files, committing and running tests. You are always asked before anything that is hard to undo or leaves your computer, such as pushing, publishing or deploying. Force-push, `git reset --hard` and reading secret files are refused outright.
+
+**What it does.** The full lists are in the README: [What Claude Code can do without asking](https://github.com/jgiox/goodvibes#what-claude-code-can-do-without-asking). The "ask" and "never" lists go into `~/.claude/settings.json` and this project's `.claude/settings.json`; the "without asking" list goes into the project file only. Claude asks before it edits either settings file itself.
+
+**Turn it off.** Edit the `permissions` block in `.claude/settings.json` (and `~/.claude/settings.json`): remove a rule to drop it, or move it between `allow`, `ask` and `deny`. `goodvibes update` keeps your changes and does not put back rules you removed.
 
 ## Session-start check (Claude Code only)
 
-When you open Claude Code in this project, goodvibes runs `goodvibes doctor --quick` once. It checks that git knows your name and email and that the goodvibes rules are in place. If everything is fine it prints nothing. If something is wrong, Claude sees a one-line note with the fix and can tell you about it. It takes about a fifth of a second and never stops Claude Code from starting.
+**What it is.** A quick health check that runs once each time you start Claude Code.
 
-`goodvibes init` installs the `goodvibes` command globally so this check can run. If it is missing (for example you used `--scope project` with `npx`), the check skips itself; to install it, run `npm install -g goodvibes-cli` or `uv tool install goodvibes-cli`. To turn the check off, delete the `"SessionStart"` entry from `~/.claude/settings.json` (or `.claude/settings.json` with `--scope project`); `goodvibes update` will not add it back.
+**Why it helps you.** Small setup problems, such as git not knowing your name, surface at the start of a session instead of halfway through a task.
 
-## What is context7?
+**What it does.** Claude Code runs `goodvibes doctor --quick`. It checks that git knows your name and email, that the goodvibes rules are in place (in a goodvibes project), and that `JOURNAL.md` is not over 10 KB. If all is well it prints nothing. If not, Claude sees a one-line note starting with `goodvibes doctor:` with the fix, and can tell you about it. It never stops Claude Code from starting.
 
-context7 is an MCP server that gives Claude Code live, up-to-date library documentation lookups, so the AI stops guessing at APIs from stale training data. It works out of the box with no signup or API key.
+It needs the `goodvibes` command installed on your computer. `goodvibes init` installs it by default; with `--scope project` it does not, and the check quietly skips itself. To install it:
 
-By default goodvibes adds context7 to your Claude Code user settings, so it works in every project with no prompt. Run `claude mcp list` to see it. If the `claude` command was not installed when you ran `goodvibes init`, it printed the one command to run later.
+```sh
+npm install -g goodvibes-cli
+```
 
-If you hit rate limits, get a free key from context7 and re-add the server with it (the key is stored in your Claude Code user settings, not in any project):
+or, with Python:
+
+```sh
+uv tool install goodvibes-cli
+```
+
+**Turn it off.** Delete the `SessionStart` entry whose command starts with `: goodvibes-doctor` from `~/.claude/settings.json` and from this project's `.claude/settings.json`. `goodvibes update` does not add it back.
+
+## doctor: check your setup
+
+**What it is.** A command that checks your goodvibes setup and tells you how to fix anything that is wrong.
+
+**Why it helps you.** When something does not seem to work, one command tells you what is missing and the exact fix.
+
+**What it does.** Run:
+
+```sh
+goodvibes doctor
+```
+
+It checks:
+
+- that headroom is installed and working (optional)
+- that the `goodvibes` command is installed, so the session-start check can run (optional)
+- that git knows your name and email
+- that the goodvibes rules are in place: `~/.claude/rules/goodvibes.md`, or with `--scope project` a `CLAUDE.md` with the goodvibes block
+- that `JOURNAL.md` is not over 10 KB
+- the MCP servers Claude Code uses (from `~/.claude.json` and this project's `.mcp.json`). It warns about a plain `http://` address, a password or key written straight into the file, a package downloaded without a fixed version every time the server starts, and a download piped into a shell. It never contacts the servers, and it names a setting that holds a secret without printing the secret.
+
+Each line starts with ✓ (fine), ! (a warning) or ✗ (a problem), and a "How to fix" list follows. Optional parts such as headroom only ever warn. The last line says `Ready.`, `Ready, with N warning(s).` or `Not ready: N problem(s).`. Only problems make `doctor` exit with an error. It never sends anything over the network.
+
+**Turn it off.** There is nothing to turn off: it runs only when you type it, and in its quick form through the session-start check.
+
+## usage: see where your tokens went (Claude Code only)
+
+**What it is.** A command that shows how many tokens your recent Claude Code sessions used.
+
+**Why it helps you.** Tokens are what AI use costs. Seeing which sessions were expensive, and how full the context window got, tells you when to start a fresh session.
+
+**What it does.** Run:
+
+```sh
+goodvibes usage
+```
+
+It reads Claude Code's local session logs (in `~/.claude/projects/`) for this project, from the last 7 days, and shows the 10 most recent sessions with their total tokens, cache hit rate (the share of input Claude reused from its cache, which is cheaper) and peak context (the most text Claude held at once). A `!` marks a session whose peak context passed 160,000 tokens, near the 200,000 limit of most Claude models; starting a fresh session is cheaper.
+
+- `--all`: every project, not just this one
+- `--days N`: the last N days instead of 7
+- `--json`: output for scripts
+
+It works offline and reads only token counts, never what you or Claude wrote. Claude Code's log format can change, so the numbers are best effort.
+
+**Turn it off.** There is nothing to turn off: it runs only when you type it.
+
+<a id="what-is-context7"></a>
+
+## context7: current library docs (Claude Code only)
+
+**What it is.** context7 is an MCP server that gives Claude Code current documentation for libraries and frameworks. It is free and needs no account or key.
+
+**Why it helps you.** An AI model learned its libraries at one point in time. When a library changes, the AI keeps writing the old way. With context7, Claude can look up the current docs first, and the rules tell it to check an API before stating a guess as fact.
+
+**What it does.** By default, `goodvibes init` adds context7 to your Claude Code user settings, so it works in every project:
+
+```sh
+claude mcp add --transport http --scope user context7 https://mcp.context7.com/mcp
+```
+
+If the `claude` command was not installed when you ran `goodvibes init`, it printed this command for you to run later. Run `claude mcp list` to see it.
+
+With `--scope project`, context7 is in this project's `.mcp.json` instead. The first time Claude Code opens a project with an `.mcp.json`, it asks whether to trust the project's MCP servers; say yes. Until you do, `claude mcp list` shows context7 as "Pending approval" and it stays off. If you declined by mistake, run `claude mcp reset-project-choices` and open Claude Code again.
+
+If you hit rate limits, get a free key from context7 and add it. In your user settings (the key stays out of every project):
 
 ```sh
 claude mcp remove context7 -s user
 claude mcp add --transport http --scope user --header "Authorization: Bearer YOUR_KEY" context7 https://mcp.context7.com/mcp
 ```
 
-With `--scope project`, context7 is in this project's `.mcp.json` instead. Set a `CONTEXT7_API_KEY` environment variable and add a `headers` block for higher limits:
+In a project `.mcp.json`, set a `CONTEXT7_API_KEY` environment variable and reference it:
 
 ```json
 {
@@ -86,6 +316,66 @@ With `--scope project`, context7 is in this project's `.mcp.json` instead. Set a
 }
 ```
 
-Never commit a literal key — only the `${CONTEXT7_API_KEY}` reference. For a project `.mcp.json`, Claude Code shows a one-time "trust this project's MCP servers" prompt the first time it loads a project with an `.mcp.json`; approving it is what enables context7 tool calls.
+Never commit the key itself, only the `${CONTEXT7_API_KEY}` reference.
 
-Until you approve it, `claude mcp list` shows context7 as "Pending approval" and it stays off. If you declined by mistake, run `claude mcp reset-project-choices` and open Claude Code again.
+**Turn it off.** Run `claude mcp remove context7 -s user`. With `--scope project`, delete the `context7` entry from `.mcp.json`.
+
+## GitHub checks (CI)
+
+**What it is.** CI (continuous integration) means GitHub runs checks on your code every time you push or open a pull request. goodvibes adds the checks as workflow files in `.github/workflows/`. They start working once your project is on GitHub.
+
+**Why it helps you.** The rules and guard rails guide the AI; the checks verify the result, whichever tool or person wrote the code. A red ✗ on a pull request tells you something broke before it reaches your main branch.
+
+**What it does.**
+
+| Workflow | When it runs | What it checks |
+|---|---|---|
+| `ci.yml` | Pushes to `main`, pull requests to `main` | Your tests. For Node.js (Node 20 and 22): `npm install`, `npm run build` and `npm test` if they exist, and `npm run lint` (a warning if there is no lint script). For Python (3.10, 3.11, 3.12): installs with `uv`, lints with `ruff`, runs `pytest` if there are `test_*.py` files |
+| `security.yml` | Pushes to `main`, pull requests to `main`, every Monday | CodeQL looks for security bugs in your code; gitleaks looks for passwords and keys in your whole git history |
+| `dependency-review.yml` | Pull requests to `main` | Every new dependency must have a permissive licence (MIT, Apache 2.0, BSD, ISC and a few others) |
+| `file-size.yml` | Every pull request, pushes to `main` | Code files stay small (see below) |
+
+- goodvibes picks the Node.js tests if your project has a `package.json`, the Python tests if it has a `pyproject.toml` or `requirements.txt`, and both if it has both or neither.
+- CodeQL and dependency review need GitHub Advanced Security on private repositories, so they are skipped there and run on public ones.
+- Every workflow gets a read-only token, and a newer push to a pull request cancels the older run.
+- `.github/dependabot.yml` opens pull requests each week to update your GitHub Actions, npm and pip dependencies, at most five open at a time each. It waits 7 days after a release before proposing it.
+- If your project already had workflows when you ran `goodvibes init`, goodvibes added none of its own.
+
+### File size check
+
+AI tools read and edit small files more cheaply and more accurately. The file size check keeps code files small:
+
+- A new or changed code file must stay at or under 500 lines.
+- A file that is already over its limit may not grow. Move new code into a new file instead.
+
+It compares your changes with the branch your pull request targets, or with the commit before a push. It checks common code files (`.js`, `.ts`, `.py`, `.go`, `.rs`, `.java` and others). It skips lockfiles, minified files, `dist/`, `build/`, `node_modules/`, `vendor/`, `.venv/`, binary files, and generated files (with `@generated` or `DO NOT EDIT` in their first five lines). To run it on your computer:
+
+```sh
+node .github/scripts/check-file-sizes.mjs
+```
+
+To change the limits, create `.github/file-size-limits.json` (goodvibes does not create it). Every key is optional:
+
+```json
+{
+  "default": 500,
+  "extensions": { ".py": 600 },
+  "ignore": ["gen/**"],
+  "allow": { "src/big.ts": 1200 }
+}
+```
+
+- `default`: the limit for the built-in code file types.
+- `extensions`: a different limit for one file type, or a new file type to check.
+- `ignore`: files to skip. `*` matches any characters except `/`, `**` any number of folders, `?` one character.
+- `allow`: the limit for one file.
+
+When the check fails, its message suggests the exact `allow` line for the file. A mistake in this file (bad JSON, an unknown key, a limit that is not a whole number) fails the check with a message saying what to fix.
+
+**Turn it off.** Delete the workflow file you do not want from `.github/workflows/`, for example `.github/workflows/file-size.yml`. For Dependabot, delete `.github/dependabot.yml`. `goodvibes update` does not bring deleted files back; `goodvibes init` does, if you change your mind.
+
+## More help
+
+- [FAQ](https://github.com/jgiox/goodvibes/blob/main/FAQ.md): common questions and fixes
+- [README](https://github.com/jgiox/goodvibes#readme): every command, and how updating works
+- [Git and GitHub basics](onboarding.md): for complete beginners

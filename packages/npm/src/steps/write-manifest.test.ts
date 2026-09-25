@@ -24,6 +24,13 @@ describe('writeManifest / readManifest', () => {
     expect(typeof data.files['CLAUDE.md']).toBe('string')
   })
 
+  it('records gitHook when one is given and leaves the field out otherwise', async () => {
+    await writeManifest(tmpDir, [], '1.0.0', undefined, undefined, 'project', 'user-removed')
+    expect(JSON.parse(readFileSync(join(tmpDir, '.goodvibes.json'), 'utf-8')).gitHook).toBe('user-removed')
+    await writeManifest(tmpDir, [], '1.0.0', undefined, undefined, 'project')
+    expect('gitHook' in JSON.parse(readFileSync(join(tmpDir, '.goodvibes.json'), 'utf-8'))).toBe(false)
+  })
+
   it('readManifest returns null when .goodvibes.json does not exist', async () => {
     const result = await readManifest(tmpDir)
     expect(result).toBeNull()

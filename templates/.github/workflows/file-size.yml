@@ -1,0 +1,28 @@
+name: File Size
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  file-size:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # The check compares with the base branch or the previous commit, so it needs the history.
+          fetch-depth: 0
+          persist-credentials: false
+      # A new code file must stay under 500 lines and a file already over it may not grow.
+      - run: node .github/scripts/check-file-sizes.mjs
+        env:
+          PUSH_BEFORE: ${{ github.event.before }}

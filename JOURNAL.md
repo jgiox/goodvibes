@@ -2,6 +2,21 @@
 
 Log what you built, what you learned, and what you want to revisit.
 
+## Standing decisions
+
+Read this section and the last five entries before acting; older entries only when needed.
+
+- npm and pip CLIs behave the same and print the same strings; change both in one PR.
+- Tests never touch the real `~/.claude`, `~/.claude.json`, global npm/uv installs or the `claude` CLI.
+- Never publish or deploy without explicit approval from the maintainer; releases run only from `main` or a matching tag on `main`, through the `release` environment.
+- Bug fixes: failing test commit first (RED), then the fix (GREEN); stage JOURNAL.md in every commit.
+- Hooks are POSIX `sh` plus POSIX `awk` (dash, mawk, BWK awk, busybox); no jq, bash-isms or gawk extensions. Every git call in a hook uses `-c core.fsmonitor=false -c safe.bareRepository=explicit`.
+- The `hooks` in `templates/.claude/settings.json` and `.claude/settings.json` stay identical; the journal gate stays `PreToolUse[0].hooks[0]`; each goodvibes hook has its own matcher group and `: goodvibes-<id>;` marker.
+- `update` never adds allow rules to a settings file the user edited; retired allow rules are removed from project settings only, never from `~/.claude/settings.json`.
+- goodvibes never writes through a symlink inside a project; config-dir JSON writes are atomic and keep the file mode.
+- Manifest keys use forward slashes on every platform.
+- Local npm 10 rewrites `packages/npm/package-lock.json` and uv rewrites `packages/pip/uv.lock`; never commit those incidental changes (use `npx -y npm@11` for real lock updates).
+
 ---
 
 ## 2026-06-23 — Initialized project and completed Phase 1: template content & repo foundation
@@ -1851,3 +1866,240 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 **Tests run:** RED: npm mode test failed (symlink test passed); pip symlink test failed (mode test passed). GREEN: npm typecheck 0, vitest 438 passed, 1 skipped (the fs-safe unit mock gained stat and chmod); pip pytest 358 passed.
 
 **Docs updated:** JOURNAL.md.
+
+---
+
+## 2026-09-25 · File-size ratchet CI check in the templates
+
+**What I did:** Added a CI check that goodvibes ships to every project: a new code file may not exceed 500 lines, and a file already over the limit may not grow (a ratchet, so existing code is not punished). AI tools keep appending to one huge file, which makes every later Read/Edit cost more tokens.
+
+**Files changed:** packages/npm/src/steps/file-size-check.integration.test.ts (new), packages/pip/tests/test_file_size_template.py (new), packages/npm/src/steps/workflow-templates.test.ts (lists file-size.yml), scripts/verify-phase4.sh (FILE-SIZE-YML check), JOURNAL.md.
+
+**Commits:**
+- RED: tests for the script and workflow, with both absent.
+- GREEN: templates/.github/scripts/check-file-sizes.mjs (Node stdlib + git; defaults 500 lines for code extensions; optional .github/file-size-limits.json; base origin/$GITHUB_BASE_REF merge-base, else HEAD^, else every file is new; fails loudly on a shallow clone or missing origin/<base>) and templates/.github/workflows/file-size.yml (pull_request + push to main, contents: read, fetch-depth 0). actionlint 1.7.12 clean; the 17 script tests pass on Node 22 and Node 20.20.
+- Attribution: the script adapts block/buzz scripts/check-file-sizes-core.mjs (Apache-2.0, Copyright 2026 Block, Inc.); its header names the source and the goodvibes changes, and NOTICE gains a buzz entry.
+
+**Why:** AI tools keep appending to one file; big files cost tokens on every Read/Edit and make diffs hard to review.
+
+**Tests run:** see the commits above; full npm (prebuild, typecheck, build, vitest), pip pytest and verify-phase1 to 5 after the last commit.
+
+**Docs updated:** JOURNAL.md, NOTICE. README/FAQ/CHANGELOG still need a line about the new check (not in this task's scope).
+- File-size check: on a push, compare with the commit before the push (`PUSH_BEFORE` from `github.event.before`) instead of only `HEAD^`, so growth in an earlier commit of a multi-commit push fails. RED test committed first. Tests: `file-size-check.integration.test.ts`.
+- GREEN: `check-file-sizes.mjs` reads `PUSH_BEFORE` (ignored when all zeros or unknown); `file-size.yml` passes `github.event.before`. 19/19 file-size tests pass, actionlint clean.
+
+## 2026-09-25 · Secret-file guard, guard-rail asks, journal budget, rule additions, CI hardening, skill size cap
+
+**What I did:** Six template features, each as a RED test commit then a GREEN change commit (lines below).
+
+**Files changed:** templates/.claude/settings.json (permissions only), templates/CLAUDE.md, templates/AGENTS.md and its six copies, templates/.github/copilot-instructions.md, templates/.cursor/rules/goodvibes.mdc, templates/.kiro/steering/goodvibes.md, templates/replit.md, templates/.bolt/prompt, templates/JOURNAL.md, templates/.github/workflows/*.yml, templates/.github/dependabot.yml, packages/npm/src/steps/{settings-permissions,rule-files,workflow-templates}.test.ts, packages/pip/tests/{test_settings_permissions,test_skills}.py, JOURNAL.md.
+
+**Why:** Keep secrets out of the agent's context, make the agent ask before editing its own guard rails, keep JOURNAL.md cheap to read, and harden the shipped CI.
+
+**Tests run:** see the per-commit lines and the final line.
+
+**Docs updated:** none (README/FAQ/CHANGELOG are written separately).
+
+- RED 1: tests for secret-file Read denies (with `.env.example` left readable) and the Security rule line.
+- GREEN 1: `permissions.deny` gains Read rules for `./.env`, `./.env.local`, `./.env.*.local`, `./.env.development`, `./.env.production`, `./.env.staging`, `./.env.test`, `**/.env`, `~/.ssh/**`, `~/.aws/credentials`, `~/.git-credentials`, `~/.netrc`, `**/*.pem`, `**/id_rsa`, `**/id_ed25519`; every rule file's Security section forbids opening or pasting secret files. Decision: no `Read(./.env.*)`, because rules are gitignore-style and `.env.*` also matches `.env.example`, and a deny cannot be re-allowed (deny is checked before allow). Named variants instead; a test proves no Read deny matches `.env.example` at the root or in a subfolder. Read rules do not cover Bash (`cat .env`). npm vitest 453 passed; pip 360 passed.
+- RED 2: tests that editing .claude/settings*.json, .mcp.json and .claude/hooks asks first, and CLAUDE.md/JOURNAL.md never do.
+- GREEN 2: `permissions.ask` gains `Edit(./.claude/settings.json)`, `Edit(./.claude/settings.local.json)`, `Edit(./.mcp.json)`, `Edit(./.claude/hooks/**)`; ask is checked before the `Edit(**)` allow. CLAUDE.md and JOURNAL.md left out on purpose. The merge also adds these asks to `~/.claude/settings.json` in global scope. npm vitest 455 passed; pip 361 passed.
+- RED 3: tests that every rule file and JOURNAL.md read only Standing decisions plus the last five entries and record lasting decisions there, and that JOURNAL.md opens with a Standing decisions list.
+- GREEN 3: templates/JOURNAL.md opens with `## Standing decisions` (one placeholder bullet); every rule file now says read Standing decisions plus the last five entries (older only when needed) and add or update one Standing decisions line per lasting decision. npm vitest 470 passed; pip 361 passed.
+- RED 4: tests that every rule file carries the six new command/evidence rules and CLAUDE.md has a summarising section inside its goodvibes block.
+- GREEN 4: new "Commands and evidence" section (six one-line rules) in every rule file; "When summarising or compacting context" section in templates/CLAUDE.md only. Version stamp unchanged. npm vitest 484 passed; pip 361 passed.
+- RED 5: tests for workflow concurrency, per-job timeouts, the dependency-review licence allow-list and a 3-day Dependabot cooldown.
+- GREEN 5: every template workflow gets a top-level `concurrency` block (cancel in progress only for pull_request) and per-job `timeout-minutes` (tests 15, CodeQL 20, dependency review and gitleaks 10); dependency-review gets `allow-licenses` (MIT, Apache-2.0, BSD-2/3-Clause, ISC, 0BSD, Unlicense, CC0-1.0, Python-2.0, BlueOak-1.0.0, MPL-2.0), no `fail-on-severity` was set before and none is added; each Dependabot entry gets `cooldown: default-days: 3` (key names written from memory, docs.github.com unreachable). actionlint 1.7.12 clean; npm vitest 496 passed; pip 361 passed.
+- 6 (test only): npm and pip tests fail when any templates/.claude/skills/*/SKILL.md exceeds 12 KB (12288 bytes), naming file and size. All six skills already fit (largest caveman 5056 bytes), so there is no GREEN change; RED was shown by padding caveman/SKILL.md to 13056 bytes locally (both tests failed with "caveman/SKILL.md is 13056 bytes (limit 12288)"), then restored.
+- Final: npm prebuild, typecheck 0 errors, build ok, vitest 497 passed 1 skipped; pip pytest 362 passed; actionlint 1.7.12 clean; verify-phase1..5 PASS (19/32/19/17/13 checks).
+- Dependabot cooldown: verified `cooldown.default-days` in github/docs source (content/code-security/reference/supply-chain-security/dependabot-options-reference.md). GitHub.com already applies 3 days by default, so the template now sets 7. RED test first.
+- GREEN: templates/.github/dependabot.yml cooldown default-days 7 on all three ecosystems; workflow-templates tests 36/36.
+- dependency-review: RED test for CC-BY-4.0 (caniuse-lite), CC-BY-3.0 (spdx-exceptions), PSF-2.0 (typing_extensions) and Zlib (pako) in allow-licenses; without them routine Dependabot bumps fail in beginner projects. Checked the action README: unknown licences only warn.
+- GREEN: allow-licenses now also lists CC-BY-3.0, CC-BY-4.0, PSF-2.0, Zlib. workflow-templates 37/37.
+
+## 2026-09-25 · npm: tri-state doctor, journal size warning, MCP server check, `goodvibes usage`
+
+**What I did:** Implementing four spec items in the npm CLI, each as a RED test commit then a GREEN implementation commit.
+- 1 RED: doctor tests for ok/warn/fail/skip, optional parts as warnings, and the Ready / Not ready summary line.
+- 1 GREEN: `CheckResult` now has `status` (ok/warn/fail/skip, shown as ✓ ! ✗ -); headroom missing and goodvibes not on PATH are warnings; `How to fix` lists `label: remedy` for warnings and failures; the last line is `Ready.`, `Ready, with N warning(s).` or `Not ready: N problem(s).`; exit 1 only on a failure.
+- 2 RED: doctor and doctor --quick tests for the JOURNAL.md size warning (over 10 KB).
+- 2 GREEN: `checkJournal` warns when JOURNAL.md is over 10 KB (size shown rounded up to whole KB) in doctor and doctor --quick; the file is only stat-ed.
+- 3 RED: `mcp-check.test.ts` (real temp files, CLAUDE_CONFIG_DIR and HOME stubbed) for the MCP server check: sources, ok lines, and the four warnings; doctor tests that the full doctor shows it and --quick never runs it.
+- 3 GREEN: new `mcp-check.ts` reads user/local servers from `.claude.json` (CLAUDE_CONFIG_DIR, falling back to `claude.json`, else `~/.claude.json`) and project servers from `./.mcp.json`; one ok line per clean server, warnings for curl/wget piped into sh/bash -c, unpinned npx/bunx/pnpm dlx/uvx packages, plain http to a remote host, and literal secrets in env/headers (key name only). Full doctor only; never contacts a server.
+- 4 RED: `usage.test.ts` (fixture JSONL in temp dirs: duplicate message ids, a malformed line, entries without usage) and a built-CLI test that `goodvibes usage` is registered.
+- 4 GREEN: new `goodvibes usage` (`usage.ts`, registered in `cli.ts`): reads `<config>/projects/*/*.jsonl` (this project by default, `--all`, `--days N` by mtime, `--json`), dedupes assistant usage by message id, prints the 10 most recent sessions, totals, a `!` mark and note above 160k peak context, and the best-effort footer. Offline; never reads or prints message content.
+
+**Files changed:** packages/npm/src/commands/doctor.ts, doctor.test.ts, mcp-check.ts (new), mcp-check.test.ts (new), usage.ts (new), usage.test.ts (new), packages/npm/src/cli.ts, packages/npm/src/dist-cli.integration.test.ts, JOURNAL.md.
+
+**Why:** Doctor treated optional parts (headroom) as failures; users had no view of oversized journals, risky MCP server configs, or local token use. The pip package gets the same spec from a separate worker; output strings must match.
+
+**Tests run:** npm prebuild, typecheck 0 errors, build OK, vitest 484 passed, 1 skipped; verify-phase1 to 5 PASS (phase 3 failed one pip build check on its first run only, then passed twice; nothing in packages/pip changed). Built-CLI demo in a temp sandbox (CLAUDE_CONFIG_DIR and HOME pointed there).
+
+**Docs updated:** none (out of scope for this worker). README/FAQ/CHANGELOG need: tri-state doctor and the summary line, the journal warning, the MCP check, and `goodvibes usage`.
+
+---
+
+## 2026-09-25 · npm: align doctor and usage output with the canonical parity spec
+
+**What I did:** Aligning npm strings with the coordinator's parity spec (scratchpad `parity_spec.md`) so npm and pip print the same output.
+- Doctor/MCP RED: tests for `goodvibes command not on PATH`, `headroom not working (...)`, journal split into label + remedy, `@latest` unpinned, uvx `--from` and option values skipped, `.cmd`/`.exe` launchers, path commands not launchers, and the `could not be read (<code>)` warning.
+- Doctor/MCP GREEN: `doctor.ts` (headroom ENOENT says not installed, any other error says not working; PATH warn label; journal label + remedy) and `mcp-check.ts` (npm launchers read `-p`/`--package`, uvx reads `--from` and skips option values; `@latest` unpinned; path commands are not launchers; unreadable config gives `could not be read (<code>)`, missing stays silent). --quick formatting already matched the spec.
+- Usage RED: tests for the spec's blank lines (after the header, and before the note and footer).
+- Usage GREEN: `usage.ts` prints a blank line after the header and after the breakdown line.
+- MCP @latest RED: test that `<pkg>@latest` is reported and fixed as `<pkg>` (label and remedy), per coordinator follow-up.
+- MCP @latest GREEN: `mcp-check.ts` strips a trailing `@latest` from the package before the pin check, so label and remedy name the bare package. (a) still matches full-path `sh`/`bash`; `@next` stays pinned.
+
+## 2026-09-25 · pip: tri-state doctor, JOURNAL size and MCP checks, `goodvibes usage`
+
+**What I did:** pip side of a shared spec (npm is done separately to the same strings). Each item lands as a failing-test commit, then the implementation.
+
+- RED: doctor tests for ok/warn/fail/skip statuses, optional headroom and PATH checks, and the summary line.
+- GREEN: `CheckResult.status` replaces `passed`; headroom and a missing goodvibes CLI warn; only `fail` exits 1; summary line ends full doctor.
+- RED: regression test; rich read `[all]` in the headroom remedy as markup and dropped it (a server name in brackets would be read the same way).
+- GREEN: doctor panels render labels and remedies as plain `Text`, not markup.
+- RED: JOURNAL.md over 10 KB warns in doctor and doctor --quick; the file is not changed.
+- GREEN: `_check_journal` (size rounded up to whole KB, 1 KB = 1024 bytes); runs in both modes.
+- RED: MCP server check (user/local/project scope; piped download, unpinned launcher package, remote http, literal secret; bad JSON warns).
+- GREEN: `claude_json_path`, `server_problems`, `_check_mcp` in full doctor only; reads local files only, never contacts a server, prints key names only.
+- RED: `goodvibes usage` tests on fixture JSONL (duplicate message ids, a malformed line, entries without usage, day window, --all, --json, empty cases).
+- GREEN: new `commands/usage_cmd.py`, registered in `main.py`. Offline; reads only usage numbers; `--json` always prints valid JSON (messages go to stderr).
+
+**Files changed:** packages/pip/src/goodvibes_cli/commands/doctor_cmd.py, packages/pip/src/goodvibes_cli/commands/usage_cmd.py (new), packages/pip/src/goodvibes_cli/main.py, packages/pip/tests/test_doctor_cmd.py, packages/pip/tests/test_usage_cmd.py (new), JOURNAL.md.
+
+**Tests run:** pip pytest 420 passed on Python 3.11 and 3.10; verify-phase1 to 5 PASS (no script changes needed).
+
+**Docs updated:** JOURNAL.md only. README/FAQ/CHANGELOG still need the `doctor` statuses and `goodvibes usage`.
+
+## 2026-09-25 · pip: doctor and usage strings aligned with the shared parity spec
+
+**What I did:** The coordinator's parity spec fixes the exact strings npm and pip both print. RED then GREEN for each part.
+
+- RED: doctor "How to fix" joins with `: `; PATH check says "goodvibes command"; `--quick` period rules; manifest error listed first.
+- GREEN: those doctor changes in `doctor_cmd.py`.
+- RED: MCP wording from npm; `@latest` unpinned; uvx `--from` and value-taking options (`--python 3.12`); a path command is not a launcher; bad-file warnings with error code, each in its own scope position.
+- RED: `<pkg>@latest` is reported and remedied as `<pkg>` (coordinator addendum).
+- GREEN: MCP wording, package detection and file warnings in `doctor_cmd.py`.
+- RED: `usage` layout, messages, floor hit %, `Skipped ...` on stderr, `--days` validation (exit 1), JSON footer on stderr.
+- GREEN: `usage_cmd.py` layout, messages, stderr reporting and `--days` check (also fixed a RED test that forgot to create the projects folder).
+- doctor MCP check: server names, keys, packages and hosts from .mcp.json (which arrives with any cloned repo) were printed raw, so escape codes such as ESC[2J reached the terminal (seen in an npm/pip parity run). RED tests in both packages; fix replaces C0/C1 control characters with ? in each MCP label and remedy.
+- GREEN: npm `printable()` in mcp-check.ts and pip `_printable()` in doctor_cmd.py. npm mcp-check 19/19, typecheck clean; pip 454 passed.
+
+## 2026-09-25 · Read guard hook and shared hook test cases
+
+**What I did:** Added a second PreToolUse hook, `: goodvibes-read-guard;` (matcher `Read|Bash`, placed after the journal gate). It blocks whole-file reads of big files (over 800 lines or 100 KB; `GOODVIBES_READ_GUARD_LINES` / `_KB` override) and any Read or Bash read of secret files (`.env*` except example/sample/template, `*.pem`, `id_rsa`/`id_ed25519`/`id_ecdsa`, `.ssh/`, `.aws/credentials`, `.git-credentials`, `.netrc`). `GOODVIBES_READ_GUARD=off` turns it off. Hook test cases now live in `tests/hooks/<id>.cases.json`, run by one vitest and one pytest runner against the real hook command in `templates/.claude/settings.json`.
+
+**Files changed:** tests/hooks/read-guard.cases.json, packages/npm/src/steps/hook-cases.integration.test.ts, packages/pip/tests/test_hook_cases.py, JOURNAL.md.
+
+**Why:** Whole-file reads of big files waste context tokens, and the Read deny rules do not cover `cat .env` through Bash.
+
+**Tests run:**
+- RED: read-guard cases and runners committed with the hook absent; all 132 read-guard cases fail in both runners.
+- GREEN: hook added to templates/.claude/settings.json and .claude/settings.json (hooks identical; global-setup test now expects 2 PreToolUse groups). vitest 570 passed, 1 skipped; pytest 490 passed; runners also pass under BWK awk, busybox awk and a busybox userland. json-merge needs no change: each marker is its own group.
+- Refactor: 59 of the 68 journal-gate cases moved to tests/hooks/journal-gate.cases.json; the 9 that need unusual setup (git -C into other repos, a -C target outside the temp repo, the fsmonitor bare repo) stay inline in the two journal-gate test files. 68 cases before and after; 200 hook cases pass in each runner.
+
+**Docs updated:** JOURNAL.md.
+
+## 2026-09-25: Twelve ideas from portal-ai-plugins, buzz and agent-beacon (integration)
+
+**What:** Merged five worker branches:
+- rules, permissions and CI templates (ideas 1, 3, 4, 5, 6, 12);
+- read guard and shared hook cases (2, 7);
+- npm and pip doctor tiers, MCP check and `usage` (3, 8, 10, 11);
+- file-size ratchet (9).
+
+On top of the merges:
+- File-size check compares a push with `github.event.before`.
+- Dependabot cooldown raised to 7 days (GitHub.com already defaults to 3; verified in the github/docs source).
+- dependency-review now also allows CC-BY-3.0, CC-BY-4.0, PSF-2.0 and Zlib (caniuse-lite, spdx-exceptions, typing_extensions, pako).
+- npm/pip parity spec applied, checked by running both built CLIs on the same fixtures.
+- MCP labels replace terminal control characters.
+
+Added a Standing decisions section to this journal.
+
+**Docs:** README, FAQ, docs/getting-started.md (plus its template copy), both package READMEs, and the CHANGELOG `[Unreleased]` Added/Changed/Security sections.
+
+**Tests:**
+- npm vitest: 706 passed, 1 skipped
+- pip pytest: 586 passed on 3.11 and 3.10
+- verify-phase1 to 5: all PASS
+- actionlint: clean
+
+**Open:**
+- Read guard fails open on `sudo cat`, `xargs cat`, `find -exec`, a heredoc fed to a shell, and paths containing quotes or globs.
+- `~/.ssh/*.pub` is blocked too, deliberately.
+- If a project already has its own workflows, `file-size.yml` is not added.
+
+## 2026-09-25: Public docs rewrite for beginners and experienced readers
+
+**What:**
+- Rewrote README.md: the problem it solves, who it is for, a benefits table, a four-step quick start, how the three layers work (rules, Claude Code guard rails, GitHub checks), what init sets up, commands, updating, permissions, scope, supported tools, requirements, privacy and docs.
+- Rewrote the npm and pip package READMEs to the same structure with absolute links.
+- Added a "Working on goodvibes itself" section to CONTRIBUTING.md.
+- Removed em dashes from CONTRIBUTING and SECURITY (repo and template copies).
+- Fixed the README licence line: caveman and ponytail are MIT, the file-size check is from block/buzz (Apache-2.0), and headroom is installed separately.
+
+**Why:** the maintainer asked for docs that let novices and experienced developers understand what goodvibes is, what it does and how they benefit.
+
+**Tests:** checked every relative link and anchor in the rewritten files. No code changed.
+- Codex review on the PR (3 findings, all P2):
+  - pip `usage` crashed with a TypeError on a non-string `message.id`, such as a list or object.
+  - A ranged Read call skipped the read guard's size check completely: `limit: 5000`, or `offset: 1` with no limit, returned a whole 2000-line file.
+  - The file-size check trusts `HEAD^` when `main` is first pushed. Kept by design: existing code is grandfathered, and checking every file on the first push would fail every existing project with a big file.
+
+  RED tests for the first two: a pip usage test plus an npm parity guard, and 6 read-guard cases.
+- GREEN:
+  - pip `usage` keys only string message ids and treats anything else as its own entry, as npm does.
+  - The read guard's Read branch parses a numeric `offset` and `limit`. It allows a limit up to the line cap, and otherwise blocks when more than the cap would remain after the offset.
+  - Tests: npm hook cases and usage (224 passed); pip full suite (593 passed); pip hook cases under BWK awk and busybox awk (197 passed each).
+- FAQ.md rewritten (grouped sections, table of contents, new questions on cost, tool support, overwriting, removal; stale version claims corrected). Every link and anchor checked; no dashes.
+- Rewrote the guides: getting-started (one section per piece, covering what it is, why it helps, what it does and how to turn it off), onboarding (terminal basics through to a pull request) and the 7 platform-setup notes. Template copies are kept byte-identical.
+- Corrected the guides:
+  - caveman starts on `/caveman`, not by default.
+  - Hook removal covers both settings files.
+  - Replit reads `replit.md` and Bolt reads `.bolt/prompt`.
+  - Removed claims that could not be checked.
+- README fixes:
+  - caveman now says "when you type /caveman".
+  - "Actions are pinned" is now "third-party actions and the gitleaks image are pinned" (GitHub's own actions use version tags).
+  - The `--scope project` section now says headroom is still installed on the computer and registered for the user.
+- Kept the old `#about-the-journal-gate-hook` anchor working.
+- Tests: link and anchor check over every public doc (0 problems); npm vitest 713 passed, 1 skipped; pip 593 passed; verify-phase1 and phase4 PASS.
+
+## 2026-09-25: Journal check for every tool (git pre-commit hook)
+
+**What:** added `hooks/pre-commit`, a POSIX sh git hook that blocks a commit which leaves out JOURNAL.md. It works in every AI tool and for manual commits.
+- Allows: repos without JOURNAL.md, message-only amends, merges, cherry-picks, reverts and rebases.
+- Skipped by `--no-verify` or `GOODVIBES_JOURNAL_CHECK=off`.
+- 17 shared cases in `tests/hooks/git-pre-commit.cases.json`, all passing against the real hook in throwaway repos.
+
+**Why:** the maintainer asked for the journal check to work outside Claude Code.
+
+**Decision:** goodvibes writes the hook into the local `.git/hooks/` from its own package copy. It never points `core.hooksPath` at a folder inside the repo, because that would let a cloned repo run its own scripts once goodvibes turned the setting on.
+- caveman ultra on by default: RED tests require every rule file to turn caveman ultra on from the first reply (with the never-shorten list and how to switch it off), and CLAUDE.md's goodvibes block to load the caveman skill at ultra.
+- Fix: the Claude hook case runners (npm and pip) loaded every tests/hooks/*.cases.json, including the new git-pre-commit cases, and failed 17 cases. They now skip git-*.cases.json. npm vitest 727 passed, 1 skipped; pip 593 passed.
+- GREEN: a new "Replies" section in all 13 rule files turns caveman ultra on from the first message, lists what is never shortened (code, commands, file names, API names, error messages) and where normal prose is kept (code, commits, PRs, docs, security warnings, irreversible actions), and says how to switch or stop. CLAUDE.md also tells Claude Code to use the caveman skill at ultra from the first reply. rule-files tests 110/110; verify-phase1-5 PASS.
+- Docs for caveman on by default: README, getting-started (and template copy), package READMEs, CHANGELOG. Link check 0 problems.
+
+
+## 2026-09-25: pip installs the git pre-commit journal check
+
+**What:** the pip package ships `hooks/pre-commit` and installs it into `.git/hooks/` from `init` and `update`; `doctor` reports on it. Follows the shared spec, so strings match npm.
+- RED: installer unit tests (`tests/test_git_hook.py`) and the shared-cases runner (`tests/test_git_hook_cases.py`); `test_hook_cases.py` now skips `git-*.cases.json`, which the new runner owns.
+- GREEN: `steps/git_hook.py` (`install_git_hook`), `resolve_hooks_dir()`; `hatch_build.py` copies `hooks/` into the wheel (source and sdist builds) and the sdist force-includes `../../hooks`; root `.gitignore` ignores the build-time copy. Wheel has `goodvibes_cli/hooks/pre-commit` (0755).
+- RED: init/update flow tests (manifest `gitHook` transitions, dry-run `Would: ` lines, the hook line in the plan before the single question, no install from the home folder) and one doctor test per row, plus placement and `--quick` exclusion.
+- GREEN: `init` and `update` call the installer and record `gitHook` ("installed" / "user-removed") in `.goodvibes.json`; a deleted hook stays deleted on update; dry runs print `Would: ` lines and write nothing; the hook line prints under update's plan, before its one question; `doctor` (full mode) reports the hook after the journal-size check. conftest mocks the installer in init/update tests, because pytest runs inside this repo. Tests: pip 667 passed (default Python and 3.10).
+- Docs for the git commit check: README, FAQ, getting-started, onboarding and 4 platform notes (with template copies), package READMEs, CHANGELOG. Link check 0 problems; template copies identical.
+
+
+## 2026-09-25: npm installs the git commit check (.git/hooks/pre-commit)
+
+**What:** the npm package ships `hooks/pre-commit` and installs it from `init` and `update`. `doctor` reports it. The manifest records `gitHook` so a hook the user deleted stays deleted.
+- `src/steps/hook-cases.integration.test.ts` now skips `git-*.cases.json`. Those cases are git commits, not Claude hook payloads, and `git-hook-cases.integration.test.ts` runs them.
+- RED: `src/steps/git-hook.test.ts` covers every installer status in real temp repos: dry run, mode 0755, a symlinked target, `core.hooksPath`, a subfolder and a linked worktree. `src/steps/git-hook-cases.integration.test.ts` runs the 17 shared cases against the installed hook. Both fail because `git-hook.ts` does not exist yet.
+- GREEN: `src/steps/git-hook.ts` adds `installGitHook(cwd, dryRun)`. Every git call uses `-c core.fsmonitor=false -c safe.bareRepository=explicit` through execa with no shell. It writes with a temp file, a rename and chmod 0755. It never follows a symlinked or non-file target. `resolveHooksDir()` sits next to `resolveTemplatesDir()`. `package.json` ships `hooks`, `prebuild` copies `../../hooks`, and `packages/npm/.gitignore` ignores `hooks/`.
+- RED: tests for the spec's output strings (`gitHookLine`) and the `gitHook` manifest field. init tests cover install, restore, current, updated, the three skips, dry run and the home folder. update tests cover an older manifest, removed by the user, user-removed, updated, current, the three skips, dry run, the hook line in the plan before the one question, and answering no. doctor has one test per row, plus placement, no JOURNAL.md and `--quick`. Command tests mock `installGitHook`, so no unit test runs real git in the goodvibes checkout.
+- GREEN: `init` installs the hook in its copy step when the folder is a project (never from the home folder in global scope) and records `gitHook: "installed"` for installed, updated or current. `update` runs the installer as a dry run before the plan. A hook marked installed but now missing becomes `user-removed` and prints the removed line. A missing field means install. A pending install or update shows its `Would: ` line in the plan and triggers the single question, whose wording is unchanged. The real line prints after applying. `doctor` runs the installer as a dry run, after the journal-size check and before the MCP checks. `writeManifest` takes an optional 7th `gitHook` argument. `path` is `''` for not-a-repo and custom-path, as in pip. The dist CLI test checks that the packaged `hooks/pre-commit` is installed with mode 0755.
+- Not fixed (unrelated): in a git repo, init's "Files skipped" lists every file already under `.git/`, e.g. `.git/hooks/pre-commit.sample`, because copyTemplates counts every file that existed before as skipped.
+- Tests: `npm run prebuild && npm run typecheck && npm run build && npx vitest run` gives 34 files passed and 1 skipped, 778 tests passed and 1 skipped. verify-phase1 and phase2 PASS. Phases 3 to 5 fail here only on pip's `test_hook_cases.py`, which also loads `git-pre-commit.cases.json`. With the pip branch's one-line `git-` filter applied (not committed here), all three PASS.
+- npm init listed every file already in the project (.git internals, node_modules) as "Files skipped", because copyTemplates classified the whole destination tree; pip lists only goodvibes files. RED test in copy-templates.integration.test.ts.
+- GREEN: copyTemplates counts only template paths (plus the renamed ci.yml) as written or skipped. npm vitest 793 passed, 1 skipped.

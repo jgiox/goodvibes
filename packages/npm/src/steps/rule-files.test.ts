@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { readFileSync, readdirSync } from 'node:fs'
+import { readFileSync, readdirSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { resolveTemplatesDir } from './copy-templates.js'
 
@@ -43,6 +43,51 @@ describe('agent rule files (AGENT-01..04)', () => {
     )
   })
 
+  it.each(RULE_FILES)('%s forbids opening or pasting .env files, private keys and credential files', rel => {
+    expect(read(rel)).toContain(
+      'Never open, print, or paste the contents of `.env` files (except `.env.example`), private keys, or credential files; ask the user for the specific values you need.',
+    )
+  })
+
+  it.each([...RULE_FILES, 'JOURNAL.md'])('%s reads only the Standing decisions and the last five entries, and records lasting decisions there', rel => {
+    const text = read(rel)
+    expect(text).toMatch(/Standing decisions (section )?and the last five entries/)
+    expect(text).toContain('older entries only when needed')
+    expect(text).toMatch(/When a task makes a lasting decision, add or update one line under (JOURNAL\.md's )?Standing decisions/)
+    expect(text).toMatch(/never rewrite (earlier|old) entries/i)
+  })
+
+  it('JOURNAL.md opens with a Standing decisions list above the entries', () => {
+    const text = read('JOURNAL.md')
+    const headings = [...text.matchAll(/^## (.+)$/gm)].map(m => m[1])
+    expect(headings[0]).toBe('Standing decisions')
+    const section = text.slice(text.indexOf('## Standing decisions'), text.indexOf('## Entry template'))
+    expect(section).toMatch(/^- \S/m)
+  })
+
+  it.each(RULE_FILES)('%s carries the command-output, retry, verification, search, dry-run and regression-test rules', rel => {
+    const text = read(rel)
+    for (const rule of [
+      "When you only need to parse a command's output, ask for machine or quiet output (`--json`, `--porcelain`, `-q`); report a short summary of the results, not the raw output.",
+      'If the same step fails twice the same way, change approach instead of retrying.',
+      'Before saying something is done, confirm it on the current commit (`git rev-parse HEAD`, re-run the check).',
+      'Say "not found" only for the places you actually searched, and name them.',
+      'Dry-run first when a command changes things and supports it; a dry run is not success.',
+      'A regression test must fail when the fix it guards is removed.',
+    ]) {
+      expect(text).toContain(rule)
+    }
+  })
+
+  it('CLAUDE.md tells Claude Code what to keep when summarising or compacting context, inside the goodvibes block', () => {
+    const text = read('CLAUDE.md')
+    const block = text.slice(text.indexOf('<!-- goodvibes:start -->'), text.indexOf('<!-- goodvibes:end -->'))
+    expect(block).toContain(
+      '### When summarising or compacting context\nKeep the task, the decisions made and why, the files changed, what remains, and the single next step.',
+    )
+    expect(read('AGENTS.md')).not.toContain('compacting context')
+  })
+
   it('CLAUDE.md forbids re-asking for information and names every source', () => {
     expect(read('CLAUDE.md')).toContain(
       'Never ask the user for information already answered in README.md, CLAUDE.md, AGENTS.md, JOURNAL.md, or the codebase.',
@@ -72,6 +117,15 @@ describe('shipped skills', () => {
     expect(dirs).toEqual(['caveman', 'caveman-commit', 'caveman-help', 'caveman-review', 'goodvibes-hygiene', 'model-regression'])
   })
 
+  it('keeps every SKILL.md at or under 12 KB, because Claude Code loads the whole file when the skill runs', () => {
+    const skills = join(resolveTemplatesDir(), '.claude', 'skills')
+    const tooBig = readdirSync(skills)
+      .map(dir => ({ file: `${dir}/SKILL.md`, bytes: statSync(join(skills, dir, 'SKILL.md')).size }))
+      .filter(s => s.bytes > 12 * 1024)
+      .map(s => `${s.file} is ${s.bytes} bytes (limit 12288)`)
+    expect(tooBig).toEqual([])
+  })
+
   it('never points the agent at the removed caveman-compress, caveman-stats or cavecrew skills', () => {
     const skills = join(resolveTemplatesDir(), '.claude', 'skills')
     for (const dir of readdirSync(skills)) {
@@ -87,5 +141,18 @@ describe('caveman default (CAVE-01)', () => {
     const skill = read('.claude/skills/caveman/SKILL.md')
     expect(skill).toContain('Default: **ultra**')
     expect(skill).toContain('/caveman lite|full|ultra')
+  })
+
+  it.each(RULE_FILES)('%s turns caveman ultra on from the first reply and says how to switch it off', rel => {
+    const text = read(rel)
+    expect(text).toContain('Reply in caveman ultra from the first message')
+    expect(text).toContain('Never shorten code, commands, file names, API names or error messages')
+    expect(text).toContain('stop caveman')
+  })
+
+  it('CLAUDE.md loads the caveman skill at ultra at the start of every session, inside the goodvibes block', () => {
+    const text = read('CLAUDE.md')
+    const block = text.slice(text.indexOf('<!-- goodvibes:start -->'), text.indexOf('<!-- goodvibes:end -->'))
+    expect(block).toContain('Use the caveman skill at ultra')
   })
 })

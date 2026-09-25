@@ -1,13 +1,12 @@
 # goodvibes-cli
 
-> One command. Production-grade project. No config.
+**Guard rails for coding with AI. One command, no setup.**
 
 [![npm](https://img.shields.io/npm/v/goodvibes-cli?style=flat-square)](https://www.npmjs.com/package/goodvibes-cli)
 [![PyPI](https://img.shields.io/pypi/v/goodvibes-cli?style=flat-square)](https://pypi.org/project/goodvibes-cli/)
-[![CI](https://img.shields.io/github/actions/workflow/status/jgiox/goodvibes/ci.yml?style=flat-square)](https://github.com/jgiox/goodvibes/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue?style=flat-square)](https://github.com/jgiox/goodvibes/blob/main/LICENSE)
 
-goodvibes is a single-command bootstrap for people who want to vibe code with an LLM and not worry about the rest. Run `npx goodvibes-cli init`, start coding, and everything else — code hygiene, token efficiency, git discipline, CI/CD — happens automatically in the background.
+AI coding assistants write code fast, but left alone they over-build, read whole files until the context runs out, call things done without running the tests, forget earlier decisions, and run commands you would rather approve. goodvibes gives your AI tool clear working rules, adds checks that stop the most common mistakes, and sets up GitHub so every change is tested. Free, open source, no account or key.
 
 ## Quick start
 
@@ -15,71 +14,48 @@ goodvibes is a single-command bootstrap for people who want to vibe code with an
 npx goodvibes-cli init
 ```
 
-That's it. No install required.
+Nothing to install first: `npx` downloads and runs it. By default it also installs the `goodvibes` command globally, so later you can run `goodvibes doctor`, `goodvibes update` and the others directly.
 
-By default this sets goodvibes up for every project on your computer (rules, skills, hooks and context7 in `~/.claude`, plus the `goodvibes` command installed globally) and adds the project files to the current folder. Add `--scope project` to keep everything inside this one project. Details: [Global or one project](https://github.com/jgiox/goodvibes#global-or-one-project).
+Then open the folder in your AI coding tool and ask for what you want to build. Run `goodvibes doctor` to check the setup. [Getting started](https://github.com/jgiox/goodvibes/blob/main/docs/getting-started.md) walks you through your first change.
 
 ## What you get
 
-1. **Engineering rules for Claude**: think before coding, simplicity first, fail loud, keep a journal, update tests. In `~/.claude/rules/goodvibes.md` by default, or this project's `CLAUDE.md` with `--scope project`
-2. **IDE rule files**: the same rules for 14 AI coding tools: Claude Code, Cursor, GitHub Copilot, Windsurf, Devin Desktop, Kiro, Antigravity, Cline, Amazon Q, Continue.dev, OpenAI Codex CLI, Lovable, Replit Agent, and Bolt.new
-3. **Skills**: caveman (shorter replies, so context lasts longer), model-regression (loaded only when a change touches model or metric code) and others
-4. **ponytail rules**: keeps code minimal; no over-engineering
-5. **headroom**: compresses what Claude reads, so context lasts longer (requires Python 3.10+; skipped gracefully if absent)
-6. **Journal check (Claude Code only)**: Claude Code cannot `git commit` until `JOURNAL.md` is staged
-7. **context7 (Claude Code)**: up-to-date library docs, free, no key
-8. **Session check (Claude Code only)**: `goodvibes doctor --quick` runs when Claude Code starts and stays silent unless something needs fixing
+- **Rules for 14 AI tools**: Claude Code, Cursor, GitHub Copilot, Windsurf, Devin Desktop, Kiro, Antigravity, Cline, Amazon Q, Continue.dev, OpenAI Codex CLI, Lovable, Replit Agent and Bolt.new. Plan first, smallest change that works, tests before "done", decisions recorded in `JOURNAL.md`, ask before risky steps.
+- **Journal check in every tool**: a git hook blocks any commit that leaves out `JOURNAL.md`, from any AI tool or from you.
+- **Claude Code guard rails**: whole-file reads of big files and reads of `.env`, SSH keys and credential files are blocked; it asks before pushing, publishing, deploying or editing its own settings, and refuses force-push and `git reset --hard`.
+- **Fewer tokens**: the read guard, caveman (short replies from the first message; `/caveman full` or `stop caveman` if too terse), headroom (compresses what Claude reads) and `goodvibes usage` (where your tokens went).
+- **context7**: current library docs for Claude Code. Free, no key.
+- **GitHub checks**: tests, CodeQL and gitleaks scans, dependency review, a file size check, and Dependabot.
 
-Running it a second time is safe: existing files are not overwritten, and your own settings are kept.
+By default the Claude Code parts are set up for every project on your computer (in `~/.claude`) and the project files go in the current folder. `--scope project` keeps everything in the folder. Existing files and your own settings are kept. Details: [What goodvibes init sets up](https://github.com/jgiox/goodvibes#what-goodvibes-init-sets-up).
 
-## Commands and flags
+## Commands
 
-```sh
-goodvibes init --dry-run         # Preview files without writing anything
-goodvibes init --minimal         # Skip headroom install, all .github/ files, and docs/
-goodvibes init --scope project   # Everything inside this project only (default: global)
-goodvibes update                 # Bring goodvibes files up to date; keeps your edits (--dry-run to preview)
-goodvibes upgrade                # Install the newest goodvibes, then run update
-goodvibes doctor                 # Check the setup and print a fix for anything missing
-```
+| Command | What it does |
+|---|---|
+| `goodvibes init` | Set goodvibes up. `--scope project`, `--minimal` (skips headroom, `.github/` and `docs/`), `--dry-run` |
+| `goodvibes doctor` | Check the setup and your MCP servers: ✓ fine, ! warning, ✗ problem |
+| `goodvibes update` | Bring goodvibes files up to date, keeping your edits. Shows the plan and asks once; `--dry-run` only shows it |
+| `goodvibes upgrade` | Install the newest goodvibes, then run `update` |
+| `goodvibes usage` | Tokens used by recent Claude Code sessions in this project. `--all`, `--days N`, `--json`. Offline |
 
 ## Requirements
 
-- Node.js 22.12+
-- git
-- A GitHub account (for CI)
+- [Node.js](https://nodejs.org) 22.12 or later, and [git](https://git-scm.com/downloads)
+- Optional: Python 3.10 or later for headroom, and a GitHub account for the CI checks
 
-**Windows users:** Use WSL2 for the best experience.
+Linux, macOS and Windows through WSL2 are supported; native Windows is best effort.
 
-**Privacy:** `goodvibes init` sends one anonymous install count: an empty request with a random ID, nothing about you or your code (the server sees your IP address, as with any request). Set `DO_NOT_TRACK=1` (or `true`, `yes`) or `GOODVIBES_NO_TELEMETRY=1` to turn it off.
+## Privacy
 
-## IDE support
-
-`goodvibes init` writes a rule file for each supported AI coding tool. All rule files encode the same engineering principles and activate automatically — no user configuration needed.
-
-| IDE | File written | Activation |
-|-----|-------------|------------|
-| Claude Code | `~/.claude/rules/goodvibes.md` (default) or `CLAUDE.md` | Automatic |
-| Cursor | `.cursor/rules/goodvibes.mdc` | Automatic (`alwaysApply: true`) |
-| GitHub Copilot | `.github/copilot-instructions.md` | Automatic |
-| Windsurf | `.windsurfrules` | Automatic |
-| Devin Desktop | `.devin/rules/goodvibes.md` | Automatic |
-| Kiro | `.kiro/steering/goodvibes.md` | Automatic |
-| Antigravity | `GEMINI.md` | Automatic |
-| Cline | `.clinerules/goodvibes.md` | Automatic |
-| Amazon Q | `.amazonq/rules/goodvibes.md` | Automatic |
-| Continue.dev | `.continue/rules/goodvibes.md` | Automatic |
-| OpenAI Codex CLI | `AGENTS.md` | Automatic |
-| Lovable | `AGENTS.md` + `CLAUDE.md` | Automatic |
-| Replit Agent | `replit.md` | Automatic |
-| Bolt.new | `.bolt/prompt` | Automatic |
+`goodvibes init` sends one anonymous install count: an empty request with a random ID, nothing about you or your code (the server sees your IP address, as with any request). It is skipped in CI. Set `DO_NOT_TRACK=1` (or `true`, `yes`) or `GOODVIBES_NO_TELEMETRY=1` to turn it off. `doctor` and `usage` never send anything.
 
 ## Links
 
-- [GitHub](https://github.com/jgiox/goodvibes) — source, issues, discussions
-- [Getting started](https://github.com/jgiox/goodvibes/blob/main/docs/getting-started.md)
-- [Changelog](https://github.com/jgiox/goodvibes/blob/main/CHANGELOG.md)
-- [Python package](https://pypi.org/project/goodvibes-cli/) — `pip install goodvibes-cli`
+- [Full README](https://github.com/jgiox/goodvibes#readme): every file goodvibes writes, the permissions, updating, and uninstalling
+- [Getting started](https://github.com/jgiox/goodvibes/blob/main/docs/getting-started.md), [FAQ](https://github.com/jgiox/goodvibes/blob/main/FAQ.md), [Changelog](https://github.com/jgiox/goodvibes/blob/main/CHANGELOG.md)
+- [Python package](https://pypi.org/project/goodvibes-cli/): `pip install goodvibes-cli`
+- [Issues](https://github.com/jgiox/goodvibes/issues)
 
 ## License
 

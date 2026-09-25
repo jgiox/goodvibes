@@ -42,7 +42,7 @@ packages = ["src/goodvibes_cli"]
 [tool.hatch.build.targets.sdist]
 include = ["src/goodvibes_cli/**", "tests/**", "hatch_build.py"]
 # ponytail: include templates in sdist so hook can find them when building from sdist
-force-include = {"../../templates" = "templates", "../../LICENSE" = "LICENSE", "../../NOTICE" = "NOTICE"}
+force-include = {"../../templates" = "templates", "../../hooks" = "hooks", "../../LICENSE" = "LICENSE", "../../NOTICE" = "NOTICE"}
 
 [project.optional-dependencies]
 dev = [

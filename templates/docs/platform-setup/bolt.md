@@ -1,22 +1,25 @@
-# Bolt.new — goodvibes setup
+# goodvibes in Bolt.new
 
-Bolt.new does not read project files for AI rules. You activate ponytail discipline by pasting the rules into the chat as a one-time instruction.
+**What you get:** the goodvibes rules (plan first, keep changes small, run the tests, record decisions in `JOURNAL.md`, ask before risky steps), for the AI in your Bolt.new project. If the project is also on GitHub, the GitHub checks run on it as for any other tool.
 
-## One-time setup
+**What you do not get:** the Claude Code guard rails (the journal check, the read guard, the session-start check and the permissions), the Claude Code skills such as caveman, `goodvibes usage`, and the Claude Code slash commands. goodvibes sets up context7 and headroom for Claude Code only, and does not install anything inside Bolt.new. See [Getting started](../getting-started.md) for what each piece does.
+
+## Setup
+
+`goodvibes init` wrote `.bolt/prompt` into your project. Bolt.new reads it when the project opens. It holds a shorter version of the goodvibes rules.
+
+1. Get the goodvibes files into your Bolt.new project, for example by pushing this folder to GitHub (see [Git and GitHub basics](../onboarding.md)) and importing it into Bolt.new.
+2. Check that the project has a `.bolt` folder with a file named `prompt` in it.
+
+If your Bolt.new project does not have the file, paste the rules into the chat at the start of each session instead:
 
 1. Open your Bolt.new project.
-2. In the chat, paste: "Please follow these engineering rules for all code you write:" then paste the whole of `AGENTS.md` from your project (goodvibes writes the same rules there).
-3. Bolt.new will acknowledge and apply the rules for the rest of the session.
-4. Repeat this at the start of each new session, or save it as a pinned message if Bolt.new supports it.
+2. In the chat, type "Follow these engineering rules for all code you write:" and paste the whole of `.bolt/prompt` from the folder where you ran `goodvibes init`.
 
-## Ponytail on Bolt.new
+## Check that the rules are on
 
-Once the rules are in the chat context, Bolt.new follows the ponytail minimalism rules: minimal code, surgical changes, fail loud. The AI will tell you when it is skipping something that is not needed yet.
+Ask in the chat: "Which rules do you follow in this project?" The answer should mention the goodvibes engineering rules, for example reading `JOURNAL.md` before acting.
 
-## Headroom
+## Turn it off
 
-Headroom is not applicable inside Bolt.new — context is managed by the Bolt.new platform itself.
-
----
-
-## Last verified: 2026-07-01
+Delete `.bolt/prompt`.
