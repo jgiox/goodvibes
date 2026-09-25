@@ -1859,3 +1859,4 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 **What I did:** Implementing four spec items in the npm CLI, each as a RED test commit then a GREEN implementation commit.
 - 1 RED: doctor tests for ok/warn/fail/skip, optional parts as warnings, and the Ready / Not ready summary line.
 - 1 GREEN: `CheckResult` now has `status` (ok/warn/fail/skip, shown as ✓ ! ✗ -); headroom missing and goodvibes not on PATH are warnings; `How to fix` lists `label: remedy` for warnings and failures; the last line is `Ready.`, `Ready, with N warning(s).` or `Not ready: N problem(s).`; exit 1 only on a failure.
+- 2 RED: doctor and doctor --quick tests for the JOURNAL.md size warning (over 10 KB).

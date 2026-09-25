@@ -12,6 +12,7 @@ vi.mock('@clack/prompts', () => ({
 vi.mock('node:fs', () => ({
   existsSync: vi.fn(),
   readFileSync: vi.fn(),
+  statSync: vi.fn(),
 }))
 
 vi.mock('../utils/version.js', () => ({ packageVersion: () => '1.6.2' }))
@@ -21,10 +22,18 @@ const withManifest = (claudeMd: string) => (p: unknown) =>
   String(p).endsWith('.goodvibes.json') ? '{"version":"1.0.0","files":{}}' : claudeMd
 
 describe('doctor command', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.resetAllMocks()
     vi.resetModules()
+    const { statSync } = await import('node:fs')
+    vi.mocked(statSync).mockReturnValue({ size: 100 } as any)
   })
+
+  const JOURNAL_WARNING = 'JOURNAL.md is 13 KB; agents read it every session. Keep lasting decisions in its "Standing decisions" section and keep new entries short.'
+  const bigJournal = async () => {
+    const { statSync } = await import('node:fs')
+    vi.mocked(statSync).mockImplementation((p => ({ size: String(p).endsWith('JOURNAL.md') ? 12_500 : 100 })) as any)
+  }
 
   describe('registerDoctorCommand', () => {
     it('registers a command named doctor on the program', async () => {
@@ -408,6 +417,55 @@ describe('doctor command', () => {
     })
   })
 
+  describe('checkJournal', () => {
+    it('returns no result when JOURNAL.md does not exist', async () => {
+      const { existsSync } = await import('node:fs')
+      vi.mocked(existsSync).mockReturnValue(false)
+      const { checkJournal } = await import('./doctor.js')
+      expect(checkJournal('/p')).toEqual([])
+    })
+
+    it('returns no result when JOURNAL.md is exactly 10 KB', async () => {
+      const { existsSync, statSync } = await import('node:fs')
+      vi.mocked(existsSync).mockReturnValue(true)
+      vi.mocked(statSync).mockReturnValue({ size: 10 * 1024 } as any)
+      const { checkJournal } = await import('./doctor.js')
+      expect(checkJournal('/p')).toEqual([])
+    })
+
+    it('warns with the size rounded up to whole KB when JOURNAL.md is larger than 10 KB', async () => {
+      const { existsSync } = await import('node:fs')
+      vi.mocked(existsSync).mockReturnValue(true)
+      await bigJournal()
+      const { checkJournal } = await import('./doctor.js')
+      expect(checkJournal('/p')).toEqual([{ label: JOURNAL_WARNING, status: 'warn' }])
+    })
+  })
+
+  describe('journal size in the full doctor', () => {
+    it('shows the journal warning, counts it, and still exits 0', async () => {
+      const { execa } = await import('execa')
+      vi.mocked(execa).mockResolvedValue({ stdout: 'value' } as any)
+      const { existsSync, readFileSync } = await import('node:fs')
+      vi.mocked(existsSync).mockReturnValue(true)
+      vi.mocked(readFileSync).mockImplementation(withManifest('<!-- goodvibes:start -->\nx\n<!-- goodvibes:end -->'))
+      await bigJournal()
+      const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never)
+      const { note, outro } = await import('@clack/prompts')
+
+      const { registerDoctorCommand } = await import('./doctor.js')
+      let capturedAction: () => Promise<void> = async () => {}
+      const program = { command: vi.fn().mockReturnThis(), description: vi.fn().mockReturnThis(),
+        option: vi.fn().mockReturnThis(), action: vi.fn((fn) => { capturedAction = fn; return { command: vi.fn() } }) }
+      registerDoctorCommand(program as any)
+      await capturedAction()
+
+      expect(String(vi.mocked(note).mock.calls[0][0])).toContain(`! ${JOURNAL_WARNING}`)
+      expect(vi.mocked(outro)).toHaveBeenCalledWith('Ready, with 1 warning(s).')
+      expect(exitSpy).not.toHaveBeenCalled()
+    })
+  })
+
   describe('summaryLine', () => {
     it('returns Ready. when every check is ok or skip', async () => {
       const { summaryLine } = await import('./doctor.js')
@@ -502,6 +560,20 @@ describe('doctor command', () => {
       const { logs, exitSpy } = await runQuick()
 
       expect(logs.join('\n')).toMatch(/\.goodvibes\.json is not valid JSON \(.+\); fix it or delete it and run goodvibes init/)
+      expect(exitSpy).not.toHaveBeenCalled()
+    })
+
+    it('prints the journal size warning as one ! line and does not exit when JOURNAL.md is larger than 10 KB', async () => {
+      const { execa } = await import('execa')
+      vi.mocked(execa).mockResolvedValue({ stdout: 'value' } as any)
+      const { existsSync, readFileSync } = await import('node:fs')
+      vi.mocked(existsSync).mockReturnValue(true)
+      vi.mocked(readFileSync).mockImplementation(withManifest('<!-- goodvibes:start -->\nx\n<!-- goodvibes:end -->'))
+      await bigJournal()
+
+      const { logs, exitSpy } = await runQuick()
+
+      expect(logs).toEqual([`goodvibes doctor: ! ${JOURNAL_WARNING}`])
       expect(exitSpy).not.toHaveBeenCalled()
     })
 
