@@ -182,12 +182,17 @@ def _servers(section: object) -> dict:
     return servers if isinstance(servers, dict) else {}
 
 
+def _printable(text: str) -> str:
+    # .mcp.json arrives with any cloned repo; raw escape codes in it could rewrite what the terminal shows.
+    return re.sub(r"[\x00-\x1f\x7f-\x9f]", "?", text)
+
+
 def _check_mcp(cwd: pathlib.Path) -> list[CheckResult]:
     def report(servers: dict, scope: str) -> list[CheckResult]:
         out: list[CheckResult] = []
         for name, server in servers.items():
             problems = server_problems(server) if isinstance(server, dict) else []
-            out += [CheckResult(f"MCP {name} ({scope}): {p}", "warn", r) for p, r in problems] or [CheckResult(f"MCP {name} ({scope})", "ok")]
+            out += [CheckResult(_printable(f"MCP {name} ({scope}): {p}"), "warn", _printable(r)) for p, r in problems] or [CheckResult(_printable(f"MCP {name} ({scope})"), "ok")]
         return out
 
     user, results = _load_json(claude_json_path())

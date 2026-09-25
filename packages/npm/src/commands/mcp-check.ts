@@ -9,6 +9,8 @@ type Problem = [string, string]
 const SECRET_KEY = /key|token|secret|password|authorization/i
 const VAR_REF = /\$\{[^}]+\}/
 const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '::1'])
+// .mcp.json arrives with any cloned repo; raw escape codes in it could rewrite what the terminal shows.
+const printable = (s: string): string => s.replace(/[\u0000-\u001f\u007f-\u009f]/g, '?')
 
 export function claudeJsonPath(): string {
   const dir = process.env.CLAUDE_CONFIG_DIR
@@ -105,8 +107,8 @@ export function checkMcpServers(cwd: string): CheckResult[] {
     for (const [name, server] of Object.entries(servers)) {
       if (!isObject(server)) continue
       const found = problems(server)
-      if (found.length === 0) results.push({ label: `MCP ${name} (${scope})`, status: 'ok' })
-      for (const [what, remedy] of found) results.push({ label: `MCP ${name} (${scope}): ${what}`, status: 'warn', remedy })
+      if (found.length === 0) results.push({ label: printable(`MCP ${name} (${scope})`), status: 'ok' })
+      for (const [what, remedy] of found) results.push({ label: printable(`MCP ${name} (${scope}): ${what}`), status: 'warn', remedy: printable(remedy) })
     }
   }
 
