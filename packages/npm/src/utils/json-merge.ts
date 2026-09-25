@@ -2,7 +2,10 @@ import { readFile } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 
-export const MANAGED_JSON = ['.claude/settings.json', '.mcp.json']
+// MCP files and the key each tool keeps its servers under.
+const MCP_KEY: Record<string, string> = { '.mcp.json': 'mcpServers', '.cursor/mcp.json': 'mcpServers', '.vscode/mcp.json': 'servers' }
+
+export const MANAGED_JSON = ['.claude/settings.json', ...Object.keys(MCP_KEY)]
 
 type Json = Record<string, any>
 
@@ -25,8 +28,9 @@ const same = (a: unknown, b: unknown): boolean => JSON.stringify(a) === JSON.str
 // Ids of every goodvibes-managed key the template defines for this file.
 export function managedIds(rel: string, tpl: Json): string[] {
   const ids: string[] = []
-  if (rel === '.mcp.json') {
-    for (const name of Object.keys(tpl.mcpServers ?? {})) ids.push(`mcp:${name}`)
+  const key = MCP_KEY[rel]
+  if (key) {
+    for (const name of Object.keys(tpl[key] ?? {})) ids.push(`mcp:${name}`)
     return ids
   }
   for (const list of ['ask', 'deny']) {
@@ -49,7 +53,7 @@ export function presentIds(rel: string, tpl: Json, content: Json): string[] {
   }
   return managedIds(rel, tpl).filter(id => {
     const [kind, rest] = splitFirst(id)
-    if (kind === 'mcp') return rest in (content.mcpServers ?? {})
+    if (kind === 'mcp') return rest in (content[MCP_KEY[rel]] ?? {})
     if (kind === 'hook') {
       const [event, hid] = splitFirst(rest)
       return (content.hooks?.[event] ?? []).some((g: Json) => hookId(g) === hid)
@@ -73,18 +77,19 @@ export function mergeManagedJson(
   const changes: string[] = []
   const wasInstalled = (id: string) => installed.includes(id)
 
-  if (rel === '.mcp.json') {
-    for (const [name, server] of Object.entries<Json>(tpl.mcpServers ?? {})) {
-      const current = merged.mcpServers?.[name]
+  const key = MCP_KEY[rel]
+  if (key) {
+    for (const [name, server] of Object.entries<Json>(tpl[key] ?? {})) {
+      const current = merged[key]?.[name]
       if (current) {
         const next = { ...current, ...server }
         if (!same(current, next)) {
-          merged.mcpServers[name] = next
-          changes.push(`~ mcpServers.${name}`)
+          merged[key][name] = next
+          changes.push(`~ ${key}.${name}`)
         }
       } else if (!wasInstalled(`mcp:${name}`)) {
-        merged.mcpServers = { ...(merged.mcpServers ?? {}), [name]: server }
-        changes.push(`+ mcpServers.${name}`)
+        merged[key] = { ...(merged[key] ?? {}), [name]: server }
+        changes.push(`+ ${key}.${name}`)
       }
     }
     return { merged, changes }

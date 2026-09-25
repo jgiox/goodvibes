@@ -1,4 +1,4 @@
-"""Merge goodvibes-managed keys into user-modified settings.json / .mcp.json."""
+"""Merge goodvibes-managed keys into user-modified settings.json and MCP config files."""
 from __future__ import annotations
 
 import copy
@@ -8,7 +8,10 @@ import pathlib
 import re
 import shutil
 
-MANAGED_JSON = [".claude/settings.json", ".mcp.json"]
+# MCP files and the key each tool keeps its servers under.
+_MCP_KEY = {".mcp.json": "mcpServers", ".cursor/mcp.json": "mcpServers", ".vscode/mcp.json": "servers"}
+
+MANAGED_JSON = [".claude/settings.json", *_MCP_KEY]
 
 _MARKER = re.compile(r"^: (goodvibes-[a-z0-9-]+);")
 
@@ -45,8 +48,8 @@ def write_json(path: pathlib.Path, data: object) -> None:
 
 
 def managed_ids(rel: str, tpl: dict) -> list[str]:
-    if rel == ".mcp.json":
-        return [f"mcp:{name}" for name in (tpl.get("mcpServers") or {})]
+    if rel in _MCP_KEY:
+        return [f"mcp:{name}" for name in (tpl.get(_MCP_KEY[rel]) or {})]
     ids = []
     for lst in ("ask", "deny"):
         ids += [f"{lst}:{p}" for p in (tpl.get("permissions") or {}).get(lst) or []]
@@ -65,7 +68,7 @@ def present_ids(rel: str, tpl: dict, content: dict) -> list[str]:
     def present(mid: str) -> bool:
         kind, rest = mid.split(":", 1)
         if kind == "mcp":
-            return rest in (content.get("mcpServers") or {})
+            return rest in (content.get(_MCP_KEY[rel]) or {})
         if kind == "hook":
             event, hid = rest.split(":", 1)
             return any(_hook_id(g) == hid for g in (content.get("hooks") or {}).get(event) or [])
@@ -86,17 +89,18 @@ def merge_managed_json(
     changes: list[str] = []
     installed = installed or []
 
-    if rel == ".mcp.json":
-        for name, server in (tpl.get("mcpServers") or {}).items():
-            current = (merged.get("mcpServers") or {}).get(name)
+    key = _MCP_KEY.get(rel)
+    if key:
+        for name, server in (tpl.get(key) or {}).items():
+            current = (merged.get(key) or {}).get(name)
             if current:
                 nxt = {**current, **server}
                 if nxt != current:
-                    merged["mcpServers"][name] = nxt
-                    changes.append(f"~ mcpServers.{name}")
+                    merged[key][name] = nxt
+                    changes.append(f"~ {key}.{name}")
             elif f"mcp:{name}" not in installed:
-                merged.setdefault("mcpServers", {})[name] = server
-                changes.append(f"+ mcpServers.{name}")
+                merged.setdefault(key, {})[name] = server
+                changes.append(f"+ {key}.{name}")
         return merged, changes
 
     allow = (merged.get("permissions") or {}).get("allow")

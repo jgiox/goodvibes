@@ -347,7 +347,7 @@ def test_update_merges_context7_into_existing_cursor_and_vscode_mcp_files_and_ke
     assert result.exit_code == 0, result.output
     assert _read(editor_dirs, ".cursor/mcp.json")["mcpServers"] == {"postgres": {"command": "pg-mcp"}, "context7": {"url": _CONTEXT7["url"]}}
     assert _read(editor_dirs, ".vscode/mcp.json") == {"inputs": [], "servers": {"github": _GITHUB, "context7": _CONTEXT7}}
-    assert "Merged 1 goodvibes key(s) into .vscode/mcp.json." in " ".join(_ANSI.sub("", result.output).split())
+    assert ".vscode/mcp.json (merged 1 goodvibes key(s))" in " ".join(_ANSI.sub("", result.output).split())
 
 
 def test_update_does_not_re_add_context7_to_a_vscode_mcp_file_after_the_user_deleted_the_entry(editor_dirs):

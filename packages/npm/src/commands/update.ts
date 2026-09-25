@@ -148,7 +148,7 @@ export async function runUpdate(dryRun: boolean, force: boolean): Promise<void> 
     ? await categorise(templateDir, cwd, manifest, projectType, scope)
     : { overwrite: [], skip: [], netNew: [], kept: [], removed: [], stillRemoved: [], retired: [], blocked: {} as Record<string, string> }
 
-  // User-modified settings.json / .mcp.json still receive goodvibes-managed keys.
+  // User-modified settings.json and MCP files still receive goodvibes-managed keys.
   const merges: { rel: string; merged: Record<string, unknown>; changes: string[] }[] = []
   const mergeErrors: string[] = []
   for (const rel of [...skip, ...kept].filter(r => MANAGED_JSON.includes(r))) {
