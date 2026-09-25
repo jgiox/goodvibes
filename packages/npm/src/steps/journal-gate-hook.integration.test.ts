@@ -370,4 +370,9 @@ describe('journal-gate hook', () => {
     const { exitCode } = await runHook('git \\\n  commit -m x', repoDir)
     expect(exitCode).toBe(2)
   })
+
+  it('blocks a commit that follows a full-line comment containing an apostrophe', async () => {
+    const { exitCode } = await runHook("# don't forget the journal\ngit commit -m x\necho 'done'", repoDir)
+    expect(exitCode).toBe(2)
+  })
 })

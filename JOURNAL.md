@@ -1636,3 +1636,4 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 - GREEN 2 and 7 (one fix): the hook now tokenizes the command in one awk pass (quotes kept as parts of words, `&&`, `||`, `;`, `|`, `&`, `(`, `)`, `$(`, backtick and newline split out as operators) and counts only a `git` whose subcommand, after global options such as `-C <path>`, `-c <k=v>` and `--no-pager`, is `commit`. The awk passes also stream their output instead of rebuilding strings, so a 2 MB command takes about 1.5 s with mawk instead of 36 s.
 - RED 3: `git \` + newline + `commit -m x` is not seen as a commit.
 - GREEN 3: backslash-newline continuations are joined (after heredoc bodies are dropped, before words are split).
+- RED 4: an apostrophe in a full-line comment pairs with a later quote and hides the commit between them.

@@ -331,3 +331,7 @@ def test_allows_git_command_whose_subcommand_is_not_commit(repo_dir, command):
 
 def test_blocks_commit_split_across_lines_with_backslash_newline_continuation(repo_dir):
     assert _run_hook("git \\\n  commit -m x", repo_dir).returncode == 2
+
+
+def test_blocks_commit_that_follows_full_line_comment_containing_an_apostrophe(repo_dir):
+    assert _run_hook("# don't forget the journal\ngit commit -m x\necho 'done'", repo_dir).returncode == 2
