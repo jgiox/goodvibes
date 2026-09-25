@@ -72,10 +72,10 @@ describe('template workflow limits', () => {
     )
   })
 
-  it('Dependabot waits three days before proposing any new release', () => {
+  it('Dependabot waits seven days, longer than GitHub\'s 3-day default, before proposing a new release', () => {
     const text = readFileSync(join(resolveTemplatesDir(), '.github', 'dependabot.yml'), 'utf-8')
     const entries = text.split('  - package-ecosystem:').slice(1)
     expect(entries.length).toBe(3)
-    for (const entry of entries) expect(entry).toContain('\n    cooldown:\n      default-days: 3\n')
+    for (const entry of entries) expect(entry).toContain('\n    cooldown:\n      default-days: 7\n')
   })
 })
