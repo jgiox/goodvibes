@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import os
 import pathlib
 import shutil
 import subprocess
@@ -23,11 +24,12 @@ def _get_hook_command() -> str:
     return data["hooks"]["PreToolUse"][0]["hooks"][0]["command"]
 
 
-def _run_hook(command: str, cwd: pathlib.Path) -> subprocess.CompletedProcess:
+def _run_hook(command: str, cwd: pathlib.Path, env: dict[str, str] | None = None) -> subprocess.CompletedProcess:
     hook_cmd = _get_hook_command()
     payload = json.dumps({"tool_name": "Bash", "tool_input": {"command": command}})
     return subprocess.run(
-        ["sh", "-c", hook_cmd], input=payload, cwd=cwd, capture_output=True, text=True
+        ["sh", "-c", hook_cmd], input=payload, cwd=cwd, capture_output=True, text=True,
+        env={**os.environ, **(env or {})},
     )
 
 
@@ -347,3 +349,58 @@ def test_blocks_commit_whose_amend_appears_only_in_a_trailing_comment(repo_dir):
 
 def test_allows_command_in_which_every_commit_uses_amend(repo_dir):
     assert _run_hook("git commit --amend -m x && git commit --amend --no-edit", repo_dir).returncode == 0
+
+
+def _init_repo_with_journal(path, staged):
+    path.mkdir(parents=True, exist_ok=True)
+    subprocess.run(["git", "init"], cwd=path, check=True, capture_output=True)
+    (path / "JOURNAL.md").write_text("# journal\n")
+    if staged:
+        subprocess.run(["git", "add", "JOURNAL.md"], cwd=path, check=True, capture_output=True)
+
+
+def test_blocks_cd_proj_and_commit_from_non_repo_folder_when_proj_journal_unstaged(tmp_path_factory):
+    outer = tmp_path_factory.mktemp("outer")
+    _init_repo_with_journal(outer / "proj", staged=False)
+    result = _run_hook("cd proj && git commit -m x", outer)
+    assert result.returncode == 2
+    assert result.stderr.strip() == "BLOCKED: JOURNAL.md not staged. Update JOURNAL.md, then: git add JOURNAL.md"
+
+
+def test_allows_cd_proj_and_commit_from_unstaged_repo_when_proj_journal_staged(repo_dir):
+    _init_repo_with_journal(repo_dir / "proj", staged=True)
+    assert _run_hook("cd proj && git commit -m x", repo_dir).returncode == 0
+
+
+def test_blocks_cd_proj_and_commit_from_staged_repo_when_proj_journal_unstaged(repo_dir):
+    subprocess.run(["git", "add", "JOURNAL.md"], cwd=repo_dir, check=True, capture_output=True)
+    _init_repo_with_journal(repo_dir / "proj", staged=False)
+    assert _run_hook("cd proj && git commit -m x", repo_dir).returncode == 2
+
+
+def test_blocks_commit_after_more_than_one_cd_because_folder_is_ambiguous(repo_dir):
+    subprocess.run(["git", "add", "JOURNAL.md"], cwd=repo_dir, check=True, capture_output=True)
+    result = _run_hook("cd a && cd b && git commit -m x", repo_dir)
+    assert result.returncode == 2
+    assert "more than one cd" in result.stderr
+
+
+def test_blocks_commit_after_cd_to_a_variable_because_folder_cannot_be_worked_out(repo_dir):
+    subprocess.run(["git", "add", "JOURNAL.md"], cwd=repo_dir, check=True, capture_output=True)
+    result = _run_hook("cd $PROJ && git commit -m x", repo_dir)
+    assert result.returncode == 2
+    assert "cannot work out the folder" in result.stderr
+
+
+def test_blocks_dash_c_with_variable_other_than_home_because_folder_cannot_be_worked_out(repo_dir):
+    subprocess.run(["git", "add", "JOURNAL.md"], cwd=repo_dir, check=True, capture_output=True)
+    result = _run_hook("git -C $OTHER/p commit -m x", repo_dir)
+    assert result.returncode == 2
+    assert "cannot work out the folder" in result.stderr
+
+
+@pytest.mark.parametrize("command", ["git -C ~/p commit -m x", "git -C $HOME/p commit -m x", "cd ~/p && git commit -m x"])
+def test_expands_leading_tilde_or_home_to_the_home_folder(repo_dir, command):
+    home = repo_dir / "home"
+    _init_repo_with_journal(home / "p", staged=True)
+    assert _run_hook(command, repo_dir, env={"HOME": str(home)}).returncode == 0

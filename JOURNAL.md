@@ -1640,3 +1640,4 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 - GREEN 4: full-line comments (optional leading blanks, then `#`) are dropped in the heredoc pass, before quotes are paired and before heredoc detection. Inline `#` is not stripped there.
 - RED 5: one `--amend` anywhere (a later commit, or a trailing comment) exempts every commit in the command.
 - GREEN 5: a command is exempt only when every git commit in it has an unquoted `--amend` argument of its own. A word starting with `#` now starts a comment that runs to the end of the line, as in sh, so a URL such as `http://x/#y` is untouched.
+- RED 6: `cd proj && git commit` is checked against the session folder, not `proj`; `git -C ~/p` and `git -C $HOME/p` are blocked as "not a git repository"; `cd $VAR` or two `cd`s before a commit are not treated as unverifiable.
