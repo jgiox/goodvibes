@@ -9,6 +9,8 @@ from goodvibes_cli.utils.safe_path import SymlinkError, check_writable
 from goodvibes_cli.utils.scope import global_owned, project_stub
 from goodvibes_cli.utils.sentinel_merge import ClaudeMdError, merge_claude
 
+FILE_SIZE_WORKFLOW = ".github/workflows/file-size.yml"
+
 
 def resolve_templates_dir() -> pathlib.Path:
     """Return the bundled templates directory, or the repo's templates/ when running from a source checkout."""
@@ -96,8 +98,8 @@ def copy_templates(
             # Skip CI variants not matching the detected project type
             if name in ci_variants and name != selected_variant:
                 ignored.add(name)
-            # Skip all template workflow files if dest already has CI configured
-            if dest_has_workflows and rel.parts[:2] == (".github", "workflows") and name.endswith((".yml", ".yaml")):
+            # Skip template workflows if dest already has CI; file-size.yml travels with its script in .github/scripts
+            if dest_has_workflows and rel.parts[:2] == (".github", "workflows") and name.endswith((".yml", ".yaml")) and rel.as_posix() != FILE_SIZE_WORKFLOW:
                 ignored.add(name)
             # Skip selected CI variant on re-runs where ci.yml already exists (prevents orphaned variant file)
             if name == selected_variant and (dest_dir / ".github" / "workflows" / "ci.yml").is_file():

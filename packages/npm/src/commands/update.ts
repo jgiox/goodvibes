@@ -20,7 +20,9 @@ const removedNote = (rel: string) => `${rel}: removed by you, not re-added (run 
 
 // init skips a whole layer (CI when the project had workflows, .github/docs under --minimal); update must not add it later.
 const layer = (rel: string) =>
-  rel.startsWith('.github/workflows/') ? 'workflows' : rel.startsWith('.github/') ? 'github' : rel.startsWith('docs/') ? 'docs' : null
+  // file-size.yml travels with its script in .github/scripts, so it is in the github layer
+  rel.startsWith('.github/workflows/') && rel !== '.github/workflows/file-size.yml' ? 'workflows'
+    : rel.startsWith('.github/') ? 'github' : rel.startsWith('docs/') ? 'docs' : null
 
 async function categorise(
   templateDir: string,

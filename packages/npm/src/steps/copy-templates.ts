@@ -9,6 +9,8 @@ import { writeBlocked } from '../utils/fs-safe.js'
 import { type ProjectType } from '../utils/detect-project-type.js'
 import { GLOBAL_OWNED, projectStub, type Scope } from '../utils/scope.js'
 
+const FILE_SIZE_WORKFLOW = join('.github', 'workflows', 'file-size.yml')
+
 export function resolveTemplatesDir(): string {
   // tsup bundles everything into dist/index.js so import.meta.url at runtime points to
   // packages/npm/dist/index.js → '../templates' resolves to packages/npm/templates/ (prebuild copy).
@@ -112,8 +114,8 @@ export async function copyTemplates(
         for (const variant of ciVariants) {
           if (src.endsWith(variant) && variant !== selectedVariant) return false
         }
-        // Skip all template workflow files if dest already has CI configured
-        if (destHasWorkflows && rel.startsWith(workflowPrefix) && src.endsWith('.yml')) return false
+        // Skip template workflows if dest already has CI; file-size.yml travels with its script in .github/scripts
+        if (destHasWorkflows && rel.startsWith(workflowPrefix) && src.endsWith('.yml') && rel !== FILE_SIZE_WORKFLOW) return false
         const blocked = await writeBlocked(destDir, relative(destDir, dest))
         if (blocked) skippedFiles.push(blocked)
         return !blocked
