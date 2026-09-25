@@ -2282,3 +2282,8 @@ Added a Standing decisions section to this journal.
 **Why:** left open by the parity pass. With stdin closed (a script, a pipe, CI), npm `update` hung on the clack prompt and Node exited 13 ("unsettled top-level await") with no message; pip printed click's bare "Aborted." and exited 1.
 - RED: npm `dist-cli.integration.test.ts` (built CLI, empty stdin, a net-new file to add) and pip `test_update_cmd.py`: exit 1, "No answer (the input ended). Nothing was changed.", nothing written.
 - GREEN: npm `update.ts` races the clack confirm against `process.stdin` 'end' and exits 1 with the message; pip `update_cmd.py` wraps both `typer.confirm` calls in `_ask`, which turns click's Abort into the same message and exit 1 when stdin is not a terminal (Ctrl-C at a terminal still aborts as before). Checked on the built CLIs with closed stdin: identical message, exit 1 in both. CHANGELOG Fixed entry. Tests: npm 1029 passed, 2 skipped; pip 918 passed.
+
+## 2026-09-25: pip tests no longer depend on the CI runner's colour setting
+
+**What:** PR #46 CI failed on pip (Python 3.10; 3.11 and 3.12 cancelled by fail-fast) in `test_minimal_help_says_exactly_what_it_skips`. GitHub Actions sets `FORCE_COLOR`, so Rich puts colour codes inside words (`--dry-run` became `- -dry -run` after the test stripped them), and nine new text assertions only passed locally. Reproduced with `FORCE_COLOR=1 uv run pytest`: 9 failed.
+- Fix: `packages/pip/tests/conftest.py` removes `FORCE_COLOR` and sets `NO_COLOR=1` before any goodvibes module (and its module-level Rich consoles) is imported. `FORCE_COLOR=1 uv run pytest tests/`: 918 passed; without it: 918 passed. No product code changed.

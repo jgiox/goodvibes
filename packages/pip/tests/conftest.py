@@ -1,4 +1,10 @@
 """Shared pytest fixtures for goodvibes_cli tests."""
+import os
+
+# GitHub Actions sets FORCE_COLOR, and Rich then splits words with colour codes; text checks must not depend on the runner.
+os.environ.pop("FORCE_COLOR", None)
+os.environ["NO_COLOR"] = "1"
+
 import pytest
 
 # Re-export from fixtures.py so conftest fixtures can use them without double-import
