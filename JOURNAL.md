@@ -1862,3 +1862,4 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 
 **Commits:**
 - RED: tests for the script and workflow, with both absent.
+- GREEN: templates/.github/scripts/check-file-sizes.mjs (Node stdlib + git; defaults 500 lines for code extensions; optional .github/file-size-limits.json; base origin/$GITHUB_BASE_REF merge-base, else HEAD^, else every file is new; fails loudly on a shallow clone or missing origin/<base>) and templates/.github/workflows/file-size.yml (pull_request + push to main, contents: read, fetch-depth 0). actionlint 1.7.12 clean; the 17 script tests pass on Node 22 and Node 20.20.
