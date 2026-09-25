@@ -365,15 +365,25 @@ Never commit the key itself, only the `${CONTEXT7_API_KEY}` reference.
 
 | Workflow | When it runs | What it checks |
 |---|---|---|
-| `ci.yml` | Pushes to `main`, pull requests to `main` | Your tests. For Node.js (Node 20 and 22): `npm install`, `npm run build` and `npm test` if they exist, and `npm run lint` (a warning if there is no lint script). For Python (3.10, 3.11, 3.12): installs with `uv`, lints with `ruff`, runs `pytest` if there are `test_*.py` files |
-| `security.yml` | Pushes to `main`, pull requests to `main`, every Monday | CodeQL looks for security bugs in your code; gitleaks looks for passwords and keys in your whole git history |
+| `ci.yml` | Pushes to `main`, pull requests to `main` | Your tests. For Node.js (Node 22 and 24): `npm install`, `npm run build` and `npm test` if they exist, and `npm run lint` (a warning if there is no lint script). For Python (3.10, 3.11, 3.12): installs with `uv`, lints with `ruff`, runs `pytest` if there are `test_*.py` files (for a `requirements.txt` project it installs `pytest` too) |
+| `security.yml` | Pushes to `main`, pull requests to `main`, every Monday | CodeQL looks for security bugs in your Python, JavaScript and TypeScript code (it is skipped when there is none yet); gitleaks looks for passwords and keys in your whole git history |
 | `dependency-review.yml` | Pull requests to `main` | Every new dependency must have a permissive licence (MIT, Apache 2.0, BSD, ISC and a few others) |
 | `file-size.yml` | Every pull request, pushes to `main` | Code files stay small (see below) |
 
-- goodvibes picks the Node.js tests if your project has a `package.json`, the Python tests if it has a `pyproject.toml` or `requirements.txt`, and both if it has both or neither.
+- goodvibes picks the Node.js tests if your project has a `package.json`, the Python tests if it has a `pyproject.toml` or `requirements.txt`, and both if it has both or neither. The Node.js tests are skipped while there is no `package.json`, and the Python tests while there is no `pyproject.toml` or `requirements.txt`, so a new, empty project gets a green check instead of a red one.
 - CodeQL and dependency review need GitHub Advanced Security on private repositories, so they are skipped there and run on public ones.
 - Every workflow gets a read-only token, and a newer push to a pull request cancels the older run.
-- `.github/dependabot.yml` opens pull requests each week to update your GitHub Actions, npm and pip dependencies, at most five open at a time each. It waits 7 days after a release before proposing it.
+- `.github/dependabot.yml` opens pull requests each week to update the GitHub Actions your workflows use, at most five open at a time. It waits 7 days after a release before proposing it. It does not update your npm or Python packages until you ask it to, because Dependabot fails every week for a package manager whose files your project does not have. To turn it on, add this block at the end of `.github/dependabot.yml`, and change `"npm"` to `"uv"` if your project has a `uv.lock`, or to `"pip"` if it has a `requirements.txt` or a `pyproject.toml` without a `uv.lock`. Add one block for each package manager your project uses.
+
+  ```yaml
+    - package-ecosystem: "npm"
+      directory: "/"
+      schedule:
+        interval: "weekly"
+      open-pull-requests-limit: 5
+      cooldown:
+        default-days: 7
+  ```
 - If your project already had workflows when you ran `goodvibes init`, goodvibes added only `file-size.yml` and none of its other workflows. A project set up before this that has the file size script but not `file-size.yml` gets it on the next `goodvibes update`.
 
 ### File size check

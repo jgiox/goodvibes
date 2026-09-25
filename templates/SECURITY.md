@@ -6,6 +6,8 @@ If you discover a security vulnerability, please do not open a public GitHub iss
 
 Instead, report it privately using GitHub's private vulnerability reporting feature: go to the Security tab of this repository, click "Report a vulnerability", and fill out the form. Your report will only be visible to the repository maintainers.
 
+If that button is not available, open an issue titled "Security contact request" with no details about the problem, and a maintainer will contact you privately.
+
 ## Response
 
 - We will acknowledge your report within 48 hours.

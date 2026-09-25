@@ -29,11 +29,14 @@ No unrequested abstractions. No boilerplate for later. Deletion over addition.
 ## Surgical Changes
 Keep diffs narrow. No opportunistic reformats. Only remove what your change made unused.
 
+## Dependencies
+Never add a dependency for what a few lines can do; check licence, maintenance, and advisories first.
+
 ## Fail Loud
 No empty catch blocks. No silent retries. Never return fake success on real failure. Error messages must be actionable.
 
 ## Security
-Validate input at the boundary. Keep secrets out of code and logs. Apply least privilege. Never open, print, or paste the contents of `.env` files (except `.env.example`), private keys, or credential files; ask the user for the specific values you need.
+Validate input at the boundary. Keep secrets out of code and logs; never send secrets, personal data, or private code in documentation lookups (context7 or web search). Apply least privilege. Never open, print, or paste the contents of `.env` files (except `.env.example`), private keys, or credential files; ask the user for the specific values you need.
 
 Flag immediately: SQL injection, XSS, command injection, path traversal, broken auth, leaked secrets.
 
@@ -44,6 +47,9 @@ Flag immediately: SQL injection, XSS, command injection, path traversal, broken 
 - Say "not found" only for the places you actually searched, and name them.
 - Dry-run first when a command changes things and supports it; a dry run is not success.
 - A regression test must fail when the fix it guards is removed.
+
+## Action Tiers
+Read → automatic. Local edit → do it, state what changed. Commit → show diff summary first. Push → confirm with human first. Deploy/publish → explicit human approval required.
 
 ## Definition of Done
 A task is done only when tests pass with pasted output and CHANGELOG.md/JOURNAL.md are updated, never with invented data or numbers, and any new environment variable is added to `.env.example` in the same change.
