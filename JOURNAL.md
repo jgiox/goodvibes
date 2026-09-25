@@ -1863,3 +1863,10 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 **Commits:**
 - RED: tests for the script and workflow, with both absent.
 - GREEN: templates/.github/scripts/check-file-sizes.mjs (Node stdlib + git; defaults 500 lines for code extensions; optional .github/file-size-limits.json; base origin/$GITHUB_BASE_REF merge-base, else HEAD^, else every file is new; fails loudly on a shallow clone or missing origin/<base>) and templates/.github/workflows/file-size.yml (pull_request + push to main, contents: read, fetch-depth 0). actionlint 1.7.12 clean; the 17 script tests pass on Node 22 and Node 20.20.
+- Attribution: the script adapts block/buzz scripts/check-file-sizes-core.mjs (Apache-2.0, Copyright 2026 Block, Inc.); its header names the source and the goodvibes changes, and NOTICE gains a buzz entry.
+
+**Why:** AI tools keep appending to one file; big files cost tokens on every Read/Edit and make diffs hard to review.
+
+**Tests run:** see the commits above; full npm (prebuild, typecheck, build, vitest), pip pytest and verify-phase1 to 5 after the last commit.
+
+**Docs updated:** JOURNAL.md, NOTICE. README/FAQ/CHANGELOG still need a line about the new check (not in this task's scope).

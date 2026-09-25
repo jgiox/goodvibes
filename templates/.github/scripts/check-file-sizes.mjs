@@ -1,6 +1,14 @@
 // File-size ratchet: a new code file must stay within its line limit, and a file already over it may not grow.
 // Run from anywhere in the repo: node .github/scripts/check-file-sizes.mjs (Node 20+, git, no npm packages).
 //
+// Derived from block/buzz scripts/check-file-sizes-core.mjs, Copyright 2026 Block, Inc.,
+// licensed under the Apache License, Version 2.0. Modified by goodvibes: one standalone file
+// instead of a shared core plus per-project policies; limits come from built-in defaults and
+// an optional .github/file-size-limits.json instead of code; the base is the merge-base with
+// origin/$GITHUB_BASE_REF or HEAD^ (every file is new on a first commit); lockfiles, build output,
+// vendored, generated and binary files are skipped; lines are counted like wc -l; untracked files
+// are not checked; beginner-friendly messages.
+//
 // Optional .github/file-size-limits.json (every key optional):
 //   { "default": 500, "extensions": { ".py": 600 }, "ignore": ["gen/**"], "allow": { "src/big.ts": 1200 } }
 // "default" applies to the built-in code extensions; "extensions" overrides one or adds a new one;
