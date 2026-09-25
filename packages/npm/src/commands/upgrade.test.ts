@@ -174,6 +174,16 @@ describe('upgrade command', () => {
     )
   })
 
+  it('asks npm for fresh package data, so a release published minutes ago is found instead of failing with No matching version', async () => {
+    const { execa } = await import('execa')
+    vi.mocked(execa).mockResolvedValue({ stdout: '1.0.1' } as never)
+
+    await runUpgrade().catch(() => {})
+
+    expect(vi.mocked(execa)).toHaveBeenCalledWith('npm', ['view', 'goodvibes-cli', 'version', '--prefer-online'], expect.anything())
+    expect(vi.mocked(execa)).toHaveBeenCalledWith('npm', ['install', '-g', 'goodvibes-cli@1.0.1', '--prefer-online'], expect.anything())
+  })
+
   it('registers upgrade without an update alias', async () => {
     const { registerUpgradeCommand } = await import('./upgrade.js')
     const { Command } = await import('commander')

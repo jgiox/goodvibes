@@ -278,3 +278,19 @@ def test_self_update_runs_uv_without_searching_the_project_folder_for_it(mocker,
     run = mocker.patch("goodvibes_cli.commands.upgrade_cmd.subprocess.run")
     _self_update_pip("1.0.1")
     assert run.call_args.kwargs["env"]["NoDefaultCurrentDirectoryInExePath"] == "1"
+
+
+@pytest.mark.parametrize("uv_tool,fails,expected", [
+    (True, 0, ["uv", "tool", "install", "--refresh-package", "goodvibes-cli", "goodvibes-cli>=1.0.1"]),
+    (False, 0, [None, "-m", "pip", "install", "--upgrade", "--no-cache-dir", "goodvibes-cli>=1.0.1"]),
+    (False, 1, ["uv", "pip", "install", "--python", None, "--upgrade", "--refresh-package", "goodvibes-cli", "goodvibes-cli>=1.0.1"]),
+])
+def test_self_update_fetches_a_fresh_package_list_so_a_release_published_minutes_ago_is_found(mocker, tmp_path, uv_tool, fails, expected):
+    import subprocess
+    import sys
+    from goodvibes_cli.commands.upgrade_cmd import _self_update_pip
+    _prefix(mocker, tmp_path, uv_tool=uv_tool)
+    run = mocker.patch("goodvibes_cli.commands.upgrade_cmd.subprocess.run",
+                       side_effect=[subprocess.CalledProcessError(1, "pip")] * fails + [None])
+    _self_update_pip("1.0.1")
+    assert run.call_args_list[fails].args[0] == [sys.executable if a is None else a for a in expected]
