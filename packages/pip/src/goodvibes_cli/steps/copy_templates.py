@@ -66,7 +66,8 @@ def copy_templates(
 
     if dry_run:
         all_files = [
-            p for p in list_template_files(template_dir)
+            p[: -len(selected_variant)] + "ci.yml" if p.endswith(selected_variant) else p
+            for p in list_template_files(template_dir)
             if not any(p.endswith(v) and v != selected_variant for v in ci_variants)
             and (scope == "project" or not global_owned(p))
         ]
