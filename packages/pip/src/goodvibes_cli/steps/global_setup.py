@@ -88,7 +88,11 @@ def apply_global_config(template_dir: pathlib.Path, version: str, dry_run: bool,
         if not restore and recorded and not dest.exists():
             result["removed"].append(rel)
             continue
-        if dest.exists() and _sha(dest.read_text(encoding="utf-8")) != recorded:
+        current = _sha(dest.read_text(encoding="utf-8")) if dest.exists() else None
+        if current == _sha(content):
+            files[rel] = current
+            continue
+        if current and current != recorded:
             result["kept"].append(rel)
             if recorded:
                 files[rel] = recorded

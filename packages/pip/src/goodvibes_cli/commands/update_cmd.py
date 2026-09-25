@@ -66,11 +66,28 @@ def update_cmd(
         return  # exit 0 — UPD-05: no typer.Exit(), returning yields exit code 0
 
     template_dir = resolve_templates_dir()
+    version = importlib.metadata.version("goodvibes-cli")
+    # Plan the Claude config changes first; nothing is written there until the user has said yes.
+    g_plan = None
     if global_manifest is not None or (manifest or {}).get("scope") == "global":
-        g = apply_global_config(template_dir, importlib.metadata.version("goodvibes-cli"), dry_run=dry_run, restore=False)
-        console.print(Panel(format_global(g, None, None), title=f"{'Dry run — ' if dry_run else ''}Global setup ({g['config_dir']})"))
+        g_plan = apply_global_config(template_dir, version, dry_run=True, restore=False)
+        console.print(Panel(format_global(g_plan, None, None), title=f"{'Dry run — ' if dry_run else 'Planned — '}Global setup ({g_plan['config_dir']})"))
+    global_changes = len(g_plan["written"]) + len(g_plan["settings_changes"]) if g_plan else 0
+
+    def apply_global() -> None:
+        if g_plan is not None:
+            g = apply_global_config(template_dir, version, dry_run=False, restore=False)
+            console.print(Panel(format_global(g, None, None), title=f"Global setup ({g['config_dir']})"))
+
     if manifest is None:
-        console.rule("Run without --dry-run to apply." if dry_run else "[green]Update complete![/green]")
+        if dry_run:
+            console.rule("Run without --dry-run to apply.")
+            return
+        if not force and global_changes and not typer.confirm(f"Apply {global_changes} change(s) to your Claude Code settings?"):
+            console.rule("Update cancelled.")
+            return
+        apply_global()
+        console.rule("[green]Update complete![/green]")
         return
     project_type = detect_project_type(cwd)
     scope = manifest.get("scope") or "project"
@@ -181,13 +198,16 @@ def update_cmd(
         console.rule("Run without --dry-run to apply.")
         return
 
-    if not force and (overwrite or merges):
+    if not force and (overwrite or merges or global_changes):
+        also_global = f" and apply {global_changes} change(s) to your Claude Code settings" if global_changes else ""
         confirmed = typer.confirm(
-            f"Overwrite {len(overwrite)} managed file(s) and merge goodvibes keys into {len(merges)} file(s)?"
+            f"Overwrite {len(overwrite)} managed file(s) and merge goodvibes keys into {len(merges)} file(s){also_global}?"
         )
         if not confirmed:
             console.rule("Update cancelled.")
             return
+
+    apply_global()
 
     # Apply: overwrite managed files and copy net-new files
     applied: list[str] = []
@@ -234,10 +254,9 @@ def update_cmd(
     preserved = {rel: manifest["files"][rel] for rel in skip + blocked}
     preserved.update({rel: USER_OWNED for rel in kept})
 
-    _version = importlib.metadata.version("goodvibes-cli")
     try:
         write_manifest(
-            cwd, applied, _version, preserved=preserved,
+            cwd, applied, version, preserved=preserved,
             managed=managed_record(cwd, template_dir, manifest.get("managed")),
             scope=scope,
         )
