@@ -6,7 +6,7 @@ name: Publish template repo
 # Secret required: TEMPLATE_REPO_TOKEN
 #   Create at: github.com/settings/personal-access-tokens/new — fine-grained PAT
 #   Repository access: Only select repositories → jgiox/goodvibes-template
-#   Repository permissions: Contents → Read and write; nothing else (Metadata read-only is added automatically)
+#   Repository permissions: Contents → Read and write, Workflows → Read and write (templates/ holds workflow files); nothing else
 #   Add as an environment secret: Settings → Environments → release → Environment secrets → Add secret
 
 on:
