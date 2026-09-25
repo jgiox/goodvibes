@@ -12,3 +12,15 @@ describe('.mcp.json', () => {
     expect(mcpJson.mcpServers.context7.headers).toBeUndefined()
   })
 })
+
+describe('context7 for Cursor and VS Code', () => {
+  const read = (rel: string) => JSON.parse(readFileSync(join(resolveTemplatesDir(), rel), 'utf-8'))
+
+  it('ships .cursor/mcp.json with only context7 under mcpServers as a url entry', () => {
+    expect(read('.cursor/mcp.json')).toEqual({ mcpServers: { context7: { url: 'https://mcp.context7.com/mcp' } } })
+  })
+
+  it('ships .vscode/mcp.json with only context7 under servers as an http entry', () => {
+    expect(read('.vscode/mcp.json')).toEqual({ servers: { context7: { type: 'http', url: 'https://mcp.context7.com/mcp' } } })
+  })
+})

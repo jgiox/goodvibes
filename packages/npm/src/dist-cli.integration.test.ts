@@ -42,6 +42,13 @@ describe('built CLI (dist/index.js)', () => {
     expect(existsSync(join(configDir, 'rules', 'goodvibes.md'))).toBe(false)
   })
 
+  it('init --minimal --scope project writes context7 for Cursor and VS Code from the packaged templates', async () => {
+    const result = await run('init', '--minimal', '--scope', 'project')
+    expect(result.exitCode).toBe(0)
+    expect(JSON.parse(readFileSync(join(projectDir, '.cursor', 'mcp.json'), 'utf-8')).mcpServers.context7.url).toBe('https://mcp.context7.com/mcp')
+    expect(JSON.parse(readFileSync(join(projectDir, '.vscode', 'mcp.json'), 'utf-8')).servers.context7.type).toBe('http')
+  })
+
   it('init --minimal --scope project installs the git commit check from the packaged hooks folder', async () => {
     await execa('git', ['init', '-q'], { cwd: projectDir, env, extendEnv: false })
     const result = await run('init', '--minimal', '--scope', 'project')

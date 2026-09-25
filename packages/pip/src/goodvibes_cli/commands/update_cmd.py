@@ -169,7 +169,7 @@ def update_cmd(
         elif _group(dest_rel) is None or _group(dest_rel) in tracked_groups:
             net_new.append(dest_rel)
 
-    # User-modified settings.json / .mcp.json still receive goodvibes-managed keys.
+    # User-modified settings.json and MCP files still receive goodvibes-managed keys.
     merges: list[tuple[str, dict, list[str]]] = []
     merge_errors: list[str] = []
     for rel in [r for r in skip + kept if r in MANAGED_JSON]:

@@ -9,6 +9,8 @@ const tplSettings = {
   hooks: { PreToolUse: [gateV2] },
 }
 const tplMcp = { mcpServers: { context7: { type: 'http', url: 'https://mcp.context7.com/mcp' } } }
+const tplCursor = { mcpServers: { context7: { url: 'https://mcp.context7.com/mcp' } } }
+const tplVscode = { servers: { context7: { type: 'http', url: 'https://mcp.context7.com/mcp' } } }
 
 describe('managedIds', () => {
   it('lists ask, deny and marked hook ids but never allow rules', () => {
@@ -22,6 +24,11 @@ describe('managedIds', () => {
   it('lists one id per template MCP server', () => {
     expect(managedIds('.mcp.json', tplMcp)).toEqual(['mcp:context7'])
   })
+
+  it('lists context7 for the Cursor and VS Code MCP files', () => {
+    expect(managedIds('.cursor/mcp.json', tplCursor)).toEqual(['mcp:context7'])
+    expect(managedIds('.vscode/mcp.json', tplVscode)).toEqual(['mcp:context7'])
+  })
 })
 
 describe('presentIds', () => {
@@ -34,7 +41,34 @@ describe('presentIds', () => {
   })
 })
 
+describe('presentIds for editor MCP files', () => {
+  it('finds context7 under servers in .vscode/mcp.json', () => {
+    expect(presentIds('.vscode/mcp.json', tplVscode, { servers: { context7: {} } })).toEqual(['mcp:context7'])
+    expect(presentIds('.vscode/mcp.json', tplVscode, { mcpServers: { context7: {} } })).toEqual([])
+  })
+})
+
 describe('mergeManagedJson', () => {
+  it('adds context7 under servers in .vscode/mcp.json and keeps the user servers and inputs', () => {
+    const user = { inputs: [{ id: 'token' }], servers: { github: { type: 'http', url: 'https://api.githubcopilot.com/mcp' } } }
+    const { merged, changes } = mergeManagedJson('.vscode/mcp.json', tplVscode, user)
+    expect(merged).toEqual({ inputs: user.inputs, servers: { ...user.servers, context7: tplVscode.servers.context7 } })
+    expect(changes).toEqual(['+ servers.context7'])
+  })
+
+  it('adds context7 under mcpServers in .cursor/mcp.json and keeps the user servers', () => {
+    const user = { mcpServers: { postgres: { command: 'pg-mcp' } } }
+    const { merged, changes } = mergeManagedJson('.cursor/mcp.json', tplCursor, user)
+    expect(merged.mcpServers).toEqual({ postgres: { command: 'pg-mcp' }, context7: tplCursor.mcpServers.context7 })
+    expect(changes).toEqual(['+ mcpServers.context7'])
+  })
+
+  it('does not re-add context7 to .vscode/mcp.json after the user removed it', () => {
+    const { merged, changes } = mergeManagedJson('.vscode/mcp.json', tplVscode, { servers: {} }, ['mcp:context7'])
+    expect(merged).toEqual({ servers: {} })
+    expect(changes).toEqual([])
+  })
+
   it('adds missing managed keys and keeps every user key untouched', () => {
     const user = { permissions: { allow: ['Bash(make*)'], deny: ['Bash(rm -rf*)'] }, hooks: { PostToolUse: [userHook] }, model: 'x' }
     const { merged, changes } = mergeManagedJson('.claude/settings.json', tplSettings, user)
