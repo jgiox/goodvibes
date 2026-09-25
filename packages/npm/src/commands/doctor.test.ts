@@ -32,7 +32,7 @@ describe('doctor command', () => {
   const JOURNAL_WARNING = 'JOURNAL.md is 13 KB; agents read it every session. Keep lasting decisions in its "Standing decisions" section and keep new entries short.'
   const bigJournal = async () => {
     const { statSync } = await import('node:fs')
-    vi.mocked(statSync).mockImplementation((p => ({ size: String(p).endsWith('JOURNAL.md') ? 12_500 : 100 })) as any)
+    vi.mocked(statSync).mockImplementation(((p: unknown) => ({ size: String(p).endsWith('JOURNAL.md') ? 12_500 : 100 })) as any)
   }
 
   describe('registerDoctorCommand', () => {

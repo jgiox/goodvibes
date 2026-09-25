@@ -1,6 +1,6 @@
 import type { Command } from 'commander'
 import { note, outro } from '@clack/prompts'
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync, readFileSync, statSync } from 'node:fs'
 import { delimiter, join } from 'node:path'
 import { execa } from 'execa'
 import { packageVersion } from '../utils/version.js'
@@ -108,6 +108,14 @@ function checkOnPath(): CheckResult {
     : { label: 'goodvibes command on PATH', status: 'warn', remedy: 'Optional: lets the session-start check run. Install: npm install -g goodvibes-cli (or: uv tool install goodvibes-cli)' }
 }
 
+export function checkJournal(cwd: string): CheckResult[] {
+  const path = join(cwd, 'JOURNAL.md')
+  if (!existsSync(path)) return []
+  const size = statSync(path).size
+  if (size <= 10 * 1024) return []
+  return [{ label: `JOURNAL.md is ${Math.ceil(size / 1024)} KB; agents read it every session. Keep lasting decisions in its "Standing decisions" section and keep new entries short.`, status: 'warn' }]
+}
+
 // Global-scope projects keep the rules in the Claude config, not in the project CLAUDE.md.
 function ruleChecks(cwd: string, scope: 'global' | 'project' | null): CheckResult[] {
   return scope === 'global' ? [checkGlobalRules()] : [checkClaudeMd(cwd), checkSentinel(cwd)]
@@ -125,7 +133,7 @@ export function registerDoctorCommand(program: Command): void {
         // Exit 2 from a SessionStart hook blocks the session, so quick mode reports and always exits 0.
         // Outside a goodvibes project (no manifest) only the machine-wide git checks apply.
         const { scope, failure } = manifestCheck(cwd)
-        const quick = [...(failure ? [failure] : []), ...(await checkGit()), ...(scope ? ruleChecks(cwd, scope) : [])].filter(r => r.status === 'warn' || r.status === 'fail')
+        const quick = [...(failure ? [failure] : []), ...(await checkGit()), ...(scope ? ruleChecks(cwd, scope) : []), ...checkJournal(cwd)].filter(r => r.status === 'warn' || r.status === 'fail')
         for (const r of quick) console.log(`goodvibes doctor: ${formatCheck(r)}${r.label.endsWith('.') ? '' : '.'}${r.remedy ? ` ${r.remedy}` : ''}`)
         return
       }
@@ -133,7 +141,7 @@ export function registerDoctorCommand(program: Command): void {
       const headroomResult = await checkHeadroom()
       const gitResults = await checkGit()
       const { scope, failure } = manifestCheck(cwd)
-      const all: CheckResult[] = [...(failure ? [failure] : []), headroomResult, checkOnPath(), ...gitResults, ...ruleChecks(cwd, scope)]
+      const all: CheckResult[] = [...(failure ? [failure] : []), headroomResult, checkOnPath(), ...gitResults, ...ruleChecks(cwd, scope), ...checkJournal(cwd)]
 
       note([`goodvibes v${packageVersion()}`, ...all.map(formatCheck)].join('\n'), 'goodvibes doctor')
 
