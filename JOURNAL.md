@@ -2051,3 +2051,4 @@ Added a Standing decisions section to this journal.
   - pip `usage` keys only string message ids and treats anything else as its own entry, as npm does.
   - The read guard's Read branch parses a numeric `offset` and `limit`. It allows a limit up to the line cap, and otherwise blocks when more than the cap would remain after the offset.
   - Tests: npm hook cases and usage (224 passed); pip full suite (593 passed); pip hook cases under BWK awk and busybox awk (197 passed each).
+- FAQ.md rewritten (grouped sections, table of contents, new questions on cost, tool support, overwriting, removal; stale version claims corrected). Every link and anchor checked; no dashes.
