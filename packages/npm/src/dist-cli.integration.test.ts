@@ -150,4 +150,11 @@ describe('built CLI (dist/index.js)', () => {
     expect(JSON.parse(readFileSync(join(projectDir, '.goodvibes.json'), 'utf-8')).files['AGENTS.md']).toMatch(/^[0-9a-f]{64}$/)
     expect(JSON.parse(readFileSync(join(configDir, '.goodvibes.json'), 'utf-8')).files['rules/goodvibes.md']).toMatch(/^[0-9a-f]{64}$/)
   })
+
+  it('usage is registered and exits 0 with a friendly message when there are no session logs', async () => {
+    const result = await run('usage')
+    expect(result.exitCode).toBe(0)
+    expect(result.stdout).toContain(`No Claude Code session logs found in ${join(configDir, 'projects')}.`)
+    expect(result.stdout).toContain("Claude Code's log format is internal and can change; these numbers are best effort.")
+  })
 })

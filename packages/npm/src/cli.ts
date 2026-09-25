@@ -4,6 +4,7 @@ import { registerInitCommand } from './commands/init.js'
 import { registerUpgradeCommand } from './commands/upgrade.js'
 import { registerDoctorCommand } from './commands/doctor.js'
 import { registerUpdateCommand } from './commands/update.js'
+import { registerUsageCommand } from './commands/usage.js'
 
 const program = new Command()
 
@@ -16,5 +17,6 @@ registerInitCommand(program)
 registerUpgradeCommand(program)
 registerUpdateCommand(program)
 registerDoctorCommand(program)
+registerUsageCommand(program)
 
 await program.parseAsync(process.argv)

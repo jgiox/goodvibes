@@ -12,7 +12,10 @@ vi.mock('@clack/prompts', () => ({
 vi.mock('node:fs', () => ({
   existsSync: vi.fn(),
   readFileSync: vi.fn(),
+  statSync: vi.fn(),
 }))
+
+vi.mock('./mcp-check.js', () => ({ checkMcpServers: vi.fn(() => []) }))
 
 vi.mock('../utils/version.js', () => ({ packageVersion: () => '1.6.2' }))
 
@@ -21,10 +24,21 @@ const withManifest = (claudeMd: string) => (p: unknown) =>
   String(p).endsWith('.goodvibes.json') ? '{"version":"1.0.0","files":{}}' : claudeMd
 
 describe('doctor command', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.resetAllMocks()
     vi.resetModules()
+    const { statSync } = await import('node:fs')
+    vi.mocked(statSync).mockReturnValue({ size: 100 } as any)
+    const { checkMcpServers } = await import('./mcp-check.js')
+    vi.mocked(checkMcpServers).mockReturnValue([])
   })
+
+  const JOURNAL_LABEL = 'JOURNAL.md is 13 KB; agents read it every session'
+  const JOURNAL_REMEDY = 'Keep lasting decisions in its "Standing decisions" section and keep new entries short.'
+  const bigJournal = async () => {
+    const { statSync } = await import('node:fs')
+    vi.mocked(statSync).mockImplementation(((p: unknown) => ({ size: String(p).endsWith('JOURNAL.md') ? 12_500 : 100 })) as any)
+  }
 
   describe('registerDoctorCommand', () => {
     it('registers a command named doctor on the program', async () => {
@@ -80,7 +94,7 @@ describe('doctor command', () => {
       exitSpy.mockRestore()
     })
 
-    it('returns fail result with uv remedy when headroom is not found (ENOENT)', async () => {
+    it('reports headroom as a warning with its uv remedy, not a failure, when headroom is not found (ENOENT)', async () => {
       const { execa } = await import('execa')
       const enoentErr = Object.assign(new Error('ENOENT'), { code: 'ENOENT' })
       vi.mocked(execa).mockRejectedValue(enoentErr) // all calls fail with ENOENT
@@ -104,7 +118,8 @@ describe('doctor command', () => {
 
       const allNoteText = vi.mocked(note).mock.calls.map(c => String(c[0])).join('\n')
       expect(allNoteText).toMatch(/uv tool install/i)
-      expect(allNoteText).not.toMatch(/headroom on PATH/i)
+      expect(allNoteText).toContain('! headroom not installed (optional: compresses what Claude reads)')
+      expect(allNoteText).not.toMatch(/✗ headroom/)
       expect(exitSpy).toHaveBeenCalledWith(1)
 
       exitSpy.mockRestore()
@@ -229,7 +244,7 @@ describe('doctor command', () => {
       await capturedAction()
 
       expect(exitSpy).not.toHaveBeenCalledWith(1)
-      expect(vi.mocked(outro)).toHaveBeenCalledWith(expect.stringContaining('All checks passed'))
+      expect(vi.mocked(outro)).toHaveBeenCalledWith('Ready.')
 
       exitSpy.mockRestore()
     })
@@ -322,6 +337,213 @@ describe('doctor command', () => {
     })
   })
 
+  describe('tri-state results', () => {
+    async function runFull(): Promise<{ text: string; exitSpy: ReturnType<typeof vi.spyOn> }> {
+      const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never)
+      const { note, outro } = await import('@clack/prompts')
+      const { registerDoctorCommand } = await import('./doctor.js')
+      let capturedAction: () => Promise<void> = async () => {}
+      const program = {
+        command: vi.fn().mockReturnThis(),
+        description: vi.fn().mockReturnThis(),
+        option: vi.fn().mockReturnThis(),
+        action: vi.fn((fn) => { capturedAction = fn; return { command: vi.fn() } }),
+      }
+      registerDoctorCommand(program as any)
+      await capturedAction()
+      const text = [...vi.mocked(note).mock.calls.map(c => String(c[0])), ...vi.mocked(outro).mock.calls.map(c => String(c[0]))].join('\n')
+      return { text, exitSpy }
+    }
+
+    const readyProject = async () => {
+      const { existsSync, readFileSync } = await import('node:fs')
+      vi.mocked(existsSync).mockReturnValue(true)
+      vi.mocked(readFileSync).mockImplementation(withManifest('<!-- goodvibes:start -->\nx\n<!-- goodvibes:end -->'))
+    }
+
+    it('ends with Ready, with 1 warning(s). and exits 0 when only optional headroom is missing', async () => {
+      const { execa } = await import('execa')
+      vi.mocked(execa).mockImplementation((async (cmd: string) => {
+        if (cmd === 'headroom') throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' })
+        return { stdout: 'value' }
+      }) as any)
+      await readyProject()
+
+      const { text, exitSpy } = await runFull()
+
+      expect(text).toContain('! headroom not installed (optional: compresses what Claude reads)')
+      expect(text.split('\n').at(-1)).toBe('Ready, with 1 warning(s).')
+      expect(exitSpy).not.toHaveBeenCalled()
+    })
+
+    it('reports headroom as not working, still a warning, when it is installed but fails or times out', async () => {
+      const { execa } = await import('execa')
+      vi.mocked(execa).mockImplementation((async (cmd: string) => {
+        if (cmd === 'headroom') throw Object.assign(new Error('timed out'), { timedOut: true })
+        return { stdout: 'value' }
+      }) as any)
+      await readyProject()
+
+      const { text, exitSpy } = await runFull()
+
+      expect(text).toContain('! headroom not working (optional: compresses what Claude reads)')
+      expect(text).toContain('uv tool install "headroom-ai[all]"')
+      expect(text.split('\n').at(-1)).toBe('Ready, with 1 warning(s).')
+      expect(exitSpy).not.toHaveBeenCalled()
+    })
+
+    it('warns and still exits 0 when the goodvibes command is not on PATH', async () => {
+      const { execa } = await import('execa')
+      vi.mocked(execa).mockResolvedValue({ stdout: 'value' } as any)
+      await readyProject()
+      const { existsSync } = await import('node:fs')
+      vi.mocked(existsSync).mockImplementation(p => !/goodvibes(\.[a-z]+)?$/i.test(String(p)) || String(p).endsWith('.goodvibes.json'))
+
+      const { text, exitSpy } = await runFull()
+
+      expect(text).toContain('! goodvibes command not on PATH')
+      expect(text).toContain('npm install -g goodvibes-cli')
+      expect(text.split('\n').at(-1)).toBe('Ready, with 1 warning(s).')
+      expect(exitSpy).not.toHaveBeenCalled()
+    })
+
+    it('ends with Not ready: 2 problem(s). and exits 1 when git user.name and user.email are missing', async () => {
+      const { execa } = await import('execa')
+      vi.mocked(execa).mockImplementation((async (cmd: string) => {
+        if (cmd === 'git') throw Object.assign(new Error('exit 1'), { exitCode: 1 })
+        return { stdout: 'value' }
+      }) as any)
+      await readyProject()
+
+      const { text, exitSpy } = await runFull()
+
+      expect(text).toContain('✗ git user.name')
+      expect(text).toContain('✗ git user.email')
+      expect(text.split('\n').at(-1)).toBe('Not ready: 2 problem(s).')
+      expect(exitSpy).toHaveBeenCalledWith(1)
+    })
+
+    it('ends with Ready. and shows every check as ✓ when nothing is missing', async () => {
+      const { execa } = await import('execa')
+      vi.mocked(execa).mockResolvedValue({ stdout: 'value' } as any)
+      await readyProject()
+
+      const { text, exitSpy } = await runFull()
+
+      expect(text).toContain('✓ headroom installed and working')
+      expect(text).toContain('✓ goodvibes command on PATH')
+      expect(text).not.toMatch(/^[!✗-] /m)
+      expect(text.split('\n').at(-1)).toBe('Ready.')
+      expect(exitSpy).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('checkJournal', () => {
+    it('returns no result when JOURNAL.md does not exist', async () => {
+      const { existsSync } = await import('node:fs')
+      vi.mocked(existsSync).mockReturnValue(false)
+      const { checkJournal } = await import('./doctor.js')
+      expect(checkJournal('/p')).toEqual([])
+    })
+
+    it('returns no result when JOURNAL.md is exactly 10 KB', async () => {
+      const { existsSync, statSync } = await import('node:fs')
+      vi.mocked(existsSync).mockReturnValue(true)
+      vi.mocked(statSync).mockReturnValue({ size: 10 * 1024 } as any)
+      const { checkJournal } = await import('./doctor.js')
+      expect(checkJournal('/p')).toEqual([])
+    })
+
+    it('warns with the size rounded up to whole KB when JOURNAL.md is larger than 10 KB', async () => {
+      const { existsSync } = await import('node:fs')
+      vi.mocked(existsSync).mockReturnValue(true)
+      await bigJournal()
+      const { checkJournal } = await import('./doctor.js')
+      expect(checkJournal('/p')).toEqual([{ label: JOURNAL_LABEL, status: 'warn', remedy: JOURNAL_REMEDY }])
+    })
+  })
+
+  describe('journal size in the full doctor', () => {
+    it('shows the journal warning, counts it, and still exits 0', async () => {
+      const { execa } = await import('execa')
+      vi.mocked(execa).mockResolvedValue({ stdout: 'value' } as any)
+      const { existsSync, readFileSync } = await import('node:fs')
+      vi.mocked(existsSync).mockReturnValue(true)
+      vi.mocked(readFileSync).mockImplementation(withManifest('<!-- goodvibes:start -->\nx\n<!-- goodvibes:end -->'))
+      await bigJournal()
+      const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never)
+      const { note, outro } = await import('@clack/prompts')
+
+      const { registerDoctorCommand } = await import('./doctor.js')
+      let capturedAction: () => Promise<void> = async () => {}
+      const program = { command: vi.fn().mockReturnThis(), description: vi.fn().mockReturnThis(),
+        option: vi.fn().mockReturnThis(), action: vi.fn((fn) => { capturedAction = fn; return { command: vi.fn() } }) }
+      registerDoctorCommand(program as any)
+      await capturedAction()
+
+      expect(String(vi.mocked(note).mock.calls[0][0])).toContain(`! ${JOURNAL_LABEL}`)
+      expect(String(vi.mocked(note).mock.calls[1][0])).toContain(`${JOURNAL_LABEL}: ${JOURNAL_REMEDY}`)
+      expect(vi.mocked(outro)).toHaveBeenCalledWith('Ready, with 1 warning(s).')
+      expect(exitSpy).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('MCP servers in the full doctor', () => {
+    it('lists the MCP check results and counts their warnings without failing', async () => {
+      const { execa } = await import('execa')
+      vi.mocked(execa).mockResolvedValue({ stdout: 'value' } as any)
+      const { existsSync, readFileSync } = await import('node:fs')
+      vi.mocked(existsSync).mockReturnValue(true)
+      vi.mocked(readFileSync).mockImplementation(withManifest('<!-- goodvibes:start -->\nx\n<!-- goodvibes:end -->'))
+      const { checkMcpServers } = await import('./mcp-check.js')
+      vi.mocked(checkMcpServers).mockReturnValue([
+        { label: 'MCP context7 (project)', status: 'ok' },
+        { label: 'MCP remote (user): uses plain http to mcp.example.com', status: 'warn', remedy: 'Use an https:// URL.' },
+      ])
+      const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never)
+      const { note, outro } = await import('@clack/prompts')
+
+      const { registerDoctorCommand } = await import('./doctor.js')
+      let capturedAction: () => Promise<void> = async () => {}
+      const program = { command: vi.fn().mockReturnThis(), description: vi.fn().mockReturnThis(),
+        option: vi.fn().mockReturnThis(), action: vi.fn((fn) => { capturedAction = fn; return { command: vi.fn() } }) }
+      registerDoctorCommand(program as any)
+      await capturedAction()
+
+      expect(vi.mocked(checkMcpServers)).toHaveBeenCalledWith(process.cwd())
+      const notes = vi.mocked(note).mock.calls.map(c => String(c[0])).join('\n')
+      expect(notes).toContain('✓ MCP context7 (project)')
+      expect(notes).toContain('! MCP remote (user): uses plain http to mcp.example.com')
+      expect(notes).toContain('MCP remote (user): uses plain http to mcp.example.com: Use an https:// URL.')
+      expect(vi.mocked(outro)).toHaveBeenCalledWith('Ready, with 1 warning(s).')
+      expect(exitSpy).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('summaryLine', () => {
+    it('returns Ready. when every check is ok or skip', async () => {
+      const { summaryLine } = await import('./doctor.js')
+      expect(summaryLine([{ label: 'a', status: 'ok' }, { label: 'b', status: 'skip' }])).toBe('Ready.')
+    })
+
+    it('counts warnings when there are warnings but no failures', async () => {
+      const { summaryLine } = await import('./doctor.js')
+      expect(summaryLine([{ label: 'a', status: 'warn' }, { label: 'b', status: 'ok' }, { label: 'c', status: 'warn' }])).toBe('Ready, with 2 warning(s).')
+    })
+
+    it('counts only failures once anything fails', async () => {
+      const { summaryLine } = await import('./doctor.js')
+      expect(summaryLine([{ label: 'a', status: 'warn' }, { label: 'b', status: 'fail' }])).toBe('Not ready: 1 problem(s).')
+    })
+  })
+
+  describe('formatCheck', () => {
+    it('renders ok, warn, fail and skip as ✓, !, ✗ and -', async () => {
+      const { formatCheck } = await import('./doctor.js')
+      expect(['ok', 'warn', 'fail', 'skip'].map(status => formatCheck({ label: 'x', status: status as any }))).toEqual(['✓ x', '! x', '✗ x', '- x'])
+    })
+  })
+
   describe('--quick', () => {
     async function runQuick(): Promise<{ logs: string[]; exitSpy: ReturnType<typeof vi.spyOn> }> {
       const logs: string[] = []
@@ -393,6 +615,32 @@ describe('doctor command', () => {
 
       expect(logs.join('\n')).toMatch(/\.goodvibes\.json is not valid JSON \(.+\); fix it or delete it and run goodvibes init/)
       expect(exitSpy).not.toHaveBeenCalled()
+    })
+
+    it('prints the journal size warning as one ! line and does not exit when JOURNAL.md is larger than 10 KB', async () => {
+      const { execa } = await import('execa')
+      vi.mocked(execa).mockResolvedValue({ stdout: 'value' } as any)
+      const { existsSync, readFileSync } = await import('node:fs')
+      vi.mocked(existsSync).mockReturnValue(true)
+      vi.mocked(readFileSync).mockImplementation(withManifest('<!-- goodvibes:start -->\nx\n<!-- goodvibes:end -->'))
+      await bigJournal()
+
+      const { logs, exitSpy } = await runQuick()
+
+      expect(logs).toEqual([`goodvibes doctor: ! ${JOURNAL_LABEL}. ${JOURNAL_REMEDY}`])
+      expect(exitSpy).not.toHaveBeenCalled()
+    })
+
+    it('never runs the MCP server check', async () => {
+      const { execa } = await import('execa')
+      vi.mocked(execa).mockResolvedValue({ stdout: 'value' } as any)
+      const { existsSync } = await import('node:fs')
+      vi.mocked(existsSync).mockReturnValue(false)
+      const { checkMcpServers } = await import('./mcp-check.js')
+
+      await runQuick()
+
+      expect(vi.mocked(checkMcpServers)).not.toHaveBeenCalled()
     })
 
     it('checks the rules file in the Claude config, not the project CLAUDE.md, in a global-scope project', async () => {

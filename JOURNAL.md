@@ -1901,3 +1901,36 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 - GREEN: templates/.github/dependabot.yml cooldown default-days 7 on all three ecosystems; workflow-templates tests 36/36.
 - dependency-review: RED test for CC-BY-4.0 (caniuse-lite), CC-BY-3.0 (spdx-exceptions), PSF-2.0 (typing_extensions) and Zlib (pako) in allow-licenses; without them routine Dependabot bumps fail in beginner projects. Checked the action README: unknown licences only warn.
 - GREEN: allow-licenses now also lists CC-BY-3.0, CC-BY-4.0, PSF-2.0, Zlib. workflow-templates 37/37.
+
+## 2026-09-25 · npm: tri-state doctor, journal size warning, MCP server check, `goodvibes usage`
+
+**What I did:** Implementing four spec items in the npm CLI, each as a RED test commit then a GREEN implementation commit.
+- 1 RED: doctor tests for ok/warn/fail/skip, optional parts as warnings, and the Ready / Not ready summary line.
+- 1 GREEN: `CheckResult` now has `status` (ok/warn/fail/skip, shown as ✓ ! ✗ -); headroom missing and goodvibes not on PATH are warnings; `How to fix` lists `label: remedy` for warnings and failures; the last line is `Ready.`, `Ready, with N warning(s).` or `Not ready: N problem(s).`; exit 1 only on a failure.
+- 2 RED: doctor and doctor --quick tests for the JOURNAL.md size warning (over 10 KB).
+- 2 GREEN: `checkJournal` warns when JOURNAL.md is over 10 KB (size shown rounded up to whole KB) in doctor and doctor --quick; the file is only stat-ed.
+- 3 RED: `mcp-check.test.ts` (real temp files, CLAUDE_CONFIG_DIR and HOME stubbed) for the MCP server check: sources, ok lines, and the four warnings; doctor tests that the full doctor shows it and --quick never runs it.
+- 3 GREEN: new `mcp-check.ts` reads user/local servers from `.claude.json` (CLAUDE_CONFIG_DIR, falling back to `claude.json`, else `~/.claude.json`) and project servers from `./.mcp.json`; one ok line per clean server, warnings for curl/wget piped into sh/bash -c, unpinned npx/bunx/pnpm dlx/uvx packages, plain http to a remote host, and literal secrets in env/headers (key name only). Full doctor only; never contacts a server.
+- 4 RED: `usage.test.ts` (fixture JSONL in temp dirs: duplicate message ids, a malformed line, entries without usage) and a built-CLI test that `goodvibes usage` is registered.
+- 4 GREEN: new `goodvibes usage` (`usage.ts`, registered in `cli.ts`): reads `<config>/projects/*/*.jsonl` (this project by default, `--all`, `--days N` by mtime, `--json`), dedupes assistant usage by message id, prints the 10 most recent sessions, totals, a `!` mark and note above 160k peak context, and the best-effort footer. Offline; never reads or prints message content.
+
+**Files changed:** packages/npm/src/commands/doctor.ts, doctor.test.ts, mcp-check.ts (new), mcp-check.test.ts (new), usage.ts (new), usage.test.ts (new), packages/npm/src/cli.ts, packages/npm/src/dist-cli.integration.test.ts, JOURNAL.md.
+
+**Why:** Doctor treated optional parts (headroom) as failures; users had no view of oversized journals, risky MCP server configs, or local token use. The pip package gets the same spec from a separate worker; output strings must match.
+
+**Tests run:** npm prebuild, typecheck 0 errors, build OK, vitest 484 passed, 1 skipped; verify-phase1 to 5 PASS (phase 3 failed one pip build check on its first run only, then passed twice; nothing in packages/pip changed). Built-CLI demo in a temp sandbox (CLAUDE_CONFIG_DIR and HOME pointed there).
+
+**Docs updated:** none (out of scope for this worker). README/FAQ/CHANGELOG need: tri-state doctor and the summary line, the journal warning, the MCP check, and `goodvibes usage`.
+
+---
+
+## 2026-09-25 · npm: align doctor and usage output with the canonical parity spec
+
+**What I did:** Aligning npm strings with the coordinator's parity spec (scratchpad `parity_spec.md`) so npm and pip print the same output.
+- Doctor/MCP RED: tests for `goodvibes command not on PATH`, `headroom not working (...)`, journal split into label + remedy, `@latest` unpinned, uvx `--from` and option values skipped, `.cmd`/`.exe` launchers, path commands not launchers, and the `could not be read (<code>)` warning.
+- Doctor/MCP GREEN: `doctor.ts` (headroom ENOENT says not installed, any other error says not working; PATH warn label; journal label + remedy) and `mcp-check.ts` (npm launchers read `-p`/`--package`, uvx reads `--from` and skips option values; `@latest` unpinned; path commands are not launchers; unreadable config gives `could not be read (<code>)`, missing stays silent). --quick formatting already matched the spec.
+- Usage RED: tests for the spec's blank lines (after the header, and before the note and footer).
+- Usage GREEN: `usage.ts` prints a blank line after the header and after the breakdown line.
+- MCP @latest RED: test that `<pkg>@latest` is reported and fixed as `<pkg>` (label and remedy), per coordinator follow-up.
+- MCP @latest GREEN: `mcp-check.ts` strips a trailing `@latest` from the package before the pin check, so label and remedy name the bare package. (a) still matches full-path `sh`/`bash`; `@next` stays pinned.
+
