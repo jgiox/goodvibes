@@ -46,3 +46,36 @@ describe('template workflows', () => {
     }
   })
 })
+
+describe('template workflow limits', () => {
+  it.each(WORKFLOWS)('%s cancels superseded pull request runs but never runs on main', f => {
+    expect(read(f)).toContain(
+      "\nconcurrency:\n  group: ${{ github.workflow }}-${{ github.ref }}\n  cancel-in-progress: ${{ github.event_name == 'pull_request' }}\n",
+    )
+  })
+
+  it.each([
+    ['ci-node.yml', [15]],
+    ['ci-python.yml', [15]],
+    ['ci-both.yml', [15, 15]],
+    ['security.yml', [20, 10]],
+    ['dependency-review.yml', [10]],
+  ] as const)('%s gives every job a timeout', (f, minutes) => {
+    const text = read(f)
+    expect([...text.matchAll(/timeout-minutes: (\d+)/g)].map(m => Number(m[1]))).toEqual(minutes)
+    expect(text.match(/runs-on:/g)?.length).toBe(minutes.length)
+  })
+
+  it('dependency review allows only permissive licences', () => {
+    expect(read('dependency-review.yml')).toContain(
+      'allow-licenses: MIT, Apache-2.0, BSD-2-Clause, BSD-3-Clause, ISC, 0BSD, Unlicense, CC0-1.0, Python-2.0, BlueOak-1.0.0, MPL-2.0',
+    )
+  })
+
+  it('Dependabot waits three days before proposing any new release', () => {
+    const text = readFileSync(join(resolveTemplatesDir(), '.github', 'dependabot.yml'), 'utf-8')
+    const entries = text.split('  - package-ecosystem:').slice(1)
+    expect(entries.length).toBe(3)
+    for (const entry of entries) expect(entry).toContain('\n    cooldown:\n      default-days: 3\n')
+  })
+})

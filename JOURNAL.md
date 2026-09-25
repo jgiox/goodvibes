@@ -1874,3 +1874,4 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 - GREEN 3: templates/JOURNAL.md opens with `## Standing decisions` (one placeholder bullet); every rule file now says read Standing decisions plus the last five entries (older only when needed) and add or update one Standing decisions line per lasting decision. npm vitest 470 passed; pip 361 passed.
 - RED 4: tests that every rule file carries the six new command/evidence rules and CLAUDE.md has a summarising section inside its goodvibes block.
 - GREEN 4: new "Commands and evidence" section (six one-line rules) in every rule file; "When summarising or compacting context" section in templates/CLAUDE.md only. Version stamp unchanged. npm vitest 484 passed; pip 361 passed.
+- RED 5: tests for workflow concurrency, per-job timeouts, the dependency-review licence allow-list and a 3-day Dependabot cooldown.
