@@ -803,6 +803,24 @@ describe('update command — respects files the user removed and layers init ski
     expect(Object.keys(manifestFiles())).toEqual(['AGENTS.md'])
   })
 
+  it('adds Copilot\'s rules and hooks to a project set up with --minimal, but no workflows, other .github files or docs', async () => {
+    put(templateDir, 'AGENTS.md', 'agents\n')
+    put(templateDir, '.github/copilot-instructions.md', 'copilot\n')
+    put(templateDir, '.github/hooks/goodvibes.json', '{}\n')
+    put(templateDir, '.github/dependabot.yml', 'deps\n')
+    put(templateDir, '.github/workflows/security.yml', 'sec\n')
+    put(templateDir, 'docs/guide.md', 'guide\n')
+    put(projectDir, 'AGENTS.md', 'agents\n')
+    writeFileSync(join(projectDir, '.goodvibes.json'), JSON.stringify({ version: '1.0.0', files: { 'AGENTS.md': sha256('agents\n') } }))
+
+    await runUpdate('--force')
+
+    expect(readFileSync(join(projectDir, '.github', 'copilot-instructions.md'), 'utf-8')).toBe('copilot\n')
+    expect(readFileSync(join(projectDir, '.github', 'hooks', 'goodvibes.json'), 'utf-8')).toBe('{}\n')
+    expect(readdirSync(join(projectDir, '.github')).sort()).toEqual(['copilot-instructions.md', 'hooks'])
+    expect(existsSync(join(projectDir, 'docs'))).toBe(false)
+  })
+
   it('adds a new workflow and a new doc when the manifest already tracks a file in that group, but not other .github files', async () => {
     put(templateDir, '.github/workflows/security.yml', 'sec\n')
     put(templateDir, '.github/workflows/ci-node.yml', 'ci\n')

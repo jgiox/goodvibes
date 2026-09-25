@@ -35,6 +35,18 @@ def test_init_help_has_minimal():
     assert "minimal" in result.output
 
 
+def _help(*cmd):
+    return " ".join(re.sub(r"\x1b\[[0-9;]*m|[│╭╮╰╯─]", " ", runner.invoke(app, [*cmd, "--help"]).output).split())
+
+
+def test_minimal_help_says_exactly_what_it_skips():
+    assert "--minimal Skip headroom, docs/ and the .github CI files (workflows, scripts, Dependabot, issue and PR templates); Copilot's rules and hooks in .github are still added" in _help("init")
+
+
+def test_update_force_help_says_edited_files_are_still_kept():
+    assert "--force Skip the confirmation prompt (files you edited are still kept)" in _help("update")
+
+
 def test_dry_run_no_files_written(tmp_path, mocker):
     mocker.patch(
         "goodvibes_cli.commands.init_cmd.resolve_templates_dir",

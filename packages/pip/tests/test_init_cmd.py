@@ -477,3 +477,76 @@ def test_init_in_the_home_folder_with_global_scope_never_calls_the_git_hook_inst
     assert result.exit_code == 0, result.output
     hook.assert_not_called()
     assert "Git commit check" not in result.output
+
+
+def _plain(result):
+    import re
+    return " ".join(re.sub(r"\x1b\[[0-9;]*m|[│╭╮╰╯─]", " ", result.output).split())
+
+
+def test_init_in_the_claude_config_folder_does_the_global_part_only_and_keeps_the_global_manifest(runner, real_project, mocker, monkeypatch):
+    from goodvibes_cli.main import app as main_app
+    monkeypatch.setenv("CLAUDE_CONFIG_DIR", str(real_project))
+    hook = _hook(mocker, "installed")
+    global_manifest = '{"version": "1.10.0", "scope": "global", "files": {"rules/goodvibes.md": "abc"}}\n'
+    (real_project / ".goodvibes.json").write_text(global_manifest, encoding="utf-8")
+
+    result = runner.invoke(main_app, ["init", "--minimal"])
+
+    assert result.exit_code == 0, result.output
+    assert f"No project files written: {real_project} is your Claude Code settings folder." in _plain(result)
+    assert (real_project / ".goodvibes.json").read_text(encoding="utf-8") == global_manifest
+    assert not (real_project / "CLAUDE.md").exists()
+    assert not (real_project / "JOURNAL.md").exists()
+    hook.assert_not_called()
+
+
+def test_init_dry_run_in_the_claude_config_folder_lists_no_project_files(runner, real_project, monkeypatch):
+    from goodvibes_cli.main import app as main_app
+    monkeypatch.setenv("CLAUDE_CONFIG_DIR", str(real_project))
+    result = runner.invoke(main_app, ["init", "--minimal", "--dry-run"])
+    assert result.exit_code == 0, result.output
+    assert "Would write: JOURNAL.md" not in _plain(result)
+
+
+def test_init_with_project_scope_in_the_claude_config_folder_stops_with_exit_1_before_writing_anything(runner, real_project, monkeypatch):
+    from goodvibes_cli.main import app as main_app
+    monkeypatch.setenv("CLAUDE_CONFIG_DIR", str(real_project))
+    result = runner.invoke(main_app, ["init", "--minimal", "--scope", "project"])
+    assert result.exit_code == 1, result.output
+    assert f"{real_project} is your Claude Code settings folder, not a project. Run goodvibes init --scope project inside your project folder." in _plain(result)
+    assert list(real_project.iterdir()) == []
+
+
+def test_init_dry_run_lists_ci_yml_not_the_ci_type_template_it_is_made_from(runner, real_project):
+    from goodvibes_cli.main import app as main_app
+    result = runner.invoke(main_app, ["init", "--dry-run", "--scope", "project"])
+    out = _plain(result)
+    assert "Would write: .github/workflows/ci.yml" in out
+    assert "ci-both.yml" not in out and "ci-node.yml" not in out and "ci-python.yml" not in out
+
+
+def test_init_dry_run_minimal_still_lists_copilots_rules_and_hooks_but_no_other_github_file_or_docs(runner, real_project):
+    from goodvibes_cli.main import app as main_app
+    out = _plain(runner.invoke(main_app, ["init", "--dry-run", "--minimal", "--scope", "project"]))
+    github = [w for w in out.split() if w.startswith((".github", "docs/"))]
+    assert github == [".github/copilot-instructions.md", ".github/hooks/goodvibes.json"]
+
+
+_NEXT_STEPS = (
+    "1. Open this project in your AI coding tool\n"
+    "2. Optional, in the Claude Code terminal, for /ponytail-review and /ponytail-audit:\n"
+    "   /plugin marketplace add DietrichGebert/ponytail\n"
+    "   /plugin install ponytail@ponytail\n"
+    "   Other IDEs (Cursor, Windsurf, Kiro, Antigravity, etc.): rules already active\n"
+    "3. Start coding — CLAUDE.md rules are already active"
+)
+
+
+@pytest.mark.parametrize("dry", [False, True])
+def test_init_next_steps_give_both_ponytail_plugin_commands_marked_optional_for_the_claude_code_terminal(runner, real_project, dry):
+    from goodvibes_cli.commands import init_cmd
+    from goodvibes_cli.main import app as main_app
+    assert init_cmd._NEXT_STEPS == _NEXT_STEPS
+    out = _plain(runner.invoke(main_app, ["init", "--minimal", "--scope", "project", *(["--dry-run"] if dry else [])]))
+    assert " ".join(_NEXT_STEPS.split()) in out
