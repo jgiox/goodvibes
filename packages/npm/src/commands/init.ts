@@ -46,7 +46,7 @@ const NEXT_STEPS = [
   '   /plugin marketplace add DietrichGebert/ponytail',
   '   /plugin install ponytail@ponytail',
   '   Other IDEs (Cursor, Windsurf, Kiro, Antigravity, etc.): rules already active',
-  '3. Start coding — CLAUDE.md rules are already active',
+  '3. Start coding: CLAUDE.md rules are already active',
 ]
 
 export function registerInitCommand(program: Command): void {

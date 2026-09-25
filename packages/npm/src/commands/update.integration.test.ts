@@ -686,7 +686,7 @@ describe('update command — symlinks and broken CLAUDE.md markers', () => {
     expect(readFileSync(join(projectDir, 'CLAUDE.md'), 'utf-8')).toBe(broken)
     expect(readFileSync(join(projectDir, 'AGENTS.md'), 'utf-8')).toBe('tpl v2\n')
     expect(await said()).toMatch(/end line comes before the start line.*fix CLAUDE\.md by hand/)
-    expect(await said()).toContain('Applied 1 file(s). Skipped 0 user-modified file(s).')
+    expect(await said()).toContain('Applied 2 file(s). Skipped 0 user-modified file(s).') // AGENTS.md and the net-new settings.json, not CLAUDE.md
     expect(existsSync(join(projectDir, '.goodvibes.json'))).toBe(true)
   })
 })

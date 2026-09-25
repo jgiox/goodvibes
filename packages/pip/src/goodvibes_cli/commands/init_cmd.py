@@ -50,16 +50,16 @@ _NEXT_STEPS = (
     "   /plugin marketplace add DietrichGebert/ponytail\n"
     "   /plugin install ponytail@ponytail\n"
     "   Other IDEs (Cursor, Windsurf, Kiro, Antigravity, etc.): rules already active\n"
-    "3. Start coding — CLAUDE.md rules are already active"
+    "3. Start coding: CLAUDE.md rules are already active"
 )
 
 
 def init_cmd(
-    dry_run: Annotated[bool, typer.Option("--dry-run", help="Preview files without writing")] = False,
+    dry_run: Annotated[bool, typer.Option("--dry-run", help="Preview files without writing to disk")] = False,
     minimal: Annotated[bool, typer.Option("--minimal", help="Skip headroom, docs/ and the .github CI files (workflows, scripts, Dependabot, issue and PR templates); Copilot's rules and hooks in .github are still added")] = False,
     scope: Annotated[str, typer.Option("--scope", help="global (default): set up Claude Code for every project and install goodvibes globally; project: this folder only")] = "global",
 ) -> None:
-    """Bootstrap a project with goodvibes configuration."""
+    """Bootstrap a project with goodvibes configuration"""
     if scope not in ("global", "project"):
         console.print(f'[red]Unknown --scope "{scope}".[/red] Use --scope global (the default) or --scope project.')
         raise typer.Exit(1)

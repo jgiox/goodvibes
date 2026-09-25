@@ -209,10 +209,12 @@ export async function runUpdate(dryRun: boolean, force: boolean): Promise<void> 
 
   const globalChanges = globalPlan ? globalPlan.written.length + globalPlan.retired.length + globalPlan.settingsChanges.length : 0
   if (!force && (globalChanges > 0 || overwrite.length > 0 || netNew.length > 0 || retired.length > 0 || merges.length > 0 || hookWrites)) {
+    const settings = `${globalChanges} change(s) to your Claude Code settings`
     const proceed = await confirm({
-      message:
-        `Overwrite ${overwrite.length} managed file(s), add ${netNew.length}, merge goodvibes keys into ${merges.length} file(s)` +
-        `${globalPlan ? ` and update ${globalPlan.configDir}` : ''}?`,
+      message: !manifest
+        ? `Apply ${settings}?`
+        : `Overwrite ${overwrite.length} managed file(s), add ${netNew.length}, merge goodvibes keys into ${merges.length} file(s)` +
+          `${globalChanges > 0 ? ` and apply ${settings}` : ''}?`,
     })
     if (isCancel(proceed) || !proceed) {
       cancel('Update cancelled. Nothing was changed.')
@@ -232,6 +234,7 @@ export async function runUpdate(dryRun: boolean, force: boolean): Promise<void> 
   // Apply overwrite + net-new; skip user-modified files
   const selectedVariantSrc = `.github/workflows/ci-${projectType}.yml`
   const claudeProblems: string[] = []
+  let applied = 0
   for (const rel of [...overwrite, ...netNew]) {
     await assertSafe(cwd, rel)
     let templateSrc: string
@@ -251,11 +254,13 @@ export async function runUpdate(dryRun: boolean, force: boolean): Promise<void> 
       } catch (e) {
         if (!(e instanceof MarkerError)) throw e
         claudeProblems.push(e.message)
+        continue
       }
     } else {
       await copy(templateSrc, join(cwd, rel), { overwrite: true })
       if (rel === '.github/dependabot.yml') await writeFile(join(cwd, rel), dependabotYml(await readFile(templateSrc, 'utf-8'), cwd), 'utf-8')
     }
+    applied++
   }
 
   for (const m of merges) {
@@ -299,7 +304,6 @@ export async function runUpdate(dryRun: boolean, force: boolean): Promise<void> 
     gitHook,
   )
 
-  const applied = overwrite.length + netNew.length
   note(
     shown([
       `Applied ${applied} file(s). Skipped ${skip.length + kept.length} user-modified file(s).`,

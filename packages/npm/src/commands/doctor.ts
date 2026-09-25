@@ -154,7 +154,7 @@ function ruleChecks(cwd: string, scope: 'global' | 'project' | null): CheckResul
 export function registerDoctorCommand(program: Command): void {
   program
     .command('doctor')
-    .description('Check goodvibes setup is complete')
+    .description('Check that goodvibes setup is complete')
     .option('--quick', 'Fast local checks only; silent when all pass, always exits 0 (used by the session-start hook)')
     .action(async (options: { quick?: boolean } = {}) => {
       const cwd = process.cwd()

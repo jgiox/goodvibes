@@ -57,7 +57,7 @@ export function registerUpgradeCommand(program: Command): void {
       if (target && !versionGte(current, target)) {
         note(
           `Still running goodvibes ${current} after installing ${target}. The goodvibes on your PATH is not the one that was upgraded.\n` +
-            `Run: npm install -g goodvibes-cli@${target}, then goodvibes --version.`,
+            `Run: npm install -g goodvibes-cli@${target} if you installed goodvibes with npm, or uv tool install "goodvibes-cli>=${target}" if you installed it with Python. Then run goodvibes --version.`,
           'Upgrade did not take effect',
         )
         process.exit(1)

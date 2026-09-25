@@ -297,7 +297,7 @@ def _rule_checks(cwd: pathlib.Path, scope: str | None) -> list[CheckResult]:
 def doctor_cmd(
     quick: Annotated[bool, typer.Option("--quick", help="Fast local checks only; silent when all pass, always exits 0 (used by the session-start hook)")] = False,
 ) -> None:
-    """Check that goodvibes setup is complete."""
+    """Check that goodvibes setup is complete"""
     cwd = pathlib.Path.cwd()
 
     if quick:
