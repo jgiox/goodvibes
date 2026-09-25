@@ -85,10 +85,13 @@ def apply_global_config(template_dir: pathlib.Path, version: str, dry_run: bool,
     for rel, content in owned:
         dest = cfg / rel
         recorded = prev_files.get(rel)
+        if recorded == USER_REMOVED and dest.exists():
+            # The user recreated it: theirs now, never overwritten (not even by init).
+            result["kept"].append(rel)
+            files[rel] = USER_OWNED
+            continue
         if not restore and recorded == USER_REMOVED:
-            if dest.exists():
-                result["kept"].append(rel)
-            files[rel] = USER_OWNED if dest.exists() else USER_REMOVED
+            files[rel] = USER_REMOVED
             continue
         if not restore and recorded and not dest.exists():
             result["removed"].append(rel)
