@@ -15,5 +15,6 @@
   {"name": "allows git commit --no-verify", "script": "echo change >> a.txt && git add a.txt && git commit -q --no-verify -m change", "expect": 0},
   {"name": "allows the commit when GOODVIBES_JOURNAL_CHECK is off", "script": "echo change >> a.txt && git add a.txt && GOODVIBES_JOURNAL_CHECK=off git commit -q -m change", "expect": 0},
   {"name": "checks the repository when committing from a subfolder", "script": "mkdir -p src && echo x > src/x.txt && cd src && git add x.txt && git commit -q -m add", "expect": 1, "stderr_contains": "leaves out JOURNAL.md"},
-  {"name": "tells the user how to skip the check once", "script": "echo change >> a.txt && git add a.txt && git commit -q -m change", "expect": 1, "stderr_contains": "To skip the check once: git commit --no-verify"}
+  {"name": "tells the user how to skip the check once", "script": "echo change >> a.txt && git add a.txt && git commit -q -m change", "expect": 1, "stderr_contains": "To skip the check once: git commit --no-verify"},
+  {"name": "does not run a core.fsmonitor program set in the repository config", "script": "echo change >> a.txt && echo entry >> JOURNAL.md && git add a.txt JOURNAL.md && git config core.fsmonitor \"touch $PWD/fsmonitor-ran; false\" && .git/hooks/pre-commit; test ! -e fsmonitor-ran", "expect": 0}
 ]

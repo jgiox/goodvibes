@@ -26,17 +26,17 @@ def _nested(hooks, field="command"):
     return [(event, g["matcher"], _id(h[field])) for event, groups in hooks.items() for g in groups for h in g["hooks"]]
 
 
-def test_keeps_the_claude_code_matchers_that_cursor_and_the_copilot_cli_map_onto_their_own_shell_and_read_tools():
+def test_keeps_the_claude_code_matchers_that_cursor_and_the_copilot_cli_map_onto_their_own_shell_and_read_tools_and_sends_grep_through_the_read_guard():
     assert _nested({"PreToolUse": CLAUDE["hooks"]["PreToolUse"]}) == [
         ("PreToolUse", "Bash", "journal-gate"),
-        ("PreToolUse", "Read|Bash", "read-guard"),
+        ("PreToolUse", "Read|Bash|Grep", "read-guard"),
     ]
 
 
-def test_gives_devin_cli_both_checks_on_exec_and_the_read_guard_on_read_in_a_hooks_file_without_a_wrapper():
+def test_gives_devin_cli_both_checks_on_exec_and_the_read_guard_on_read_and_grep_in_a_hooks_file_without_a_wrapper():
     assert _nested(_read(".devin/hooks.v1.json")) == [
         ("PreToolUse", "^exec$", "journal-gate"),
-        ("PreToolUse", "^(read|exec)$", "read-guard"),
+        ("PreToolUse", "^(read|exec|grep)$", "read-guard"),
     ]
 
 
@@ -46,17 +46,17 @@ def test_gives_codex_cli_both_checks_on_its_bash_tool_in_codex_hooks_json():
     assert _nested(f["hooks"]) == [("PreToolUse", "Bash", "journal-gate"), ("PreToolUse", "Bash", "read-guard")]
 
 
-def test_gives_gemini_cli_both_checks_on_run_shell_command_and_the_read_guard_on_read_file_with_anchored_matchers():
+def test_gives_gemini_cli_both_checks_on_run_shell_command_and_the_read_guard_on_read_file_read_many_files_and_grep_search():
     assert _nested(_read(".gemini/settings.json")["hooks"]) == [
         ("BeforeTool", "^run_shell_command$", "journal-gate"),
-        ("BeforeTool", "^(run_shell_command|read_file)$", "read-guard"),
+        ("BeforeTool", "^(run_shell_command|read_file|read_many_files|grep_search)$", "read-guard"),
     ]
 
 
 def test_gives_the_copilot_cloud_agent_and_vs_code_both_checks_as_bash_commands_only():
     f = _read(".github/hooks/goodvibes.json")
     assert f["version"] == 1
-    assert _nested(f["hooks"], "bash") == [("PreToolUse", "Bash", "journal-gate"), ("PreToolUse", "Read|Bash", "read-guard")]
+    assert _nested(f["hooks"], "bash") == [("PreToolUse", "Bash", "journal-gate"), ("PreToolUse", "Read|Bash|Grep", "read-guard")]
     assert all("command" not in h and "powershell" not in h for g in f["hooks"]["PreToolUse"] for h in g["hooks"])
 
 

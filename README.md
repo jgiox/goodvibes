@@ -85,7 +85,7 @@ Rules guide, guard rails stop, checks verify. Claude Code gets everything. The t
 ### Guard rails in Claude Code
 
 - **Journal check**: stops Claude Code before it runs a commit that leaves out `JOURNAL.md`. The git commit check (below) covers every tool that makes git commits.
-- **Read guard**: reading a whole file over 800 lines or 100 KB is blocked with a pointer to read a range or search instead. `.env` files, SSH keys and credential files are blocked too. `GOODVIBES_READ_GUARD=off` turns it off.
+- **Read guard**: reading a whole file over 800 lines or 100 KB is blocked with a pointer to read a range or search instead. `.env` files, SSH keys and credential files are blocked too, also in searches (Grep) and in patterns such as `cat .env*`. It is best-effort: it catches the usual ways to read a file, not every one. `GOODVIBES_READ_GUARD=off` turns it off.
 - **Permissions**: see [What Claude Code can do without asking](#what-claude-code-can-do-without-asking).
 - **Session check**: when Claude Code starts, `goodvibes doctor --quick` checks git, the rules and the journal size. It prints nothing unless something needs fixing.
 - **context7**: current library docs, added to your Claude Code user settings (Cursor and VS Code get their own file, below).
@@ -106,7 +106,7 @@ The journal check and the read guard also run in these tools. Each file runs the
 | Cursor | none | Runs the hooks in `.claude/settings.json` while its "Include Third-Party Plugins, Skills, and Other Configs" setting is on (the default) |
 | GitHub Copilot CLI | none | Runs the hooks in `.claude/settings.json` as well as `.github/hooks/goodvibes.json`, so each check runs twice (same result) |
 
-The read guard understands each tool's own way of reading a file, for example a line range given as a start and an end line. The journal check ignores actions that carry no shell command, so it never blocks a file edit whose text happens to mention `git commit`.
+The read guard understands each tool's own way of reading a file, for example a line range given as a start and an end line, and checks their search tools for secret files (Copilot `Grep`, Gemini CLI `grep_search` and `read_many_files`, Devin `grep`). The journal check ignores actions that carry no shell command, so it never blocks a file edit whose text happens to mention `git commit`.
 
 Not covered: Cline (its hooks stop the whole task instead of one action), Antigravity (its hook format is not documented well enough to target), Continue (its hooks are not switched on yet), Amazon Q Developer CLI (discontinued, replaced by Kiro), and Replit, Bolt, Lovable, Base44 and ChatGPT (no hooks). The git commit check still covers the journal in every tool that makes git commits.
 
@@ -160,12 +160,14 @@ It asks first before:
 
 It refuses:
 
-- force-push (`--force`, `-f`, `+branch`) and `git reset --hard`
-- opening `.env` files (`.env.example` stays readable), anything in `~/.ssh`, `~/.aws/credentials`, `~/.git-credentials`, `~/.netrc`, and `.pem`, `id_rsa` or `id_ed25519` key files
+- force-push (`--force`, `-f`, `+branch`, anywhere in the command) and `git reset --hard`
+- opening `.env` files in any folder, such as `.env.local`, `.env.production` or `apps/web/.env` (`.env.example` stays readable), anything in `~/.ssh`, `~/.aws/credentials`, `~/.git-credentials`, `~/.netrc`, and `.pem`, `id_rsa`, `id_ed25519`, `id_ecdsa` or `id_dsa` key files
 
 These rules cover Claude Code's own file tools. The read guard covers the same secret files when Claude tries `cat .env` or similar in the terminal. Hooks and permissions are a safety net for honest mistakes, not a security boundary.
 
-Versions up to 1.9.1 also auto-approved `node`, `python`, `npx`, `uv`, `npm run` and package installs. Any command can run through those, so `goodvibes update` removes exactly those rules from your project settings and keeps the ones you wrote.
+Versions up to 1.9.1 also auto-approved `node`, `python`, `npx`, `uv`, `npm run` and package installs. Any command can run through those, so `goodvibes update` removes exactly those rules from your project settings and keeps the ones you wrote. It also removes `Write(**)`, which Claude Code ignores (`Edit(**)` already covers writing files).
+
+In projects set up with version 1.10.0 or earlier, Claude Code still refuses `--force-with-lease` instead of asking: `goodvibes update` adds the new rules but keeps the old deny rules `Bash(git push --force*)` and `Bash(git push * --force*)`, which also match it. To get the question instead, delete those two lines from `permissions.deny` in `.claude/settings.json` and `~/.claude/settings.json`.
 
 ## Global or one project
 
