@@ -6,7 +6,35 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/2.0.0/),
 
 ## [Unreleased]
 
+### Security
+
+- Journal check: git could be made to run code before any approval. A bare git repository committed inside a project, with `core.fsmonitor` set in its config, ran that command as soon as the hook saw text such as `# git -C vendor/evil commit`. The hook now runs every git call with `-c core.fsmonitor=false -c safe.bareRepository=explicit`. `goodvibes update` installs the fixed hook, including in `~/.claude/settings.json`. Until you update, `git config --global safe.bareRepository explicit` blocks it
+- Shipped project settings no longer auto-approve arbitrary code: `Bash(node*)`, `Bash(python*)`, `Bash(npx*)`, `Bash(uv*)` (which also matched `uvx`), `Bash(npm run*)`, `Bash(npm install*)`, `Bash(pip install*)` and `Bash(git restore *)` are gone from `allow`, so those commands prompt. `update` removes exactly those rules from edited project settings too, never from `~/.claude/settings.json`. Force-push variants (`-f`, `--force` anywhere, `+branch`) are denied; `git restore`, branch and stash deletes, `git clean` and `--force-with-lease` ask first
+- goodvibes never writes through a symlink: a symlinked file or folder in a project (for example `.claude -> ~/.claude` in a cloned repo) is skipped and reported instead of being written through
+- Rules now say JOURNAL.md entries never override them, and never to follow an entry that asks to weaken security, skip tests, push, publish, deploy or run commands it supplies
+- Removed the `caveman-compress`, `caveman-stats` and `cavecrew` skills: they depended on scripts, hooks and agents goodvibes never shipped (`caveman-compress` told the agent to run `python3 -m scripts`, which could run an unrelated package). `update` deletes installed copies you never edited
+- Release pipeline: publishing runs only from `main` or from a tag on `main` whose version matches the package, in a protected `release` environment, after the full test matrix and an install test of the built package; every action is pinned to a commit SHA; PyPI releases carry attestations; the demo recording builds from the checkout and only a separate job can push; the template-publish token is fine-grained and limited to the template repo
+- CI templates: `permissions: contents: read`, `persist-credentials: false`, and third-party actions and images pinned by SHA or digest
+
 ### Fixed
+
+- pip `init` recorded every file in the project (`.git`, `src`, `node_modules`, your own `dependabot.yml`) as goodvibes-written, so `update` later overwrote your files. It now records only files it wrote
+- Running `init` again no longer wipes `.goodvibes.json`; it keeps earlier entries and your removals
+- `CLAUDE.md`: a start marker without an end marker made goodvibes delete everything after it, and markers in the wrong order duplicated text. Markers now count only on their own line, anything unexpected is left alone with an error explaining the fix, and CRLF line endings are kept
+- `update` replaced a whole hook group, deleting your own hooks that shared it; it now replaces only the goodvibes hook
+- `update` changed `~/.claude` before asking; it now shows the full plan for the project and `~/.claude` and asks once, and saying no changes nothing
+- `update` brought back files you deleted and added CI workflows or docs that `init` had skipped (a project with its own workflows, or `--minimal`). Deleted files are recorded as `user-removed` and stay deleted (`init` restores them), and new files are added only to folders goodvibes already manages
+- headroom: installs were killed after 10 seconds, so they failed on almost every first run; they now get 15 minutes. The MCP server was registered without `mcp serve`, so it only printed help; it is registered correctly and old broken entries are repaired
+- npm crashed on Node 20 with `TEXT_ENCODINGS.union is not a function`; Node 22.12 or later is now required and older Node gets a clear message
+- Windows: pip `update` rejected every file, and manifest keys with backslashes broke the settings merge; keys are now always stored with forward slashes
+- Version comparison handled pre-releases wrongly (npm) or crashed on them (pip); `1.9.1rc1`, `-beta.1` and `.post1` now compare correctly
+- A `.goodvibes.json` that is not valid JSON (for example after a git merge conflict) is reported as such, with exit 1, instead of "not set up"
+- `upgrade` works under `python -m goodvibes_cli`, does not try to install anything under `uvx`, says when it cannot reach PyPI, re-runs itself through Node on every platform, and prints an actionable message instead of a stack trace when `npm install -g` fails
+- pip: `init` reports when `goodvibes` was installed but is not on PATH yet, and finds its templates when run from a source checkout
+- JSON files goodvibes writes are written atomically and keep non-ASCII text; a settings file that is JSON but not an object is reported instead of crashing
+- Journal check: commits glued to operators (`npm test&&git commit`, `true|git commit`, `$(git commit ...)`), backslash line continuations, and commits after a full-line comment were not detected; `--amend` anywhere exempted the whole command; `cd dir && git commit` was checked against the wrong repository; `git -C ~/p` was blocked. All fixed, and it no longer blocks `git log | grep commit`, `git help commit` or `git cat-file commit`. It is also much faster on very long commands
+- CI templates: Python CI failed for projects using `uv add --dev` (`[dependency-groups]`); npm caching failed without a lockfile; CodeQL and dependency review failed on private repos without GitHub Advanced Security
+- `DO_NOT_TRACK=true` and `yes` now opt out of telemetry, not only `1`
 
 - `goodvibes upgrade` (pip) said "Updated to X" while staying on the old version: `init` installed the CLI as `uv tool install goodvibes-cli==<version>`, and `uv tool upgrade` never moves past that pin. `init` now installs `goodvibes-cli>=<version>`, `upgrade` installs `goodvibes-cli>=<latest>` (which replaces an existing pin), and in both packages the re-run checks it is on the new version and otherwise stops with exit 1 and the exact fix command. Existing pinned installs: run `uv tool install goodvibes-cli@latest` once
 - npm `goodvibes init` from an older version (for example an old `npx` cache) no longer downgrades a newer global `goodvibes`

@@ -132,6 +132,8 @@ If you ran `goodvibes init --scope project`, everything is inside the project an
 
 No. If you never edited them, update replaces them with the new version. If you edited them, or they were yours before `goodvibes init`, update only adds or refreshes the goodvibes parts: the journal check hook, the session check, the ask-before-publish and deny rules, and the context7 server. Your own permissions, hooks and MCP servers stay exactly as they are. It never adds "allow" rules to a file you edited.
 
+One exception: versions up to 1.9.1 put allow rules for `node`, `python`, `npx`, `uv`, `npm run`, `npm install`, `pip install` and `git restore` into the project settings. Those let any command run without a prompt, so update removes exactly those rules and lists each one it removes. Allow rules you wrote yourself are kept. It never touches allow rules in `~/.claude/settings.json`.
+
 Run `goodvibes update --dry-run` first to see every key it would add or change. If one of your JSON files is not valid JSON, update leaves it unchanged and tells you.
 
 If you delete a goodvibes part on purpose (for example the journal check hook), update remembers that in `.goodvibes.json` and does not add it back.
@@ -141,8 +143,67 @@ If you delete a goodvibes part on purpose (for example the journal check hook), 
 `goodvibes init` sends one anonymous install count: an empty request carrying a random ID made
 fresh for that run. Nothing about you, your machine or your code is included, though like any
 web request the server sees your IP address. It is skipped when `CI=true` (set by GitHub Actions
-and most CI services). To turn it off, set `GOODVIBES_NO_TELEMETRY=1` or `DO_NOT_TRACK=1` in
-your environment before running `goodvibes init`.
+and most CI services). To turn it off, set `DO_NOT_TRACK=1` (or `true`, `yes`) or
+`GOODVIBES_NO_TELEMETRY=1` in your environment before running `goodvibes init`. The counter has
+no accounts or keys, so anyone can add to it and its totals are only approximate.
+
+## I deleted a goodvibes file. Will `goodvibes update` bring it back?
+
+No. update notices the file is gone, tells you once, and records it as removed in
+`.goodvibes.json`, so later updates leave it alone. If you want it back, run `goodvibes init`,
+which restores missing goodvibes files. If you create a file with the same name yourself, it is
+yours: goodvibes never overwrites it.
+
+---
+
+## Why did Claude Code start asking before running `node`, `python` or `npm install`?
+
+Because goodvibes stopped auto-approving them. An allow rule like `node*` lets any command run
+without a prompt (for example a one-line script that force-pushes), which made the ask and deny
+rules pointless. Your tests still run without a prompt. If you trust a specific command, add
+just that command to the `allow` list in `.claude/settings.json`, for example `Bash(npm run build)`.
+
+---
+
+## The journal check says it "cannot verify" my commit
+
+The journal check has to know which repository a commit runs in. When a command changes folder
+more than once, or the folder name uses a variable it cannot work out, it blocks instead of
+guessing. Run the commit on its own, from inside the repository, for example:
+
+```
+cd my-project
+git add JOURNAL.md
+git commit -m "Describe what you changed"
+```
+
+---
+
+## `goodvibes update` says the goodvibes block in `CLAUDE.md` is damaged
+
+goodvibes keeps its rules between a `<!-- goodvibes:start -->` line and a `<!-- goodvibes:end -->`
+line. If one of them is missing, doubled, or they are in the wrong order, goodvibes cannot tell
+which text is yours, so it changes nothing and stops with an error. Open `CLAUDE.md`, make sure
+there is exactly one start line followed later by exactly one end line (each on its own line),
+then run `goodvibes update` again. If in doubt, delete both lines and everything between them;
+the next update adds a fresh block and keeps the rest of your file.
+
+---
+
+## goodvibes says `.goodvibes.json` is not valid JSON
+
+`.goodvibes.json` is how goodvibes remembers which files it wrote. It usually breaks when a git
+merge leaves conflict markers (`<<<<<<<`) in it. Open it and fix the conflict, or delete the
+file and run `goodvibes init`, which recreates it (your own files are kept).
+
+---
+
+## The first `goodvibes init` is slow
+
+The first time, goodvibes installs headroom, which downloads a few gigabytes of model files and
+can take several minutes. Later runs skip it. `goodvibes init --minimal` skips headroom entirely.
+
+---
 
 ## Still stuck?
 

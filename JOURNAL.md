@@ -1811,3 +1811,17 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 **Tests run:** RED: npm 4 failed (global-setup integration x3, update integration); pip 4 failed. GREEN: npm typecheck 0, vitest 436 passed, 1 skipped; pip pytest 356 passed on Python 3.11 and 3.10. The global-setup test mocks gained the new `removed`/`retired` fields.
 
 **Docs updated:** JOURNAL.md.
+
+---
+
+## 2026-09-25 · Docs for the audit fixes
+
+**What I did:** README: journal check scope and "cannot verify" behaviour, update now plans and asks once, deleted files stay deleted, retired skills and old auto-approve rules removed, symlinks never followed, damaged CLAUDE.md block left alone; new "What Claude Code can do without asking" section listing the exact allow/ask/deny behaviour; Node.js 22.12+; new Privacy section (opt-outs incl. `DO_NOT_TRACK=true`, totals approximate). FAQ: removed-allow-rules exception, telemetry wording, and new entries for deleted files, the new prompts for node/python/installs, "cannot verify", a damaged CLAUDE.md block, an invalid `.goodvibes.json`, and the slow first install. getting-started (both copies): journal check scope and limits, headroom first-install time. Package READMEs: Node 22.12, opt-out values. SECURITY.md: fallback contact without details, supported versions, scope includes shipped files and the telemetry worker. demo.tape header. CHANGELOG `[Unreleased]`: Security and Fixed entries for every audit fix.
+
+**Files changed:** README.md, FAQ.md, docs/getting-started.md, templates/docs/getting-started.md, packages/npm/README.md, packages/pip/README.md, SECURITY.md, scripts/demo.tape, CHANGELOG.md, JOURNAL.md.
+
+**Why:** Every doc the audit fixes made untrue.
+
+**Tests run:** docs only; claims checked against the merged code (permissions list read from templates/.claude/settings.json).
+
+**Docs updated:** as listed.
