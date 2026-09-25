@@ -231,3 +231,13 @@ describe('refreshing goodvibes hook groups and retired deny rules', () => {
     expect(merged.permissions.deny).toContain('Bash(git push --force*)')
   })
 })
+
+describe('matcher refresh in a shared group', () => {
+  it('keeps the matcher of a group where the user added their own hooks next to the goodvibes hook', () => {
+    const tpl = { hooks: { PreToolUse: [{ matcher: 'Read|Bash|Grep', hooks: [{ type: 'command', command: ': goodvibes-read-guard; v2' }] }] } }
+    const user = { hooks: { PreToolUse: [{ matcher: 'Read|Bash|Edit', hooks: [{ type: 'command', command: './mine.sh' }, { type: 'command', command: ': goodvibes-read-guard; v1' }] }] } }
+    const { merged } = mergeManagedJson('.claude/settings.json', tpl, user)
+    expect(merged.hooks.PreToolUse[0].matcher).toBe('Read|Bash|Edit')
+    expect(merged.hooks.PreToolUse[0].hooks[1].command).toBe(': goodvibes-read-guard; v2')
+  })
+})

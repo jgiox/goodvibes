@@ -167,7 +167,7 @@ These rules cover Claude Code's own file tools. The read guard covers the same s
 
 Versions up to 1.9.1 also auto-approved `node`, `python`, `npx`, `uv`, `npm run` and package installs. Any command can run through those, so `goodvibes update` removes exactly those rules from your project settings and keeps the ones you wrote. It also removes `Write(**)`, which Claude Code ignores (`Edit(**)` already covers writing files).
 
-In projects set up with version 1.10.0 or earlier, Claude Code still refuses `--force-with-lease` instead of asking: `goodvibes update` adds the new rules but keeps the old deny rules `Bash(git push --force*)` and `Bash(git push * --force*)`, which also match it. To get the question instead, delete those two lines from `permissions.deny` in `.claude/settings.json` and `~/.claude/settings.json`.
+In projects set up with version 1.10.0 or earlier, `goodvibes update` removes the old deny rules `Bash(git push --force*)` and `Bash(git push * --force*)`, which also matched `--force-with-lease`, so Claude Code asks instead of refusing. If you added one of those rules yourself, update leaves it, and `--force-with-lease` stays refused until you delete it.
 
 ## Global or one project
 

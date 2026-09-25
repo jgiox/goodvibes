@@ -82,7 +82,10 @@ export function presentIds(rel: string, tpl: Json, content: Json): string[] {
 }
 
 // An id in `installed` but absent from `user` was removed by the user and stays removed.
-// Allow rules goodvibes shipped up to 1.9.1: they auto-approved running arbitrary code, so update takes them back out.
+// Allow rules goodvibes shipped earlier: up to 1.9.1 they auto-approved running arbitrary code; Write(**) did nothing and made Claude Code warn.
+// Deny rules goodvibes shipped up to 1.10.0: they prefix-match --force-with-lease, so its ask rule never applied.
+export const RETIRED_DENY = ['Bash(git push --force*)', 'Bash(git push * --force*)']
+
 export const RETIRED_ALLOW = ['Bash(npm install*)', 'Bash(npm run*)', 'Bash(npx*)', 'Bash(pip install*)', 'Bash(uv*)', 'Bash(python*)', 'Bash(node*)', 'Bash(git restore *)', 'Write(**)']
 
 export function mergeManagedJson(
@@ -120,6 +123,13 @@ export function mergeManagedJson(
     merged.permissions.allow = keep
   }
 
+  if (Array.isArray(merged.permissions?.deny)) {
+    // Only rules goodvibes installed are retired; a copy the user wrote stays.
+    const drop = (p: string) => RETIRED_DENY.includes(p) && wasInstalled(`deny:${p}`)
+    for (const p of merged.permissions.deny) if (drop(p)) changes.push(`- permissions.deny: ${p}`)
+    merged.permissions.deny = merged.permissions.deny.filter((p: string) => !drop(p))
+  }
+
   for (const list of ['ask', 'deny']) {
     for (const p of tpl.permissions?.[list] ?? []) {
       const have: string[] = merged.permissions?.[list] ?? []
@@ -139,7 +149,9 @@ export function mergeManagedJson(
         // Only the marked hook is ours; the user's other hooks and fields in that group stay.
         const ug = userGroups[idx]
         const tplHook = g.hooks.find((h: Json) => markerOf(h) === id)
-        const next = { ...ug, hooks: ug.hooks.map((h: Json) => (markerOf(h) === id ? tplHook : h)) }
+        // The matcher is refreshed only in a group holding nothing but our hook; the user's own hooks keep their routing.
+        const ours = 'matcher' in g && ug.hooks.every((h: Json) => markerOf(h) === id)
+        const next = { ...ug, ...(ours ? { matcher: g.matcher } : {}), hooks: ug.hooks.map((h: Json) => (markerOf(h) === id ? tplHook : h)) }
         if (!same(ug, next)) {
           userGroups[idx] = next
           changes.push(`~ hooks.${event}: ${id}`)

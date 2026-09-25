@@ -101,7 +101,10 @@ def present_ids(rel: str, tpl: dict, content: dict) -> list[str]:
     return [mid for mid in managed_ids(rel, tpl) if present(mid)]
 
 
-# Allow rules goodvibes shipped up to 1.9.1: they auto-approved running arbitrary code, so update takes them back out.
+# Allow rules goodvibes shipped earlier: up to 1.9.1 they auto-approved running arbitrary code; Write(**) did nothing and made Claude Code warn.
+# Deny rules goodvibes shipped up to 1.10.0: they prefix-match --force-with-lease, so its ask rule never applied.
+RETIRED_DENY = ["Bash(git push --force*)", "Bash(git push * --force*)"]
+
 RETIRED_ALLOW = ['Bash(npm install*)', 'Bash(npm run*)', 'Bash(npx*)', 'Bash(pip install*)', 'Bash(uv*)', 'Bash(python*)', 'Bash(node*)', 'Bash(git restore *)', 'Write(**)']
 
 
@@ -132,6 +135,13 @@ def merge_managed_json(
         changes.extend(f"- permissions.allow: {p}" for p in allow if p in RETIRED_ALLOW)
         merged["permissions"]["allow"] = [p for p in allow if p not in RETIRED_ALLOW]
 
+    deny = (merged.get("permissions") or {}).get("deny")
+    if isinstance(deny, list):
+        # Only rules goodvibes installed are retired; a copy the user wrote stays.
+        drop = [p for p in deny if p in RETIRED_DENY and f"deny:{p}" in installed]
+        changes.extend(f"- permissions.deny: {p}" for p in drop)
+        merged["permissions"]["deny"] = [p for p in deny if p not in drop]
+
     for lst in ("ask", "deny"):
         for p in (tpl.get("permissions") or {}).get(lst) or []:
             have = (merged.get("permissions") or {}).get(lst) or []
@@ -152,8 +162,15 @@ def merge_managed_json(
                 user_hooks = user_groups[idx]["hooks"]
                 j = _marked_hook(user_groups[idx])[0]
                 tpl_hook = g["hooks"][_marked_hook(g)[0]]
+                # The matcher is refreshed only in a group holding nothing but our hook; the user's own hooks keep their routing.
+                ours = "matcher" in g and all(_marked_hook({"hooks": [h]}) for h in user_hooks)
+                refreshed = ours and user_groups[idx].get("matcher") != g["matcher"]
+                if refreshed:
+                    user_groups[idx]["matcher"] = g["matcher"]
                 if user_hooks[j] != tpl_hook:
                     user_hooks[j] = copy.deepcopy(tpl_hook)
+                    refreshed = True
+                if refreshed:
                     changes.append(f"~ hooks.{event}: {hid}")
             elif f"hook:{event}:{hid}" not in installed:
                 merged["hooks"] = {**(merged.get("hooks") or {}), event: [*user_groups, g]}
