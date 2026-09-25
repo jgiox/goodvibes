@@ -16,17 +16,17 @@ const nested = (hooks: Record<string, any[]>, field = 'command'): Route[] =>
   Object.entries(hooks).flatMap(([event, groups]) => groups.flatMap(g => g.hooks.map((h: any) => [event, g.matcher, id(h[field])] as Route)))
 
 describe('hook files for other AI tools', () => {
-  it('keeps the Claude Code matchers that Cursor and the Copilot CLI map onto their own shell and read tools', () => {
+  it('keeps the Claude Code matchers that Cursor and the Copilot CLI map onto their own shell and read tools, and sends Grep through the read guard', () => {
     expect(nested({ PreToolUse: claude.hooks.PreToolUse })).toEqual([
       ['PreToolUse', 'Bash', 'journal-gate'],
-      ['PreToolUse', 'Read|Bash', 'read-guard'],
+      ['PreToolUse', 'Read|Bash|Grep', 'read-guard'],
     ])
   })
 
-  it('gives Devin CLI both checks on exec and the read guard on read in .devin/hooks.v1.json, which has no hooks wrapper', () => {
+  it('gives Devin CLI both checks on exec and the read guard on read and grep in .devin/hooks.v1.json, which has no hooks wrapper', () => {
     expect(nested(read('.devin/hooks.v1.json'))).toEqual([
       ['PreToolUse', '^exec$', 'journal-gate'],
-      ['PreToolUse', '^(read|exec)$', 'read-guard'],
+      ['PreToolUse', '^(read|exec|grep)$', 'read-guard'],
     ])
   })
 
@@ -39,10 +39,10 @@ describe('hook files for other AI tools', () => {
     ])
   })
 
-  it('gives Gemini CLI both checks on run_shell_command and the read guard on read_file, with anchored matchers', () => {
+  it('gives Gemini CLI both checks on run_shell_command and the read guard on read_file, read_many_files and grep_search, with anchored matchers', () => {
     expect(nested(read('.gemini/settings.json').hooks)).toEqual([
       ['BeforeTool', '^run_shell_command$', 'journal-gate'],
-      ['BeforeTool', '^(run_shell_command|read_file)$', 'read-guard'],
+      ['BeforeTool', '^(run_shell_command|read_file|read_many_files|grep_search)$', 'read-guard'],
     ])
   })
 
@@ -51,7 +51,7 @@ describe('hook files for other AI tools', () => {
     expect(f.version).toBe(1)
     expect(nested(f.hooks, 'bash')).toEqual([
       ['PreToolUse', 'Bash', 'journal-gate'],
-      ['PreToolUse', 'Read|Bash', 'read-guard'],
+      ['PreToolUse', 'Read|Bash|Grep', 'read-guard'],
     ])
     expect(f.hooks.PreToolUse.flatMap((g: any) => g.hooks).every((h: any) => !('command' in h) && !('powershell' in h))).toBe(true)
   })
