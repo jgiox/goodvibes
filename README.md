@@ -132,7 +132,7 @@ It asks first before:
 
 - `git push`, publishing (`npm publish`, `twine upload` and others) and deploying (`wrangler`, `netlify`, `firebase`, `npm run deploy`)
 - `git restore`, deleting a branch or stash, `git clean`, `--force-with-lease`
-- editing its own guard rails: `.claude/settings.json`, `.claude/settings.local.json`, `.mcp.json` and `.claude/hooks/`
+- editing its own guard rails: `.claude/settings.json`, `.claude/settings.local.json`, the MCP server files (`.mcp.json`, `.cursor/mcp.json`, `.vscode/mcp.json`) and `.claude/hooks/`
 - any other command, including installing packages and running `node`, `python`, `npx` or `uv`
 
 It refuses:
