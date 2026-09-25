@@ -42,7 +42,7 @@ It is free, open source (Apache 2.0) and works on its own: no account, no servic
 | "Done" without proof | The rules require passing tests, pasted output and updated docs before a task counts as done. A failing test comes before every bug fix |
 | Each session starts from zero | **JOURNAL.md** keeps decisions across sessions and tools, and a commit that leaves it out is blocked, in every tool |
 | Risky commands | Claude Code asks before `git push`, publishing, deploying or deleting branches, refuses force-push and `git reset --hard`, and will not open `.env` files, SSH keys or credential files |
-| Outdated library knowledge | **context7** gives Claude Code current library docs. Free, no key |
+| Outdated library knowledge | **context7** gives Claude Code, Cursor and VS Code (GitHub Copilot) current library docs. Free, no key |
 | Nothing checks your work | GitHub workflows for tests, security scanning, secret scanning, dependency review and file size, plus Dependabot |
 
 Everything works out of the box. Every piece can be turned off.
@@ -88,12 +88,13 @@ Rules guide, guard rails stop, checks verify. Other AI tools get layers 1 and 3,
 - **Read guard**: reading a whole file over 800 lines or 100 KB is blocked with a pointer to read a range or search instead. `.env` files, SSH keys and credential files are blocked too. `GOODVIBES_READ_GUARD=off` turns it off.
 - **Permissions**: see [What Claude Code can do without asking](#what-claude-code-can-do-without-asking).
 - **Session check**: when Claude Code starts, `goodvibes doctor --quick` checks git, the rules and the journal size. It prints nothing unless something needs fixing.
-- **context7**: current library docs, added to your Claude Code user settings.
+- **context7**: current library docs, added to your Claude Code user settings (Cursor and VS Code get their own file, below).
 - **headroom**: compresses what Claude reads. Needs Python 3.10 or later; skipped if Python is missing. The first install downloads a few gigabytes.
 
 ### In your project
 
 - **Git commit check** in `.git/hooks/pre-commit`: blocks any commit that leaves out `JOURNAL.md`, from any AI tool or from you, so every change leaves a note. It lives in your local git folder and is never committed, so each person who clones runs `goodvibes update` once. It never replaces a pre-commit hook you already have. `git commit --no-verify` skips it once.
+- **context7 for Cursor and VS Code (GitHub Copilot)**: `.cursor/mcp.json` and `.vscode/mcp.json`, each holding only the context7 server, so those tools can look up current library docs too. Windsurf keeps its MCP servers outside the project, so you add context7 there yourself: see [Windsurf setup](docs/platform-setup/windsurf.md).
 - `JOURNAL.md` (decision log), `CHANGELOG.md`, `CONTRIBUTING.md`, `SECURITY.md` and a `CLAUDE.md` with a project section for you to fill in.
 - **GitHub workflows**: tests (Node, Python or both, matched to your project), CodeQL and gitleaks security scans, dependency review that accepts only permissive licences, and a file size check (new code files stay under 500 lines; files already bigger may not grow). Third-party actions and the gitleaks image are pinned to exact versions, tokens are read-only, and superseded runs are cancelled.
 - **Dependabot**, waiting 7 days before proposing a new release, plus issue and pull request templates.
@@ -117,7 +118,7 @@ Rules guide, guard rails stop, checks verify. Other AI tools get layers 1 and 3,
 `goodvibes upgrade` gets the newest version and updates your files in one step. `goodvibes update` updates your files to the version you already have.
 
 - Files you never edited are replaced with the new version. Files you edited are left alone.
-- `.claude/settings.json` and `.mcp.json` are merged: goodvibes refreshes only its own entries (the journal check, the read guard, the ask and deny rules, context7) and keeps everything you added.
+- `.claude/settings.json`, `.mcp.json`, `.cursor/mcp.json` and `.vscode/mcp.json` are merged: goodvibes refreshes only its own entries (the journal check, the read guard, the ask and deny rules, context7) and keeps everything you added.
 - Anything goodvibes added that you deleted stays deleted. `goodvibes init` brings deleted files back if you want them.
 - Skills goodvibes no longer ships are removed, unless you edited them.
 - The git commit check is refreshed; if you deleted `.git/hooks/pre-commit`, it stays deleted.
@@ -154,7 +155,7 @@ By default, `goodvibes init` sets goodvibes up for every project on your compute
 | `~/.claude/skills/` | caveman, goodvibes-hygiene, model-regression and the other skills |
 | `~/.claude/settings.json` | The journal check, the read guard, the session check, and the ask and deny rules. Your own settings are kept, and goodvibes never adds "allow" rules here |
 | Claude Code user MCP settings | context7 |
-| This folder | `JOURNAL.md`, `CHANGELOG.md`, CI workflows, rule files for other AI tools, `.claude/settings.json`, and a `CLAUDE.md` with a project section to fill in |
+| This folder | `JOURNAL.md`, `CHANGELOG.md`, CI workflows, rule files for other AI tools, context7 for Cursor and VS Code (`.cursor/mcp.json`, `.vscode/mcp.json`), `.claude/settings.json`, and a `CLAUDE.md` with a project section to fill in |
 
 In your other projects, Claude Code then asks before pushing, publishing or deploying, refuses force-push, `git reset --hard` and secret files, and reads big files in ranges. The journal check acts only in repos that have a `JOURNAL.md`, and the session check stays quiet outside goodvibes projects. Running `goodvibes init` in your home folder does the global part only.
 
@@ -175,9 +176,9 @@ To undo the global part, delete `~/.claude/rules/goodvibes.md` and the goodvibes
 | Tool | File | Notes |
 |---|---|---|
 | Claude Code | `~/.claude/rules/goodvibes.md`, or `CLAUDE.md` with `--scope project` | Also gets the hooks, permissions, skills and MCP servers |
-| Cursor | `.cursor/rules/goodvibes.mdc` | 0.45 or later; `alwaysApply: true` |
-| GitHub Copilot | `.github/copilot-instructions.md` | VS Code Copilot Chat. If it does not apply, check that `github.copilot.chat.codeGeneration.useInstructionFiles` is on |
-| Windsurf | `.windsurfrules` | Every Cascade conversation |
+| Cursor | `.cursor/rules/goodvibes.mdc` | 0.45 or later; `alwaysApply: true`. context7 in `.cursor/mcp.json` |
+| GitHub Copilot | `.github/copilot-instructions.md` | VS Code Copilot Chat. If it does not apply, check that `github.copilot.chat.codeGeneration.useInstructionFiles` is on. context7 in `.vscode/mcp.json` |
+| Windsurf | `.windsurfrules` | Every Cascade conversation. context7 is a manual step: see [Windsurf setup](docs/platform-setup/windsurf.md) |
 | Devin Desktop | `.devin/rules/goodvibes.md` | Every conversation |
 | Kiro | `.kiro/steering/goodvibes.md` | `inclusion: always` |
 | Antigravity | `GEMINI.md` | Every session |

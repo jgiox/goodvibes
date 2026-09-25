@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/2.0.0/),
 
 ## [Unreleased]
 
+### Added
+
+- context7 in Cursor and VS Code (GitHub Copilot): `goodvibes init` writes `.cursor/mcp.json` and `.vscode/mcp.json` with the context7 server, in every scope and with `--minimal`. `goodvibes update` adds or refreshes only the `context7` entry, keeps your other servers, and never brings back an entry or file you deleted. Windsurf keeps its MCP servers outside the project, so its setup note explains the one manual step
+
 ## [1.10.0] - 2026-09-25
 
 ### Added

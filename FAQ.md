@@ -70,7 +70,7 @@ npx goodvibes-cli init --dry-run
 
 ### Where did goodvibes put its files?
 
-By default, in two places. Things that should apply to every project go into your Claude Code settings folder (`~/.claude`): the rules (`rules/goodvibes.md`), the skills, and the hooks and ask and deny rules in `settings.json`. context7 goes into your Claude Code user MCP settings. Things that belong to one project go into the folder where you ran `goodvibes init`: `JOURNAL.md`, `CHANGELOG.md`, CI workflows, rule files for other AI tools, `.claude/settings.json`, and a `CLAUDE.md` with a project section to fill in.
+By default, in two places. Things that should apply to every project go into your Claude Code settings folder (`~/.claude`): the rules (`rules/goodvibes.md`), the skills, and the hooks and ask and deny rules in `settings.json`. context7 goes into your Claude Code user MCP settings. Things that belong to one project go into the folder where you ran `goodvibes init`: `JOURNAL.md`, `CHANGELOG.md`, CI workflows, rule files for other AI tools, context7 for Cursor (`.cursor/mcp.json`) and VS Code (`.vscode/mcp.json`), `.claude/settings.json`, and a `CLAUDE.md` with a project section to fill in.
 
 If you ran `goodvibes init --scope project`, everything is inside the project and nothing was written to `~/.claude`. The one exception is headroom, which is always registered in your Claude Code user settings. The project's `.goodvibes.json` records which scope it uses, and `goodvibes update` follows it. [Global or one project](README.md#global-or-one-project) has the full table.
 
@@ -140,6 +140,8 @@ When goodvibes writes a file, it records a fingerprint of its content (a SHA-256
 ### Will `goodvibes update` overwrite my `.claude/settings.json` or `.mcp.json`?
 
 No. If you never edited them, update replaces them with the new version. If you edited them, or they were yours before `goodvibes init`, update only adds or refreshes the goodvibes parts: the journal check hook, the read guard hook, the session check, the ask and deny rules, and the context7 server. Your own permissions, hooks and MCP servers stay exactly as they are. It never adds "allow" rules to a file you edited.
+
+The same goes for `.cursor/mcp.json` and `.vscode/mcp.json`: update adds or refreshes only the `context7` entry and keeps your other servers. If you delete the `context7` entry or the whole file, it stays deleted.
 
 One exception: versions up to 1.9.1 put allow rules for `node`, `python`, `npx`, `uv`, `npm run`, `npm install`, `pip install` and `git restore` into the project settings. Those let any command run without a prompt, so update removes exactly those rules and lists each one it removes. Allow rules you wrote yourself are kept. It never touches allow rules in `~/.claude/settings.json`.
 
@@ -235,7 +237,7 @@ It reads the session logs Claude Code keeps on your computer (`~/.claude/project
 
 `goodvibes init` sends one anonymous install count: an empty request carrying a random ID made fresh for that run. Nothing about you, your machine or your code is included, though like any web request the server sees your IP address. It is skipped when `CI=true` (set by GitHub Actions and most CI services). To turn it off, set `DO_NOT_TRACK=1` (or `true`, `yes`) or `GOODVIBES_NO_TELEMETRY=1` in your environment before running `goodvibes init`. The counter has no accounts or keys, so anyone can add to it and its totals are only approximate.
 
-`goodvibes usage` and `goodvibes doctor` never send anything. context7 is an online service: when Claude Code looks up library docs, the question goes to context7. The goodvibes rules tell the AI never to put secrets, personal data or private code in those lookups.
+`goodvibes usage` and `goodvibes doctor` never send anything. context7 is an online service: when your AI tool looks up library docs, the question goes to context7. The goodvibes rules tell the AI never to put secrets, personal data or private code in those lookups.
 
 ## Fixing problems
 
