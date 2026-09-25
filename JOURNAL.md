@@ -1865,3 +1865,12 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 - 3 GREEN: new `mcp-check.ts` reads user/local servers from `.claude.json` (CLAUDE_CONFIG_DIR, falling back to `claude.json`, else `~/.claude.json`) and project servers from `./.mcp.json`; one ok line per clean server, warnings for curl/wget piped into sh/bash -c, unpinned npx/bunx/pnpm dlx/uvx packages, plain http to a remote host, and literal secrets in env/headers (key name only). Full doctor only; never contacts a server.
 - 4 RED: `usage.test.ts` (fixture JSONL in temp dirs: duplicate message ids, a malformed line, entries without usage) and a built-CLI test that `goodvibes usage` is registered.
 - 4 GREEN: new `goodvibes usage` (`usage.ts`, registered in `cli.ts`): reads `<config>/projects/*/*.jsonl` (this project by default, `--all`, `--days N` by mtime, `--json`), dedupes assistant usage by message id, prints the 10 most recent sessions, totals, a `!` mark and note above 160k peak context, and the best-effort footer. Offline; never reads or prints message content.
+
+**Files changed:** packages/npm/src/commands/doctor.ts, doctor.test.ts, mcp-check.ts (new), mcp-check.test.ts (new), usage.ts (new), usage.test.ts (new), packages/npm/src/cli.ts, packages/npm/src/dist-cli.integration.test.ts, JOURNAL.md.
+
+**Why:** Doctor treated optional parts (headroom) as failures; users had no view of oversized journals, risky MCP server configs, or local token use. The pip package gets the same spec from a separate worker; output strings must match.
+
+**Tests run:** npm prebuild, typecheck 0 errors, build OK, vitest 484 passed, 1 skipped; verify-phase1 to 5 PASS (phase 3 failed one pip build check on its first run only, then passed twice; nothing in packages/pip changed). Built-CLI demo in a temp sandbox (CLAUDE_CONFIG_DIR and HOME pointed there).
+
+**Docs updated:** none (out of scope for this worker). README/FAQ/CHANGELOG need: tri-state doctor and the summary line, the journal warning, the MCP check, and `goodvibes usage`.
+
