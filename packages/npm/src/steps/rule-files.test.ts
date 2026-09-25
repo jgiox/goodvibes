@@ -65,6 +65,29 @@ describe('agent rule files (AGENT-01..04)', () => {
     expect(section).toMatch(/^- \S/m)
   })
 
+  it.each(RULE_FILES)('%s carries the command-output, retry, verification, search, dry-run and regression-test rules', rel => {
+    const text = read(rel)
+    for (const rule of [
+      "When you only need to parse a command's output, ask for machine or quiet output (`--json`, `--porcelain`, `-q`); report a short summary of the results, not the raw output.",
+      'If the same step fails twice the same way, change approach instead of retrying.',
+      'Before saying something is done, confirm it on the current commit (`git rev-parse HEAD`, re-run the check).',
+      'Say "not found" only for the places you actually searched, and name them.',
+      'Dry-run first when a command changes things and supports it; a dry run is not success.',
+      'A regression test must fail when the fix it guards is removed.',
+    ]) {
+      expect(text).toContain(rule)
+    }
+  })
+
+  it('CLAUDE.md tells Claude Code what to keep when summarising or compacting context, inside the goodvibes block', () => {
+    const text = read('CLAUDE.md')
+    const block = text.slice(text.indexOf('<!-- goodvibes:start -->'), text.indexOf('<!-- goodvibes:end -->'))
+    expect(block).toContain(
+      '### When summarising or compacting context\nKeep the task, the decisions made and why, the files changed, what remains, and the single next step.',
+    )
+    expect(read('AGENTS.md')).not.toContain('compacting context')
+  })
+
   it('CLAUDE.md forbids re-asking for information and names every source', () => {
     expect(read('CLAUDE.md')).toContain(
       'Never ask the user for information already answered in README.md, CLAUDE.md, AGENTS.md, JOURNAL.md, or the codebase.',
