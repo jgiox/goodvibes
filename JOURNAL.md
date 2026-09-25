@@ -1873,3 +1873,4 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 - RED 3: tests that every rule file and JOURNAL.md read only Standing decisions plus the last five entries and record lasting decisions there, and that JOURNAL.md opens with a Standing decisions list.
 - GREEN 3: templates/JOURNAL.md opens with `## Standing decisions` (one placeholder bullet); every rule file now says read Standing decisions plus the last five entries (older only when needed) and add or update one Standing decisions line per lasting decision. npm vitest 470 passed; pip 361 passed.
 - RED 4: tests that every rule file carries the six new command/evidence rules and CLAUDE.md has a summarising section inside its goodvibes block.
+- GREEN 4: new "Commands and evidence" section (six one-line rules) in every rule file; "When summarising or compacting context" section in templates/CLAUDE.md only. Version stamp unchanged. npm vitest 484 passed; pip 361 passed.

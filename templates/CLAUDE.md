@@ -64,6 +64,14 @@ Flag immediately: SQL injection, XSS, command injection, path traversal, broken 
 - Review every Dependabot PR: changelog, advisories, lockfile diff, licence. Never mass-upgrade in one change.
 - Measure before optimizing. No N+1 queries or calls in loops; batch and cache only where a measurement shows the need.
 
+### Commands and evidence
+- When you only need to parse a command's output, ask for machine or quiet output (`--json`, `--porcelain`, `-q`); report a short summary of the results, not the raw output.
+- If the same step fails twice the same way, change approach instead of retrying.
+- Before saying something is done, confirm it on the current commit (`git rev-parse HEAD`, re-run the check).
+- Say "not found" only for the places you actually searched, and name them.
+- Dry-run first when a command changes things and supports it; a dry run is not success.
+- A regression test must fail when the fix it guards is removed.
+
 ### Definition of done
 **A task is not done until every one of these is true.**
 - The relevant tests pass, with the output pasted ("I ran the tests" is not proof). Name the files changed and the tests covering each; say so when none does.
@@ -85,6 +93,9 @@ Flag immediately: SQL injection, XSS, command injection, path traversal, broken 
 
 ### Journal
 Add a JOURNAL.md entry at the end of every task: date, task summary, files changed, why, tests run, docs updated. Additive only; never rewrite earlier entries. When a task makes a lasting decision, add or update one line under Standing decisions. Write it for the next agent, which may be a different tool.
+
+### When summarising or compacting context
+Keep the task, the decisions made and why, the files changed, what remains, and the single next step.
 
 ### Git
 - Push after every completed task, once the human confirms; never end a session with completed work only on this machine.

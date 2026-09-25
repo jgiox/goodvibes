@@ -12,4 +12,6 @@ Fail loud. No empty catch blocks. No silent retries. Never return fake success o
 
 Security. Validate input at the boundary. Keep secrets out of code and logs. Apply least privilege. Never open, print, or paste the contents of `.env` files (except `.env.example`), private keys, or credential files; ask the user for the specific values you need. Flag immediately: SQL injection, XSS, command injection, path traversal, broken auth, leaked secrets.
 
+Commands and evidence. When you only need to parse a command's output, ask for machine or quiet output (`--json`, `--porcelain`, `-q`); report a short summary of the results, not the raw output. If the same step fails twice the same way, change approach instead of retrying. Before saying something is done, confirm it on the current commit (`git rev-parse HEAD`, re-run the check). Say "not found" only for the places you actually searched, and name them. Dry-run first when a command changes things and supports it; a dry run is not success. A regression test must fail when the fix it guards is removed.
+
 Definition of done. A task is done only when tests pass with pasted output and CHANGELOG.md/JOURNAL.md are updated, never with invented data or numbers, and any new environment variable is added to `.env.example` in the same change.

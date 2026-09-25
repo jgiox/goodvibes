@@ -41,6 +41,14 @@ Flag immediately: SQL injection, XSS, command injection, path traversal, broken 
 ### Dependencies, performance, git
 Never add a dependency for what a few lines can do; check licence, maintenance, and advisories first. Review each Dependabot PR's changelog, advisories, and lockfile diff; never mass-upgrade. Measure before optimizing; no N+1 queries or calls in loops. Branch names start with `feat/`, `fix/`, `docs/`, or `chore/`; delete a branch only when `git log origin/main..<branch>` prints nothing.
 
+### Commands and evidence
+- When you only need to parse a command's output, ask for machine or quiet output (`--json`, `--porcelain`, `-q`); report a short summary of the results, not the raw output.
+- If the same step fails twice the same way, change approach instead of retrying.
+- Before saying something is done, confirm it on the current commit (`git rev-parse HEAD`, re-run the check).
+- Say "not found" only for the places you actually searched, and name them.
+- Dry-run first when a command changes things and supports it; a dry run is not success.
+- A regression test must fail when the fix it guards is removed.
+
 ### Definition of done
 A task is done only when tests pass with pasted output (name the files changed and the tests covering them; say so when none does), every Markdown file the change made untrue is updated with dated CHANGELOG.md and JOURNAL.md entries, exact paths were staged (never `git add -A`/`git add .`), and after a push CI is confirmed green with the branch and commit SHA reported. Anything blocked is reported as what failed, why, the risk, and the exact next step.
 
