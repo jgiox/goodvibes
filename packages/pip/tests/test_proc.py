@@ -69,3 +69,23 @@ def test_run_on_windows_keeps_an_absolute_program_path(mocker, windows):
     run = mocker.patch("goodvibes_cli.utils.proc.subprocess.run")
     proc.run([python, "-m", "pip"])
     assert run.call_args.args[0] == [python, "-m", "pip"]
+
+
+def test_run_off_windows_gives_the_child_a_path_without_dot_empty_relative_or_project_folders(mocker, tmp_path, monkeypatch):
+    mocker.patch("goodvibes_cli.utils.proc.WINDOWS", False)
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("PATH", os.pathsep.join([".", "", "bin", str(tmp_path / "bin"), str(tmp_path), "/usr/bin", "/bin"]))
+    run = mocker.patch("goodvibes_cli.utils.proc.subprocess.run")
+    proc.run(["headroom", "mcp", "status"])
+    assert run.call_args.args[0] == ["headroom", "mcp", "status"]
+    assert run.call_args.kwargs["env"]["PATH"] == os.pathsep.join(["/usr/bin", "/bin"])
+
+
+def test_which_off_windows_ignores_a_program_that_only_dot_or_the_project_folder_on_path_would_find(mocker, tmp_path, monkeypatch):
+    mocker.patch("goodvibes_cli.utils.proc.WINDOWS", False)
+    tool = tmp_path / "headroom"
+    tool.write_text("#!/bin/sh\n")
+    tool.chmod(0o755)
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("PATH", os.pathsep.join([".", str(tmp_path)]))
+    assert proc.which("headroom") is None
