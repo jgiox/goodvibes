@@ -1851,3 +1851,10 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 **Tests run:** RED: npm mode test failed (symlink test passed); pip symlink test failed (mode test passed). GREEN: npm typecheck 0, vitest 438 passed, 1 skipped (the fs-safe unit mock gained stat and chmod); pip pytest 358 passed.
 
 **Docs updated:** JOURNAL.md.
+
+---
+
+## 2026-09-25 · npm: tri-state doctor, journal size warning, MCP server check, `goodvibes usage`
+
+**What I did:** Implementing four spec items in the npm CLI, each as a RED test commit then a GREEN implementation commit.
+- 1 RED: doctor tests for ok/warn/fail/skip, optional parts as warnings, and the Ready / Not ready summary line.
