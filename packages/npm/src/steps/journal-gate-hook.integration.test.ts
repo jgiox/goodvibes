@@ -365,4 +365,9 @@ describe('journal-gate hook', () => {
       expect(exitCode).toBe(0)
     })
   }
+
+  it('blocks a commit split across lines with a backslash-newline continuation', async () => {
+    const { exitCode } = await runHook('git \\\n  commit -m x', repoDir)
+    expect(exitCode).toBe(2)
+  })
 })

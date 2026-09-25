@@ -327,3 +327,7 @@ def test_blocks_commit_whose_git_is_glued_to_a_shell_operator(repo_dir, command)
 )
 def test_allows_git_command_whose_subcommand_is_not_commit(repo_dir, command):
     assert _run_hook(command, repo_dir).returncode == 0
+
+
+def test_blocks_commit_split_across_lines_with_backslash_newline_continuation(repo_dir):
+    assert _run_hook("git \\\n  commit -m x", repo_dir).returncode == 2
