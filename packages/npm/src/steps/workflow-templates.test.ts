@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import { resolveTemplatesDir } from './copy-templates.js'
 
 const read = (name: string) => readFileSync(join(resolveTemplatesDir(), '.github', 'workflows', name), 'utf-8')
-const WORKFLOWS = ['ci-node.yml', 'ci-python.yml', 'ci-both.yml', 'security.yml', 'dependency-review.yml']
+const WORKFLOWS = ['ci-node.yml', 'ci-python.yml', 'ci-both.yml', 'security.yml', 'dependency-review.yml', 'file-size.yml']
 
 describe('template workflows', () => {
   it.each(['ci-python.yml', 'ci-both.yml'])('%s runs pytest without --extra dev, which fails for [dependency-groups] dev projects', f => {

@@ -33,6 +33,7 @@ check "CI-BOTH-YML"      "test -f templates/.github/workflows/ci-both.yml"
 check "SECURITY-YML"     "test -f templates/.github/workflows/security.yml"
 check "DEP-REVIEW-YML"   "test -f templates/.github/workflows/dependency-review.yml"
 check "DEPENDABOT-YML"   "test -f templates/.github/dependabot.yml"
+check "FILE-SIZE-YML"    "test -f templates/.github/workflows/file-size.yml && test -f templates/.github/scripts/check-file-sizes.mjs"
 
 # -----------------------------------------------------------------------
 # Content correctness checks (always run, --quick safe)

@@ -1851,3 +1851,14 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 **Tests run:** RED: npm mode test failed (symlink test passed); pip symlink test failed (mode test passed). GREEN: npm typecheck 0, vitest 438 passed, 1 skipped (the fs-safe unit mock gained stat and chmod); pip pytest 358 passed.
 
 **Docs updated:** JOURNAL.md.
+
+---
+
+## 2026-09-25 · File-size ratchet CI check in the templates
+
+**What I did:** Added a CI check that goodvibes ships to every project: a new code file may not exceed 500 lines, and a file already over the limit may not grow (a ratchet, so existing code is not punished). AI tools keep appending to one huge file, which makes every later Read/Edit cost more tokens.
+
+**Files changed:** packages/npm/src/steps/file-size-check.integration.test.ts (new), packages/pip/tests/test_file_size_template.py (new), packages/npm/src/steps/workflow-templates.test.ts (lists file-size.yml), scripts/verify-phase4.sh (FILE-SIZE-YML check), JOURNAL.md.
+
+**Commits:**
+- RED: tests for the script and workflow, with both absent.
