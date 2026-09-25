@@ -47,6 +47,29 @@ def write_json(path: pathlib.Path, data: object) -> None:
         raise
 
 
+def shape_error(rel: str, content: dict) -> str | None:
+    """The merge reads and extends these containers, so a wrong type would crash it or corrupt the file."""
+
+    def obj(v, path: str) -> str | None:
+        return None if v is None or isinstance(v, dict) else f'"{path}" is not a JSON object'
+
+    def arr(v, path: str) -> str | None:
+        return None if v is None or isinstance(v, list) else f'"{path}" is not a JSON array'
+
+    key = _MCP_KEY.get(rel)
+    if key:
+        servers = content.get(key)
+        return obj(servers, key) or next((e for n, v in (servers or {}).items() if (e := obj(v, f"{key}.{n}"))), None)
+    perms, hooks = content.get("permissions"), content.get("hooks")
+    problems = [obj(perms, "permissions"), obj(hooks, "hooks")]
+    problems += [arr((perms if isinstance(perms, dict) else {}).get(lst), f"permissions.{lst}") for lst in ("allow", "ask", "deny")]
+    for event, groups in (hooks if isinstance(hooks, dict) else {}).items():
+        problems.append(arr(groups, f"hooks.{event}"))
+        for i, g in enumerate(groups if isinstance(groups, list) else []):
+            problems.append(obj(g, f"hooks.{event}[{i}]") or arr(g.get("hooks") if isinstance(g, dict) else None, f"hooks.{event}[{i}].hooks"))
+    return next((p for p in problems if p), None)
+
+
 def managed_ids(rel: str, tpl: dict) -> list[str]:
     if rel in _MCP_KEY:
         return [f"mcp:{name}" for name in (tpl.get(_MCP_KEY[rel]) or {})]
@@ -149,6 +172,8 @@ def managed_record(cwd: pathlib.Path, template_dir: pathlib.Path, prev: dict | N
             content = json.loads(dest_path.read_text(encoding="utf-8"))
         except ValueError:
             continue  # unparseable user file: keep the previous record rather than guess
+        if not isinstance(content, dict) or shape_error(rel, content):
+            continue
         tpl = json.loads(tpl_path.read_text(encoding="utf-8"))
         record[rel] = list(dict.fromkeys([*prev.get(rel, []), *present_ids(rel, tpl, content)]))
     return record

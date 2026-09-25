@@ -3,7 +3,7 @@ import { intro, outro, note, confirm, isCancel, cancel } from '@clack/prompts'
 import { listTemplateFiles, resolveTemplatesDir } from '../steps/copy-templates.js'
 import { readManifest, writeManifest, posixKey, USER_OWNED, USER_REMOVED, type Manifest } from '../steps/write-manifest.js'
 import { mergeClaude, MarkerError } from '../utils/sentinel-merge.js'
-import { MANAGED_JSON, mergeManagedJson, managedRecord, isJsonObject } from '../utils/json-merge.js'
+import { MANAGED_JSON, mergeManagedJson, managedRecord, isJsonObject, shapeError } from '../utils/json-merge.js'
 import { assertSafe, removeRetired, writeBlocked, writeFileAtomic } from '../utils/fs-safe.js'
 import { applyGlobalConfig, claudeConfigDir, formatGlobal } from '../steps/global-setup.js'
 import { GLOBAL_OWNED, type Scope } from '../utils/scope.js'
@@ -165,6 +165,11 @@ export async function runUpdate(dryRun: boolean, force: boolean): Promise<void> 
     }
     if (!isJsonObject(user)) {
       mergeErrors.push(`${rel}: not a JSON object; left unchanged, fix it and re-run update`)
+      continue
+    }
+    const shape = shapeError(rel, user)
+    if (shape) {
+      mergeErrors.push(`${rel}: ${shape}; left unchanged, fix it and re-run update`)
       continue
     }
     const tpl = JSON.parse(await readFile(tplPath, 'utf-8'))

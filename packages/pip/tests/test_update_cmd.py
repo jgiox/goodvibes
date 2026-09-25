@@ -512,7 +512,7 @@ def test_update_reports_mcp_files_and_settings_whose_nested_maps_have_the_wrong_
     assert (merge_dirs / ".cursor" / "mcp.json").read_text(encoding="utf-8") == '{"mcpServers":[]}'
     assert (merge_dirs / ".vscode" / "mcp.json").read_text(encoding="utf-8") == '{"servers":"oops"}'
     assert (merge_dirs / ".claude" / "settings.json").read_text(encoding="utf-8") == '{"hooks":[]}'
-    out = " ".join(_ANSI.sub("", result.output).split())
+    out = " ".join(_ANSI.sub("", result.output).replace("│", " ").split())
     assert '.cursor/mcp.json: "mcpServers" is not a JSON object; left unchanged, fix it and re-run update' in out
     assert '.vscode/mcp.json: "servers" is not a JSON object; left unchanged, fix it and re-run update' in out
     assert '.claude/settings.json: "hooks" is not a JSON object; left unchanged, fix it and re-run update' in out

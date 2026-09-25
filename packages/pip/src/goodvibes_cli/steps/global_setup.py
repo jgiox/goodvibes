@@ -12,7 +12,7 @@ import sys
 
 from goodvibes_cli.steps.copy_templates import list_template_files
 from goodvibes_cli.steps.write_manifest import MANIFEST_PATH, USER_OWNED, USER_REMOVED, read_manifest
-from goodvibes_cli.utils.json_merge import merge_managed_json, present_ids, write_json
+from goodvibes_cli.utils.json_merge import merge_managed_json, present_ids, shape_error, write_json
 from goodvibes_cli.utils.scope import goodvibes_block
 from goodvibes_cli.utils.safe_path import remove_retired
 
@@ -133,8 +133,11 @@ def apply_global_config(template_dir: pathlib.Path, version: str, dry_run: bool,
     except ValueError as e:
         user = None
         result["settings_error"] = f"{settings_path}: not valid JSON ({e}); left unchanged, fix it and re-run"
+    shape = shape_error(".claude/settings.json", user) if isinstance(user, dict) else None
     if user is not None and not isinstance(user, dict):
         result["settings_error"] = f"{settings_path}: not a JSON object; left unchanged, fix it and re-run"
+    elif shape:
+        result["settings_error"] = f"{settings_path}: {shape}; left unchanged, fix it and re-run"
     elif user is not None:
         merged, changes = merge_managed_json(".claude/settings.json", tpl, user, managed.get("settings.json"))
         result["settings_changes"] = changes
