@@ -186,22 +186,23 @@ def update_cmd(
     merge_lines = [f"Will merge goodvibes keys into {rel}:\n  " + "\n  ".join(ch) for rel, _, ch in merges]
     merge_lines += [f"Cannot merge {e}" for e in merge_errors]
 
+    lines = [
+        f"Will overwrite ({len(overwrite)}): {', '.join(overwrite)}" if overwrite else "Will overwrite (0): (none)",
+        f"Will skip — user-modified ({len(skip)}): {', '.join(skip)}" if skip else "Will skip — user-modified (0): (none)",
+        f"Will add net-new ({len(net_new)}): {', '.join(net_new)}" if net_new else "Will add net-new (0): (none)",
+    ]
+    if kept:
+        lines.append(f"Will keep — already yours, not written by goodvibes ({len(kept)}): {', '.join(kept)}")
+    lines += merge_lines
+    lines += not_written
+    lines += [f"{rel}: {REMOVED}" for rel in removed]
     if dry_run:
-        lines = [
-            f"Will overwrite ({len(overwrite)}): {', '.join(overwrite)}" if overwrite else "Will overwrite (0): (none)",
-            f"Will skip — user-modified ({len(skip)}): {', '.join(skip)}" if skip else "Will skip — user-modified (0): (none)",
-            f"Will add net-new ({len(net_new)}): {', '.join(net_new)}" if net_new else "Will add net-new (0): (none)",
-        ]
-        if kept:
-            lines.append(f"Will keep — already yours, not written by goodvibes ({len(kept)}): {', '.join(kept)}")
-        lines += merge_lines
-        lines += not_written
-        lines += [f"{rel}: {REMOVED}" for rel in removed]
         console.print(Panel("\n".join(lines), title="Dry run — no files written"))
         console.rule("Run without --dry-run to apply.")
         return
 
     if not force and (overwrite or merges or global_changes):
+        console.print(Panel("\n".join(lines), title="Planned — project files"))
         also_global = f" and apply {global_changes} change(s) to your Claude Code settings" if global_changes else ""
         confirmed = typer.confirm(
             f"Overwrite {len(overwrite)} managed file(s) and merge goodvibes keys into {len(merges)} file(s){also_global}?"
