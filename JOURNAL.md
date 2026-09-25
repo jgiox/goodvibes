@@ -1637,3 +1637,4 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 - RED 3: `git \` + newline + `commit -m x` is not seen as a commit.
 - GREEN 3: backslash-newline continuations are joined (after heredoc bodies are dropped, before words are split).
 - RED 4: an apostrophe in a full-line comment pairs with a later quote and hides the commit between them.
+- GREEN 4: full-line comments (optional leading blanks, then `#`) are dropped in the heredoc pass, before quotes are paired and before heredoc detection. Inline `#` is not stripped there.
