@@ -1864,5 +1864,6 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 
 **Tests run:**
 - RED: read-guard cases and runners committed with the hook absent; all 132 read-guard cases fail in both runners.
+- GREEN: hook added to templates/.claude/settings.json and .claude/settings.json (hooks identical; global-setup test now expects 2 PreToolUse groups). vitest 570 passed, 1 skipped; pytest 490 passed; runners also pass under BWK awk, busybox awk and a busybox userland. json-merge needs no change: each marker is its own group.
 
 **Docs updated:** JOURNAL.md.
