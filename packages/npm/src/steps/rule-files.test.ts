@@ -49,6 +49,22 @@ describe('agent rule files (AGENT-01..04)', () => {
     )
   })
 
+  it.each([...RULE_FILES, 'JOURNAL.md'])('%s reads only the Standing decisions and the last five entries, and records lasting decisions there', rel => {
+    const text = read(rel)
+    expect(text).toMatch(/Standing decisions (section )?and the last five entries/)
+    expect(text).toContain('older entries only when needed')
+    expect(text).toMatch(/When a task makes a lasting decision, add or update one line under (JOURNAL\.md's )?Standing decisions/)
+    expect(text).toMatch(/never rewrite (earlier|old) entries/i)
+  })
+
+  it('JOURNAL.md opens with a Standing decisions list above the entries', () => {
+    const text = read('JOURNAL.md')
+    const headings = [...text.matchAll(/^## (.+)$/gm)].map(m => m[1])
+    expect(headings[0]).toBe('Standing decisions')
+    const section = text.slice(text.indexOf('## Standing decisions'), text.indexOf('## Entry template'))
+    expect(section).toMatch(/^- \S/m)
+  })
+
   it('CLAUDE.md forbids re-asking for information and names every source', () => {
     expect(read('CLAUDE.md')).toContain(
       'Never ask the user for information already answered in README.md, CLAUDE.md, AGENTS.md, JOURNAL.md, or the codebase.',
