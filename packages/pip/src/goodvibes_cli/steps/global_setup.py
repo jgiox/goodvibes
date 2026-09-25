@@ -6,14 +6,13 @@ import json
 import os
 import pathlib
 import re
-import shutil
 import subprocess
 import sys
 
 from goodvibes_cli.steps.copy_templates import list_template_files
 from goodvibes_cli.steps.write_manifest import MANIFEST_PATH, USER_OWNED, USER_REMOVED, read_manifest
 from goodvibes_cli.utils.json_merge import merge_managed_json, present_ids, shape_error, write_json
-from goodvibes_cli.utils.proc import run
+from goodvibes_cli.utils.proc import run, which
 from goodvibes_cli.utils.scope import goodvibes_block
 from goodvibes_cli.utils.safe_path import printable, remove_retired
 
@@ -30,12 +29,12 @@ def _sha(text: str) -> str:
 
 def register_context7(dry_run: bool) -> dict[str, str]:
     try:
-        listed = subprocess.run(["claude", "mcp", "list"], capture_output=True, text=True, timeout=10)
+        listed = run(["claude", "mcp", "list"], capture_output=True, text=True, timeout=10)
         if re.search(r"^context7\b", listed.stdout, re.M):
             return {"status": "already-registered"}
         if dry_run:
             return {"status": "skipped", "reason": "dry run"}
-        subprocess.run(
+        run(
             ["claude", "mcp", "add", "--transport", "http", "--scope", "user", "context7", CONTEXT7_URL],
             capture_output=True, text=True, timeout=10, check=True,
         )
@@ -48,7 +47,7 @@ def register_context7(dry_run: bool) -> dict[str, str]:
 
 def ensure_global_cli(version: str, dry_run: bool) -> dict[str, str]:
     """A plain `pip install` already puts goodvibes on PATH; `uvx`/`pipx run` do not, so install it as a uv tool."""
-    found = shutil.which("goodvibes")
+    found = which("goodvibes")
     # A goodvibes inside the active virtualenv is on PATH only while that venv is active.
     in_venv = found and sys.prefix != sys.base_prefix and pathlib.Path(found).resolve().is_relative_to(pathlib.Path(sys.prefix).resolve())
     if found and not in_venv:
@@ -59,7 +58,7 @@ def ensure_global_cli(version: str, dry_run: bool) -> dict[str, str]:
         return {"status": "skipped", "reason": f'dry run; would run uv tool install "goodvibes-cli>={version}"'}
     try:
         run(["uv", "tool", "install", f"goodvibes-cli>={version}"], capture_output=True, text=True, timeout=120, check=True)
-        if shutil.which("goodvibes") is None:
+        if which("goodvibes") is None:
             return {"status": "installed", "reason": "goodvibes is not on your PATH yet: run uv tool update-shell, then open a new terminal"}
         return {"status": "installed"}
     except FileNotFoundError:

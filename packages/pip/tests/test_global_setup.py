@@ -58,21 +58,21 @@ def test_ensure_global_cli_looks_goodvibes_up_on_path_only_never_in_the_project_
 
 
 def test_ensure_global_cli_skips_when_goodvibes_is_on_path(mocker):
-    mocker.patch("goodvibes_cli.steps.global_setup.shutil.which", return_value="/usr/bin/goodvibes")
+    mocker.patch("goodvibes_cli.steps.global_setup.which", return_value="/usr/bin/goodvibes")
     run = mocker.patch("goodvibes_cli.steps.global_setup.subprocess.run")
     assert ensure_global_cli("1.8.0", dry_run=False) == {"status": "already-installed"}
     run.assert_not_called()
 
 
 def test_ensure_global_cli_installs_unpinned_so_uv_tool_upgrade_can_upgrade_it_later(mocker):
-    mocker.patch("goodvibes_cli.steps.global_setup.shutil.which", return_value=None)
+    mocker.patch("goodvibes_cli.steps.global_setup.which", return_value=None)
     run = mocker.patch("goodvibes_cli.steps.global_setup.subprocess.run", return_value=_done())
     assert ensure_global_cli("1.8.0", dry_run=False)["status"] == "installed"
     assert run.call_args.args[0] == ["uv", "tool", "install", "goodvibes-cli>=1.8.0"]
 
 
 def test_ensure_global_cli_tells_the_user_to_run_uv_tool_update_shell_when_goodvibes_is_still_not_on_path(mocker):
-    mocker.patch("goodvibes_cli.steps.global_setup.shutil.which", return_value=None)
+    mocker.patch("goodvibes_cli.steps.global_setup.which", return_value=None)
     mocker.patch("goodvibes_cli.steps.global_setup.subprocess.run", return_value=_done())
     r = ensure_global_cli("1.8.0", dry_run=False)
     assert r["status"] == "installed"
@@ -85,14 +85,14 @@ def test_ensure_global_cli_installs_with_uv_tool_when_goodvibes_is_only_in_the_a
     venv = tmp_path / "venv"
     mocker.patch.object(sys, "prefix", str(venv))
     mocker.patch.object(sys, "base_prefix", "/usr")
-    mocker.patch("goodvibes_cli.steps.global_setup.shutil.which", return_value=str(venv / "bin" / "goodvibes"))
+    mocker.patch("goodvibes_cli.steps.global_setup.which", return_value=str(venv / "bin" / "goodvibes"))
     run = mocker.patch("goodvibes_cli.steps.global_setup.subprocess.run", return_value=_done())
     assert ensure_global_cli("1.8.0", dry_run=False) == {"status": "installed"}
     assert run.call_args.args[0] == ["uv", "tool", "install", "goodvibes-cli>=1.8.0"]
 
 
 def test_ensure_global_cli_reports_manual_fix_when_uv_is_missing(mocker):
-    mocker.patch("goodvibes_cli.steps.global_setup.shutil.which", return_value=None)
+    mocker.patch("goodvibes_cli.steps.global_setup.which", return_value=None)
     mocker.patch("goodvibes_cli.steps.global_setup.subprocess.run", side_effect=FileNotFoundError())
     r = ensure_global_cli("1.8.0", dry_run=False)
     assert r["status"] == "failed"
@@ -413,7 +413,7 @@ def test_apply_global_config_reports_no_file_as_written_on_a_second_run_when_not
 
 
 def test_ensure_global_cli_runs_uv_without_searching_the_project_folder_for_it(mocker):
-    mocker.patch("goodvibes_cli.steps.global_setup.shutil.which", return_value=None)
+    mocker.patch("goodvibes_cli.steps.global_setup.which", return_value=None)
     run = mocker.patch("goodvibes_cli.steps.global_setup.subprocess.run", return_value=_done())
     ensure_global_cli("1.8.0", dry_run=False)
     assert run.call_args.kwargs["env"]["NoDefaultCurrentDirectoryInExePath"] == "1"

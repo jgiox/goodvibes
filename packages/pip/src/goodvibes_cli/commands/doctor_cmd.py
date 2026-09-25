@@ -8,7 +8,6 @@ import math
 import os
 import pathlib
 import re
-import shutil
 import subprocess
 from dataclasses import dataclass, field
 from typing import Annotated, Literal
@@ -23,7 +22,7 @@ from goodvibes_cli.steps.git_hook import install_git_hook
 from goodvibes_cli.steps.global_setup import claude_config_dir
 from goodvibes_cli.steps.write_manifest import ManifestError, read_manifest
 from goodvibes_cli.utils.safe_path import printable as _printable
-from goodvibes_cli.utils.proc import run
+from goodvibes_cli.utils.proc import run, which
 
 # ponytail: not imported from sentinel_merge — define locally to avoid coupling
 SENTINEL_START = "<!-- goodvibes:start -->"
@@ -222,7 +221,7 @@ def _check_mcp(cwd: pathlib.Path) -> list[CheckResult]:
 
 
 def _check_goodvibes_cli() -> CheckResult:
-    if shutil.which("goodvibes"):
+    if which("goodvibes"):
         return CheckResult("goodvibes command on PATH", "ok")
     return CheckResult(
         "goodvibes command not on PATH",

@@ -24,10 +24,10 @@ export type McpStatus = { status: 'registered' | 'already-registered' | 'skipped
 
 export async function registerContext7(dryRun: boolean): Promise<McpStatus> {
   try {
-    const { stdout } = await execa('claude', ['mcp', 'list'], { timeout: 10_000 })
+    const { stdout } = await execa('claude', ['mcp', 'list'], { timeout: 10_000, env: EXEC_ENV })
     if (/^context7\b/m.test(stdout)) return { status: 'already-registered' }
     if (dryRun) return { status: 'skipped', reason: 'dry run' }
-    await execa('claude', ['mcp', 'add', '--transport', 'http', '--scope', 'user', 'context7', CONTEXT7_URL], { timeout: 10_000 })
+    await execa('claude', ['mcp', 'add', '--transport', 'http', '--scope', 'user', 'context7', CONTEXT7_URL], { timeout: 10_000, env: EXEC_ENV })
     return { status: 'registered' }
   } catch (e) {
     if ((e as NodeJS.ErrnoException).code === 'ENOENT') {

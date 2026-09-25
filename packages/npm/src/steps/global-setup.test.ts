@@ -15,7 +15,7 @@ describe('registerContext7', () => {
     expect(vi.mocked(execa).mock.calls[1]).toEqual([
       'claude',
       ['mcp', 'add', '--transport', 'http', '--scope', 'user', 'context7', 'https://mcp.context7.com/mcp'],
-      { timeout: 10_000 },
+      { timeout: 10_000, env: { NoDefaultCurrentDirectoryInExePath: '1' } },
     ])
   })
 

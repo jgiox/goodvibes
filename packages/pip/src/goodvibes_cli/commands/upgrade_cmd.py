@@ -18,7 +18,7 @@ from rich.panel import Panel
 from goodvibes_cli.commands.update_cmd import update_cmd
 from goodvibes_cli.steps.global_setup import claude_config_dir
 from goodvibes_cli.steps.write_manifest import ManifestError, read_manifest
-from goodvibes_cli.utils.proc import run
+from goodvibes_cli.utils.proc import NO_CWD, run
 from goodvibes_cli.utils.sentinel_merge import version_gte
 
 console = Console()
@@ -96,7 +96,7 @@ def upgrade_cmd(
                     _self_update_pip(latest)
                 # Re-run on the new version so the project gets its templates, not this process's.
                 # argv[0] is not executable under `python -m goodvibes_cli`, so always go through the interpreter.
-                os.execve(sys.executable, [sys.executable, "-m", "goodvibes_cli", *sys.argv[1:]], {**os.environ, _UPGRADING_ENV: latest})
+                os.execve(sys.executable, [sys.executable, "-m", "goodvibes_cli", *sys.argv[1:]], {**os.environ, **NO_CWD, _UPGRADING_ENV: latest})
 
     # In a folder goodvibes never set up, update's "not set up here" reads like a failed upgrade.
     try:
