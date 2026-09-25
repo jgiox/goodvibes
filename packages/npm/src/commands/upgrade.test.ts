@@ -37,7 +37,7 @@ describe('upgrade command', () => {
 
     await runUpgrade().catch(() => {})
 
-    expect(vi.mocked(execa)).toHaveBeenCalledWith('npm', ['install', '-g', 'goodvibes-cli@1.0.1'], expect.anything())
+    expect(vi.mocked(execa)).toHaveBeenCalledWith('npm', ['install', '-g', 'goodvibes-cli@1.0.1', '--prefer-online'], expect.anything())
     expect(vi.mocked(execa)).toHaveBeenCalledWith(
       process.execPath,
       [process.argv[1], ...process.argv.slice(2)],
@@ -133,7 +133,7 @@ describe('upgrade command', () => {
 
     await runUpgrade()
 
-    expect(vi.mocked(execa)).toHaveBeenCalledWith('npm', ['view', 'goodvibes-cli', 'version'], expect.objectContaining({ cwd: homedir() }))
+    expect(vi.mocked(execa)).toHaveBeenCalledWith('npm', ['view', 'goodvibes-cli', 'version', '--prefer-online'], expect.objectContaining({ cwd: homedir() }))
   })
 
   it('runs npm view, npm install and the re-run without searching the project folder for the program', async () => {
