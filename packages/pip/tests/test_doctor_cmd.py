@@ -301,3 +301,12 @@ def test_doctor_quick_reports_a_broken_goodvibes_json_and_still_exits_0(mocker, 
     result = runner.invoke(app, ["doctor", "--quick"])
     assert result.exit_code == 0
     assert "is not valid JSON" in result.output
+
+
+def test_doctor_prints_square_brackets_literally_instead_of_as_rich_markup(mocker, tmp_path):
+    from goodvibes_cli.main import app
+    _mock_checks(mocker, tmp_path)
+    mocker.patch("goodvibes_cli.commands.doctor_cmd._check_headroom", return_value=CheckResult("headroom [bold]x[/bold]", "warn", 'Run: uv tool install "headroom-ai[all]"'))
+    result = runner.invoke(app, ["doctor"])
+    assert "headroom-ai[all]" in result.output
+    assert "[bold]x[/bold]" in result.output
