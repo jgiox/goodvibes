@@ -1870,3 +1870,4 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 **Tests run:** see the commits above; full npm (prebuild, typecheck, build, vitest), pip pytest and verify-phase1 to 5 after the last commit.
 
 **Docs updated:** JOURNAL.md, NOTICE. README/FAQ/CHANGELOG still need a line about the new check (not in this task's scope).
+- File-size check: on a push, compare with the commit before the push (`PUSH_BEFORE` from `github.event.before`) instead of only `HEAD^`, so growth in an earlier commit of a multi-commit push fails. RED test committed first. Tests: `file-size-check.integration.test.ts`.

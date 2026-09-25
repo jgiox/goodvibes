@@ -176,6 +176,22 @@ describe('check-file-sizes config file', () => {
 })
 
 describe('check-file-sizes base selection', () => {
+  it('compares a push of several commits with the commit before the push, so growth in an earlier commit fails', async () => {
+    await commit({ 'src/big.py': lines(900, 'x') })
+    const before = (await git('rev-parse', 'HEAD')).stdout.trim()
+    await commit({ 'src/big.py': lines(950, 'x') })
+    await commit({ 'README.md': 'hi\n' })
+    const { code, out } = await check({ PUSH_BEFORE: before })
+    expect(code).toBe(1)
+    expect(out).toContain('src/big.py: grew from 900 to 950 lines')
+  })
+
+  it('falls back to the previous commit when the push created the branch (all-zero before)', async () => {
+    await commit({ 'src/big.py': lines(900, 'x') })
+    await commit({ 'README.md': 'hi\n' })
+    expect((await check({ PUSH_BEFORE: '0'.repeat(40) })).code).toBe(0)
+  })
+
   it('passes a first commit whose files are all under the limit', async () => {
     await commit({ 'src/ok.ts': lines(400), 'docs/long.md': lines(900) })
     const { code, out } = await check()
