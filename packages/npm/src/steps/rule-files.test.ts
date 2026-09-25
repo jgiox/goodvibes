@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { readFileSync, readdirSync } from 'node:fs'
+import { readFileSync, readdirSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { resolveTemplatesDir } from './copy-templates.js'
 
@@ -115,6 +115,15 @@ describe('shipped skills', () => {
   it('ships only skills whose scripts, hooks and agents goodvibes also ships', () => {
     const dirs = readdirSync(join(resolveTemplatesDir(), '.claude', 'skills')).sort()
     expect(dirs).toEqual(['caveman', 'caveman-commit', 'caveman-help', 'caveman-review', 'goodvibes-hygiene', 'model-regression'])
+  })
+
+  it('keeps every SKILL.md at or under 12 KB, because Claude Code loads the whole file when the skill runs', () => {
+    const skills = join(resolveTemplatesDir(), '.claude', 'skills')
+    const tooBig = readdirSync(skills)
+      .map(dir => ({ file: `${dir}/SKILL.md`, bytes: statSync(join(skills, dir, 'SKILL.md')).size }))
+      .filter(s => s.bytes > 12 * 1024)
+      .map(s => `${s.file} is ${s.bytes} bytes (limit 12288)`)
+    expect(tooBig).toEqual([])
   })
 
   it('never points the agent at the removed caveman-compress, caveman-stats or cavecrew skills', () => {
