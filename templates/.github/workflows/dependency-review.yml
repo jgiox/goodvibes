@@ -23,4 +23,4 @@ jobs:
           persist-credentials: false
       - uses: actions/dependency-review-action@v5
         with:
-          allow-licenses: MIT, Apache-2.0, BSD-2-Clause, BSD-3-Clause, ISC, 0BSD, Unlicense, CC0-1.0, Python-2.0, BlueOak-1.0.0, MPL-2.0
+          allow-licenses: MIT, Apache-2.0, BSD-2-Clause, BSD-3-Clause, ISC, 0BSD, Unlicense, CC0-1.0, Python-2.0, BlueOak-1.0.0, MPL-2.0, CC-BY-3.0, CC-BY-4.0, PSF-2.0, Zlib
