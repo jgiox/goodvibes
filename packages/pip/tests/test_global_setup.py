@@ -251,6 +251,7 @@ def test_update_cancelled_at_the_prompt_leaves_the_config_dir_and_project_untouc
     assert _snapshot(cfg) == before_cfg
     assert _snapshot(proj) == before_proj
     assert "rules/goodvibes.md" in result.output
+    assert "Will overwrite (1): AGENTS.md" in result.output
 
 
 def test_update_asks_once_before_changing_the_config_dir(mocker, tmp_path):
