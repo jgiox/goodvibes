@@ -36,7 +36,7 @@ jobs:
           fi
 
       - name: Lint
-        run: uvx ruff check .
+        run: uvx ruff@0.16.9 check .
 
       - name: Run tests
         run: |

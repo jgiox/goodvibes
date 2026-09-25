@@ -37,7 +37,7 @@
   },
   "license": "Apache-2.0",
   "scripts": {
-    "prebuild": "node -e \"const{cpSync}=require('fs');cpSync('../../templates','./templates',{recursive:true,force:true});cpSync('../../LICENSE','./LICENSE');cpSync('../../NOTICE','./NOTICE')\"",
+    "prebuild": "node -e \"const{cpSync,rmSync}=require('fs');rmSync('./templates',{recursive:true,force:true});cpSync('../../templates','./templates',{recursive:true,force:true});cpSync('../../LICENSE','./LICENSE');cpSync('../../NOTICE','./NOTICE')\"",
     "build": "tsup",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",

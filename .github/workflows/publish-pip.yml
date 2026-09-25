@@ -111,9 +111,11 @@ jobs:
         working-directory: packages/pip
         run: echo "version=$(grep '^version' pyproject.toml | sed 's/version = "\(.*\)"/\1/')" >> "$GITHUB_OUTPUT"
 
+      # Trusted publishing through the PyPA action also uploads PEP 740 attestations (uv publish does not).
       - name: Publish to PyPI
-        working-directory: packages/pip
-        run: uv publish --trusted-publishing always
+        uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # v1.14.2
+        with:
+          packages-dir: packages/pip/dist/
 
   smoke-test:
     needs: publish

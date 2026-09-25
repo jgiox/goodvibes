@@ -1825,3 +1825,15 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 **Tests run:** docs only; claims checked against the merged code (permissions list read from templates/.claude/settings.json).
 
 **Docs updated:** as listed.
+
+---
+
+## 2026-09-25 · Release tidy-ups on the branch tip
+
+**What I did:** Applied the tidy-up worker's six results on the current tip (it had run on the old base): `publish-pip.yml` publishes through `pypa/gh-action-pypi-publish@dc37677b # v1.14.2`, which uploads PEP 740 attestations; NOTICE carries the verbatim MIT permission text for caveman (2026 Julius Brussee) and ponytail (2026 DietrichGebert); npm `prebuild` deletes the old `templates/` copy before copying, so removed skills can never ship from a stale copy; removed `cavecrew`, `caveman-compress` and `caveman-stats` from this repo's own `.claude/skills/`; the Python CI templates pin `uvx ruff@0.16.9`; dev-only nanoid 3.3.16 to 3.3.19 (GHSA-2v37-7h3g-55p8), the same three lockfile lines npm 11 `audit fix` produced. The repo `CLAUDE.md` block is not refreshed yet: `merge_claude` only replaces a block with a newer version stamp, so it follows at the version bump.
+
+**Files changed:** .github/workflows/publish-pip.yml, NOTICE, packages/npm/package.json, packages/npm/package-lock.json, .claude/skills/ (3 folders removed), templates/.github/workflows/ci-both.yml, templates/.github/workflows/ci-python.yml, JOURNAL.md.
+
+**Tests run:** actionlint 1.7.12 clean on all repo and template workflows; YAML loads; prebuild leaves only the 6 shipped skills; `npm ci` (npm 11) accepts the lockfile; `npm audit` 0 vulnerabilities (incl. dev); npm typecheck 0, vitest 436 passed; pip 356 passed; verify-phase1 to 5 PASS.
+
+**Docs updated:** JOURNAL.md.
