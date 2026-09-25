@@ -20,6 +20,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/2.0.0/),
 
 ### Changed
 
+- Docs rewritten for both beginners and experienced developers: the README (what goodvibes is, who it is for, how the three layers work), FAQ, getting started, git basics, and the setup notes for each AI tool. They say clearly which parts work in every tool (rules, GitHub checks) and which only in Claude Code (hooks, permissions, skills)
 - `goodvibes doctor` has three levels: ✓ fine, ! warning, ✗ problem. headroom and the `goodvibes` command being missing are warnings, because both are optional, and only problems make `doctor` exit with an error. It ends with `Ready.`, `Ready, with N warning(s).` or `Not ready: N problem(s).`
 
 ### Security

@@ -2052,3 +2052,15 @@ Added a Standing decisions section to this journal.
   - The read guard's Read branch parses a numeric `offset` and `limit`. It allows a limit up to the line cap, and otherwise blocks when more than the cap would remain after the offset.
   - Tests: npm hook cases and usage (224 passed); pip full suite (593 passed); pip hook cases under BWK awk and busybox awk (197 passed each).
 - FAQ.md rewritten (grouped sections, table of contents, new questions on cost, tool support, overwriting, removal; stale version claims corrected). Every link and anchor checked; no dashes.
+- Rewrote the guides: getting-started (one section per piece, covering what it is, why it helps, what it does and how to turn it off), onboarding (terminal basics through to a pull request) and the 7 platform-setup notes. Template copies are kept byte-identical.
+- Corrected the guides:
+  - caveman starts on `/caveman`, not by default.
+  - Hook removal covers both settings files.
+  - Replit reads `replit.md` and Bolt reads `.bolt/prompt`.
+  - Removed claims that could not be checked.
+- README fixes:
+  - caveman now says "when you type /caveman".
+  - "Actions are pinned" is now "third-party actions and the gitleaks image are pinned" (GitHub's own actions use version tags).
+  - The `--scope project` section now says headroom is still installed on the computer and registered for the user.
+- Kept the old `#about-the-journal-gate-hook` anchor working.
+- Tests: link and anchor check over every public doc (0 problems); npm vitest 713 passed, 1 skipped; pip 593 passed; verify-phase1 and phase4 PASS.

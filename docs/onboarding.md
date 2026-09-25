@@ -1,113 +1,183 @@
-# Getting started
+# Git and GitHub basics
 
-Git is a tool for tracking changes to code over time. GitHub is the website where code is shared and teams collaborate on projects. This guide walks you through the essential steps to make your first contribution — even if you have never used git before.
+Git keeps a history of every change to your project, so you can see what changed and go back if something breaks. GitHub is a website that stores that history online, runs the goodvibes checks on every change, and lets people review changes before they are accepted. This guide covers what you need for everyday work, starting from zero.
 
-## Clone the project
+## Open a terminal
 
-Cloning means downloading a copy of the project to your computer. Run this command in your terminal:
+A terminal is a window where you type commands instead of clicking. You type a command, press Enter, and it prints a result. Every command in this guide goes into a terminal, exactly as written.
 
-```
-git clone <repository-url>
-```
+**macOS:** press Cmd and Space together, type `Terminal`, and press Enter.
 
-To find the repository URL, go to the project page on GitHub and click the green "Code" button. Copy the HTTPS URL (it looks like `https://github.com/username/project-name.git`) and paste it in place of `<repository-url>`.
+**Windows:** goodvibes runs on Windows through WSL2, which puts a Linux system inside Windows. Set it up once:
 
-After cloning, move into the project folder:
+1. Click Start, type `PowerShell`, right-click **Windows PowerShell** and choose **Run as administrator**.
+2. Type this and press Enter:
 
-```
-cd <project-folder-name>
-```
-
-Replace `<project-folder-name>` with the actual name of the folder that was created. You now have a complete local copy of the project, including its full history.
-
-## Create a branch
-
-A branch is a separate workspace for your change. Working on a branch means your edits do not affect the main codebase until they have been reviewed and approved. This is how open source collaboration works — everyone works on their own branch and proposes changes through a pull request.
-
-Create a new branch with a short, descriptive name:
-
-```
-git checkout -b my-feature
-```
-
-Choose a name that describes what you are changing — for example, `fix-typo`, `add-dark-mode`, or `update-readme`. Good branch names make it easy for reviewers to understand your work at a glance.
-
-To see all your branches, run:
-
-```
-git branch
-```
-
-The branch with an asterisk next to its name is the one you are currently on.
-
-## Make changes and commit
-
-A commit is a saved snapshot of your changes with a message that describes what changed. Think of it as a checkpoint you can always return to.
-
-1. Edit the files you want to change and save them.
-
-2. Stage your changes: tell git exactly which files to include in the commit:
-
-   ```
-   git add path/to/file JOURNAL.md
+   ```sh
+   wsl --install
    ```
 
-   List each file you changed. Naming files one by one (instead of `git add -A`, which stages everything) keeps stray files, such as a `.env` with passwords, out of your commit.
+3. Restart your computer when it asks.
+4. Open **Ubuntu** from the Start menu. The first time, it asks you to choose a user name and password. Nothing appears on screen while you type the password; that is normal.
 
-3. Commit your staged changes with a descriptive message:
+From now on, open **Ubuntu** from the Start menu whenever this guide says "terminal".
 
-   ```
-   git commit -m "Describe what you changed"
-   ```
+**Linux:** press Ctrl, Alt and T together (this works on Ubuntu and many others), or search your apps for "Terminal".
 
-Write commit messages in the present tense and keep them to one sentence. "Fix typo in README" is better than "fixed stuff". A good message tells the next person (or your future self) exactly what this commit does.
+A few commands you will use all the time:
 
-You can make multiple commits on one branch — each one is its own checkpoint in the history. Commit often so your work is saved in small, understandable steps.
+| Command | What it does |
+|---|---|
+| `pwd` | Shows which folder you are in |
+| `ls` | Lists the files in this folder |
+| `cd my-project` | Moves into the folder `my-project` |
+| `cd ..` | Moves up one folder |
+| `mkdir my-project` | Creates a new folder called `my-project` |
 
-## Push your branch
+## Install git and tell it who you are
 
-Pushing sends your local branch up to GitHub so other people can see it. Run:
+Check whether git is installed:
 
+```sh
+git --version
 ```
-git push origin my-feature
+
+If it prints a version number, git is installed. If not: on macOS, the same command offers to install it, so accept. On Ubuntu (and Windows with WSL2), run `sudo apt install git`. For anything else, see [git-scm.com/downloads](https://git-scm.com/downloads).
+
+Git stamps every saved change with your name and email. Set them once, using your own name and the email of your GitHub account:
+
+```sh
+git config --global user.name "Your Name"
+git config --global user.email "you@example.com"
 ```
 
-Replace `my-feature` with your actual branch name. After pushing, your branch appears in the repository on GitHub.
+`goodvibes doctor` reports a problem (✗) until both are set.
+
+## Sign in to GitHub
+
+1. Create a free account at [github.com/signup](https://github.com/signup).
+2. Install the GitHub CLI (a small program that connects your terminal to GitHub) from [cli.github.com](https://cli.github.com).
+3. Run:
+
+   ```sh
+   gh auth login
+   ```
+
+   Choose GitHub.com, then HTTPS, answer yes when it asks to authenticate git, and log in with your browser. After this, git can send your work to GitHub without asking for a password each time.
+
+## Get a project onto your computer
+
+### Copy an existing project (clone)
+
+Cloning downloads a copy of a project from GitHub, including its full history. On the project's GitHub page, click the green **Code** button and copy the HTTPS address. Then run, pasting the address in place of the example:
+
+```sh
+git clone https://github.com/username/project-name.git
+cd project-name
+```
+
+### Start a new project
+
+Create a folder, put it under git, and set up goodvibes:
+
+```sh
+mkdir my-project
+cd my-project
+git init -b main
+npx goodvibes-cli init
+```
+
+`git init -b main` starts a history in this folder, with `main` as the main branch (the goodvibes checks run on `main`). Before your first commit, tell git never to save your secrets file:
+
+```sh
+echo ".env" >> .gitignore
+```
+
+Save everything goodvibes created as your first commit. `git status` lists the new files and folders. Check that nothing secret is in the list, then add each name it shows (naming a folder adds everything in it), for example:
+
+```sh
+git status
+git add .gitignore .github .claude docs AGENTS.md CHANGELOG.md CLAUDE.md CONTRIBUTING.md JOURNAL.md SECURITY.md
+git commit -m "chore: set up goodvibes"
+```
+
+Your list will have more names than this example, such as `.cursor` and `.goodvibes.json`. Add them all.
+
+Then create the project on GitHub and upload it:
+
+```sh
+gh repo create --source=. --private --push
+```
+
+Use `--public` instead of `--private` if you want anyone to see it. On a private project, the goodvibes checks skip the CodeQL scan and the dependency review, because GitHub offers those on private projects only with GitHub Advanced Security, a paid add-on. The other checks run either way.
+
+## Make a change on a branch
+
+A branch is a separate line of work. Your change lives on its branch until you decide to add it to `main`, so `main` always stays working. Create one before each change:
+
+```sh
+git switch -c feat/dark-mode
+```
+
+Start the name with `feat/` (a new feature), `fix/` (a bug fix), `docs/` (documentation) or `chore/` (maintenance), then a few words about the change. The goodvibes rules ask the AI to name branches the same way.
+
+To see your branches, run `git branch`. The one marked with `*` is the one you are on.
+
+## Save your work (commit)
+
+A commit is a saved checkpoint of your project with a short message saying what changed. You can always go back to it.
+
+1. See what changed:
+
+   ```sh
+   git status
+   git diff
+   ```
+
+2. Pick the files to save. Name each file you changed, plus `JOURNAL.md`, where the AI noted what it did and why:
+
+   ```sh
+   git add src/theme.css src/settings.js JOURNAL.md
+   ```
+
+   Never use `git add -A` or `git add .`. They add everything, including stray files such as a `.env` file with passwords.
+
+3. Save them with a message:
+
+   ```sh
+   git commit -m "feat: add dark mode"
+   ```
+
+Write the message as a short description of what the commit does, such as "fix: show error when login fails", not "fixed stuff". To see your history, run `git log --oneline`.
+
+In Claude Code, the AI can run `git add` and `git commit` for you without asking. If it forgets `JOURNAL.md`, the goodvibes journal check blocks the commit until it adds it.
+
+## Send your branch to GitHub (push)
+
+Pushing uploads your commits to GitHub. The first time for a new branch, run:
+
+```sh
+git push -u origin feat/dark-mode
+```
+
+After that, `git push` is enough for this branch. Claude Code always asks you before it pushes.
 
 ## Open a pull request
 
-A pull request (PR) is a request to merge your branch into the main codebase. It gives the project maintainers a chance to review your work, leave comments, and ask for changes before anything is merged.
+A pull request asks to add your branch to `main`. It shows the changes, runs the goodvibes checks, and gives you (or a reviewer) a place to look before anything is merged.
 
-1. Go to the repository on GitHub.
+1. Go to your project on GitHub.
+2. GitHub usually shows a banner saying your branch had recent pushes. Click **Compare & pull request**. If there is no banner, click the **Pull requests** tab, then **New pull request**, and choose your branch.
+3. Write a title and a short description: what changed and why.
+4. Click **Create pull request**.
 
-2. GitHub usually shows a yellow banner at the top: "You recently pushed a branch — open a pull request." Click the "Compare & pull request" button.
+The checks start on their own. A green ✓ means they passed. A red ✗ means one failed: click **Details** next to it to see why, fix it on the same branch, commit and push again. The pull request updates by itself.
 
-3. If the banner is not there: click the "Pull requests" tab, then "New pull request". Select your branch from the dropdown, then click "Compare & pull request".
+When the checks pass, click **Merge pull request**. Then bring the merged work back to your computer:
 
-4. Write a clear title and description. Explain what your PR does and why you made the change. The more context you give, the faster reviewers can help you.
+```sh
+git switch main
+git pull
+```
 
-5. Click "Create pull request".
-
-A maintainer will look at your PR and either approve it, request changes, or ask questions. If changes are requested, make them on the same branch, commit, and push again — the PR updates automatically.
-
----
-
-That is the full loop: clone → branch → commit → push → pull request. Every contribution, large or small, follows this same pattern.
-
----
-
-## Troubleshooting IDE rules
-
-**Cursor — rules appear inactive in agent mode**
-
-Cursor 3.0.x has a known bug where `alwaysApply: true` rules are silently downgraded in agent mode. If your goodvibes rules seem to have no effect in Cursor:
-
-1. Open Settings (Cmd/Ctrl + ,) and search for "Rules".
-2. Verify that `goodvibes` is listed under "Always Active" rules.
-3. If it appears as "Requestable" instead, toggle it to "Always Active" manually.
-
-This is an upstream Cursor issue — the `goodvibes.mdc` file format is correct.
-
-**Using multiple AI coding tools?**
-
-`goodvibes init` writes an `AGENTS.md` file at your project root. This is a cross-tool standard natively read by Zed, Aider, JetBrains Junie (IntelliJ, PyCharm, WebStorm), Jules, Amp, Codex CLI, and many others — without any extra setup. If you switch to a new AI coding tool, check whether it reads `AGENTS.md` before creating a separate rules file.
+That is the whole loop: branch, commit, push, pull request, merge, pull. Every change, large or small, follows it.

@@ -184,7 +184,7 @@ git add JOURNAL.md
 git commit -m "Describe what you changed"
 ```
 
-To turn the check off, see [About the journal-gate hook](docs/getting-started.md#about-the-journal-gate-hook).
+To turn the check off, see [Journal check](docs/getting-started.md#journal-check-claude-code-only).
 
 ### Why does Claude Code say "goodvibes read guard" and not read a file?
 

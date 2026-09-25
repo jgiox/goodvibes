@@ -1,23 +1,21 @@
-# Cursor — goodvibes setup
+# goodvibes in Cursor
 
-goodvibes init wrote `.cursor/rules/goodvibes.mdc` into your project. This file activates the ponytail minimalism rules automatically when you open the project in Cursor.
+**What you get:** the goodvibes rules (plan first, keep changes small, run the tests, record decisions in `JOURNAL.md`, ask before risky steps), in every Cursor chat in this project. The GitHub checks run on your code as for any other tool.
 
-## Ponytail is already active
+**What you do not get:** the Claude Code guard rails (the journal check, the read guard, the session-start check and the permissions), the Claude Code skills such as caveman, `goodvibes usage`, and the Claude Code slash commands such as `/ponytail-review`. goodvibes sets up context7 and headroom for Claude Code only. See [Getting started](../getting-started.md) for what each piece does.
 
-The rules enforce simplicity-first coding, fail-loud error handling, and surgical changes — no file you did not touch, no code you did not need. You do not need to paste anything. The rules are in `.cursor/rules/goodvibes.mdc` and Cursor loads them for every AI chat in this project.
+## Setup
 
-## Verify activation
+There is nothing to do. `goodvibes init` wrote `.cursor/rules/goodvibes.mdc` into your project. It starts with `alwaysApply: true`, so Cursor 0.45 or later loads it in every chat in this project.
 
-Open Cursor. In the AI chat, ask: "What are your active rules?" You should see a reference to goodvibes or ponytail in the response.
+## Check that the rules are on
 
-## If you use .cursorrules (legacy)
+Open the project in Cursor and ask in the chat: "Which rules do you follow in this project?" The answer should mention the goodvibes engineering rules, for example reading `JOURNAL.md` before acting.
 
-If your project has a `.cursorrules` file from before goodvibes, the `.cursor/rules/goodvibes.mdc` file is independent. Both will apply. You may want to merge them to avoid duplication.
+## If you already have a `.cursorrules` file
 
-## Headroom (context compression)
+goodvibes does not read or change an older `.cursorrules` file. If your project has one, check that it does not contradict the goodvibes rules.
 
-Cursor does not use Claude Code's MCP protocol. If you want context compression, install headroom separately and use it via its CLI. See [headroom docs](https://headroom-docs.vercel.app/).
+## Turn it off
 
----
-
-## Last verified: 2026-07-01
+Delete `.cursor/rules/goodvibes.mdc`. `goodvibes update` does not bring it back.

@@ -38,7 +38,7 @@ It is free, open source (Apache 2.0) and works on its own: no account, no servic
 | Problem | What goodvibes does |
 |---|---|
 | The AI over-builds | Engineering rules and the **ponytail** minimalism ladder: smallest change that works, no new dependency for what a few lines can do, fail loud instead of hiding errors |
-| Tokens and context run out | Claude reads big files a range at a time (**read guard**), replies are shorter (**caveman** skill), what it reads is compressed (**headroom**), and **`goodvibes usage`** shows where your tokens went |
+| Tokens and context run out | Claude reads big files a range at a time (**read guard**), replies get shorter when you type `/caveman` (**caveman** skill), what it reads is compressed (**headroom**), and **`goodvibes usage`** shows where your tokens went |
 | "Done" without proof | The rules require passing tests, pasted output and updated docs before a task counts as done. A failing test comes before every bug fix |
 | Each session starts from zero | **JOURNAL.md** keeps decisions across sessions and tools. In Claude Code, a commit is blocked until the journal is updated |
 | Risky commands | Claude Code asks before `git push`, publishing, deploying or deleting branches, refuses force-push and `git reset --hard`, and will not open `.env` files, SSH keys or credential files |
@@ -79,7 +79,7 @@ Rules guide, guard rails stop, checks verify. Other AI tools get layers 1 and 3;
 
 - **Engineering rules**, in `~/.claude/rules/goodvibes.md` for Claude Code (or this project's `CLAUDE.md` with `--scope project`), and as a rule file for each of 14 tools (see [Works with](#works-with)).
 - **ponytail**, a minimalism ruleset: before writing code, check whether it needs to exist, whether the codebase or standard library already does it, and only then write the least code that works.
-- **Skills** for Claude Code: `caveman` (short replies; `/caveman full` or `stop caveman` if they get too terse), `caveman-commit` and `caveman-review` (short commit messages and review comments), `goodvibes-hygiene` (on-demand over-engineering audits), and `model-regression` (a before-and-after gate whenever a change can move a model or a score).
+- **Skills** for Claude Code: `caveman` (short replies once you type `/caveman` or ask Claude to be brief; `/caveman full` or `stop caveman` if they get too terse), `caveman-commit` and `caveman-review` (short commit messages and review comments), `goodvibes-hygiene` (on-demand over-engineering audits), and `model-regression` (a before-and-after gate whenever a change can move a model or a score).
 
 ### Guard rails in Claude Code
 
@@ -93,7 +93,7 @@ Rules guide, guard rails stop, checks verify. Other AI tools get layers 1 and 3;
 ### In your project
 
 - `JOURNAL.md` (decision log), `CHANGELOG.md`, `CONTRIBUTING.md`, `SECURITY.md` and a `CLAUDE.md` with a project section for you to fill in.
-- **GitHub workflows**: tests (Node, Python or both, matched to your project), CodeQL and gitleaks security scans, dependency review that accepts only permissive licences, and a file size check (new code files stay under 500 lines; files already bigger may not grow). Actions are pinned, tokens are read-only, and superseded runs are cancelled.
+- **GitHub workflows**: tests (Node, Python or both, matched to your project), CodeQL and gitleaks security scans, dependency review that accepts only permissive licences, and a file size check (new code files stay under 500 lines; files already bigger may not grow). Third-party actions and the gitleaks image are pinned to exact versions, tokens are read-only, and superseded runs are cancelled.
 - **Dependabot**, waiting 7 days before proposing a new release, plus issue and pull request templates.
 - **Guides** in `docs/`: getting started, git basics, and setup notes for each AI tool.
 
@@ -155,11 +155,13 @@ By default, `goodvibes init` sets goodvibes up for every project on your compute
 
 In your other projects, Claude Code then asks before pushing, publishing or deploying, refuses force-push, `git reset --hard` and secret files, and reads big files in ranges. The journal check acts only in repos that have a `JOURNAL.md`, and the session check stays quiet outside goodvibes projects. Running `goodvibes init` in your home folder does the global part only.
 
-To keep everything inside one project, with nothing written anywhere else:
+To keep everything inside one project instead:
 
 ```sh
 npx goodvibes-cli init --scope project
 ```
+
+The only thing outside the project is headroom: it is installed on your computer and registered in your Claude Code user settings. `--minimal` skips it.
 
 To undo the global part, delete `~/.claude/rules/goodvibes.md` and the goodvibes skills in `~/.claude/skills/`, remove the goodvibes entries from `~/.claude/settings.json`, and run `claude mcp remove context7 -s user`. `goodvibes update` does not put back anything you removed.
 

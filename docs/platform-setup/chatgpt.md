@@ -1,8 +1,12 @@
-# ChatGPT Projects — goodvibes setup
+# goodvibes in ChatGPT Projects
 
-ChatGPT does not read files from your project. Instead, you paste your rules directly into the project's custom instructions, and ChatGPT applies them to every conversation in that project.
+**What you get:** a short version of the goodvibes rules (think before coding, keep changes small, fail loud, keep secrets out of code) in every conversation in one ChatGPT project.
 
-## Steps
+**What you do not get:** anything that needs your project files. There is no `JOURNAL.md`, no Claude Code guard rails (the journal check, the read guard, the session-start check and the permissions), no skills such as caveman, and no context7 or headroom. The GitHub checks run only on code you put in a GitHub project set up with goodvibes. See [Getting started](../getting-started.md) for what each piece does.
+
+## Setup
+
+ChatGPT does not read files from your project, so you paste the rules into the project's instructions once.
 
 1. Go to [chatgpt.com](https://chatgpt.com) and sign in.
 2. Click **Projects** in the left sidebar. Create a new project or open an existing one.
@@ -11,16 +15,14 @@ ChatGPT does not read files from your project. Instead, you paste your rules dir
 5. Paste the text below into the box.
 6. Click **Save**.
 
-That is it. From now on, every conversation in this project follows the goodvibes engineering rules.
+From now on, every conversation in this project follows these rules.
 
-> If the steps above do not match what you see, look for **Project Instructions** or **Custom Instructions** in the project settings panel. The UI may change — the paste text stays the same.
-
----
+If the steps do not match what you see, look for **Project Instructions** or **Custom Instructions** in the project settings panel. The screens may change; the text to paste stays the same.
 
 ## Paste this text
 
 ```
-Engineering Rules — goodvibes
+Engineering rules (goodvibes)
 
 Think before coding. State assumptions before implementing. Stop if an assumption is security-sensitive, schema-sensitive, or has multiple materially different interpretations.
 
@@ -33,6 +35,8 @@ Fail loud. No empty catch blocks. No silent retries. No returning fake success o
 Security. Validate input at the boundary. Keep secrets out of code and logs. Apply least privilege. Flag immediately: SQL injection, XSS, command injection, path traversal, broken auth, leaked secrets.
 ```
 
----
+## Turn it off
+
+Delete the text from **Project Instructions** and click **Save**.
 
 ## Last verified: 2026-07-01
