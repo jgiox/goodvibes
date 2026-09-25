@@ -9,17 +9,17 @@ def _version(text):
 
 
 def test_returns_python3_when_it_is_python_3_12(mocker):
-    mocker.patch("goodvibes_cli.utils.detect_python.subprocess.run", side_effect=_version("Python 3.12.3"))
+    mocker.patch("goodvibes_cli.utils.proc.subprocess.run", side_effect=_version("Python 3.12.3"))
     assert detect_python() == "python3"
 
 
 def test_returns_none_when_every_python_is_below_3_10(mocker):
-    mocker.patch("goodvibes_cli.utils.detect_python.subprocess.run", side_effect=_version("Python 3.9.18"))
+    mocker.patch("goodvibes_cli.utils.proc.subprocess.run", side_effect=_version("Python 3.9.18"))
     assert detect_python() is None
 
 
 def test_probes_python_without_searching_the_project_folder_for_it(mocker):
-    run = mocker.patch("goodvibes_cli.utils.detect_python.subprocess.run", side_effect=FileNotFoundError())
+    run = mocker.patch("goodvibes_cli.utils.proc.subprocess.run", side_effect=FileNotFoundError())
     detect_python()
     assert [c.args[0][0] for c in run.call_args_list] == ["python3", "python", "py"]
     assert all(c.kwargs["env"]["NoDefaultCurrentDirectoryInExePath"] == "1" for c in run.call_args_list)

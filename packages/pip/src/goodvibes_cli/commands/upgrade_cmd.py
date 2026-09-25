@@ -18,6 +18,7 @@ from rich.panel import Panel
 from goodvibes_cli.commands.update_cmd import update_cmd
 from goodvibes_cli.steps.global_setup import claude_config_dir
 from goodvibes_cli.steps.write_manifest import ManifestError, read_manifest
+from goodvibes_cli.utils.proc import run
 from goodvibes_cli.utils.sentinel_merge import version_gte
 
 console = Console()
@@ -55,7 +56,7 @@ def _self_update_pip(latest: str) -> None:
                     ["uv", "pip", "install", "--python", sys.executable, "--upgrade", req]]
     for cmd in attempts:
         try:
-            subprocess.run(cmd, check=True)
+            run(cmd, check=True)
             return
         except (subprocess.CalledProcessError, FileNotFoundError):
             continue

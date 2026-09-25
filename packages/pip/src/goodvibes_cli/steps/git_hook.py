@@ -6,6 +6,7 @@ import pathlib
 import subprocess
 
 from goodvibes_cli.steps.copy_templates import resolve_hooks_dir
+from goodvibes_cli.utils.proc import run
 
 MARKER = b"# goodvibes-pre-commit"
 # A cloned repo can point core.fsmonitor at a script, or be a bare repo hidden in a subfolder.
@@ -33,7 +34,7 @@ def hook_line(result: dict, dry_run: bool) -> str | None:
 
 def _git(cwd: pathlib.Path, *args: str) -> str | None:
     try:
-        p = subprocess.run([*GIT, "-C", str(cwd), *args], capture_output=True, text=True)
+        p = run([*GIT, "-C", str(cwd), *args], capture_output=True, text=True)
     except FileNotFoundError:
         return None
     return p.stdout.strip() if p.returncode == 0 else None

@@ -1,5 +1,6 @@
 import { execa } from 'execa'
 import { detectPython } from '../utils/detect-python.js'
+import { EXEC_ENV } from '../utils/exec-env.js'
 
 export type HeadroomResult =
   | { status: 'installed' }
@@ -31,7 +32,7 @@ export async function installHeadroom(log: (msg: string) => void): Promise<Headr
 
   // HDR2-03: functional probe catches broken installs where binary exists but compress fails
   try {
-    await execa('headroom', ['compress', '--help'], { timeout: 10_000 })
+    await execa('headroom', ['compress', '--help'], { timeout: 10_000, env: EXEC_ENV })
     log('headroom already installed — skipping')
     return { status: 'already-installed' }
   } catch (e: unknown) {
@@ -55,7 +56,7 @@ export async function installHeadroom(log: (msg: string) => void): Promise<Headr
   for (const installer of installers) {
     try {
       // A real `uv tool install "headroom-ai[all]"` takes about two minutes; leave generous headroom.
-      await execa(installer.cmd, installer.args, { timeout: 15 * 60_000 })
+      await execa(installer.cmd, installer.args, { timeout: 15 * 60_000, env: EXEC_ENV })
       return { status: 'installed' }
     } catch (e: unknown) {
       if ((e as NodeJS.ErrnoException).code === 'ENOENT') {

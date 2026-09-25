@@ -8,6 +8,7 @@ import { claudeConfigDir } from '../steps/global-setup.js'
 import { MANIFEST_PATH, parseManifest } from '../steps/write-manifest.js'
 import { checkMcpServers } from './mcp-check.js'
 import { installGitHook } from '../steps/git-hook.js'
+import { EXEC_ENV } from '../utils/exec-env.js'
 
 // ponytail: not imported from sentinel-merge.ts — those constants are module-private
 const SENTINEL_START = '<!-- goodvibes:start -->'
@@ -32,7 +33,7 @@ export function summaryLine(results: CheckResult[]): string {
 
 async function checkHeadroom(): Promise<CheckResult> {
   try {
-    await execa('headroom', ['--version'], { timeout: 10_000 })
+    await execa('headroom', ['--version'], { timeout: 10_000, env: EXEC_ENV })
     return { label: 'headroom installed and working', status: 'ok' }
   } catch (e) {
     const missing = (e as NodeJS.ErrnoException).code === 'ENOENT'
@@ -49,7 +50,7 @@ async function checkGit(): Promise<CheckResult[]> {
   const results: CheckResult[] = []
   for (const key of keys) {
     try {
-      const { stdout } = await execa('git', ['config', key])
+      const { stdout } = await execa('git', ['config', key], { env: EXEC_ENV })
       results.push({
         label: `git ${key}`,
         status: okOr(stdout.trim().length > 0, 'fail'),

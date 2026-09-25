@@ -63,7 +63,7 @@ describe('installHeadroom', () => {
     await installHeadroom(vi.fn())
 
     expect(vi.mocked(execa).mock.calls.map(c => c[0])).toEqual(['headroom', 'uv', 'pipx', 'python3'])
-    for (const c of vi.mocked(execa).mock.calls) expect(c[2]).toEqual(expect.objectContaining({ env: expect.objectContaining({ NoDefaultCurrentDirectoryInExePath: '1' }) }))
+    for (const c of vi.mocked(execa).mock.calls as unknown[][]) expect(c[2]).toEqual(expect.objectContaining({ env: expect.objectContaining({ NoDefaultCurrentDirectoryInExePath: '1' }) }))
   })
 
   it('falls back to pipx when uv is ENOENT', async () => {

@@ -73,7 +73,7 @@ def test_claude_mcp_add_primary(mocker):
         side_effect=side_effect,
     )
     mocker.patch(
-        "goodvibes_cli.steps.configure_mcp.shutil.which",
+        "goodvibes_cli.steps.configure_mcp.which",
         return_value="/usr/local/bin/headroom",
     )
     from goodvibes_cli.steps.configure_mcp import configure_mcp
@@ -107,7 +107,7 @@ def test_headroom_not_on_path(mocker):
         side_effect=side_effect,
     )
     mocker.patch(
-        "goodvibes_cli.steps.configure_mcp.shutil.which",
+        "goodvibes_cli.steps.configure_mcp.which",
         return_value=None,
     )
     from goodvibes_cli.steps.configure_mcp import configure_mcp
@@ -136,7 +136,7 @@ def test_claude_not_found_fallback(mocker):
         side_effect=side_effect,
     )
     mocker.patch(
-        "goodvibes_cli.steps.configure_mcp.shutil.which",
+        "goodvibes_cli.steps.configure_mcp.which",
         return_value="/usr/local/bin/headroom",
     )
     from goodvibes_cli.steps.configure_mcp import configure_mcp
@@ -171,7 +171,7 @@ def test_headroom_enoent_in_fallback(mocker):
         side_effect=side_effect,
     )
     mocker.patch(
-        "goodvibes_cli.steps.configure_mcp.shutil.which",
+        "goodvibes_cli.steps.configure_mcp.which",
         return_value="/usr/local/bin/headroom",
     )
     from goodvibes_cli.steps.configure_mcp import configure_mcp
@@ -230,7 +230,7 @@ def test_claude_mcp_add_called_process_error_soft_fails(mocker):
         side_effect=side_effect,
     )
     mocker.patch(
-        "goodvibes_cli.steps.configure_mcp.shutil.which",
+        "goodvibes_cli.steps.configure_mcp.which",
         return_value="/usr/bin/headroom",
     )
     from goodvibes_cli.steps.configure_mcp import configure_mcp
@@ -253,7 +253,7 @@ def _registered_as(get_stdout):
 def test_repairs_a_headroom_registration_that_has_no_mcp_serve_arguments(mocker):
     broken = "headroom:\n  Scope: User config\n  Type: stdio\n  Command: /usr/local/bin/headroom\n  Args: \n"
     run = mocker.patch("goodvibes_cli.steps.configure_mcp.subprocess.run", side_effect=_registered_as(broken))
-    mocker.patch("goodvibes_cli.steps.configure_mcp.shutil.which", return_value="/usr/local/bin/headroom")
+    mocker.patch("goodvibes_cli.steps.configure_mcp.which", return_value="/usr/local/bin/headroom")
     from goodvibes_cli.steps.configure_mcp import configure_mcp
 
     log_calls: list[str] = []
@@ -271,7 +271,7 @@ def test_repairs_a_headroom_registration_that_has_no_mcp_serve_arguments(mocker)
 def test_leaves_a_headroom_registration_with_mcp_serve_alone(mocker):
     ok = "headroom:\n  Command: /usr/local/bin/headroom\n  Args: mcp serve\n"
     run = mocker.patch("goodvibes_cli.steps.configure_mcp.subprocess.run", side_effect=_registered_as(ok))
-    mocker.patch("goodvibes_cli.steps.configure_mcp.shutil.which", return_value="/usr/local/bin/headroom")
+    mocker.patch("goodvibes_cli.steps.configure_mcp.which", return_value="/usr/local/bin/headroom")
     from goodvibes_cli.steps.configure_mcp import configure_mcp
 
     result = configure_mcp(lambda m: None)
@@ -295,7 +295,7 @@ IN_PROJECT = ("headroom was found only inside this project folder, where a clone
 
 def test_every_mcp_command_skips_the_project_folder_when_finding_programs(mocker):
     run = mocker.patch("goodvibes_cli.steps.configure_mcp.subprocess.run", side_effect=_unregistered)
-    mocker.patch("shutil.which", return_value="/usr/local/bin/headroom")
+    mocker.patch("goodvibes_cli.steps.configure_mcp.which", return_value="/usr/local/bin/headroom")
     from goodvibes_cli.steps.configure_mcp import configure_mcp
 
     assert configure_mcp(lambda m: None)["status"] == "registered"
@@ -306,7 +306,7 @@ def test_every_mcp_command_skips_the_project_folder_when_finding_programs(mocker
 def test_does_not_register_a_headroom_found_inside_the_project_folder(mocker, tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     run = mocker.patch("goodvibes_cli.steps.configure_mcp.subprocess.run", side_effect=_unregistered)
-    mocker.patch("shutil.which", return_value=str(tmp_path / ".venv" / "bin" / "headroom"))
+    mocker.patch("goodvibes_cli.steps.configure_mcp.which", return_value=str(tmp_path / ".venv" / "bin" / "headroom"))
     from goodvibes_cli.steps.configure_mcp import configure_mcp
 
     log_calls: list[str] = []
@@ -321,7 +321,7 @@ def test_does_not_repair_a_registration_with_a_headroom_found_inside_the_project
     monkeypatch.chdir(tmp_path)
     broken = "headroom:\n  Command: /usr/local/bin/headroom\n  Args: \n"
     run = mocker.patch("goodvibes_cli.steps.configure_mcp.subprocess.run", side_effect=_registered_as(broken))
-    mocker.patch("shutil.which", return_value=str(tmp_path / "headroom"))
+    mocker.patch("goodvibes_cli.steps.configure_mcp.which", return_value=str(tmp_path / "headroom"))
     from goodvibes_cli.steps.configure_mcp import configure_mcp
 
     log_calls: list[str] = []

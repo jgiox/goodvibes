@@ -143,7 +143,7 @@ describe('upgrade command', () => {
     await runUpgrade().catch(() => {})
 
     expect(vi.mocked(execa).mock.calls).toHaveLength(3)
-    for (const c of vi.mocked(execa).mock.calls) expect(c[2]).toEqual(expect.objectContaining({ env: expect.objectContaining({ NoDefaultCurrentDirectoryInExePath: '1' }) }))
+    for (const c of vi.mocked(execa).mock.calls as unknown[][]) expect(c[2]).toEqual(expect.objectContaining({ env: expect.objectContaining({ NoDefaultCurrentDirectoryInExePath: '1' }) }))
   })
 
   it('skips the version check when _GV_UPGRADING is set', async () => {

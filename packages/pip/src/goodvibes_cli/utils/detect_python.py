@@ -1,6 +1,7 @@
 """Probe for a Python 3.10+ interpreter on the current PATH."""
 import re
-import subprocess
+
+from goodvibes_cli.utils.proc import run
 
 
 def detect_python() -> str | None:
@@ -14,7 +15,7 @@ def detect_python() -> str | None:
     """
     for cmd in ["python3", "python", "py"]:
         try:
-            result = subprocess.run(
+            result = run(
                 [cmd, "--version"],
                 capture_output=True,
                 text=True,

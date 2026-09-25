@@ -353,7 +353,7 @@ describe('doctor command', () => {
       exitSpy.mockRestore()
 
       expect(vi.mocked(execa).mock.calls.map(c => c[0])).toEqual(['headroom', 'git', 'git'])
-      for (const c of vi.mocked(execa).mock.calls) expect(c[2]).toEqual(expect.objectContaining({ env: expect.objectContaining({ NoDefaultCurrentDirectoryInExePath: '1' }) }))
+      for (const c of vi.mocked(execa).mock.calls as unknown[][]) expect(c[2]).toEqual(expect.objectContaining({ env: expect.objectContaining({ NoDefaultCurrentDirectoryInExePath: '1' }) }))
     })
   })
 

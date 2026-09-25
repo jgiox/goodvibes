@@ -7,6 +7,7 @@ import { packageVersion } from '../utils/version.js'
 import { runUpdate } from './update.js'
 import { readManifest } from '../steps/write-manifest.js'
 import { claudeConfigDir } from '../steps/global-setup.js'
+import { EXEC_ENV } from '../utils/exec-env.js'
 
 const _GV_UPGRADING = '_GV_UPGRADING'
 
@@ -23,7 +24,7 @@ const firstErrorLine = (text: string): string => {
 async function checkLatestNpmVersion(): Promise<string | null> {
   try {
     // From the home folder, so a project's .npmrc cannot point npm at another registry.
-    const { stdout } = await execa('npm', ['view', 'goodvibes-cli', 'version'], { cwd: homedir() })
+    const { stdout } = await execa('npm', ['view', 'goodvibes-cli', 'version'], { cwd: homedir(), env: EXEC_ENV })
     if (stdout.trim()) return stdout.trim()
     note('Could not check npm for a newer version (npm printed no version); updating with the installed version')
   } catch (e) {
@@ -70,7 +71,7 @@ export function registerUpgradeCommand(program: Command): void {
             note(`Updating goodvibes ${current} → ${latest}…`, 'New version available')
             try {
               // stderr is shown live and also kept, so a failure can be explained below.
-              await execa('npm', ['install', '-g', `goodvibes-cli@${latest}`], { stdin: 'inherit', stdout: 'inherit', stderr: ['pipe', 'inherit'] })
+              await execa('npm', ['install', '-g', `goodvibes-cli@${latest}`], { stdin: 'inherit', stdout: 'inherit', stderr: ['pipe', 'inherit'], env: EXEC_ENV })
             } catch (e) {
               note(npmInstallFailure(e, latest), 'Upgrade failed')
               process.exit(1)
@@ -79,7 +80,7 @@ export function registerUpgradeCommand(program: Command): void {
             // Through node itself: Windows cannot execute a .js path directly.
             const rerun = await execa(process.execPath, [process.argv[1], ...process.argv.slice(2)], {
               stdio: 'inherit',
-              env: { ...process.env, [_GV_UPGRADING]: latest },
+              env: { ...process.env, ...EXEC_ENV, [_GV_UPGRADING]: latest },
               reject: false,
             })
             process.exit(rerun.exitCode ?? 1)

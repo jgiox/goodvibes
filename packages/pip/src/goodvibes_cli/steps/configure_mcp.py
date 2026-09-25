@@ -1,21 +1,40 @@
 """Register headroom as a global MCP server in Claude Code."""
-import shutil
+import pathlib
 import subprocess
 from typing import Callable
+
+from goodvibes_cli.utils.proc import run, which
+
+IN_PROJECT = (
+    "headroom was found only inside this project folder, where a cloned repo could plant it, so it was not registered as an MCP server. "
+    'Run `uv tool install "headroom-ai[all]"` then re-run `goodvibes init`.'
+)
 
 
 def _add_cmd(headroom_path: str) -> list[str]:
     return ["claude", "mcp", "add", "-s", "user", "headroom", "--", headroom_path, "mcp", "serve"]
 
 
+def _inside_project(path: str) -> bool:
+    # A cloned repo could ship its own headroom; a user-scope MCP server runs in every project, so never register one from inside this one.
+    return pathlib.Path(path).absolute().is_relative_to(pathlib.Path.cwd().absolute())
+
+
+def _in_project_skip(log: Callable[[str], None]) -> dict[str, str]:
+    log(IN_PROJECT)
+    return {"status": "skipped", "reason": "headroom found only inside the project folder"}
+
+
 def _repair(log: Callable[[str], None]) -> dict[str, str]:
-    absolute_path = shutil.which("headroom")
+    absolute_path = which("headroom")
+    if absolute_path and _inside_project(absolute_path):
+        return _in_project_skip(log)
     if not absolute_path:
         log("headroom MCP registration is missing `mcp serve`, but headroom is not on PATH to repair it.")
         return {"status": "skipped", "reason": "headroom binary not found on PATH"}
     try:
-        subprocess.run(["claude", "mcp", "remove", "headroom", "-s", "user"], capture_output=True, text=True, check=True, timeout=10)
-        subprocess.run(_add_cmd(absolute_path), capture_output=True, text=True, check=True, timeout=10)
+        run(["claude", "mcp", "remove", "headroom", "-s", "user"], capture_output=True, text=True, check=True, timeout=10)
+        run(_add_cmd(absolute_path), capture_output=True, text=True, check=True, timeout=10)
     except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as e:
         lines = (getattr(e, "stderr", "") or "").splitlines()
         reason = lines[0] if lines else str(e).splitlines()[0]
@@ -37,7 +56,7 @@ def configure_mcp(log: Callable[[str], None]) -> dict[str, str]:
     """
     # Registrations made without `mcp serve` start headroom's CLI instead of its MCP server.
     try:
-        got = subprocess.run(["claude", "mcp", "get", "headroom"], capture_output=True, text=True, timeout=10)
+        got = run(["claude", "mcp", "get", "headroom"], capture_output=True, text=True, timeout=10)
     except (FileNotFoundError, subprocess.TimeoutExpired):
         got = None
     if got is not None and got.returncode == 0:
@@ -48,7 +67,7 @@ def configure_mcp(log: Callable[[str], None]) -> dict[str, str]:
 
     # Step 1: idempotency check
     try:
-        subprocess.run(
+        run(
             ["headroom", "mcp", "status"],
             capture_output=True,
             text=True,
@@ -62,7 +81,7 @@ def configure_mcp(log: Callable[[str], None]) -> dict[str, str]:
 
     # Step 2: primary — claude mcp add -s user (handles CLAUDE_CONFIG_DIR correctly)
     try:
-        list_result = subprocess.run(
+        list_result = run(
             ["claude", "mcp", "list"],
             capture_output=True,
             text=True,
@@ -73,7 +92,9 @@ def configure_mcp(log: Callable[[str], None]) -> dict[str, str]:
             log("headroom already registered in claude MCP — skipping")
             return {"status": "already-registered", "reason": ""}
 
-        absolute_path = shutil.which("headroom")
+        absolute_path = which("headroom")
+        if absolute_path and _inside_project(absolute_path):
+            return _in_project_skip(log)
         if not absolute_path:
             log(
                 "headroom binary not found on PATH — MCP registration skipped. "
@@ -81,7 +102,7 @@ def configure_mcp(log: Callable[[str], None]) -> dict[str, str]:
             )
             return {"status": "skipped", "reason": "headroom binary not found on PATH"}
 
-        subprocess.run(_add_cmd(absolute_path), capture_output=True, text=True, check=True, timeout=10)
+        run(_add_cmd(absolute_path), capture_output=True, text=True, check=True, timeout=10)
         log("headroom registered as global MCP server")
         return {"status": "registered", "reason": ""}
     except FileNotFoundError:
@@ -98,7 +119,7 @@ def configure_mcp(log: Callable[[str], None]) -> dict[str, str]:
 
     # Step 3: fallback — headroom mcp install
     try:
-        subprocess.run(
+        run(
             ["headroom", "mcp", "install"],
             capture_output=True,
             text=True,

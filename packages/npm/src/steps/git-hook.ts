@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto'
 import { chmod, lstat, mkdir, readFile, realpath, rename, rm, writeFile } from 'node:fs/promises'
 import { isAbsolute, join, relative, resolve } from 'node:path'
 import { resolveHooksDir } from './copy-templates.js'
+import { EXEC_ENV } from '../utils/exec-env.js'
 
 export type GitHookStatus = 'installed' | 'updated' | 'current' | 'not-a-repo' | 'custom-path' | 'existing-hook' | 'linked-hooks'
 export interface GitHookResult { status: GitHookStatus; path: string; detail?: string }
@@ -11,7 +12,7 @@ const HOOK_MARKER = '# goodvibes-pre-commit'
 
 // A repo's own config must never run code or redirect git while goodvibes inspects it.
 const git = (cwd: string, args: string[]) =>
-  execa('git', ['-c', 'core.fsmonitor=false', '-c', 'safe.bareRepository=explicit', '-C', cwd, ...args], { reject: false })
+  execa('git', ['-c', 'core.fsmonitor=false', '-c', 'safe.bareRepository=explicit', '-C', cwd, ...args], { reject: false, env: EXEC_ENV })
 
 async function lstatOrNull(p: string) {
   try {

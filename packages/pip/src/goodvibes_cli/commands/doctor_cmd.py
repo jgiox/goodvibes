@@ -22,6 +22,7 @@ from rich.text import Text
 from goodvibes_cli.steps.git_hook import install_git_hook
 from goodvibes_cli.steps.global_setup import claude_config_dir
 from goodvibes_cli.steps.write_manifest import ManifestError, read_manifest
+from goodvibes_cli.utils.proc import run
 
 # ponytail: not imported from sentinel_merge — define locally to avoid coupling
 SENTINEL_START = "<!-- goodvibes:start -->"
@@ -59,7 +60,7 @@ def summary_line(results: list[CheckResult]) -> str:
 
 def _check_headroom() -> CheckResult:
     try:
-        subprocess.run(
+        run(
             ["headroom", "--version"],
             capture_output=True, text=True, check=True, timeout=10
         )
@@ -236,7 +237,7 @@ def _check_goodvibes_cli() -> CheckResult:
 
 def _check_git_config(key: str) -> CheckResult:
     try:
-        result = subprocess.run(
+        result = run(
             ["git", "config", key],
             capture_output=True,
             text=True,

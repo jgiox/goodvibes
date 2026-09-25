@@ -13,6 +13,7 @@ import sys
 from goodvibes_cli.steps.copy_templates import list_template_files
 from goodvibes_cli.steps.write_manifest import MANIFEST_PATH, USER_OWNED, USER_REMOVED, read_manifest
 from goodvibes_cli.utils.json_merge import merge_managed_json, present_ids, shape_error, write_json
+from goodvibes_cli.utils.proc import run
 from goodvibes_cli.utils.scope import goodvibes_block
 from goodvibes_cli.utils.safe_path import remove_retired
 
@@ -57,7 +58,7 @@ def ensure_global_cli(version: str, dry_run: bool) -> dict[str, str]:
     if dry_run:
         return {"status": "skipped", "reason": f'dry run; would run uv tool install "goodvibes-cli>={version}"'}
     try:
-        subprocess.run(["uv", "tool", "install", f"goodvibes-cli>={version}"], capture_output=True, text=True, timeout=120, check=True)
+        run(["uv", "tool", "install", f"goodvibes-cli>={version}"], capture_output=True, text=True, timeout=120, check=True)
         if shutil.which("goodvibes") is None:
             return {"status": "installed", "reason": "goodvibes is not on your PATH yet: run uv tool update-shell, then open a new terminal"}
         return {"status": "installed"}

@@ -3,6 +3,7 @@ import subprocess
 from typing import Callable
 
 from goodvibes_cli.utils.detect_python import detect_python
+from goodvibes_cli.utils.proc import run
 
 INSTALL_TIMEOUT = 900
 
@@ -26,7 +27,7 @@ def install_headroom(log: Callable[[str], None]) -> dict[str, str]:
 
     # HDR2-03: functional probe — catches broken installs where binary exists but fails
     try:
-        subprocess.run(
+        run(
             ["headroom", "compress", "--help"],
             capture_output=True, text=True, check=True, timeout=10
         )
@@ -52,7 +53,7 @@ def install_headroom(log: Callable[[str], None]) -> dict[str, str]:
     for cmd_list in installers:
         try:
             # The real install downloads ~2 minutes of wheels; 10 s killed it every time.
-            subprocess.run(cmd_list, capture_output=True, text=True, check=True, timeout=INSTALL_TIMEOUT)
+            run(cmd_list, capture_output=True, text=True, check=True, timeout=INSTALL_TIMEOUT)
             return {"status": "installed", "reason": ""}
         except FileNotFoundError:
             continue

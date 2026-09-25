@@ -11,6 +11,6 @@ describe('installGitHook program lookup', () => {
     expect((await installGitHook('/p', true)).status).toBe('not-a-repo')
 
     expect(vi.mocked(execa).mock.calls).toHaveLength(1)
-    expect(vi.mocked(execa).mock.calls[0][2]).toEqual(expect.objectContaining({ env: expect.objectContaining({ NoDefaultCurrentDirectoryInExePath: '1' }) }))
+    expect((vi.mocked(execa).mock.calls[0] as unknown[])[2]).toEqual(expect.objectContaining({ env: expect.objectContaining({ NoDefaultCurrentDirectoryInExePath: '1' }) }))
   })
 })

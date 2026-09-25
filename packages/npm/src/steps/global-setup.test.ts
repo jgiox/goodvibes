@@ -54,7 +54,7 @@ describe('ensureGlobalCli', () => {
     const { ensureGlobalCli } = await import('./global-setup.js')
     await ensureGlobalCli('1.8.0', false)
     expect(vi.mocked(execa).mock.calls).toHaveLength(2)
-    for (const c of vi.mocked(execa).mock.calls) expect(c[2]).toEqual(expect.objectContaining({ env: expect.objectContaining({ NoDefaultCurrentDirectoryInExePath: '1' }) }))
+    for (const c of vi.mocked(execa).mock.calls as unknown[][]) expect(c[2]).toEqual(expect.objectContaining({ env: expect.objectContaining({ NoDefaultCurrentDirectoryInExePath: '1' }) }))
   })
 
   it('does not reinstall when the same version is already global', async () => {

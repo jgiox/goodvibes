@@ -105,7 +105,7 @@ describe('configureMcp', () => {
     const { configureMcp } = await import('./configure-mcp.js')
     expect(await configureMcp(vi.fn())).toEqual({ status: 'registered' })
     expect(execa.mock.calls).toHaveLength(3)
-    for (const c of execa.mock.calls) expect(c[2]).toEqual(expect.objectContaining({ env: expect.objectContaining({ NoDefaultCurrentDirectoryInExePath: '1' }) }))
+    for (const c of execa.mock.calls as unknown[][]) expect(c[2]).toEqual(expect.objectContaining({ env: expect.objectContaining({ NoDefaultCurrentDirectoryInExePath: '1' }) }))
   })
 
   it('does not register a headroom found inside the project folder', async () => {
@@ -117,7 +117,7 @@ describe('configureMcp', () => {
     const log = vi.fn()
     expect(await configureMcp(log)).toEqual({ status: 'skipped', reason: 'headroom found only inside the project folder' })
     expect(log).toHaveBeenCalledWith('headroom was found only inside this project folder, where a cloned repo could plant it, so it was not registered as an MCP server. Run `uv tool install "headroom-ai[all]"` then re-run `goodvibes init`.')
-    expect(execa.mock.calls.some(c => c[0] === 'claude' && c[1][1] === 'add')).toBe(false)
+    expect((execa.mock.calls as [string, string[]][]).some(([cmd, args]) => cmd === 'claude' && args[1] === 'add')).toBe(false)
   })
 
   it('skips a headroom inside the project folder and registers the next one on PATH', async () => {
