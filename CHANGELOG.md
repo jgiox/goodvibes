@@ -18,6 +18,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/2.0.0/),
 - Claude Code also asks before editing `.cursor/mcp.json` and `.vscode/mcp.json`, so an agent cannot quietly add an MCP server for Cursor or VS Code
 - Releases: the npm and PyPI packages are built and tested in a job that cannot publish. Only a small job in the `release` environment holds the publish token, and it uploads exactly the files that were tested. Checkouts no longer keep their credentials, `npm ci` skips install scripts, release jobs use no build cache, and the pip build backend (hatchling) is pinned to an exact version
 
+### Changed
+
+- The goodvibes-template repo now gets one CI workflow, `.github/workflows/ci.yml` (the same file `goodvibes init` writes), instead of `ci-both.yml`, `ci-node.yml` and `ci-python.yml`, which cancelled each other there. Each sync replaces the template repo's contents, so change `templates/` in this repo, not the template repo
+
 ### Fixed
 
 - `goodvibes upgrade` run outside a goodvibes project (for example in your home folder) now says the new version is installed and how to update a project, instead of ending with a "No .goodvibes.json ... not set up here yet" box that looked like the upgrade had failed
