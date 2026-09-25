@@ -340,4 +340,17 @@ describe('journal-gate hook', () => {
     await runHook('echo git -C vendor/evil commit -m wip', repoDir)
     expect(existsSync(marker)).toBe(false)
   })
+
+  for (const command of [
+    'npm test&&git commit -m x',
+    'true|git commit -m x',
+    'echo $(git commit -m x)',
+    '(git commit -m x)',
+    'a;git commit -m x',
+  ]) {
+    it(`blocks a commit whose git is glued to a shell operator: ${command}`, async () => {
+      const { exitCode } = await runHook(command, repoDir)
+      expect(exitCode).toBe(2)
+    })
+  }
 })

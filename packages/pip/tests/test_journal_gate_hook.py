@@ -311,3 +311,11 @@ def test_does_not_run_fsmonitor_command_of_bare_repo_that_command_text_only_ment
     _run_hook("# git -C vendor/evil commit", repo_dir)
     _run_hook("echo git -C vendor/evil commit -m wip", repo_dir)
     assert not marker.exists()
+
+
+@pytest.mark.parametrize(
+    "command",
+    ["npm test&&git commit -m x", "true|git commit -m x", "echo $(git commit -m x)", "(git commit -m x)", "a;git commit -m x"],
+)
+def test_blocks_commit_whose_git_is_glued_to_a_shell_operator(repo_dir, command):
+    assert _run_hook(command, repo_dir).returncode == 2

@@ -1631,3 +1631,4 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 **What I did:** Hardened the journal-gate PreToolUse hook (templates/.claude/settings.json and the dogfood .claude/settings.json, kept identical). One RED test commit, then one GREEN fix commit, per problem:
 - RED 1: a bare repo inside the project with `core.fsmonitor` set runs its command when the hook merely sees `git -C vendor/evil commit` in the text.
 - GREEN 1: every git call in the hook runs with `-c core.fsmonitor=false -c safe.bareRepository=explicit`; the cwd `git rev-parse` now goes through the same GIT helper.
+- RED 2: a commit whose `git` is glued to `&&`, `|`, `$(`, `(` or `;` is not seen as a commit.
