@@ -161,11 +161,12 @@ To skip the check once: git commit --no-verify
 From the AI tool's hook you may see `BLOCKED: JOURNAL.md not staged` instead; it means the same. Add an entry, stage it with `git add JOURNAL.md`, and commit again. Details:
 
 - It acts only in repositories that have a `JOURNAL.md` in the top folder.
-- Merges, rebases, cherry-picks, reverts and amends that only change the message are let through.
+- Merges, rebases, cherry-picks, reverts and amends that only change the message are let through. So are `git commit --help` and `git commit --dry-run`, which commit nothing.
+- Naming `JOURNAL.md` in the commit itself, as in `git commit -m "fix login" JOURNAL.md src/login.js`, counts as including it.
 - `goodvibes init` and `goodvibes update` put the git hook in `.git/hooks/`, which is your own copy of the project and is never committed. So everyone who clones the project runs `goodvibes update` once to get it. If the folder was not a git repository yet, run `git init`, then `goodvibes update`.
 - goodvibes never replaces a pre-commit hook you already have, and leaves hook managers such as husky alone (they set `core.hooksPath`). `goodvibes doctor` tells you whether the check is active.
 - The AI tool's hook ignores actions that carry no shell command, so it never blocks a file edit whose text happens to mention `git commit`.
-- The AI tool's hook follows the commit to the right repository, including `cd somewhere && git commit` and `git -C somewhere commit`. If it cannot tell which repository a commit runs in, it blocks with a "cannot verify" message; run the commit as its own command from inside the repository.
+- The AI tool's hook follows the commit to the right repository, including `cd somewhere && git commit`, `git -C somewhere commit`, and the folder Gemini CLI or Windsurf says the command runs in. If it cannot tell which repository a commit runs in, it blocks with a "cannot verify" message; run the commit as its own command from inside the repository.
 - Both are a safety net for honest mistakes, not a security boundary.
 
 **Turn it off.**
@@ -179,16 +180,16 @@ From the AI tool's hook you may see `BLOCKED: JOURNAL.md not staged` instead; it
 
 ## Read guard
 
-**What it is.** A second hook, in Claude Code and the same other tools as the journal check. It runs before the AI reads a file or runs a terminal command.
+**What it is.** A second hook, in Claude Code and the same other tools as the journal check. It runs before the AI reads a file, searches files or runs a terminal command.
 
 **Why it helps you.** Reading a whole large file fills the context window and costs tokens, usually for one function Claude could have found with a search. Reading a secrets file puts your passwords in the conversation.
 
 **What it does.**
 
 - **Big files:** when Claude tries to read a whole file over 800 lines or 100 KB at once (with its Read tool, or with `cat`, `less`, `more`, `nl`, a large `head` or `tail`, or `sed -n 1,5000p`), the hook stops it and tells it to read a range of lines or search with Grep first. Reading a range, and piping into `head`, `tail`, `grep` or `wc`, is allowed. In other tools, the read guard understands each tool's own way of reading a file, for example a line range given as a start and an end line. Images, PDFs and notebooks opened with Claude Code's Read tool are not limited. Change the limits with the `GOODVIBES_READ_GUARD_LINES` and `GOODVIBES_READ_GUARD_KB` environment variables.
-- **Secret files:** it stops Claude from reading `.env` files, anything in `~/.ssh`, `~/.aws/credentials`, `.git-credentials`, `.netrc`, and `.pem`, `id_rsa`, `id_ed25519` or `id_ecdsa` files, and tells it to ask you for the value it needs. `.env.example`, `.env.sample` and `.env.template` stay readable.
+- **Secret files:** it stops Claude from reading `.env` files, anything in `~/.ssh`, `~/.aws/credentials`, `.git-credentials`, `.netrc`, and `.pem`, `id_rsa`, `id_ed25519`, `id_ecdsa` or `id_dsa` files, and tells it to ask you for the value it needs. Capital letters (`.ENV`) and patterns that could match one of these files (`cat .env*`) count too. Searches (Grep and similar) are checked for these files, but not for size. `.env.example`, `.env.sample` and `.env.template` stay readable.
 
-It is a safety net, not a security boundary: it does not see every way a command can read a file.
+It is best-effort, a safety net and not a security boundary: it catches the common ways to read a file, not every one. For example, a script that opens the file itself gets past it.
 
 **Turn it off.** Start Claude Code (or your other AI tool) with `GOODVIBES_READ_GUARD=off` set, which turns off both parts. Other tools see it only if they pass your environment on to their hooks; Gemini CLI running in CI does not:
 
