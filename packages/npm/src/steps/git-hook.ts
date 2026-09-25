@@ -4,6 +4,7 @@ import { chmod, lstat, mkdir, readFile, realpath, rename, rm, writeFile } from '
 import { isAbsolute, join, relative, resolve } from 'node:path'
 import { resolveHooksDir } from './copy-templates.js'
 import { EXEC_ENV } from '../utils/exec-env.js'
+import { printable } from '../utils/fs-safe.js'
 
 export type GitHookStatus = 'installed' | 'updated' | 'current' | 'not-a-repo' | 'custom-path' | 'existing-hook' | 'linked-hooks'
 export interface GitHookResult { status: GitHookStatus; path: string; detail?: string }
@@ -81,7 +82,7 @@ export function gitHookLine(r: GitHookResult, dryRun: boolean): string | null {
     updated: 'Git commit check updated (.git/hooks/pre-commit)',
     current: null,
     'not-a-repo': 'Git commit check skipped: this folder is not a git repository yet. Run git init, then goodvibes update.',
-    'custom-path': `Git commit check skipped: git uses its own hooks folder here (core.hooksPath = ${r.detail}), so goodvibes left your hooks alone.`,
+    'custom-path': `Git commit check skipped: git uses its own hooks folder here (core.hooksPath = ${printable(r.detail ?? '')}), so goodvibes left your hooks alone.`,
     'existing-hook': 'Git commit check skipped: .git/hooks/pre-commit already exists and is not from goodvibes, so it was left alone.',
     'linked-hooks': "Git commit check skipped: .git/hooks is a link or points outside this repository's git folder, so goodvibes left it alone.",
   }[r.status]

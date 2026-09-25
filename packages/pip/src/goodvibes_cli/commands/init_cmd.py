@@ -6,6 +6,7 @@ from typing import Annotated
 import typer
 from rich.console import Console
 from rich.panel import Panel
+from rich.text import Text
 
 from goodvibes_cli.steps.configure_mcp import configure_mcp
 from goodvibes_cli.steps.copy_templates import copy_templates, list_template_files, resolve_templates_dir
@@ -85,7 +86,7 @@ def init_cmd(
         if scope == "global":
             version = importlib.metadata.version("goodvibes-cli")
             g = apply_global_config(template_dir, version, dry_run=True)
-            console.print(Panel(format_global(g, ensure_global_cli(version, dry_run=True), None), title=f"Dry run — global setup ({g['config_dir']})"))
+            console.print(Panel(Text(format_global(g, ensure_global_cli(version, dry_run=True), None)), title=f"Dry run — global setup ({g['config_dir']})"))
         all_files = [f for f in list_template_files(template_dir) if scope == "project" or not global_owned(f)] if in_project else []
         ci_variants = ["ci-node.yml", "ci-python.yml", "ci-both.yml"]
         selected = f"ci-{project_type}.yml"
@@ -187,7 +188,7 @@ def init_cmd(
         tel_thread.join(timeout=1.0)
 
     if global_result:
-        console.print(Panel(format_global(global_result, cli_result, c7_result), title=f"Global setup ({global_result['config_dir']})"))
+        console.print(Panel(Text(format_global(global_result, cli_result, c7_result)), title=f"Global setup ({global_result['config_dir']})"))
     if in_project:
         written_str = "\n".join(created_files) if created_files else "(none)"
         console.print(Panel(written_str, title=f"Files written ({len(created_files)})"))
