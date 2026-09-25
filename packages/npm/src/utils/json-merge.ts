@@ -59,11 +59,15 @@ export function presentIds(rel: string, tpl: Json, content: Json): string[] {
 }
 
 // An id in `installed` but absent from `user` was removed by the user and stays removed.
+// Allow rules goodvibes shipped up to 1.9.1: they auto-approved running arbitrary code, so update takes them back out.
+export const RETIRED_ALLOW = ['Bash(npm install*)', 'Bash(npm run*)', 'Bash(npx*)', 'Bash(pip install*)', 'Bash(uv*)', 'Bash(python*)', 'Bash(node*)', 'Bash(git restore *)']
+
 export function mergeManagedJson(
   rel: string,
   tpl: Json,
   user: Json,
   installed: string[] = [],
+  retireAllow = false,
 ): { merged: Json; changes: string[] } {
   const merged: Json = structuredClone(user)
   const changes: string[] = []
@@ -84,6 +88,12 @@ export function mergeManagedJson(
       }
     }
     return { merged, changes }
+  }
+
+  if (retireAllow && Array.isArray(merged.permissions?.allow)) {
+    const keep = merged.permissions.allow.filter((p: string) => !RETIRED_ALLOW.includes(p))
+    for (const p of merged.permissions.allow) if (RETIRED_ALLOW.includes(p)) changes.push(`- permissions.allow: ${p}`)
+    merged.permissions.allow = keep
   }
 
   for (const list of ['ask', 'deny']) {

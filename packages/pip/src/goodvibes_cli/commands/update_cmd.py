@@ -180,7 +180,7 @@ def update_cmd(
             merge_errors.append(f"{rel}: not a JSON object; left unchanged, fix it and re-run update")
             continue
         tpl = json.loads(tpl_path.read_text(encoding="utf-8"))
-        merged, changes = merge_managed_json(rel, tpl, user, (manifest.get("managed") or {}).get(rel))
+        merged, changes = merge_managed_json(rel, tpl, user, (manifest.get("managed") or {}).get(rel), retire_allow=rel == ".claude/settings.json")
         if changes:
             merges.append((rel, merged, changes))
     merge_lines = [f"Will merge goodvibes keys into {rel}:\n  " + "\n  ".join(ch) for rel, _, ch in merges]

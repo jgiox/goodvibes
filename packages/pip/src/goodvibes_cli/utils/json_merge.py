@@ -72,7 +72,13 @@ def present_ids(rel: str, tpl: dict, content: dict) -> list[str]:
     return [mid for mid in managed_ids(rel, tpl) if present(mid)]
 
 
-def merge_managed_json(rel: str, tpl: dict, user: dict, installed: list[str] | None = None) -> tuple[dict, list[str]]:
+# Allow rules goodvibes shipped up to 1.9.1: they auto-approved running arbitrary code, so update takes them back out.
+RETIRED_ALLOW = ['Bash(npm install*)', 'Bash(npm run*)', 'Bash(npx*)', 'Bash(pip install*)', 'Bash(uv*)', 'Bash(python*)', 'Bash(node*)', 'Bash(git restore *)']
+
+
+def merge_managed_json(
+    rel: str, tpl: dict, user: dict, installed: list[str] | None = None, retire_allow: bool = False
+) -> tuple[dict, list[str]]:
     """An id in `installed` but absent from `user` was removed by the user and stays removed."""
     merged = copy.deepcopy(user)
     changes: list[str] = []
@@ -90,6 +96,11 @@ def merge_managed_json(rel: str, tpl: dict, user: dict, installed: list[str] | N
                 merged.setdefault("mcpServers", {})[name] = server
                 changes.append(f"+ mcpServers.{name}")
         return merged, changes
+
+    allow = (merged.get("permissions") or {}).get("allow")
+    if retire_allow and isinstance(allow, list):
+        changes.extend(f"- permissions.allow: {p}" for p in allow if p in RETIRED_ALLOW)
+        merged["permissions"]["allow"] = [p for p in allow if p not in RETIRED_ALLOW]
 
     for lst in ("ask", "deny"):
         for p in (tpl.get("permissions") or {}).get(lst) or []:

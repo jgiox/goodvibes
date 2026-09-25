@@ -1794,6 +1794,6 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 
 **Why:** Audit finding S3 left existing installs exposed.
 
-**Tests run:** RED: npm 2 failed (json-merge, update integration); pip 2 failed (json_merge, update_cmd).
+**Tests run:** RED: npm 2 failed (json-merge, update integration); pip 2 failed (json_merge, update_cmd). GREEN: npm typecheck 0, vitest 432 passed, 1 skipped; pip pytest 352 passed.
 
 **Docs updated:** JOURNAL.md.

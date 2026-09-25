@@ -162,7 +162,7 @@ export async function runUpdate(dryRun: boolean, force: boolean): Promise<void> 
       continue
     }
     const tpl = JSON.parse(await readFile(tplPath, 'utf-8'))
-    const { merged, changes } = mergeManagedJson(rel, tpl, user, manifest?.managed?.[rel])
+    const { merged, changes } = mergeManagedJson(rel, tpl, user, manifest?.managed?.[rel], rel === '.claude/settings.json')
     if (changes.length > 0) merges.push({ rel, merged, changes })
   }
 
