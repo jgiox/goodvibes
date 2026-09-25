@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/2.0.0/),
 
 ### Fixed
 
+- `goodvibes doctor` (and every tool goodvibes runs) no longer misses programs in `~/.local/bin` when run from the home folder. 1.11.0 reported "headroom not installed" and "goodvibes command not on PATH" there, because its protection against programs planted in a project treated the home folder as a project
 - `goodvibes upgrade` right after a release no longer fails with "only goodvibes-cli<=1.10.0 is available" (Python) or "No matching version found" (npm): it asks uv, pip and npm for fresh package data instead of a copy cached from before the release
 
 ## [1.11.0] - 2026-09-25

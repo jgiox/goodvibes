@@ -1,9 +1,13 @@
+import { homedir } from 'node:os'
 import { delimiter, isAbsolute, relative } from 'node:path'
 
-const insideProject = (dir: string) => {
-  const rel = relative(process.cwd(), dir)
+const contains = (outer: string, inner: string) => {
+  const rel = relative(outer, inner)
   return !rel.startsWith('..') && !isAbsolute(rel)
 }
+
+// The home folder and the folders above it hold the user's own bin folders (~/.local/bin), so they never count as a project.
+const insideProject = (dir: string) => !contains(process.cwd(), homedir()) && contains(process.cwd(), dir)
 
 // A PATH entry that is ".", empty, relative or inside this project would let a cloned repo pick the program (git, claude, headroom).
 const safePath = () => (process.env.PATH ?? '').split(delimiter).filter(d => isAbsolute(d) && !insideProject(d)).join(delimiter)
