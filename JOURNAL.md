@@ -2111,3 +2111,23 @@ Added a Standing decisions section to this journal.
 **Why:** the maintainer asked to try the first release through the new `release` environment. After merge, the maintainer pushes `npm-v1.10.0` and `pip-v1.10.0` on main and approves both runs.
 
 **Tests:** npm vitest 793 passed, 1 skipped; pip 667 passed; `--version` prints 1.10.0 in both CLIs; verify-phase1 to 5 PASS.
+
+## 2026-09-25: 1.10.0 released; repo's own rule files synced
+
+**Release:** 1.10.0 is live on npm and PyPI. Both publish runs (npm #17, pip #17) passed the guard and the tests, waited for the maintainer's approval in the `release` environment, published, and passed their install tests. `npx goodvibes-cli@1.10.0 --version` and a fresh `pip install goodvibes-cli==1.10.0` both print 1.10.0.
+
+**What went wrong on the way:**
+- PR #42 was merged one commit before its version bump landed. The bump was re-opened as PR #43 on a branch restarted from main.
+- The first tags were pushed from a local main 260 commits behind, pointing at `ed0b502` (version 1.7.1). Tag pushes run the workflow file as it was at the tagged commit, so they used the old workflows without the guard. npm refused the 1.7.1 re-publish, and the pip run was cancelled at the approval step. Nothing wrong was published.
+- The tags were deleted and recreated on `0fe9130`.
+- Approval was first impossible because "Prevent self-review" was on in the `release` environment. It is now off, since the maintainer is the only reviewer.
+
+**Repo settings now:**
+- `release` environment: required reviewer, admin bypass off, deployments limited to `main`, `npm-v*` and `pip-v*`.
+- npm: two-factor authentication required, bypass tokens not allowed.
+- Private vulnerability reporting, Dependabot alerts, code scanning and secret scanning are all enabled.
+- The template token was replaced and a security advisory drafted for the fsmonitor issue (affected: npm >= 1.9.0 < 1.10.0, pip >= 1.8.0 < 1.10.0).
+- Template repo `jgiox/goodvibes-template` is still at v1.2.0. The publish-template run is waiting for the maintainer to start it again and approve it.
+
+**Dogfood sync:** this repo's rule files are copied from `templates/`: `.amazonq`, `.clinerules`, `.continue`, `.cursor`, `.devin`, `.kiro`, `.windsurfrules`, `AGENTS.md`, `GEMINI.md` and `.github/copilot-instructions.md`. `.claude/skills/` is copied from `templates/.claude/skills/`, which adds `model-regression`. The goodvibes block of `CLAUDE.md` is replaced from the template; the project sections above it are unchanged. Not synced, because they are this repo's own: CHANGELOG, JOURNAL, CONTRIBUTING, SECURITY, `.github/dependabot.yml`, the repo workflows, and `.claude/settings.json` (hooks already identical; the repo deliberately has no permissions block).
+- Rulesets: `main` requires a PR with green CI and blocks force-push and deletion; only admins can create the `npm-v*`, `pip-v*` and `v*` tags (maintainer confirmed).
