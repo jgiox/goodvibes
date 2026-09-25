@@ -486,7 +486,7 @@ def test_update_does_not_recreate_a_tracked_file_the_user_deleted(plain_dirs):
     assert not (project_dir / "docs" / "onboarding.md").exists()
     out = " ".join(_ANSI.sub("", result.output).split())
     assert "docs/onboarding.md: removed by you, not re-added (run goodvibes init to restore)" in out
-    assert list(_read(project_dir, ".goodvibes.json")["files"]) == ["JOURNAL.md"]
+    assert _read(project_dir, ".goodvibes.json")["files"]["docs/onboarding.md"] == "user-removed"
 
 
 def test_update_adds_new_github_and_docs_files_only_to_groups_the_manifest_already_tracks(plain_dirs):
@@ -515,3 +515,16 @@ def test_update_adds_a_new_workflow_when_the_manifest_tracks_a_workflow_but_not_
     assert (project_dir / ".github" / "workflows" / "security.yml").exists()
     assert not (project_dir / ".github" / "dependabot.yml").exists()
     assert not (project_dir / "docs").exists()
+
+
+def test_update_never_overwrites_a_removed_file_the_user_recreated(plain_dirs):
+    template_dir, project_dir = plain_dirs
+    _tpl(template_dir, ["AGENTS.md"])
+    (project_dir / "AGENTS.md").write_text("my own agents\n", encoding="utf-8")
+    _write_manifest(project_dir, {"AGENTS.md": "user-removed"})
+
+    result = runner.invoke(app, ["update", "--force"])
+
+    assert result.exit_code == 0, result.output
+    assert (project_dir / "AGENTS.md").read_text(encoding="utf-8") == "my own agents\n"
+    assert _read(project_dir, ".goodvibes.json")["files"]["AGENTS.md"] == "user-owned"

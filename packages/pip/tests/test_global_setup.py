@@ -205,7 +205,7 @@ def test_update_does_not_recreate_a_skill_the_user_deleted_from_the_config_dir()
 
     assert not (cfg / "skills" / "caveman" / "SKILL.md").exists()
     assert "skills/caveman/SKILL.md" in r["removed"]
-    assert "skills/caveman/SKILL.md" not in json.loads((cfg / ".goodvibes.json").read_text(encoding="utf-8"))["files"]
+    assert json.loads((cfg / ".goodvibes.json").read_text(encoding="utf-8"))["files"]["skills/caveman/SKILL.md"] == "user-removed"
     assert "skills/caveman/SKILL.md: removed by you, not re-added (run goodvibes init to restore)" in format_global(r, None, None)
 
 
@@ -270,3 +270,23 @@ def test_update_asks_once_before_changing_the_config_dir(mocker, tmp_path):
     assert seen == [True]
     assert (cfg / "rules" / "goodvibes.md").read_text(encoding="utf-8").startswith("<!-- goodvibes:start -->")
     assert (proj / "AGENTS.md").read_text(encoding="utf-8") != "old agents\n"
+
+
+def test_deleted_rules_stay_deleted_across_two_updates_and_init_restores_them():
+    cfg = _cfg()
+    apply_global_config(TEMPLATES, "1.8.0", dry_run=False)
+    rules = cfg / "rules" / "goodvibes.md"
+    rules.unlink()
+
+    first = apply_global_config(TEMPLATES, "1.8.1", dry_run=False, restore=False)
+    second = apply_global_config(TEMPLATES, "1.8.1", dry_run=False, restore=False)
+
+    assert not rules.exists()
+    assert first["removed"] == ["rules/goodvibes.md"]
+    assert second["removed"] == []
+    assert json.loads((cfg / ".goodvibes.json").read_text(encoding="utf-8"))["files"]["rules/goodvibes.md"] == "user-removed"
+
+    apply_global_config(TEMPLATES, "1.8.1", dry_run=False)
+
+    assert rules.exists()
+    assert json.loads((cfg / ".goodvibes.json").read_text(encoding="utf-8"))["files"]["rules/goodvibes.md"] == hashlib.sha256(rules.read_bytes()).hexdigest()

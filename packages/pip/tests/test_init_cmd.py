@@ -323,3 +323,25 @@ def test_init_skips_dangling_symlinks_instead_of_writing_through_them(runner, re
     assert not target.exists()
     assert not manifest_target.exists()
     assert ".goodvibes.json: symlink, not written" in " ".join(result.output.split())
+
+
+def test_deleted_agents_md_stays_deleted_across_two_updates_and_init_restores_it(runner, real_project):
+    import hashlib
+    from goodvibes_cli.main import app as main_app
+    agents = real_project / "AGENTS.md"
+    assert runner.invoke(main_app, ["init"]).exit_code == 0
+    agents.unlink()
+
+    first = runner.invoke(main_app, ["update", "--force"])
+    second = runner.invoke(main_app, ["update", "--force"])
+
+    assert first.exit_code == 0 and second.exit_code == 0, first.output + second.output
+    assert not agents.exists()
+    assert "AGENTS.md: removed by you" in " ".join(first.output.split())
+    assert "removed by you" not in second.output
+    assert _manifest_files(real_project)["AGENTS.md"] == "user-removed"
+
+    assert runner.invoke(main_app, ["init"]).exit_code == 0
+
+    assert agents.exists()
+    assert _manifest_files(real_project)["AGENTS.md"] == hashlib.sha256(agents.read_bytes()).hexdigest()
