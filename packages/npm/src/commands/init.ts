@@ -11,6 +11,7 @@ import { readManifest, writeManifest, type Manifest } from '../steps/write-manif
 import { managedRecord } from '../utils/json-merge.js'
 import { applyGlobalConfig, ensureGlobalCli, registerContext7, formatGlobal, type GlobalResult, type CliStatus, type McpStatus } from '../steps/global-setup.js'
 import { GLOBAL_OWNED, type Scope } from '../utils/scope.js'
+import { gitHookLine, hookInPlace, installGitHook, type GitHookResult } from '../steps/git-hook.js'
 import { homedir } from 'node:os'
 import { resolve, parse } from 'node:path'
 
@@ -84,6 +85,8 @@ export function registerInitCommand(program: Command): void {
           ? allFiles.filter(f => !f.startsWith('.github') && !f.startsWith('docs'))
           : allFiles.filter(f => !ciVariants.some((v: string) => f.endsWith(v) && v !== selectedVariant))
         note(files.map(f => `  Would write: ${f}`).join('\n') || '  (no project files: run init inside a project folder)', 'Dry run — no files written')
+        const hookLine = inProject ? gitHookLine(await installGitHook(cwd, true), true) : null
+        if (hookLine) note(hookLine, 'Git commit check')
         note(
           [
             '1. Open this project in your AI coding tool',
@@ -119,6 +122,7 @@ export function registerInitCommand(program: Command): void {
       let globalResult: GlobalResult | undefined
       let cliResult: CliStatus | undefined
       let context7Result: McpStatus | undefined
+      let gitHookResult: GitHookResult | undefined
 
       const taskList: Array<{ title: string; task: (message: (msg: string) => void) => Promise<string> }> = []
       if (scope === 'global') {
@@ -140,6 +144,7 @@ export function registerInitCommand(program: Command): void {
             createdFiles.push(...written)
             skippedFiles.push(...skipped)
             problems.push(...found)
+            gitHookResult = await installGitHook(cwd, false)
             return `Copied ${written.length} files`
           },
         })
@@ -199,6 +204,7 @@ export function registerInitCommand(program: Command): void {
           prevManifest?.files,
           await managedRecord(cwd, templateDir, prevManifest?.managed),
           scope,
+          gitHookResult && hookInPlace(gitHookResult) ? 'installed' : prevManifest?.gitHook,
         )
         if (blocked) skippedFiles.push(blocked)
       }
@@ -211,6 +217,8 @@ export function registerInitCommand(program: Command): void {
       if (skippedFiles.length > 0) {
         note(skippedFiles.join('\n'), `Files skipped (${skippedFiles.length})`)
       }
+      const hookLine = gitHookResult && gitHookLine(gitHookResult, false)
+      if (hookLine) note(hookLine, 'Git commit check')
 
       if (problems.length > 0) note(problems.join('\n'), 'Needs your attention')
 

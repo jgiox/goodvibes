@@ -23,16 +23,15 @@ async function lstatOrNull(p: string) {
 }
 
 export async function installGitHook(cwd: string, dryRun: boolean): Promise<GitHookResult> {
-  const fallback = resolve(cwd, '.git', 'hooks', 'pre-commit')
   // With reject: false a missing git binary also lands here (exitCode undefined).
   const top = await git(cwd, ['rev-parse', '--show-toplevel'])
-  if (top.exitCode !== 0) return { status: 'not-a-repo', path: fallback }
+  if (top.exitCode !== 0) return { status: 'not-a-repo', path: '' }
 
   // git ignores .git/hooks while core.hooksPath is set, so a hook written there would never run.
   const hooksPath = await git(cwd, ['config', '--get', 'core.hooksPath'])
   if (hooksPath.exitCode !== 0 && hooksPath.exitCode !== 1) throw new Error(`git config --get core.hooksPath failed in ${cwd}: ${hooksPath.stderr}`)
   const custom = hooksPath.exitCode === 0 ? hooksPath.stdout.trim() : ''
-  if (custom) return { status: 'custom-path', path: resolve(top.stdout.trim(), custom, 'pre-commit'), detail: custom }
+  if (custom) return { status: 'custom-path', path: '', detail: custom }
 
   const common = await git(cwd, ['rev-parse', '--git-common-dir'])
   if (common.exitCode !== 0) throw new Error(`git rev-parse --git-common-dir failed in ${cwd}: ${common.stderr}`)
@@ -63,4 +62,19 @@ export async function installGitHook(cwd: string, dryRun: boolean): Promise<GitH
     throw e
   }
   return { status, path }
+}
+
+export const hookInPlace = (r: GitHookResult): boolean => r.status === 'installed' || r.status === 'updated' || r.status === 'current'
+
+// The pip package prints these exact strings; change both together.
+export function gitHookLine(r: GitHookResult, dryRun: boolean): string | null {
+  const line = {
+    installed: 'Git commit check installed: commits that leave out JOURNAL.md are blocked in every tool (.git/hooks/pre-commit)',
+    updated: 'Git commit check updated (.git/hooks/pre-commit)',
+    current: null,
+    'not-a-repo': 'Git commit check skipped: this folder is not a git repository yet. Run git init, then goodvibes update.',
+    'custom-path': `Git commit check skipped: git uses its own hooks folder here (core.hooksPath = ${r.detail}), so goodvibes left your hooks alone.`,
+    'existing-hook': 'Git commit check skipped: .git/hooks/pre-commit already exists and is not from goodvibes, so it was left alone.',
+  }[r.status]
+  return line && dryRun && (r.status === 'installed' || r.status === 'updated') ? `Would: ${line}` : line
 }

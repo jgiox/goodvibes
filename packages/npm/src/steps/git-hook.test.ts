@@ -34,8 +34,7 @@ describe('installGitHook', () => {
   })
 
   it('returns not-a-repo for a folder that is not a git repository', async () => {
-    const result = await installGitHook(outside, false)
-    expect(result.status).toBe('not-a-repo')
+    expect(await installGitHook(outside, false)).toEqual({ status: 'not-a-repo', path: '' })
     expect(existsSync(join(outside, '.git'))).toBe(false)
   })
 
@@ -92,9 +91,7 @@ describe('installGitHook', () => {
 
   it('returns custom-path with the configured value and writes nothing when core.hooksPath is set', async () => {
     git('config', 'core.hooksPath', '.githooks')
-    const result = await installGitHook(dir, false)
-    expect(result.status).toBe('custom-path')
-    expect(result.detail).toBe('.githooks')
+    expect(await installGitHook(dir, false)).toEqual({ status: 'custom-path', path: '', detail: '.githooks' })
     expect(existsSync(target())).toBe(false)
     expect(existsSync(join(dir, '.githooks'))).toBe(false)
   })

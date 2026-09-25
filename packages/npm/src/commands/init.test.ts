@@ -228,6 +228,7 @@ describe('init command', () => {
       undefined,
       expect.any(Object),
       'global',
+      undefined,
     )
   })
 

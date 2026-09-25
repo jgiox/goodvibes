@@ -7,6 +7,7 @@ import { packageVersion } from '../utils/version.js'
 import { claudeConfigDir } from '../steps/global-setup.js'
 import { MANIFEST_PATH, parseManifest } from '../steps/write-manifest.js'
 import { checkMcpServers } from './mcp-check.js'
+import { installGitHook } from '../steps/git-hook.js'
 
 // ponytail: not imported from sentinel-merge.ts — those constants are module-private
 const SENTINEL_START = '<!-- goodvibes:start -->'
@@ -87,11 +88,12 @@ function checkSentinel(cwd: string): CheckResult {
 }
 
 // A broken manifest is a failed check of its own; the CLAUDE.md checks still run so every problem shows at once.
-function manifestCheck(cwd: string): { scope: 'global' | 'project' | null; failure?: CheckResult } {
+function manifestCheck(cwd: string): { scope: 'global' | 'project' | null; gitHook?: string; failure?: CheckResult } {
   const path = join(cwd, MANIFEST_PATH)
   if (!existsSync(path)) return { scope: null }
   try {
-    return { scope: parseManifest(readFileSync(path, 'utf-8'), path).scope === 'global' ? 'global' : 'project' }
+    const m = parseManifest(readFileSync(path, 'utf-8'), path)
+    return { scope: m.scope === 'global' ? 'global' : 'project', gitHook: m.gitHook }
   } catch (e) {
     return { scope: 'project', failure: { label: `${MANIFEST_PATH} readable`, status: 'fail', remedy: (e as Error).message } }
   }
@@ -122,6 +124,24 @@ export function checkJournal(cwd: string): CheckResult[] {
   }]
 }
 
+// A dry run of the installer: it never writes, and its status says exactly what update would do.
+async function checkGitHook(cwd: string, gitHook: string | undefined): Promise<CheckResult[]> {
+  if (!existsSync(join(cwd, 'JOURNAL.md'))) return []
+  const { status } = await installGitHook(cwd, true)
+  const update = 'Run: goodvibes update'
+  const result: Record<typeof status, CheckResult | null> = {
+    'not-a-repo': null,
+    current: { label: 'Git commit check installed', status: 'ok' },
+    updated: { label: 'Git commit check out of date', status: 'warn', remedy: update },
+    installed: gitHook === 'user-removed'
+      ? { label: 'Git commit check turned off', status: 'skip' }
+      : { label: 'Git commit check not installed', status: 'warn', remedy: update },
+    'custom-path': { label: 'Git commit check not managed (core.hooksPath is set)', status: 'skip' },
+    'existing-hook': { label: 'Git commit check not managed (your own pre-commit hook)', status: 'skip' },
+  }
+  return result[status] ? [result[status]] : []
+}
+
 // Global-scope projects keep the rules in the Claude config, not in the project CLAUDE.md.
 function ruleChecks(cwd: string, scope: 'global' | 'project' | null): CheckResult[] {
   return scope === 'global' ? [checkGlobalRules()] : [checkClaudeMd(cwd), checkSentinel(cwd)]
@@ -146,8 +166,8 @@ export function registerDoctorCommand(program: Command): void {
 
       const headroomResult = await checkHeadroom()
       const gitResults = await checkGit()
-      const { scope, failure } = manifestCheck(cwd)
-      const all: CheckResult[] = [...(failure ? [failure] : []), headroomResult, checkOnPath(), ...gitResults, ...ruleChecks(cwd, scope), ...checkJournal(cwd), ...checkMcpServers(cwd)]
+      const { scope, gitHook, failure } = manifestCheck(cwd)
+      const all: CheckResult[] = [...(failure ? [failure] : []), headroomResult, checkOnPath(), ...gitResults, ...ruleChecks(cwd, scope), ...checkJournal(cwd), ...(await checkGitHook(cwd, gitHook)), ...checkMcpServers(cwd)]
 
       note([`goodvibes v${packageVersion()}`, ...all.map(formatCheck)].join('\n'), 'goodvibes doctor')
 

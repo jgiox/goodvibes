@@ -308,13 +308,15 @@ describe('update and the git commit check', () => {
     expect(await manifestGitHook()).toBe('installed')
   })
 
-  it('does not re-add a hook the user deleted: records user-removed and prints the removed line once', async () => {
+  it('does not re-add a hook the user deleted: records user-removed and prints the removed line in the plan and once after applying', async () => {
+    const { note } = await import('@clack/prompts')
     await runUpdate('installed', [{ status: 'installed' }])
 
     expect(await hookCalls()).toEqual([[process.cwd(), true]])
-    const text = await noteText()
-    expect(text.split(REMOVED).length - 1).toBe(1)
-    expect(text).not.toContain('Git commit check installed')
+    const byTitle = (t: string) => vi.mocked(note).mock.calls.filter(c => c[1] === t).map(c => String(c[0])).join('\n')
+    expect(byTitle('Plan').split(REMOVED).length - 1).toBe(1)
+    expect(byTitle('Update complete').split(REMOVED).length - 1).toBe(1)
+    expect(await noteText()).not.toContain('Git commit check installed')
     expect(await manifestGitHook()).toBe('user-removed')
   })
 
@@ -352,7 +354,7 @@ describe('update and the git commit check', () => {
   it('leaves gitHook out and prints the skip line in a folder that is not a git repository', async () => {
     await runUpdate(undefined, [{ status: 'not-a-repo' }, { status: 'not-a-repo' }])
 
-    expect((await noteText()).split('Git commit check skipped: this folder is not a git repository yet. Run git init, then goodvibes update.').length - 1).toBe(1)
+    expect(await noteText()).toContain('Git commit check skipped: this folder is not a git repository yet. Run git init, then goodvibes update.')
     expect(await manifestGitHook()).toBeUndefined()
   })
 
