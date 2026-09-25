@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import { lstat, realpath, rename, rm, writeFile } from 'node:fs/promises'
+import { lstat, readdir, realpath, rename, rm, rmdir, writeFile } from 'node:fs/promises'
 import { basename, dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
 
 // path.relative, not a string prefix: "/proj-evil" must not count as inside "/proj".
@@ -48,6 +48,17 @@ export async function writeBlocked(root: string, rel: string): Promise<string | 
 }
 
 // A crash mid-write must never leave a half-written settings file behind.
+// Deletes root/rel, then every folder above it that is left empty, stopping at stop (e.g. '.claude/skills').
+export async function removeRetired(root: string, rel: string, stop: string): Promise<void> {
+  await rm(join(root, rel), { force: true })
+  let dir = dirname(rel).split(sep).join('/')
+  while (dir.startsWith(stop + '/')) {
+    if ((await readdir(join(root, dir))).length > 0) break
+    await rmdir(join(root, dir))
+    dir = dirname(dir)
+  }
+}
+
 export async function writeFileAtomic(path: string, content: string): Promise<void> {
   // A symlinked config file (dotfiles repo) stays a symlink: its target is replaced, not the link.
   const target = await realpath(path).catch((e: NodeJS.ErrnoException) => {

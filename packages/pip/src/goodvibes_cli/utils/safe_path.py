@@ -20,3 +20,15 @@ def check_writable(root: pathlib.Path, dest: pathlib.Path) -> None:
             raise SymlinkError(f"{rel.as_posix()}: symlink, not written")
     if not dest.resolve().is_relative_to(root.resolve()):
         raise SymlinkError(f"{rel.as_posix()}: outside the project, not written")
+
+
+def remove_retired(root: pathlib.Path, rel: str, stop: str) -> None:
+    """Delete root/rel, then every folder above it left empty, stopping at stop (e.g. ".claude/skills")."""
+    (root / rel).unlink(missing_ok=True)
+    parent = pathlib.PurePosixPath(rel).parent
+    while str(parent).startswith(stop + "/"):
+        folder = root / parent
+        if any(folder.iterdir()):
+            break
+        folder.rmdir()
+        parent = parent.parent

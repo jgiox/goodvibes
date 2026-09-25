@@ -4,7 +4,7 @@ import { listTemplateFiles, resolveTemplatesDir } from '../steps/copy-templates.
 import { readManifest, writeManifest, posixKey, USER_OWNED, USER_REMOVED, type Manifest } from '../steps/write-manifest.js'
 import { mergeClaude, MarkerError } from '../utils/sentinel-merge.js'
 import { MANAGED_JSON, mergeManagedJson, managedRecord, isJsonObject } from '../utils/json-merge.js'
-import { assertSafe, writeBlocked, writeFileAtomic } from '../utils/fs-safe.js'
+import { assertSafe, removeRetired, writeBlocked, writeFileAtomic } from '../utils/fs-safe.js'
 import { applyGlobalConfig, claudeConfigDir, formatGlobal } from '../steps/global-setup.js'
 import { GLOBAL_OWNED, type Scope } from '../utils/scope.js'
 import { detectProjectType } from '../utils/detect-project-type.js'
@@ -27,7 +27,7 @@ async function categorise(
   manifest: { files: Record<string, string> },
   projectType: string,
   scope: Scope = 'project',
-): Promise<{ overwrite: string[]; skip: string[]; netNew: string[]; kept: string[]; removed: string[]; stillRemoved: string[]; blocked: Record<string, string> }> {
+): Promise<{ overwrite: string[]; skip: string[]; netNew: string[]; kept: string[]; removed: string[]; stillRemoved: string[]; retired: string[]; blocked: Record<string, string> }> {
   // In global scope the rules block, skills and context7 live in the user config, never in the project.
   const excluded = (rel: string) => scope === 'global' && (rel === 'CLAUDE.md' || GLOBAL_OWNED(rel))
   const ciVariants = ['ci-node.yml', 'ci-python.yml', 'ci-both.yml']
@@ -38,6 +38,7 @@ async function categorise(
   const kept: string[] = []
   const removed: string[] = []
   const stillRemoved: string[] = []
+  const retired: string[] = []
   // Symlinked destinations: never read for hashing, never written; tracked ones keep their manifest entry.
   const blocked: Record<string, string> = {}
 
@@ -62,7 +63,9 @@ async function categorise(
     } else {
       const destContent = await readFile(destPath, 'utf-8')
       const destSha = createHash('sha256').update(destContent, 'utf8').digest('hex')
-      if (destSha === manifestSha) {
+      if (destSha === manifestSha && rel.startsWith('.claude/skills/') && !existsSync(join(templateDir, rel))) {
+        retired.push(rel) // unmodified skill goodvibes no longer ships
+      } else if (destSha === manifestSha) {
         overwrite.push(rel) // unmodified, safe to overwrite with new template version
       } else {
         skip.push(rel) // user-modified, preserve
@@ -96,7 +99,7 @@ async function categorise(
     }
   }
 
-  return { overwrite, skip, netNew, kept, removed, stillRemoved, blocked }
+  return { overwrite, skip, netNew, kept, removed, stillRemoved, retired, blocked }
 }
 
 export function registerUpdateCommand(program: Command): void {
@@ -140,9 +143,9 @@ export async function runUpdate(dryRun: boolean, force: boolean): Promise<void> 
 
   const projectType = detectProjectType(cwd)
   const scope: Scope = manifest?.scope ?? 'project'
-  const { overwrite, skip, netNew, kept, removed, stillRemoved, blocked } = manifest
+  const { overwrite, skip, netNew, kept, removed, stillRemoved, retired, blocked } = manifest
     ? await categorise(templateDir, cwd, manifest, projectType, scope)
-    : { overwrite: [], skip: [], netNew: [], kept: [], removed: [], stillRemoved: [], blocked: {} as Record<string, string> }
+    : { overwrite: [], skip: [], netNew: [], kept: [], removed: [], stillRemoved: [], retired: [], blocked: {} as Record<string, string> }
 
   // User-modified settings.json / .mcp.json still receive goodvibes-managed keys.
   const merges: { rel: string; merged: Record<string, unknown>; changes: string[] }[] = []
@@ -173,6 +176,7 @@ export async function runUpdate(dryRun: boolean, force: boolean): Promise<void> 
         skip.length > 0 ? `Will skip — user-modified (${skip.length}): ${skip.join(', ')}` : null,
         netNew.length > 0 ? `Will add net-new (${netNew.length}): ${netNew.join(', ')}` : null,
         kept.length > 0 ? `Will keep — already yours, not written by goodvibes (${kept.length}): ${kept.join(', ')}` : null,
+        retired.length > 0 ? `Will remove — no longer shipped by goodvibes (${retired.length}): ${retired.join(', ')}` : null,
         ...merges.map(m => `Will merge goodvibes keys into ${m.rel}:\n  ${m.changes.join('\n  ')}`),
         ...mergeErrors.map(e => `Cannot merge ${e}`),
         ...removed.map(removedNote),
@@ -188,8 +192,8 @@ export async function runUpdate(dryRun: boolean, force: boolean): Promise<void> 
     return
   }
 
-  const globalChanges = globalPlan ? globalPlan.written.length + globalPlan.settingsChanges.length : 0
-  if (!force && (globalChanges > 0 || overwrite.length > 0 || netNew.length > 0 || merges.length > 0)) {
+  const globalChanges = globalPlan ? globalPlan.written.length + globalPlan.retired.length + globalPlan.settingsChanges.length : 0
+  if (!force && (globalChanges > 0 || overwrite.length > 0 || netNew.length > 0 || retired.length > 0 || merges.length > 0)) {
     const proceed = await confirm({
       message:
         `Overwrite ${overwrite.length} managed file(s), add ${netNew.length}, merge goodvibes keys into ${merges.length} file(s)` +
@@ -242,6 +246,11 @@ export async function runUpdate(dryRun: boolean, force: boolean): Promise<void> 
     await writeFileAtomic(join(cwd, m.rel), JSON.stringify(m.merged, null, 2) + '\n')
   }
 
+  for (const rel of retired) {
+    await assertSafe(cwd, rel)
+    await removeRetired(cwd, rel, '.claude/skills')
+  }
+
   // Preserve skipped (user-modified) files' prior hashes so they stay
   // protected on every later run instead of dropping out of the manifest.
   const preserved: Record<string, string> = {}
@@ -270,6 +279,7 @@ export async function runUpdate(dryRun: boolean, force: boolean): Promise<void> 
     [
       `Applied ${applied} file(s). Skipped ${skip.length + kept.length} user-modified file(s).`,
       ...merges.map(m => `Merged ${m.changes.length} goodvibes key(s) into ${m.rel}.`),
+      ...retired.map(rel => `${rel}: removed, no longer shipped by goodvibes`),
       ...mergeErrors.map(e => `Not merged: ${e}`),
       ...removed.map(removedNote),
       ...Object.values(blocked),

@@ -1808,6 +1808,6 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 
 **Why:** Audit follow-up: the removed skills would otherwise stay installed forever.
 
-**Tests run:** RED: npm 4 failed (global-setup integration x3, update integration); pip 4 failed.
+**Tests run:** RED: npm 4 failed (global-setup integration x3, update integration); pip 4 failed. GREEN: npm typecheck 0, vitest 436 passed, 1 skipped; pip pytest 356 passed on Python 3.11 and 3.10. The global-setup test mocks gained the new `removed`/`retired` fields.
 
 **Docs updated:** JOURNAL.md.

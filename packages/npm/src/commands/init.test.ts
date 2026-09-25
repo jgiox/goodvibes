@@ -46,7 +46,7 @@ vi.mock('../steps/telemetry.js', async (importOriginal) => ({
 
 // Mock global-setup — unit tests must never touch the real ~/.claude, npm -g, or claude CLI
 vi.mock('../steps/global-setup.js', () => ({
-  applyGlobalConfig: vi.fn().mockResolvedValue({ configDir: '/fake/.claude', written: [], kept: [], settingsChanges: [] }),
+  applyGlobalConfig: vi.fn().mockResolvedValue({ configDir: '/fake/.claude', written: [], kept: [], removed: [], retired: [], settingsChanges: [] }),
   ensureGlobalCli: vi.fn().mockResolvedValue({ status: 'already-installed' }),
   registerContext7: vi.fn().mockResolvedValue({ status: 'already-registered' }),
   claudeConfigDir: vi.fn().mockReturnValue('/fake/.claude'),

@@ -7,7 +7,7 @@ import { execa } from 'execa'
 import { listTemplateFiles } from './copy-templates.js'
 import { readManifest, type Manifest, MANIFEST_PATH, USER_OWNED, USER_REMOVED } from './write-manifest.js'
 import { mergeManagedJson, presentIds, isJsonObject } from '../utils/json-merge.js'
-import { writeFileAtomic } from '../utils/fs-safe.js'
+import { removeRetired, writeFileAtomic } from '../utils/fs-safe.js'
 import { goodvibesBlock } from '../utils/scope.js'
 import { versionGte } from '../utils/sentinel-merge.js'
 
@@ -61,6 +61,7 @@ export type GlobalResult = {
   written: string[]
   kept: string[]
   removed: string[]
+  retired: string[]
   settingsChanges: string[]
   settingsError?: string
 }
@@ -75,7 +76,7 @@ export async function applyGlobalConfig(templateDir: string, version: string, dr
     if (rel.startsWith('.claude/skills/')) owned.push([rel.slice('.claude/'.length), await readFile(join(templateDir, rel), 'utf-8')])
   }
 
-  const result: GlobalResult = { configDir: cfg, written: [], kept: [], removed: [], settingsChanges: [] }
+  const result: GlobalResult = { configDir: cfg, written: [], kept: [], removed: [], retired: [], settingsChanges: [] }
   const files: Record<string, string> = {}
   for (const [rel, content] of owned) {
     const dest = join(cfg, rel)
@@ -102,6 +103,16 @@ export async function applyGlobalConfig(templateDir: string, version: string, dr
       await mkdir(dirname(dest), { recursive: true })
       await writeFile(dest, content, 'utf-8')
     }
+  }
+
+  // Skills goodvibes no longer ships: delete the copy it wrote; an edited copy is the user's and stays (untracked).
+  const ownedPaths = new Set(owned.map(([rel]) => rel))
+  for (const [rel, recorded] of Object.entries(prev?.files ?? {})) {
+    if (ownedPaths.has(rel) || !rel.startsWith('skills/') || recorded === USER_OWNED || recorded === USER_REMOVED) continue
+    const dest = join(cfg, rel)
+    if (!existsSync(dest) || sha(await readFile(dest, 'utf-8')) !== recorded) continue
+    result.retired.push(rel)
+    if (!dryRun) await removeRetired(cfg, rel, 'skills')
   }
 
   const tpl = JSON.parse(await readFile(join(templateDir, '.claude', 'settings.json'), 'utf-8'))
@@ -136,6 +147,7 @@ export function formatGlobal(g: GlobalResult, cli: CliStatus | undefined, c7: Mc
     ...g.written.map(f => `written: ${f}`),
     ...g.kept.map(f => `kept (you edited it): ${f}`),
     ...g.removed.map(f => `${f}: removed by you, not re-added (run goodvibes init to restore)`),
+    ...g.retired.map(f => `${f}: removed, no longer shipped by goodvibes`),
     ...g.settingsChanges.map(c => `settings.json ${c}`),
     ...(g.settingsError ? [`settings.json not changed: ${g.settingsError}`] : []),
   ]

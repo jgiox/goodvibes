@@ -17,7 +17,7 @@ from goodvibes_cli.steps.write_manifest import USER_OWNED, USER_REMOVED, Manifes
 from goodvibes_cli.utils.detect_project_type import detect_project_type
 from goodvibes_cli.utils.json_merge import MANAGED_JSON, managed_record, merge_managed_json, write_json
 from goodvibes_cli.steps.global_setup import apply_global_config, claude_config_dir, format_global
-from goodvibes_cli.utils.safe_path import SymlinkError, check_writable
+from goodvibes_cli.utils.safe_path import SymlinkError, check_writable, remove_retired
 from goodvibes_cli.utils.scope import global_owned
 from goodvibes_cli.utils.sentinel_merge import ClaudeMdError, merge_claude
 
@@ -70,7 +70,7 @@ def update_cmd(
     if global_manifest is not None or (manifest or {}).get("scope") == "global":
         g_plan = apply_global_config(template_dir, version, dry_run=True, restore=False)
         console.print(Panel(format_global(g_plan, None, None), title=f"{'Dry run — ' if dry_run else 'Planned — '}Global setup ({g_plan['config_dir']})"))
-    global_changes = len(g_plan["written"]) + len(g_plan["settings_changes"]) if g_plan else 0
+    global_changes = len(g_plan["written"]) + len(g_plan["retired"]) + len(g_plan["settings_changes"]) if g_plan else 0
 
     def apply_global() -> None:
         if g_plan is not None:
@@ -105,6 +105,7 @@ def update_cmd(
     blocked: list[str] = []
     removed: list[str] = []
     still_removed: list[str] = []
+    retired: list[str] = []
 
     def symlinked(rel: str) -> bool:
         try:
@@ -136,7 +137,9 @@ def update_cmd(
             overwrite.append(rel)
             continue
         dest_sha = hashlib.sha256(dest_path.read_bytes()).hexdigest()
-        if dest_sha == manifest_sha:
+        if dest_sha == manifest_sha and rel.startswith(".claude/skills/") and not (template_dir / rel).exists():
+            retired.append(rel)  # unmodified skill goodvibes no longer ships
+        elif dest_sha == manifest_sha:
             overwrite.append(rel)
         else:
             skip.append(rel)
@@ -193,6 +196,8 @@ def update_cmd(
     ]
     if kept:
         lines.append(f"Will keep — already yours, not written by goodvibes ({len(kept)}): {', '.join(kept)}")
+    if retired:
+        lines.append(f"Will remove — no longer shipped by goodvibes ({len(retired)}): {', '.join(retired)}")
     lines += merge_lines
     lines += not_written
     lines += [f"{rel}: {REMOVED}" for rel in removed]
@@ -201,7 +206,7 @@ def update_cmd(
         console.rule("Run without --dry-run to apply.")
         return
 
-    if not force and (overwrite or merges or global_changes):
+    if not force and (overwrite or merges or retired or global_changes):
         console.print(Panel("\n".join(lines), title="Planned — project files"))
         also_global = f" and apply {global_changes} change(s) to your Claude Code settings" if global_changes else ""
         confirmed = typer.confirm(
@@ -253,6 +258,9 @@ def update_cmd(
     for rel, merged, _ in merges:
         write_json(cwd / rel, merged)
 
+    for rel in retired:
+        remove_retired(cwd, rel, ".claude/skills")
+
     # Preserve skipped (user-modified) files' prior hashes so they stay
     # protected on every later run instead of dropping out of the manifest.
     preserved = {rel: manifest["files"][rel] for rel in skip + blocked}
@@ -271,6 +279,7 @@ def update_cmd(
 
     summary = applied + [f"{rel} (merged {len(ch)} goodvibes key(s))" for rel, _, ch in merges]
     summary += [f"Not merged: {e}" for e in merge_errors]
+    summary += [f"{rel}: removed, no longer shipped by goodvibes" for rel in retired]
     console.print(Panel("\n".join(summary) or "(none)", title="Updated"))
     if not_written:
         console.print(Panel("\n".join(not_written), title="Not written (symlinks are never followed)"))

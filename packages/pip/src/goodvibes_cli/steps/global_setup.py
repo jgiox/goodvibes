@@ -14,6 +14,7 @@ from goodvibes_cli.steps.copy_templates import list_template_files
 from goodvibes_cli.steps.write_manifest import MANIFEST_PATH, USER_OWNED, USER_REMOVED, read_manifest
 from goodvibes_cli.utils.json_merge import merge_managed_json, present_ids, write_json
 from goodvibes_cli.utils.scope import goodvibes_block
+from goodvibes_cli.utils.safe_path import remove_retired
 
 CONTEXT7_URL = "https://mcp.context7.com/mcp"
 
@@ -80,7 +81,7 @@ def apply_global_config(template_dir: pathlib.Path, version: str, dry_run: bool,
         if rel.startswith(".claude/skills/"):
             owned.append((rel[len(".claude/"):], (template_dir / rel).read_text(encoding="utf-8")))
 
-    result: dict = {"config_dir": str(cfg), "written": [], "kept": [], "removed": [], "settings_changes": [], "settings_error": None}
+    result: dict = {"config_dir": str(cfg), "written": [], "kept": [], "removed": [], "retired": [], "settings_changes": [], "settings_error": None}
     files: dict[str, str] = {}
     for rel, content in owned:
         dest = cfg / rel
@@ -112,6 +113,18 @@ def apply_global_config(template_dir: pathlib.Path, version: str, dry_run: bool,
             dest.parent.mkdir(parents=True, exist_ok=True)
             dest.write_text(content, encoding="utf-8")
 
+    # Skills goodvibes no longer ships: delete the copy it wrote; an edited copy is the user's and stays (untracked).
+    owned_paths = {rel for rel, _ in owned}
+    for rel, recorded in prev_files.items():
+        if rel in owned_paths or not rel.startswith("skills/") or recorded in (USER_OWNED, USER_REMOVED):
+            continue
+        dest = cfg / rel
+        if not dest.exists() or _sha(dest.read_text(encoding="utf-8")) != recorded:
+            continue
+        result["retired"].append(rel)
+        if not dry_run:
+            remove_retired(cfg, rel, "skills")
+
     tpl = json.loads((template_dir / ".claude" / "settings.json").read_text(encoding="utf-8"))
     settings_path = cfg / "settings.json"
     managed = dict(prev.get("managed") or {})
@@ -140,6 +153,7 @@ def format_global(g: dict, cli: dict | None, c7: dict | None) -> str:
     lines = [f"written: {f}" for f in g["written"]]
     lines += [f"kept (you edited it): {f}" for f in g["kept"]]
     lines += [f"{f}: removed by you, not re-added (run goodvibes init to restore)" for f in g.get("removed", [])]
+    lines += [f"{f}: removed, no longer shipped by goodvibes" for f in g.get("retired", [])]
     lines += [f"settings.json {c}" for c in g["settings_changes"]]
     if g.get("settings_error"):
         lines.append(f"settings.json not changed: {g['settings_error']}")
