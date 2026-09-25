@@ -2111,3 +2111,8 @@ Added a Standing decisions section to this journal.
 **Why:** the maintainer asked to try the first release through the new `release` environment. After merge, the maintainer pushes `npm-v1.10.0` and `pip-v1.10.0` on main and approves both runs.
 
 **Tests:** npm vitest 793 passed, 1 skipped; pip 667 passed; `--version` prints 1.10.0 in both CLIs; verify-phase1 to 5 PASS.
+
+## 2026-09-25: File Size workflow reaches projects with their own workflows
+
+**What:** `.github/workflows/file-size.yml` now travels with `.github/scripts/check-file-sizes.mjs`. `init` adds it even when the project already has workflows (other template workflows are still skipped there), `--minimal` still skips all of `.github/`, and `update` counts it in the `.github` layer, so a project that got only the script gets the workflow on its next update. An existing `file-size.yml` is never overwritten.
+- RED: npm `copy-templates.integration.test.ts` and `update.integration.test.ts`, pip `test_copy_templates.py` and `test_update_cmd.py`: own workflow gets `file-size.yml` but not `ci.yml`; `--minimal` adds neither; update adds it when the manifest tracks the script; a user's own `file-size.yml` is kept.

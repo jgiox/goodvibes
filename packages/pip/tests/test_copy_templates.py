@@ -418,6 +418,54 @@ def test_copy_templates_skips_all_workflow_files_when_dest_already_has_ci(tmp_di
     assert (workflows_dir / "codeql.yml").read_text() == "# existing CodeQL\n"
 
 
+def _add_file_size_templates(template_dir):
+    (template_dir / ".github" / "workflows" / "file-size.yml").write_text("name: File Size\n")
+    (template_dir / ".github" / "workflows" / "security.yml").write_text("name: Security\n")
+    (template_dir / ".github" / "scripts").mkdir()
+    (template_dir / ".github" / "scripts" / "check-file-sizes.mjs").write_text("// check\n")
+
+
+def test_copy_templates_adds_file_size_workflow_but_not_ci_when_project_has_its_own_workflow(tmp_dir, template_dir, mocker):
+    from goodvibes_cli.steps.copy_templates import copy_templates
+    mocker.patch("goodvibes_cli.steps.copy_templates.merge_claude")
+    _add_file_size_templates(template_dir)
+    workflows_dir = tmp_dir / ".github" / "workflows"
+    workflows_dir.mkdir(parents=True)
+    (workflows_dir / "codeql.yml").write_text("# existing CodeQL\n")
+    written, _ = copy_templates(template_dir, tmp_dir)
+    assert (workflows_dir / "file-size.yml").read_text() == "name: File Size\n"
+    assert ".github/workflows/file-size.yml" in written
+    assert (tmp_dir / ".github" / "scripts" / "check-file-sizes.mjs").exists()
+    assert not (workflows_dir / "ci.yml").exists()
+    assert not (workflows_dir / "security.yml").exists()
+
+
+def test_copy_templates_minimal_adds_neither_file_size_nor_ci_workflow_when_project_has_its_own_workflow(tmp_dir, template_dir, mocker):
+    from goodvibes_cli.steps.copy_templates import copy_templates
+    mocker.patch("goodvibes_cli.steps.copy_templates.merge_claude")
+    _add_file_size_templates(template_dir)
+    workflows_dir = tmp_dir / ".github" / "workflows"
+    workflows_dir.mkdir(parents=True)
+    (workflows_dir / "codeql.yml").write_text("# existing CodeQL\n")
+    copy_templates(template_dir, tmp_dir, minimal=True)
+    assert not (workflows_dir / "file-size.yml").exists()
+    assert not (workflows_dir / "ci.yml").exists()
+    assert not (tmp_dir / ".github" / "scripts").exists()
+
+
+def test_copy_templates_keeps_the_users_own_file_size_workflow_when_project_has_its_own_workflows(tmp_dir, template_dir, mocker):
+    from goodvibes_cli.steps.copy_templates import copy_templates
+    mocker.patch("goodvibes_cli.steps.copy_templates.merge_claude")
+    _add_file_size_templates(template_dir)
+    workflows_dir = tmp_dir / ".github" / "workflows"
+    workflows_dir.mkdir(parents=True)
+    (workflows_dir / "file-size.yml").write_text("# my own size check\n")
+    written, skipped = copy_templates(template_dir, tmp_dir)
+    assert (workflows_dir / "file-size.yml").read_text() == "# my own size check\n"
+    assert ".github/workflows/file-size.yml" not in written
+    assert ".github/workflows/file-size.yml" in skipped
+
+
 # --- Vibe platform template tests (Phase 9 — VPE-01 through VPE-06) ---
 
 def test_copy_templates_writes_replit_md_on_fresh_init(tmp_dir, template_dir, mocker):
