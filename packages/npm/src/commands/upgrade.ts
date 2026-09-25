@@ -24,7 +24,8 @@ const firstErrorLine = (text: string): string => {
 async function checkLatestNpmVersion(): Promise<string | null> {
   try {
     // From the home folder, so a project's .npmrc cannot point npm at another registry.
-    const { stdout } = await execa('npm', ['view', 'goodvibes-cli', 'version'], { cwd: homedir(), env: EXEC_ENV })
+    // Right after a release npm's cached package data can still end at the old version.
+    const { stdout } = await execa('npm', ['view', 'goodvibes-cli', 'version', '--prefer-online'], { cwd: homedir(), env: EXEC_ENV })
     if (stdout.trim()) return stdout.trim()
     note('Could not check npm for a newer version (npm printed no version); updating with the installed version')
   } catch (e) {
@@ -71,7 +72,7 @@ export function registerUpgradeCommand(program: Command): void {
             note(`Updating goodvibes ${current} → ${latest}…`, 'New version available')
             try {
               // stderr is shown live and also kept, so a failure can be explained below.
-              await execa('npm', ['install', '-g', `goodvibes-cli@${latest}`], { stdin: 'inherit', stdout: 'inherit', stderr: ['pipe', 'inherit'], env: EXEC_ENV })
+              await execa('npm', ['install', '-g', `goodvibes-cli@${latest}`, '--prefer-online'], { stdin: 'inherit', stdout: 'inherit', stderr: ['pipe', 'inherit'], env: EXEC_ENV })
             } catch (e) {
               note(npmInstallFailure(e, latest), 'Upgrade failed')
               process.exit(1)

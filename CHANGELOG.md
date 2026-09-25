@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/2.0.0/),
 
 ## [Unreleased]
 
+### Fixed
+
+- `goodvibes upgrade` right after a release no longer fails with "only goodvibes-cli<=1.10.0 is available" (Python) or "No matching version found" (npm): it asks uv, pip and npm for fresh package data instead of a copy cached from before the release
+
 ## [1.11.0] - 2026-09-25
 
 ### Added

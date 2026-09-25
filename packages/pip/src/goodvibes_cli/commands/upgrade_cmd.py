@@ -50,11 +50,12 @@ def _self_update_pip(latest: str) -> None:
     req = f"goodvibes-cli>={latest}"
     if (pathlib.Path(sys.prefix) / "uv-receipt.toml").exists():
         # `uv tool upgrade` keeps a pinned requirement (init pinned ==version before 1.9.2); install replaces it.
-        attempts = [["uv", "tool", "install", req]]
+        # Right after a release a cached package list still ends at the old version, so ask for a fresh one.
+        attempts = [["uv", "tool", "install", "--refresh-package", "goodvibes-cli", req]]
     else:
         # uv-made venvs usually have no pip, so fall back to uv pip for this same interpreter.
-        attempts = [[sys.executable, "-m", "pip", "install", "--upgrade", req],
-                    ["uv", "pip", "install", "--python", sys.executable, "--upgrade", req]]
+        attempts = [[sys.executable, "-m", "pip", "install", "--upgrade", "--no-cache-dir", req],
+                    ["uv", "pip", "install", "--python", sys.executable, "--upgrade", "--refresh-package", "goodvibes-cli", req]]
     for cmd in attempts:
         try:
             run(cmd, check=True)

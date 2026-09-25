@@ -37,7 +37,7 @@ describe('upgrade command', () => {
 
     await runUpgrade().catch(() => {})
 
-    expect(vi.mocked(execa)).toHaveBeenCalledWith('npm', ['install', '-g', 'goodvibes-cli@1.0.1'], expect.anything())
+    expect(vi.mocked(execa)).toHaveBeenCalledWith('npm', ['install', '-g', 'goodvibes-cli@1.0.1', '--prefer-online'], expect.anything())
     expect(vi.mocked(execa)).toHaveBeenCalledWith(
       process.execPath,
       [process.argv[1], ...process.argv.slice(2)],
@@ -133,7 +133,7 @@ describe('upgrade command', () => {
 
     await runUpgrade()
 
-    expect(vi.mocked(execa)).toHaveBeenCalledWith('npm', ['view', 'goodvibes-cli', 'version'], expect.objectContaining({ cwd: homedir() }))
+    expect(vi.mocked(execa)).toHaveBeenCalledWith('npm', ['view', 'goodvibes-cli', 'version', '--prefer-online'], expect.objectContaining({ cwd: homedir() }))
   })
 
   it('runs npm view, npm install and the re-run without searching the project folder for the program', async () => {
@@ -172,6 +172,16 @@ describe('upgrade command', () => {
         'To set up a new project, go into its folder and run: goodvibes init',
       'Nothing to update here',
     )
+  })
+
+  it('asks npm for fresh package data, so a release published minutes ago is found instead of failing with No matching version', async () => {
+    const { execa } = await import('execa')
+    vi.mocked(execa).mockResolvedValue({ stdout: '1.0.1' } as never)
+
+    await runUpgrade().catch(() => {})
+
+    expect(vi.mocked(execa)).toHaveBeenCalledWith('npm', ['view', 'goodvibes-cli', 'version', '--prefer-online'], expect.anything())
+    expect(vi.mocked(execa)).toHaveBeenCalledWith('npm', ['install', '-g', 'goodvibes-cli@1.0.1', '--prefer-online'], expect.anything())
   })
 
   it('registers upgrade without an update alias', async () => {
