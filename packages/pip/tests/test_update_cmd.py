@@ -1045,3 +1045,15 @@ def test_update_with_only_a_global_setup_asks_about_the_claude_code_settings_and
     assert confirm.call_args.args[0] == "Apply 2 change(s) to your Claude Code settings?"
     confirm.return_value = True
     assert _out(runner.invoke(app, ["update"])).endswith("Done!")
+
+
+def test_update_stops_with_exit_1_and_a_clear_message_when_its_input_ends_before_the_question_is_answered(plain_dirs):
+    template_dir, project_dir = plain_dirs
+    _tpl(template_dir, ["NEW.md"])
+    _write_manifest(project_dir, {})
+
+    result = runner.invoke(app, ["update"], input="")
+
+    assert result.exit_code == 1
+    assert "No answer (the input ended). Nothing was changed." in " ".join(_ANSI.sub("", result.output).split())
+    assert not (project_dir / "NEW.md").exists()

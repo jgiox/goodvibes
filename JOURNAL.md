@@ -2276,3 +2276,8 @@ Added a Standing decisions section to this journal.
 **Tests run:** npm `tsc --noEmit` clean, prebuild + build, vitest 960 passed, 2 skipped; pip 850 passed; verify-phase1 to 5 `--quick` PASS, verify-phase4 full PASS (19 checks).
 
 **Docs updated:** getting-started (both copies), README Dependabot bullet, template dependabot.yml comment, CHANGELOG Fixed/Security/Changed, standing decision on Dependabot.
+
+## 2026-09-25: audit fixes: update when its input ends before the question is answered
+
+**Why:** left open by the parity pass. With stdin closed (a script, a pipe, CI), npm `update` hung on the clack prompt and Node exited 13 ("unsettled top-level await") with no message; pip printed click's bare "Aborted." and exited 1.
+- RED: npm `dist-cli.integration.test.ts` (built CLI, empty stdin, a net-new file to add) and pip `test_update_cmd.py`: exit 1, "No answer (the input ended). Nothing was changed.", nothing written.

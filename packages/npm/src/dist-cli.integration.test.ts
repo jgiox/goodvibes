@@ -223,6 +223,18 @@ describe('built CLI (dist/index.js)', () => {
     expect(JSON.parse(readFileSync(join(configDir, '.goodvibes.json'), 'utf-8')).files['rules/goodvibes.md']).toMatch(/^[0-9a-f]{64}$/)
   })
 
+  it('update stops with exit 1 and a clear message when its input ends before the question is answered', async () => {
+    await run('init', '--minimal', '--scope', 'project')
+    rmSync(join(projectDir, 'AGENTS.md'))
+    const m = JSON.parse(readFileSync(join(projectDir, '.goodvibes.json'), 'utf-8'))
+    delete m.files['AGENTS.md']
+    writeFileSync(join(projectDir, '.goodvibes.json'), JSON.stringify(m))
+    const result = await run('update')
+    expect(result.exitCode).toBe(1)
+    expect(result.stdout + result.stderr).toContain('No answer (the input ended). Nothing was changed.')
+    expect(existsSync(join(projectDir, 'AGENTS.md'))).toBe(false)
+  })
+
   it('usage is registered and exits 0 with a friendly message when there are no session logs', async () => {
     const result = await run('usage')
     expect(result.exitCode).toBe(0)
