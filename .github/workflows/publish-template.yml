@@ -3,6 +3,12 @@ name: Publish template repo
 # Manual trigger only — run this after bumping goodvibes version to sync
 # templates/ contents to jgiox/goodvibes-template.
 #
+# The push replaces the template repo's main branch: any change made directly in
+# jgiox/goodvibes-template is overwritten. Make changes in templates/ here instead.
+# The template repo gets one CI workflow, ci-both.yml renamed to ci.yml; ci-node.yml
+# and ci-python.yml are left out, since three workflows all named CI would share one
+# concurrency group there and cancel each other.
+#
 # Secret required: TEMPLATE_REPO_TOKEN
 #   Create at: github.com/settings/personal-access-tokens/new — fine-grained PAT
 #   Repository access: Only select repositories → jgiox/goodvibes-template
@@ -15,9 +21,15 @@ on:
 permissions:
   contents: read
 
+# One sync at a time, and never cancel one half way through.
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
 jobs:
   guard:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - name: Allow only main
         run: |
@@ -29,6 +41,7 @@ jobs:
   publish:
     needs: guard
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     environment: release  # needs a required reviewer; holds TEMPLATE_REPO_TOKEN
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
@@ -41,12 +54,30 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-      - name: Push templates/ to jgiox/goodvibes-template
+      # A separate index file, so the checkout's own index and files stay untouched.
+      - name: Build the template tree with ci-both.yml as the only CI workflow
+        id: tree
+        env:
+          GIT_INDEX_FILE: ${{ runner.temp }}/template-index
+        run: |
+          set -euo pipefail
+          SPLIT=$(git subtree split --prefix=templates HEAD)
+          git read-tree "$SPLIT"
+          CI_BOTH=$(git rev-parse "$SPLIT:.github/workflows/ci-both.yml")
+          git update-index --add --cacheinfo "100644,$CI_BOTH,.github/workflows/ci.yml"
+          git update-index --force-remove .github/workflows/ci-both.yml .github/workflows/ci-node.yml .github/workflows/ci-python.yml
+          TREE=$(git write-tree)
+          COMMIT=$(git commit-tree "$TREE" -p "$SPLIT" -m "Publish templates with ci-both.yml as ci.yml")
+          git ls-tree --name-only "$COMMIT" .github/workflows/
+          echo "commit=$COMMIT" >> "$GITHUB_OUTPUT"
+
+      - name: Push the template tree to jgiox/goodvibes-template
         env:
           TOKEN: ${{ secrets.TEMPLATE_REPO_TOKEN }}
+          COMMIT: ${{ steps.tree.outputs.commit }}
         run: |
           git remote add template-repo \
             "https://x-access-token:${TOKEN}@github.com/jgiox/goodvibes-template.git"
-          # subtree split + force-push handles non-fast-forward when remote history diverges
-          git push template-repo "$(git subtree split --prefix=templates HEAD)":refs/heads/main --force
+          # Force-push handles non-fast-forward when remote history diverges; it only ever targets the template repo.
+          git push template-repo "$COMMIT":refs/heads/main --force
           git remote remove template-repo

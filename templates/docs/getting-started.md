@@ -161,11 +161,12 @@ To skip the check once: git commit --no-verify
 From the AI tool's hook you may see `BLOCKED: JOURNAL.md not staged` instead; it means the same. Add an entry, stage it with `git add JOURNAL.md`, and commit again. Details:
 
 - It acts only in repositories that have a `JOURNAL.md` in the top folder.
-- Merges, rebases, cherry-picks, reverts and amends that only change the message are let through.
+- Merges, rebases, cherry-picks, reverts and amends that only change the message are let through. So are `git commit --help` and `git commit --dry-run`, which commit nothing.
+- Naming `JOURNAL.md` in the commit itself, as in `git commit -m "fix login" JOURNAL.md src/login.js`, counts as including it.
 - `goodvibes init` and `goodvibes update` put the git hook in `.git/hooks/`, which is your own copy of the project and is never committed. So everyone who clones the project runs `goodvibes update` once to get it. If the folder was not a git repository yet, run `git init`, then `goodvibes update`.
-- goodvibes never replaces a pre-commit hook you already have, and leaves hook managers such as husky alone (they set `core.hooksPath`). `goodvibes doctor` tells you whether the check is active.
+- goodvibes never replaces a pre-commit hook you already have, and leaves hook managers such as husky alone (they set `core.hooksPath`). It also leaves `.git/hooks` alone when that folder is a link, so it never writes through a link to somewhere else. `goodvibes doctor` tells you whether the check is active.
 - The AI tool's hook ignores actions that carry no shell command, so it never blocks a file edit whose text happens to mention `git commit`.
-- The AI tool's hook follows the commit to the right repository, including `cd somewhere && git commit` and `git -C somewhere commit`. If it cannot tell which repository a commit runs in, it blocks with a "cannot verify" message; run the commit as its own command from inside the repository.
+- The AI tool's hook follows the commit to the right repository, including `cd somewhere && git commit`, `git -C somewhere commit`, and the folder Gemini CLI or Windsurf says the command runs in. If it cannot tell which repository a commit runs in, it blocks with a "cannot verify" message; run the commit as its own command from inside the repository.
 - Both are a safety net for honest mistakes, not a security boundary.
 
 **Turn it off.**
@@ -179,16 +180,16 @@ From the AI tool's hook you may see `BLOCKED: JOURNAL.md not staged` instead; it
 
 ## Read guard
 
-**What it is.** A second hook, in Claude Code and the same other tools as the journal check. It runs before the AI reads a file or runs a terminal command.
+**What it is.** A second hook, in Claude Code and the same other tools as the journal check. It runs before the AI reads a file, searches files or runs a terminal command.
 
 **Why it helps you.** Reading a whole large file fills the context window and costs tokens, usually for one function Claude could have found with a search. Reading a secrets file puts your passwords in the conversation.
 
 **What it does.**
 
 - **Big files:** when Claude tries to read a whole file over 800 lines or 100 KB at once (with its Read tool, or with `cat`, `less`, `more`, `nl`, a large `head` or `tail`, or `sed -n 1,5000p`), the hook stops it and tells it to read a range of lines or search with Grep first. Reading a range, and piping into `head`, `tail`, `grep` or `wc`, is allowed. In other tools, the read guard understands each tool's own way of reading a file, for example a line range given as a start and an end line. Images, PDFs and notebooks opened with Claude Code's Read tool are not limited. Change the limits with the `GOODVIBES_READ_GUARD_LINES` and `GOODVIBES_READ_GUARD_KB` environment variables.
-- **Secret files:** it stops Claude from reading `.env` files, anything in `~/.ssh`, `~/.aws/credentials`, `.git-credentials`, `.netrc`, and `.pem`, `id_rsa`, `id_ed25519` or `id_ecdsa` files, and tells it to ask you for the value it needs. `.env.example`, `.env.sample` and `.env.template` stay readable.
+- **Secret files:** it stops Claude from reading `.env` files, anything in `~/.ssh`, `~/.aws/credentials`, `.git-credentials`, `.netrc`, and `.pem`, `id_rsa`, `id_ed25519`, `id_ecdsa` or `id_dsa` files, and tells it to ask you for the value it needs. Capital letters (`.ENV`) and patterns that could match one of these files (`cat .env*`) count too. Searches (Grep and similar) are checked for these files, but not for size. `.env.example`, `.env.sample` and `.env.template` stay readable.
 
-It is a safety net, not a security boundary: it does not see every way a command can read a file.
+It is best-effort, a safety net and not a security boundary: it catches the common ways to read a file, not every one. For example, a script that opens the file itself gets past it.
 
 **Turn it off.** Start Claude Code (or your other AI tool) with `GOODVIBES_READ_GUARD=off` set, which turns off both parts. Other tools see it only if they pass your environment on to their hooks; Gemini CLI running in CI does not:
 
@@ -207,7 +208,7 @@ The journal check and the read guard run in these tools. Every file runs the exa
 | Claude Code | `~/.claude/settings.json` and this project's `.claude/settings.json` |
 | Cursor | No file of its own: it runs the hooks in `.claude/settings.json` while its "Include Third-Party Plugins, Skills, and Other Configs" setting is on (the default) |
 | GitHub Copilot CLI | `.claude/settings.json` and `.github/hooks/goodvibes.json`, so each check runs twice (same result) |
-| GitHub Copilot cloud agent, Copilot in VS Code | `.github/hooks/goodvibes.json` (not written with `--minimal`, like the rest of `.github/`) |
+| GitHub Copilot cloud agent, Copilot in VS Code | `.github/hooks/goodvibes.json` (written with `--minimal` too) |
 | OpenAI Codex CLI | `.codex/hooks.json`. Codex asks you once to trust the project's hooks before they run (a review screen at startup) |
 | Gemini CLI | `.gemini/settings.json`, under `BeforeTool`. Gemini runs project hooks only in a trusted folder and shows a warning the first time it sees them |
 | Devin CLI | `.devin/hooks.v1.json` |
@@ -365,16 +366,26 @@ Never commit the key itself, only the `${CONTEXT7_API_KEY}` reference.
 
 | Workflow | When it runs | What it checks |
 |---|---|---|
-| `ci.yml` | Pushes to `main`, pull requests to `main` | Your tests. For Node.js (Node 20 and 22): `npm install`, `npm run build` and `npm test` if they exist, and `npm run lint` (a warning if there is no lint script). For Python (3.10, 3.11, 3.12): installs with `uv`, lints with `ruff`, runs `pytest` if there are `test_*.py` files |
-| `security.yml` | Pushes to `main`, pull requests to `main`, every Monday | CodeQL looks for security bugs in your code; gitleaks looks for passwords and keys in your whole git history |
+| `ci.yml` | Pushes to `main`, pull requests to `main` | Your tests. For Node.js (Node 22 and 24): `npm install`, `npm run build` and `npm test` if they exist, and `npm run lint` (a warning if there is no lint script). For Python (3.10, 3.11, 3.12): installs with `uv`, lints with `ruff`, runs `pytest` if there are `test_*.py` files (for a `requirements.txt` project it installs `pytest` too) |
+| `security.yml` | Pushes to `main`, pull requests to `main`, every Monday | CodeQL looks for security bugs in your Python, JavaScript and TypeScript code (it is skipped when there is none yet); gitleaks looks for passwords and keys in your whole git history |
 | `dependency-review.yml` | Pull requests to `main` | Every new dependency must have a permissive licence (MIT, Apache 2.0, BSD, ISC and a few others) |
 | `file-size.yml` | Every pull request, pushes to `main` | Code files stay small (see below) |
 
-- goodvibes picks the Node.js tests if your project has a `package.json`, the Python tests if it has a `pyproject.toml` or `requirements.txt`, and both if it has both or neither.
+- goodvibes picks the Node.js tests if your project has a `package.json`, the Python tests if it has a `pyproject.toml` or `requirements.txt`, and both if it has both or neither. The Node.js tests are skipped while there is no `package.json`, and the Python tests while there is no `pyproject.toml` or `requirements.txt`, so a new, empty project gets a green check instead of a red one.
 - CodeQL and dependency review need GitHub Advanced Security on private repositories, so they are skipped there and run on public ones.
 - Every workflow gets a read-only token, and a newer push to a pull request cancels the older run.
-- `.github/dependabot.yml` opens pull requests each week to update your GitHub Actions, npm and pip dependencies, at most five open at a time each. It waits 7 days after a release before proposing it.
-- If your project already had workflows when you ran `goodvibes init`, goodvibes added only `file-size.yml` and none of its other workflows. A project set up before this that has the file size script but not `file-size.yml` gets it on the next `goodvibes update`.
+- `.github/dependabot.yml` opens pull requests each week to update the GitHub Actions your workflows use, at most five open at a time. It waits 7 days after a release before proposing it. `goodvibes init` also adds your package manager when it finds its files: `npm` for a `package.json`, `uv` for a `uv.lock`, or else `pip` for a `requirements.txt` or a `pyproject.toml`. It adds no others, because Dependabot fails every week for a package manager whose files your project does not have. If you add one later, `goodvibes update` adds it too, as long as you have not edited the file. To add one by hand, put this block at the end of `.github/dependabot.yml`, and change `"npm"` to `"uv"` or `"pip"` if that is the one you need.
+
+  ```yaml
+    - package-ecosystem: "npm"
+      directory: "/"
+      schedule:
+        interval: "weekly"
+      open-pull-requests-limit: 5
+      cooldown:
+        default-days: 7
+  ```
+- If your project already had workflows (any `.yml` or `.yaml` file in `.github/workflows/`) when you ran `goodvibes init`, goodvibes added only `file-size.yml` and none of its other workflows. A project set up before this that has the file size script but not `file-size.yml` gets it on the next `goodvibes update`.
 
 ### File size check
 

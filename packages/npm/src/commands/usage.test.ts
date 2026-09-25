@@ -72,6 +72,11 @@ describe('usage', () => {
       expect(summarizeTranscript([JSON.stringify({ type: 'user', message: {} }), assistant('m', undefined), 'nope'].join('\n'))).toBeNull()
     })
 
+    it('counts an entry whose text contains a unicode line separator', () => {
+      const line = JSON.stringify({ type: 'assistant', message: { id: 'm', content: 'a\u2028b\u2029c\u0085d', usage: { input_tokens: 3, output_tokens: 4 } } })
+      expect(summarizeTranscript(line)).toMatchObject({ input: 3, output: 4 })
+    })
+
     it('counts entries with a non-string message id separately', () => {
       const line = (id: unknown, out: number) => JSON.stringify({ type: 'assistant', message: { id, usage: { output_tokens: out } } })
       const text = [line(['a'], 1), line(['a'], 2), line({ x: 1 }, 4), line(7, 8), line(7, 16)].join('\n')

@@ -73,12 +73,18 @@ def test_check_headroom_warns_when_headroom_times_out(mocker):
 
 
 def test_check_goodvibes_cli_is_ok_when_goodvibes_is_on_path(mocker):
-    mocker.patch("goodvibes_cli.commands.doctor_cmd.shutil.which", return_value="/usr/local/bin/goodvibes")
+    mocker.patch("goodvibes_cli.commands.doctor_cmd.which", return_value="/usr/local/bin/goodvibes")
     assert _check_goodvibes_cli() == CheckResult(label="goodvibes command on PATH", status="ok")
 
 
+def test_check_goodvibes_cli_looks_goodvibes_up_on_path_only_never_in_the_project_folder(mocker):
+    which = mocker.patch("goodvibes_cli.commands.doctor_cmd.which", return_value="/usr/local/bin/goodvibes")
+    assert _check_goodvibes_cli().status == "ok"
+    which.assert_called_once_with("goodvibes")
+
+
 def test_check_goodvibes_cli_warns_when_goodvibes_is_not_on_path(mocker):
-    mocker.patch("goodvibes_cli.commands.doctor_cmd.shutil.which", return_value=None)
+    mocker.patch("goodvibes_cli.commands.doctor_cmd.which", return_value=None)
     result = _check_goodvibes_cli()
     assert result.status == "warn"
     assert result.label == "goodvibes command not on PATH"
@@ -157,7 +163,7 @@ def _mock_checks(mocker, tmp_path, headroom="ok", git=("ok", "ok")):
 
 @pytest.fixture(autouse=True)
 def _goodvibes_on_path(mocker):
-    mocker.patch("goodvibes_cli.commands.doctor_cmd.shutil.which", return_value="/usr/local/bin/goodvibes")
+    mocker.patch("goodvibes_cli.commands.doctor_cmd.which", return_value="/usr/local/bin/goodvibes")
 
 
 def test_doctor_cmd_raises_exit_1_when_any_check_fails(mocker, tmp_path):
@@ -175,7 +181,7 @@ def test_doctor_cmd_does_not_raise_when_all_checks_pass(mocker, tmp_path):
 def test_doctor_exits_0_and_counts_warnings_when_only_optional_parts_are_missing(mocker, tmp_path):
     from goodvibes_cli.main import app
     _mock_checks(mocker, tmp_path, headroom="warn")
-    mocker.patch("goodvibes_cli.commands.doctor_cmd.shutil.which", return_value=None)
+    mocker.patch("goodvibes_cli.commands.doctor_cmd.which", return_value=None)
     result = runner.invoke(app, ["doctor"])
     assert result.exit_code == 0
     assert "! headroom check" in result.output
@@ -306,6 +312,46 @@ def test_doctor_quick_reports_a_broken_goodvibes_json_and_still_exits_0(mocker, 
     result = runner.invoke(app, ["doctor", "--quick"])
     assert result.exit_code == 0
     assert "is not valid JSON" in result.output
+
+
+def test_check_sentinel_does_not_crash_on_a_claude_md_that_is_not_utf_8(tmp_path):
+    (tmp_path / "CLAUDE.md").write_bytes(b"\xff\xfe<!-- goodvibes:start -->\nx\n<!-- goodvibes:end -->\n")
+    assert _check_sentinel(tmp_path).status == "ok"
+
+
+def test_doctor_quick_exits_0_on_a_claude_md_that_is_not_utf_8(mocker, tmp_path):
+    (tmp_path / ".goodvibes.json").write_text('{"version": "1.8.0", "files": {}}', encoding="utf-8")
+    (tmp_path / "CLAUDE.md").write_bytes(b"\xff\xfe no block here\n")
+    mocker.patch("pathlib.Path.cwd", return_value=tmp_path)
+    mocker.patch("goodvibes_cli.commands.doctor_cmd.subprocess.run", return_value=subprocess.CompletedProcess(args=[], returncode=0, stdout="value", stderr=""))
+    from goodvibes_cli.main import app
+    result = runner.invoke(app, ["doctor", "--quick"])
+    assert result.exit_code == 0
+    assert result.output.splitlines() == ["goodvibes doctor: ✗ goodvibes sentinel block. Run: goodvibes init (will merge sentinel block)"]
+
+
+def test_doctor_quick_reports_a_check_that_crashes_as_one_line_and_still_exits_0(mocker, tmp_path):
+    (tmp_path / ".goodvibes.json").write_text('{"version": "1.8.0", "files": {}}', encoding="utf-8")
+    mocker.patch("pathlib.Path.cwd", return_value=tmp_path)
+    mocker.patch("goodvibes_cli.commands.doctor_cmd.subprocess.run", return_value=subprocess.CompletedProcess(args=[], returncode=0, stdout="value", stderr=""))
+    mocker.patch("goodvibes_cli.commands.doctor_cmd._check_sentinel", side_effect=PermissionError(13, "Permission denied", "CLAUDE.md"))
+    from goodvibes_cli.main import app
+    result = runner.invoke(app, ["doctor", "--quick"])
+    assert result.exit_code == 0
+    assert result.output.splitlines() == ["goodvibes doctor: ✗ Could not finish the checks (EACCES). Run: goodvibes doctor"]
+
+
+@pytest.mark.parametrize("args", [["doctor"], ["doctor", "--quick"]])
+def test_doctor_prints_an_escape_code_from_a_broken_goodvibes_json_message_as_a_question_mark(mocker, tmp_path, args):
+    project = tmp_path / "evil\x1b[2Jrepo"
+    project.mkdir()
+    (project / ".goodvibes.json").write_text("{ broken", encoding="utf-8")
+    mocker.patch("pathlib.Path.cwd", return_value=project)
+    mocker.patch("goodvibes_cli.commands.doctor_cmd.subprocess.run", return_value=subprocess.CompletedProcess(args=[], returncode=0, stdout="value", stderr=""))
+    from goodvibes_cli.main import app
+    result = runner.invoke(app, args)
+    assert "\x1b" not in result.output
+    assert "evil?[2Jrepo" in "".join(result.output.split())
 
 
 def test_doctor_prints_square_brackets_literally_instead_of_as_rich_markup(mocker, tmp_path):
@@ -580,7 +626,7 @@ def test_doctor_quick_never_runs_the_path_check(mocker, tmp_path):
     from goodvibes_cli.main import app
     mocker.patch("pathlib.Path.cwd", return_value=tmp_path)
     mocker.patch("goodvibes_cli.commands.doctor_cmd.subprocess.run", return_value=subprocess.CompletedProcess(args=[], returncode=0, stdout="v", stderr=""))
-    which = mocker.patch("goodvibes_cli.commands.doctor_cmd.shutil.which", return_value=None)
+    which = mocker.patch("goodvibes_cli.commands.doctor_cmd.which", return_value=None)
     result = runner.invoke(app, ["doctor", "--quick"])
     assert result.output == ""
     which.assert_not_called()
@@ -663,6 +709,16 @@ def test_check_git_hook_skips_a_pre_commit_hook_that_is_not_from_goodvibes(hook_
     assert _hook_file(hook_repo).read_text() == "#!/bin/sh\necho mine\n"
 
 
+def test_check_git_hook_skips_when_git_hooks_is_a_link(hook_repo, tmp_path):
+    import shutil
+    from goodvibes_cli.commands.doctor_cmd import _check_git_hook
+    outside = tmp_path / "external"
+    outside.mkdir()
+    shutil.rmtree(hook_repo / ".git" / "hooks")
+    (hook_repo / ".git" / "hooks").symlink_to(outside)
+    assert _check_git_hook(hook_repo) == [CheckResult("Git commit check not managed (.git/hooks is a link or outside the git folder)", "skip")]
+
+
 def test_check_git_hook_reports_nothing_without_a_journal(hook_repo):
     from goodvibes_cli.commands.doctor_cmd import _check_git_hook
     (hook_repo / "JOURNAL.md").unlink()
@@ -693,3 +749,11 @@ def test_doctor_quick_never_runs_the_git_hook_check(mocker, tmp_path):
     result = runner.invoke(app, ["doctor", "--quick"])
     assert result.exit_code == 0
     check.assert_not_called()
+
+
+def test_doctor_runs_headroom_and_git_without_searching_the_project_folder_for_them(mocker):
+    run = mocker.patch("goodvibes_cli.commands.doctor_cmd.subprocess.run", return_value=subprocess.CompletedProcess(args=[], returncode=0, stdout="x", stderr=""))
+    _check_headroom()
+    _check_git_config("user.name")
+    assert [c.args[0][0] for c in run.call_args_list] == ["headroom", "git"]
+    assert all(c.kwargs["env"]["NoDefaultCurrentDirectoryInExePath"] == "1" for c in run.call_args_list)

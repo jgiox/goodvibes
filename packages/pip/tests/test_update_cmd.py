@@ -10,7 +10,8 @@ from typer.testing import CliRunner
 from goodvibes_cli.main import app
 
 runner = CliRunner()
-_ANSI = re.compile(r'\x1b\[[0-9;]*m')
+# ANSI codes and Rich panel borders: every plan and summary line is printed inside a panel.
+_ANSI = re.compile(r'\x1b\[[0-9;]*m|[│╭╮╰╯─]')
 
 
 def test_update_shows_no_manifest_message_and_exits_0_when_goodvibes_json_absent(mocker):
@@ -347,7 +348,7 @@ def test_update_merges_context7_into_existing_cursor_and_vscode_mcp_files_and_ke
     assert result.exit_code == 0, result.output
     assert _read(editor_dirs, ".cursor/mcp.json")["mcpServers"] == {"postgres": {"command": "pg-mcp"}, "context7": {"url": _CONTEXT7["url"]}}
     assert _read(editor_dirs, ".vscode/mcp.json") == {"inputs": [], "servers": {"github": _GITHUB, "context7": _CONTEXT7}}
-    assert ".vscode/mcp.json (merged 1 goodvibes key(s))" in " ".join(_ANSI.sub("", result.output).split())
+    assert "Merged 1 goodvibes key(s) into .vscode/mcp.json." in " ".join(_ANSI.sub("", result.output).split())
 
 
 def test_update_does_not_re_add_context7_to_a_vscode_mcp_file_after_the_user_deleted_the_entry(editor_dirs):
@@ -482,6 +483,9 @@ def test_update_reports_broken_claude_md_markers_updates_the_rest_and_exits_non_
     assert (project_dir / "CLAUDE.md").read_text(encoding="utf-8") == broken
     assert (project_dir / "AGENTS.md").read_text(encoding="utf-8") == "agents v2\n"
     assert "fix CLAUDE.md by hand" in " ".join(_ANSI.sub("", result.output).split())
+    out = " ".join(_ANSI.sub("", result.output).split())
+    assert "Applied 1 file(s). Skipped 0 user-modified file(s)." in out
+    assert out.endswith("CLAUDE.md was not updated; fix it by hand as described above, then run goodvibes update again.")
 
 
 def test_update_reports_settings_that_are_not_a_json_object_and_leaves_them_unchanged(merge_dirs):
@@ -605,6 +609,21 @@ def test_update_adds_new_github_and_docs_files_only_to_groups_the_manifest_alrea
     assert not (project_dir / "docs").exists()
 
 
+def test_update_adds_copilots_rules_and_hooks_to_a_minimal_project_but_no_workflows_other_github_files_or_docs(plain_dirs):
+    template_dir, project_dir = plain_dirs
+    _tpl(template_dir, ["AGENTS.md", ".github/copilot-instructions.md", ".github/hooks/goodvibes.json", ".github/dependabot.yml", ".github/workflows/security.yml", "docs/guide.md"])
+    (project_dir / "AGENTS.md").write_text("template AGENTS.md\n", encoding="utf-8")
+    _write_manifest(project_dir, {"AGENTS.md": _sha("template AGENTS.md\n")})
+
+    result = runner.invoke(app, ["update", "--force"])
+
+    assert result.exit_code == 0, result.output
+    assert (project_dir / ".github" / "copilot-instructions.md").read_text(encoding="utf-8") == "template .github/copilot-instructions.md\n"
+    assert (project_dir / ".github" / "hooks" / "goodvibes.json").exists()
+    assert sorted(p.name for p in (project_dir / ".github").iterdir()) == ["copilot-instructions.md", "hooks"]
+    assert not (project_dir / "docs").exists()
+
+
 def test_update_adds_a_new_workflow_when_the_manifest_tracks_a_workflow_but_not_other_github_files(plain_dirs):
     template_dir, project_dir = plain_dirs
     _tpl(template_dir, [".github/workflows/ci-both.yml", ".github/workflows/security.yml", ".github/dependabot.yml", "docs/onboarding.md"])
@@ -716,7 +735,7 @@ def test_update_marks_a_deleted_git_hook_user_removed_prints_it_once_and_does_no
     first = runner.invoke(app, ["update", "--force"])
     assert first.exit_code == 0, first.output
     hook.assert_called_once_with(project_dir, True)
-    assert _out(first).count(HOOK_REMOVED_LINE) == 1
+    assert _out(first).split("Update complete")[1].count(HOOK_REMOVED_LINE) == 1
     assert INSTALLED_LINE not in _out(first)
     assert _read(project_dir, ".goodvibes.json")["gitHook"] == "user-removed"
 
@@ -834,3 +853,207 @@ def test_update_merges_the_goodvibes_hooks_into_existing_gemini_and_codex_hook_f
     assert gemini["hooks"]["BeforeTool"] == [user_group, *json.loads((real / ".gemini" / "settings.json").read_text(encoding="utf-8"))["hooks"]["BeforeTool"]]
     codex = json.loads((merge_dirs / ".codex" / "hooks.json").read_text(encoding="utf-8"))
     assert codex["hooks"]["PreToolUse"] == [user_group, *json.loads((real / ".codex" / "hooks.json").read_text(encoding="utf-8"))["hooks"]["PreToolUse"]]
+
+
+
+def test_update_force_exits_1_and_does_not_delete_git_head_through_a_claude_skills_dotdot_manifest_key(plain_dirs):
+    _, project_dir = plain_dirs
+    head = "ref: refs/heads/main\n"
+    (project_dir / ".git").mkdir()
+    (project_dir / ".claude" / "skills").mkdir(parents=True)
+    (project_dir / ".git" / "HEAD").write_text(head, encoding="utf-8")
+    _write_manifest(project_dir, {".claude/skills/../../.git/HEAD": _sha(head)})
+
+    result = runner.invoke(app, ["update", "--force"])
+
+    assert result.exit_code == 1
+    assert (project_dir / ".git" / "HEAD").read_text(encoding="utf-8") == head
+    # Rich breaks the long temp path mid-word, so compare with all whitespace removed.
+    out = "".join(_ANSI.sub("", result.output).split())
+    assert "".join(f'{project_dir / ".goodvibes.json"} is not a valid goodvibes manifest (".claude/skills/../../.git/HEAD" is not a safe relative path); fix it or delete it and run goodvibes init'.split()) in out
+
+
+@pytest.mark.parametrize("key", ["../outside.txt", "/etc/hostname"])
+def test_update_exits_1_with_a_fix_it_message_not_a_traceback_for_a_dotdot_or_absolute_manifest_key(plain_dirs, key):
+    _, project_dir = plain_dirs
+    _write_manifest(project_dir, {key: "abc"})
+
+    result = runner.invoke(app, ["update", "--force"])
+
+    assert result.exit_code == 1
+    assert result.exception is None or isinstance(result.exception, SystemExit)
+    assert f'("{key}" is not a safe relative path); fix it or delete it and run goodvibes init' in " ".join(_ANSI.sub("", result.output).split())
+
+
+def test_update_asks_before_adding_a_net_new_file_and_adds_nothing_when_the_answer_is_no(plain_dirs, mocker):
+    template_dir, project_dir = plain_dirs
+    _tpl(template_dir, ["NEW.md"])
+    _write_manifest(project_dir, {})
+    confirm = mocker.patch("goodvibes_cli.commands.update_cmd.typer.confirm", return_value=False)
+
+    runner.invoke(app, ["update"])
+
+    confirm.assert_called_once()
+    assert "add 1," in confirm.call_args.args[0]
+    assert not (project_dir / "NEW.md").exists()
+
+
+def test_update_prints_question_marks_for_escape_codes_in_json_errors_and_key_paths_and_bracketed_manifest_keys_as_they_are(merge_dirs):
+    (merge_dirs / ".claude" / "settings.json").write_text('{"hooks": {"\\u001b[2J": 5}}', encoding="utf-8")
+    (merge_dirs / ".mcp.json").write_text('{"a": x\x1b[31mRED}', encoding="utf-8")
+    _write_manifest(merge_dirs, {".claude/settings.json": "old", ".mcp.json": "old", "docs/[/x].md": "abc", "[bold red]HI[/bold red].md": "abc"})
+
+    result = runner.invoke(app, ["update", "--force"])
+
+    assert result.exit_code == 0, result.output
+    out = " ".join(result.output.replace("│", " ").split())
+    assert '.claude/settings.json: "hooks.?[2J" is not a JSON array; left unchanged' in out
+    assert ".mcp.json: not valid JSON (" in out
+    assert "docs/[/x].md: removed by you, not re-added" in out
+    assert "[bold red]HI[/bold red].md: removed by you, not re-added" in out
+    assert not re.search(r"[\x00-\x09\x0b-\x1f]", result.output)
+
+
+def test_update_merges_into_settings_and_mcp_files_whose_hooks_permissions_and_server_maps_are_null(merge_dirs):
+    tpl = merge_dirs.parent / "templates"
+    (tpl / ".vscode").mkdir()
+    (tpl / ".vscode" / "mcp.json").write_text(json.dumps({"servers": {"context7": {"type": "http", "url": "https://mcp.context7.com/mcp"}}}), encoding="utf-8")
+    (merge_dirs / ".vscode").mkdir()
+    (merge_dirs / ".claude" / "settings.json").write_text('{"hooks": null, "permissions": null}', encoding="utf-8")
+    (merge_dirs / ".mcp.json").write_text('{"mcpServers": null}', encoding="utf-8")
+    (merge_dirs / ".vscode" / "mcp.json").write_text('{"servers": null}', encoding="utf-8")
+    _write_manifest(merge_dirs, {".claude/settings.json": "old-hash", ".mcp.json": "old-hash", ".vscode/mcp.json": "old-hash"})
+
+    result = runner.invoke(app, ["update", "--force"])
+
+    assert result.exit_code == 0, result.output
+    assert _read(merge_dirs, ".claude/settings.json")["hooks"]["PreToolUse"]
+    assert "Bash(git push*)" in _read(merge_dirs, ".claude/settings.json")["permissions"]["ask"]
+    assert "context7" in _read(merge_dirs, ".mcp.json")["mcpServers"]
+    assert "context7" in _read(merge_dirs, ".vscode/mcp.json")["servers"]
+
+
+def test_update_inside_the_claude_settings_folder_updates_only_the_global_part_and_adds_no_project_files(plain_dirs, mocker, monkeypatch):
+    template_dir, project_dir = plain_dirs
+    _tpl(template_dir, ["JOURNAL.md", "AGENTS.md", "docs/onboarding.md"])
+    monkeypatch.setenv("CLAUDE_CONFIG_DIR", str(project_dir))
+    manifest = json.dumps({"version": "1.0.0", "scope": "global", "files": {"rules/goodvibes.md": "abc"}})
+    (project_dir / ".goodvibes.json").write_text(manifest, encoding="utf-8")
+    apply = mocker.patch("goodvibes_cli.commands.update_cmd.apply_global_config", return_value={
+        "config_dir": str(project_dir), "written": ["rules/goodvibes.md"], "kept": [], "removed": [], "retired": [], "settings_changes": [], "settings_error": None})
+
+    dry = runner.invoke(app, ["update", "--dry-run"])
+    assert dry.exit_code == 0, dry.output
+    assert "rules/goodvibes.md" in _out(dry)
+    assert "JOURNAL.md" not in _out(dry)
+
+    result = runner.invoke(app, ["update", "--force"])
+    assert result.exit_code == 0, result.output
+    for rel in ("JOURNAL.md", "AGENTS.md", "docs"):
+        assert not (project_dir / rel).exists()
+    assert (project_dir / ".goodvibes.json").read_text(encoding="utf-8") == manifest
+    assert apply.call_args.kwargs["dry_run"] is False
+
+
+def test_update_rewrites_an_unedited_dependabot_yml_with_the_npm_entry_once_the_project_has_a_package_json_and_keeps_an_edited_one(plain_dirs):
+    template_dir, project_dir = plain_dirs
+    tpl = 'version: 2\nupdates:\n  - package-ecosystem: "github-actions"\n'
+    for root in (template_dir, project_dir):
+        (root / ".github").mkdir()
+        (root / ".github" / "dependabot.yml").write_text(tpl, encoding="utf-8")
+    (project_dir / "package.json").write_text("{}", encoding="utf-8")
+    _write_manifest(project_dir, {".github/dependabot.yml": _sha(tpl)})
+
+    result = runner.invoke(app, ["update", "--force"])
+    assert result.exit_code == 0, result.output
+    tailored = (project_dir / ".github" / "dependabot.yml").read_text(encoding="utf-8")
+    assert '  - package-ecosystem: "npm"\n' in tailored
+    assert _read(project_dir, ".goodvibes.json")["files"][".github/dependabot.yml"] == _sha(tailored)
+
+    (project_dir / ".github" / "dependabot.yml").write_text(tailored + "# mine\n", encoding="utf-8")
+    runner.invoke(app, ["update", "--force"])
+    assert (project_dir / ".github" / "dependabot.yml").read_text(encoding="utf-8") == tailored + "# mine\n"
+
+
+def _plan_project(template_dir, project_dir):
+    _tpl(template_dir, ["JOURNAL.md", "NEW.md"])
+    (project_dir / "JOURNAL.md").write_text("template JOURNAL.md\n", encoding="utf-8")
+    _write_manifest(project_dir, {"JOURNAL.md": _sha("template JOURNAL.md\n")})
+
+
+def test_update_force_prints_the_plan_leaves_out_empty_groups_and_ends_with_the_npm_summary(plain_dirs):
+    template_dir, project_dir = plain_dirs
+    _plan_project(template_dir, project_dir)
+    out = _out(runner.invoke(app, ["update", "--force"]))
+    assert "Plan" in out
+    assert "Will overwrite (1): JOURNAL.md" in out and "Will add net-new (1): NEW.md" in out
+    assert "(0)" not in out and "(none)" not in out
+    assert out.index("Will overwrite") < out.index("Update complete")
+    assert "Applied 2 file(s). Skipped 0 user-modified file(s)." in out
+    assert out.endswith("Done!")
+
+
+def test_update_dry_run_uses_the_npm_titles_and_closing_line(plain_dirs):
+    template_dir, project_dir = plain_dirs
+    _plan_project(template_dir, project_dir)
+    out = _out(runner.invoke(app, ["update", "--dry-run"]))
+    assert "Dry run — no files written" in out
+    assert out.endswith("Run without --dry-run to apply changes.")
+
+
+def test_update_says_nothing_was_changed_when_the_answer_is_no(plain_dirs):
+    template_dir, project_dir = plain_dirs
+    _plan_project(template_dir, project_dir)
+    result = runner.invoke(app, ["update"], input="n\n")
+    assert result.exit_code == 0
+    assert _out(result).endswith("Update cancelled. Nothing was changed.")
+    assert not (project_dir / "NEW.md").exists()
+
+
+def test_update_says_there_is_nothing_to_change_when_the_plan_is_empty(plain_dirs):
+    _, project_dir = plain_dirs
+    _write_manifest(project_dir, {})
+    out = _out(runner.invoke(app, ["update", "--force"]))
+    assert "Nothing to change in this project." in out
+    assert out.endswith("Done!")
+
+
+def _global(mocker, monkeypatch, tmp_path, project_dir, with_project):
+    cfg = tmp_path / "claude-config"
+    cfg.mkdir(exist_ok=True)
+    (cfg / ".goodvibes.json").write_text('{"version": "1.0.0", "scope": "global", "files": {}}', encoding="utf-8")
+    if not with_project:
+        (project_dir / ".goodvibes.json").unlink(missing_ok=True)
+    mocker.patch("goodvibes_cli.commands.update_cmd.apply_global_config", return_value={
+        "config_dir": str(cfg), "written": ["rules/goodvibes.md"], "kept": [], "removed": [], "retired": [], "settings_changes": ["+ hooks.PreToolUse: x"], "settings_error": None})
+    return mocker.patch("goodvibes_cli.commands.update_cmd.typer.confirm", return_value=False), cfg
+
+
+def test_update_asks_one_question_with_the_global_suffix_and_titles_the_global_plan_like_npm(plain_dirs, mocker, monkeypatch, tmp_path):
+    template_dir, project_dir = plain_dirs
+    _plan_project(template_dir, project_dir)
+    confirm, cfg = _global(mocker, monkeypatch, tmp_path, project_dir, True)
+    result = runner.invoke(app, ["update"])
+    assert confirm.call_args.args[0] == "Overwrite 1 managed file(s), add 1, merge goodvibes keys into 0 file(s) and apply 2 change(s) to your Claude Code settings?"
+    assert "Plan — Global setup (" in _out(result)
+
+
+def test_update_with_only_a_global_setup_asks_about_the_claude_code_settings_and_ends_with_done(plain_dirs, mocker, monkeypatch, tmp_path):
+    _, project_dir = plain_dirs
+    confirm, _ = _global(mocker, monkeypatch, tmp_path, project_dir, False)
+    runner.invoke(app, ["update"])
+    assert confirm.call_args.args[0] == "Apply 2 change(s) to your Claude Code settings?"
+    confirm.return_value = True
+    assert _out(runner.invoke(app, ["update"])).endswith("Done!")
+
+
+def test_update_stops_with_exit_1_and_a_clear_message_when_its_input_ends_before_the_question_is_answered(plain_dirs):
+    template_dir, project_dir = plain_dirs
+    _tpl(template_dir, ["NEW.md"])
+    _write_manifest(project_dir, {})
+
+    result = runner.invoke(app, ["update"], input="")
+
+    assert result.exit_code == 1
+    assert "No answer (the input ended). Nothing was changed." in " ".join(_ANSI.sub("", result.output).split())
+    assert not (project_dir / "NEW.md").exists()

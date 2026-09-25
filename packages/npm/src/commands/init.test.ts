@@ -794,3 +794,144 @@ describe('init installs the git commit check', () => {
     expect(vi.mocked(installGitHook)).not.toHaveBeenCalled()
   })
 })
+
+describe('init in the Claude Code settings folder', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  async function runInit(...args: string[]) {
+    const { tasks } = await import('@clack/prompts')
+    const { copyTemplates, listTemplateFiles, resolveTemplatesDir } = await import('../steps/copy-templates.js')
+    vi.mocked(resolveTemplatesDir).mockReturnValue('/fake/templates')
+    vi.mocked(listTemplateFiles).mockResolvedValue(['CLAUDE.md', 'JOURNAL.md'])
+    vi.mocked(copyTemplates).mockResolvedValue({ written: ['CLAUDE.md', 'JOURNAL.md'], skipped: [], problems: [] })
+    vi.mocked(tasks).mockImplementation(async (taskList: any[]) => {
+      for (const t of taskList) await t.task(vi.fn())
+    })
+    const { registerInitCommand } = await import('./init.js')
+    const { Command } = await import('commander')
+    const program = new Command()
+    program.exitOverride()
+    registerInitCommand(program)
+    const cwdSpy = vi.spyOn(process, 'cwd').mockReturnValue('/fake/.claude')
+    try {
+      await program.parseAsync(['node', 'goodvibes', 'init', '--minimal', ...args])
+    } finally {
+      cwdSpy.mockRestore()
+    }
+  }
+
+  const noteText = async () => vi.mocked((await import('@clack/prompts')).note).mock.calls.map(c => String(c[0])).join('\n')
+
+  it('does the global part only and never writes project files or a project manifest over the global one', async () => {
+    const { applyGlobalConfig } = await import('../steps/global-setup.js')
+    const { copyTemplates } = await import('../steps/copy-templates.js')
+    const { writeManifest } = await import('../steps/write-manifest.js')
+    const { installGitHook } = await import('../steps/git-hook.js')
+
+    await runInit()
+
+    expect(vi.mocked(applyGlobalConfig)).toHaveBeenCalled()
+    expect(vi.mocked(copyTemplates)).not.toHaveBeenCalled()
+    expect(vi.mocked(writeManifest)).not.toHaveBeenCalled()
+    expect(vi.mocked(installGitHook)).not.toHaveBeenCalled()
+    expect(await noteText()).toContain('No project files written: /fake/.claude is your Claude Code settings folder.')
+  })
+
+  it('--dry-run lists no project files there', async () => {
+    const { installGitHook } = await import('../steps/git-hook.js')
+
+    await runInit('--dry-run')
+
+    expect(await noteText()).not.toContain('Would write: JOURNAL.md')
+    expect(vi.mocked(installGitHook)).not.toHaveBeenCalled()
+  })
+
+  it('--scope project stops with exit 1 and a clear message before writing anything', async () => {
+    const { cancel } = await import('@clack/prompts')
+    const { copyTemplates } = await import('../steps/copy-templates.js')
+    const { writeManifest } = await import('../steps/write-manifest.js')
+    const exitSpy = vi.spyOn(process, 'exit').mockImplementation(((code?: number) => { throw new Error(`exit ${code}`) }) as never)
+    try {
+      await expect(runInit('--scope', 'project')).rejects.toThrow('exit 1')
+    } finally {
+      exitSpy.mockRestore()
+    }
+    expect(vi.mocked(cancel)).toHaveBeenCalledWith('/fake/.claude is your Claude Code settings folder, not a project.\nRun goodvibes init --scope project inside your project folder.')
+    expect(vi.mocked(copyTemplates)).not.toHaveBeenCalled()
+    expect(vi.mocked(writeManifest)).not.toHaveBeenCalled()
+  })
+})
+
+describe('init --dry-run file list', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  async function dryRun(files: string[], ...args: string[]): Promise<string[]> {
+    const { note } = await import('@clack/prompts')
+    const { listTemplateFiles, resolveTemplatesDir } = await import('../steps/copy-templates.js')
+    vi.mocked(resolveTemplatesDir).mockReturnValue('/fake/templates')
+    vi.mocked(listTemplateFiles).mockResolvedValue(files)
+    const { registerInitCommand } = await import('./init.js')
+    const { Command } = await import('commander')
+    const program = new Command()
+    program.exitOverride()
+    registerInitCommand(program)
+    await program.parseAsync(['node', 'goodvibes', 'init', '--dry-run', '--scope', 'project', ...args])
+    const list = vi.mocked(note).mock.calls.find(c => String(c[1]).includes('no files written'))
+    return String(list![0]).split('\n').map(l => l.trim())
+  }
+
+  it('lists .github/workflows/ci.yml, not the ci-<type>.yml template it is made from', async () => {
+    const lines = await dryRun(['.github/workflows/ci-both.yml', '.github/workflows/ci-node.yml', '.github/workflows/ci-python.yml', 'CLAUDE.md'])
+    expect(lines).toEqual(['Would write: .github/workflows/ci.yml', 'Would write: CLAUDE.md'])
+  })
+
+  it('--minimal still lists Copilot\'s rules and hooks under .github, but no other .github file or docs', async () => {
+    const lines = await dryRun([
+      '.github/ISSUE_TEMPLATE/bug_report.yml', '.github/PULL_REQUEST_TEMPLATE.md', '.github/copilot-instructions.md',
+      '.github/dependabot.yml', '.github/hooks/goodvibes.json', '.github/scripts/check-file-sizes.mjs',
+      '.github/workflows/ci-both.yml', '.github/workflows/file-size.yml', 'AGENTS.md', 'docs/onboarding.md',
+    ], '--minimal')
+    expect(lines).toEqual(['Would write: .github/copilot-instructions.md', 'Would write: .github/hooks/goodvibes.json', 'Would write: AGENTS.md'])
+  })
+})
+
+describe('init next steps', () => {
+  const NEXT_STEPS = [
+    '1. Open this project in your AI coding tool',
+    '2. Optional, in the Claude Code terminal, for /ponytail-review and /ponytail-audit:',
+    '   /plugin marketplace add DietrichGebert/ponytail',
+    '   /plugin install ponytail@ponytail',
+    '   Other IDEs (Cursor, Windsurf, Kiro, Antigravity, etc.): rules already active',
+    '3. Start coding: CLAUDE.md rules are already active',
+  ].join('\n')
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it.each([[[] as string[]], [['--dry-run']]])('give both ponytail plugin commands, marked optional and for the Claude Code terminal (%j)', async (extra: string[]) => {
+    const { note, tasks } = await import('@clack/prompts')
+    const { copyTemplates, listTemplateFiles, resolveTemplatesDir } = await import('../steps/copy-templates.js')
+    const { installHeadroom } = await import('../steps/install-headroom.js')
+    const { configureMcp } = await import('../steps/configure-mcp.js')
+    vi.mocked(resolveTemplatesDir).mockReturnValue('/fake/templates')
+    vi.mocked(listTemplateFiles).mockResolvedValue(['CLAUDE.md'])
+    vi.mocked(copyTemplates).mockResolvedValue({ written: ['CLAUDE.md'], skipped: [], problems: [] })
+    vi.mocked(installHeadroom).mockResolvedValue({ status: 'installed' })
+    vi.mocked(configureMcp).mockResolvedValue({ status: 'registered' })
+    vi.mocked(tasks).mockImplementation(async (taskList: any[]) => {
+      for (const t of taskList) await t.task(vi.fn())
+    })
+    const { registerInitCommand } = await import('./init.js')
+    const { Command } = await import('commander')
+    const program = new Command()
+    program.exitOverride()
+    registerInitCommand(program)
+    await program.parseAsync(['node', 'goodvibes', 'init', '--scope', 'project', ...extra])
+    expect(vi.mocked(note).mock.calls.find(c => c[1] === 'Next steps')?.[0]).toBe(NEXT_STEPS)
+  })
+})

@@ -15,7 +15,7 @@ describe('registerContext7', () => {
     expect(vi.mocked(execa).mock.calls[1]).toEqual([
       'claude',
       ['mcp', 'add', '--transport', 'http', '--scope', 'user', 'context7', 'https://mcp.context7.com/mcp'],
-      { timeout: 10_000 },
+      { timeout: 10_000, env: expect.objectContaining({ NoDefaultCurrentDirectoryInExePath: '1' }) },
     ])
   })
 
@@ -35,6 +35,15 @@ describe('registerContext7', () => {
     expect(r.status).toBe('skipped')
     expect(r.reason).toContain('claude mcp add --transport http --scope user context7')
   })
+
+  it('runs both claude calls with the Windows switch that keeps a program in the project folder from running', async () => {
+    const { execa } = await import('execa')
+    vi.mocked(execa).mockResolvedValueOnce({ stdout: '' } as any).mockResolvedValueOnce({ stdout: '' } as any)
+    const { registerContext7 } = await import('./global-setup.js')
+    await registerContext7(false)
+    expect(vi.mocked(execa)).toHaveBeenCalledTimes(2)
+    for (const c of vi.mocked(execa).mock.calls as unknown[][]) expect(c[2]).toEqual(expect.objectContaining({ env: expect.objectContaining({ NoDefaultCurrentDirectoryInExePath: '1' }) }))
+  })
 })
 
 describe('ensureGlobalCli', () => {
@@ -46,6 +55,15 @@ describe('ensureGlobalCli', () => {
     const { ensureGlobalCli } = await import('./global-setup.js')
     expect(await ensureGlobalCli('1.8.0', false)).toEqual({ status: 'installed' })
     expect(vi.mocked(execa).mock.calls[1][1]).toEqual(['install', '-g', 'goodvibes-cli@1.8.0'])
+  })
+
+  it('runs npm without searching the project folder for it', async () => {
+    const { execa } = await import('execa')
+    vi.mocked(execa).mockResolvedValueOnce({ stdout: '{}' } as any).mockResolvedValueOnce({ stdout: '' } as any)
+    const { ensureGlobalCli } = await import('./global-setup.js')
+    await ensureGlobalCli('1.8.0', false)
+    expect(vi.mocked(execa).mock.calls).toHaveLength(2)
+    for (const c of vi.mocked(execa).mock.calls as unknown[][]) expect(c[2]).toEqual(expect.objectContaining({ env: expect.objectContaining({ NoDefaultCurrentDirectoryInExePath: '1' }) }))
   })
 
   it('does not reinstall when the same version is already global', async () => {

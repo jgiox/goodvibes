@@ -73,7 +73,7 @@ def test_claude_mcp_add_primary(mocker):
         side_effect=side_effect,
     )
     mocker.patch(
-        "goodvibes_cli.steps.configure_mcp.shutil.which",
+        "goodvibes_cli.steps.configure_mcp.which",
         return_value="/usr/local/bin/headroom",
     )
     from goodvibes_cli.steps.configure_mcp import configure_mcp
@@ -107,7 +107,7 @@ def test_headroom_not_on_path(mocker):
         side_effect=side_effect,
     )
     mocker.patch(
-        "goodvibes_cli.steps.configure_mcp.shutil.which",
+        "goodvibes_cli.steps.configure_mcp.which",
         return_value=None,
     )
     from goodvibes_cli.steps.configure_mcp import configure_mcp
@@ -136,7 +136,7 @@ def test_claude_not_found_fallback(mocker):
         side_effect=side_effect,
     )
     mocker.patch(
-        "goodvibes_cli.steps.configure_mcp.shutil.which",
+        "goodvibes_cli.steps.configure_mcp.which",
         return_value="/usr/local/bin/headroom",
     )
     from goodvibes_cli.steps.configure_mcp import configure_mcp
@@ -171,7 +171,7 @@ def test_headroom_enoent_in_fallback(mocker):
         side_effect=side_effect,
     )
     mocker.patch(
-        "goodvibes_cli.steps.configure_mcp.shutil.which",
+        "goodvibes_cli.steps.configure_mcp.which",
         return_value="/usr/local/bin/headroom",
     )
     from goodvibes_cli.steps.configure_mcp import configure_mcp
@@ -230,7 +230,7 @@ def test_claude_mcp_add_called_process_error_soft_fails(mocker):
         side_effect=side_effect,
     )
     mocker.patch(
-        "goodvibes_cli.steps.configure_mcp.shutil.which",
+        "goodvibes_cli.steps.configure_mcp.which",
         return_value="/usr/bin/headroom",
     )
     from goodvibes_cli.steps.configure_mcp import configure_mcp
@@ -253,7 +253,7 @@ def _registered_as(get_stdout):
 def test_repairs_a_headroom_registration_that_has_no_mcp_serve_arguments(mocker):
     broken = "headroom:\n  Scope: User config\n  Type: stdio\n  Command: /usr/local/bin/headroom\n  Args: \n"
     run = mocker.patch("goodvibes_cli.steps.configure_mcp.subprocess.run", side_effect=_registered_as(broken))
-    mocker.patch("goodvibes_cli.steps.configure_mcp.shutil.which", return_value="/usr/local/bin/headroom")
+    mocker.patch("goodvibes_cli.steps.configure_mcp.which", return_value="/usr/local/bin/headroom")
     from goodvibes_cli.steps.configure_mcp import configure_mcp
 
     log_calls: list[str] = []
@@ -271,7 +271,7 @@ def test_repairs_a_headroom_registration_that_has_no_mcp_serve_arguments(mocker)
 def test_leaves_a_headroom_registration_with_mcp_serve_alone(mocker):
     ok = "headroom:\n  Command: /usr/local/bin/headroom\n  Args: mcp serve\n"
     run = mocker.patch("goodvibes_cli.steps.configure_mcp.subprocess.run", side_effect=_registered_as(ok))
-    mocker.patch("goodvibes_cli.steps.configure_mcp.shutil.which", return_value="/usr/local/bin/headroom")
+    mocker.patch("goodvibes_cli.steps.configure_mcp.which", return_value="/usr/local/bin/headroom")
     from goodvibes_cli.steps.configure_mcp import configure_mcp
 
     result = configure_mcp(lambda m: None)
@@ -279,3 +279,54 @@ def test_leaves_a_headroom_registration_with_mcp_serve_alone(mocker):
     cmds = [c.args[0] for c in run.call_args_list]
     assert not any(c[:3] in (["claude", "mcp", "add"], ["claude", "mcp", "remove"]) for c in cmds)
     assert result["status"] == "already-registered"
+
+
+def _unregistered(cmd_list, **kwargs):
+    if cmd_list[:3] == ["claude", "mcp", "get"]:
+        return subprocess.CompletedProcess(args=cmd_list, returncode=1, stdout="", stderr="No MCP server found")
+    if cmd_list == ["headroom", "mcp", "status"]:
+        raise subprocess.CalledProcessError(1, cmd_list)
+    return subprocess.CompletedProcess(args=cmd_list, returncode=0, stdout="", stderr="")
+
+
+IN_PROJECT = ("headroom was found only inside this project folder, where a cloned repo could plant it, so it was not registered as an MCP server. "
+              'Run `uv tool install "headroom-ai[all]"` then re-run `goodvibes init`.')
+
+
+def test_every_mcp_command_skips_the_project_folder_when_finding_programs(mocker):
+    run = mocker.patch("goodvibes_cli.steps.configure_mcp.subprocess.run", side_effect=_unregistered)
+    mocker.patch("goodvibes_cli.steps.configure_mcp.which", return_value="/usr/local/bin/headroom")
+    from goodvibes_cli.steps.configure_mcp import configure_mcp
+
+    assert configure_mcp(lambda m: None)["status"] == "registered"
+    assert len(run.call_args_list) == 4
+    assert all(c.kwargs["env"]["NoDefaultCurrentDirectoryInExePath"] == "1" for c in run.call_args_list)
+
+
+def test_does_not_register_a_headroom_found_inside_the_project_folder(mocker, tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    run = mocker.patch("goodvibes_cli.steps.configure_mcp.subprocess.run", side_effect=_unregistered)
+    mocker.patch("goodvibes_cli.steps.configure_mcp.which", return_value=str(tmp_path / ".venv" / "bin" / "headroom"))
+    from goodvibes_cli.steps.configure_mcp import configure_mcp
+
+    log_calls: list[str] = []
+    result = configure_mcp(log_calls.append)
+
+    assert result == {"status": "skipped", "reason": "headroom found only inside the project folder"}
+    assert IN_PROJECT in log_calls
+    assert not any(c.args[0][:3] == ["claude", "mcp", "add"] for c in run.call_args_list)
+
+
+def test_does_not_repair_a_registration_with_a_headroom_found_inside_the_project_folder(mocker, tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    broken = "headroom:\n  Command: /usr/local/bin/headroom\n  Args: \n"
+    run = mocker.patch("goodvibes_cli.steps.configure_mcp.subprocess.run", side_effect=_registered_as(broken))
+    mocker.patch("goodvibes_cli.steps.configure_mcp.which", return_value=str(tmp_path / "headroom"))
+    from goodvibes_cli.steps.configure_mcp import configure_mcp
+
+    log_calls: list[str] = []
+    result = configure_mcp(log_calls.append)
+
+    assert result == {"status": "skipped", "reason": "headroom found only inside the project folder"}
+    assert IN_PROJECT in log_calls
+    assert not any(c.args[0][:3] in (["claude", "mcp", "add"], ["claude", "mcp", "remove"]) for c in run.call_args_list)

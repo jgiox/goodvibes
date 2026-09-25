@@ -16,6 +16,8 @@ type Case = {
   input?: Record<string, unknown>
   // Another tool's own stdin JSON; its config runs the same command, so the case skips the Claude Code matcher.
   payload?: Record<string, unknown>
+  // Exact stdin text, for JSON layouts JSON.stringify never writes (line breaks, \u escapes).
+  stdin?: string
   setup?: string | string[]
   env?: Record<string, string>
   expect: number
@@ -63,6 +65,8 @@ const FIXTURES: Record<string, (dir: string, ...args: string[]) => Promise<unkno
   'journal-committed-clean': dir => repo(dir, 'committed-clean'),
   'journal-committed-modified': dir => repo(dir, 'committed-modified'),
   'merge-in-progress': async dir => { await repo(dir, 'untracked'); writeFileSync(join(dir, '.git', 'MERGE_HEAD'), 'abc123\n') },
+  'cherry-pick-in-progress': async dir => { await repo(dir, 'untracked'); writeFileSync(join(dir, '.git', 'CHERRY_PICK_HEAD'), 'abc123\n') },
+  'revert-in-progress': async dir => { await repo(dir, 'untracked'); writeFileSync(join(dir, '.git', 'REVERT_HEAD'), 'abc123\n') },
   'rebase-merge-in-progress': async dir => { await repo(dir, 'untracked'); mkdirSync(join(dir, '.git', 'rebase-merge')) },
   'rebase-apply-in-progress': async dir => { await repo(dir, 'untracked'); mkdirSync(join(dir, '.git', 'rebase-apply')) },
   repo: (dir, sub, journal) => repo(join(dir, sub), journal as 'untracked' | 'staged'),
@@ -92,8 +96,9 @@ for (const file of readdirSync(CASES_DIR).filter(f => f.endsWith('.cases.json') 
           const env: Record<string, string> = {}
           for (const [k, v] of Object.entries(process.env)) if (v !== undefined && !k.startsWith('GOODVIBES_READ_GUARD')) env[k] = v
           Object.assign(env, fill(c.env ?? {}, dir))
-          const payload = JSON.stringify(c.payload ? fill(c.payload, dir) : { tool_name: c.tool, tool_input: fill(c.input, dir) })
-          const r = await execa('sh', ['-c', c.payload ? anyHookCommand(id) : hookCommand(id, c.tool!)], { input: payload, cwd: dir, env, extendEnv: false, reject: false })
+          const raw = c.payload ?? c.stdin
+          const payload = c.stdin !== undefined ? (fill(c.stdin, dir) as string) : JSON.stringify(c.payload ? fill(c.payload, dir) : { tool_name: c.tool, tool_input: fill(c.input, dir) })
+          const r = await execa('sh', ['-c', raw !== undefined ? anyHookCommand(id) : hookCommand(id, c.tool!)], { input: payload, cwd: dir, env, extendEnv: false, reject: false })
           expect({ exitCode: r.exitCode, stderr: r.stderr }).toMatchObject({ exitCode: c.expect })
           if (c.stderr_contains !== undefined) expect(r.stderr).toContain(fill(c.stderr_contains, dir))
         } finally {

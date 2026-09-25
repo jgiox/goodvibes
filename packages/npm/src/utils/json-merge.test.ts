@@ -187,3 +187,57 @@ describe('shapeError', () => {
     expect(shapeError('.claude/settings.json', { hooks: { PreToolUse: [{ hooks: {} }] } })).toBe('"hooks.PreToolUse[0].hooks" is not a JSON array')
   })
 })
+
+describe('mergeManagedJson with null containers and empty entries', () => {
+  it('treats null hooks and permissions as absent and creates them', () => {
+    const { merged, changes } = mergeManagedJson('.claude/settings.json', tplSettings, { hooks: null, permissions: null, model: 'x' })
+    expect(merged).toEqual({ hooks: { PreToolUse: [gateV2] }, permissions: { ask: ['Bash(git push*)'], deny: ['Bash(git reset --hard*)'] }, model: 'x' })
+    expect(changes).toHaveLength(3)
+  })
+
+  it('treats null mcpServers and servers as absent and adds context7', () => {
+    expect(mergeManagedJson('.mcp.json', tplMcp, { mcpServers: null }).merged).toEqual(tplMcp)
+    expect(mergeManagedJson('.cursor/mcp.json', tplCursor, { mcpServers: null }).merged).toEqual(tplCursor)
+    expect(mergeManagedJson('.vscode/mcp.json', tplVscode, { servers: null }).merged).toEqual(tplVscode)
+  })
+
+  it('fills an empty context7 entry with the template fields even when it was installed', () => {
+    const { merged, changes } = mergeManagedJson('.mcp.json', tplMcp, { mcpServers: { context7: {} } }, ['mcp:context7'])
+    expect(merged).toEqual(tplMcp)
+    expect(changes).toEqual(['~ mcpServers.context7'])
+  })
+})
+
+describe('refreshing goodvibes hook groups and retired deny rules', () => {
+  const guard = (cmd: string, matcher: string) => ({ matcher, hooks: [{ type: 'command', command: `: goodvibes-read-guard; ${cmd}` }] })
+  const tpl = { hooks: { PreToolUse: [guard('v2', 'Read|Bash|Grep')] }, permissions: { deny: ['Bash(git push --force *)'] } }
+
+  it('refreshes the matcher of the goodvibes hook group so new tools reach the read guard', () => {
+    const { merged, changes } = mergeManagedJson('.claude/settings.json', tpl, { hooks: { PreToolUse: [guard('v1', 'Read|Bash')] } })
+    expect(merged.hooks.PreToolUse).toEqual([guard('v2', 'Read|Bash|Grep')])
+    expect(changes).toContain('~ hooks.PreToolUse: goodvibes-read-guard')
+  })
+
+  it('removes the old force-push deny rules goodvibes installed, so --force-with-lease reaches the ask rule', () => {
+    const user = { permissions: { deny: ['Bash(git push --force*)', 'Bash(git push * --force*)', 'Bash(rm -rf /*)'] } }
+    const installed = ['deny:Bash(git push --force*)', 'deny:Bash(git push * --force*)']
+    const { merged, changes } = mergeManagedJson('.claude/settings.json', tpl, user, installed)
+    expect(merged.permissions.deny).toEqual(['Bash(rm -rf /*)', 'Bash(git push --force *)'])
+    expect(changes).toContain('- permissions.deny: Bash(git push --force*)')
+  })
+
+  it('keeps an old force-push deny rule the user added themselves', () => {
+    const { merged } = mergeManagedJson('.claude/settings.json', tpl, { permissions: { deny: ['Bash(git push --force*)'] } })
+    expect(merged.permissions.deny).toContain('Bash(git push --force*)')
+  })
+})
+
+describe('matcher refresh in a shared group', () => {
+  it('keeps the matcher of a group where the user added their own hooks next to the goodvibes hook', () => {
+    const tpl = { hooks: { PreToolUse: [{ matcher: 'Read|Bash|Grep', hooks: [{ type: 'command', command: ': goodvibes-read-guard; v2' }] }] } }
+    const user = { hooks: { PreToolUse: [{ matcher: 'Read|Bash|Edit', hooks: [{ type: 'command', command: './mine.sh' }, { type: 'command', command: ': goodvibes-read-guard; v1' }] }] } }
+    const { merged } = mergeManagedJson('.claude/settings.json', tpl, user)
+    expect(merged.hooks.PreToolUse[0].matcher).toBe('Read|Bash|Edit')
+    expect(merged.hooks.PreToolUse[0].hooks[1].command).toBe(': goodvibes-read-guard; v2')
+  })
+})

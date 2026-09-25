@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { resolveTemplatesDir } from './copy-templates.js'
+import { RETIRED_ALLOW, mergeManagedJson } from '../utils/json-merge.js'
 
 const ASK_PATTERNS = [
   'Bash(git push*)',
@@ -54,14 +55,31 @@ const NEW_ASK = [
   'Bash(git push --force-with-lease*)',
 ]
 
-const NEW_DENY = [
-  'Bash(git push --force*)',
-  'Bash(git push -f*)',
-  'Bash(git push * -f*)',
-  'Bash(git push * --force*)',
-  'Bash(git push * +*)',
-  'Bash(git reset --hard*)',
+// Claude Code Bash rules: `*` matches any text; a lone trailing ` *` also matches the bare command.
+const bashMatches = (rule: string, cmd: string) => {
+  const body = rule.slice('Bash('.length, -1)
+  const esc = (x: string) => x.replace(/[.+?^${}()|[\]\\]/g, '\\$&')
+  const lone = body.endsWith(' *') && body.indexOf('*') === body.length - 1
+  const re = lone ? `${esc(body.slice(0, -2))}( .*)?` : body.split('*').map(esc).join('.*')
+  return new RegExp(`^${re}$`, 's').test(cmd)
+}
+
+const FORCE_PUSHES = [
+  'git push --force',
+  'git push --force origin main',
+  'git push origin main --force',
+  'git push origin --force main',
+  'git push -f',
+  'git push -f origin main',
+  'git push origin main -f',
+  'git push origin +main',
+  'git push +main',
+  'git push origin main --force-with-lease --force',
+  'git reset --hard',
+  'git reset --hard HEAD~1',
 ]
+
+const LEASE_PUSHES = ['git push --force-with-lease', 'git push --force-with-lease origin main', 'git push origin main --force-with-lease', 'git push --force-with-lease=main:abc123 origin main']
 
 const loadSettings = async () =>
   JSON.parse(await readFile(join(resolveTemplatesDir(), '.claude', 'settings.json'), 'utf-8'))
@@ -83,9 +101,25 @@ describe('templates/.claude/settings.json permissions', () => {
     for (const p of NEW_ASK) expect(ask).toContain(p)
   })
 
-  it('denies force pushes written with -f, a flag after the remote, or a + refspec', async () => {
+  it('denies force pushes written with --force or -f in any position, or a + refspec, and git reset --hard', async () => {
     const { deny } = (await loadSettings()).permissions
-    for (const p of NEW_DENY) expect(deny).toContain(p)
+    for (const cmd of FORCE_PUSHES) expect(deny.filter((r: string) => bashMatches(r, cmd)), cmd).not.toEqual([])
+  })
+
+  it('asks before git push --force-with-lease instead of refusing it, because no deny rule matches it', async () => {
+    const { deny, ask } = (await loadSettings()).permissions
+    for (const cmd of LEASE_PUSHES) {
+      expect(deny.filter((r: string) => bashMatches(r, cmd)), cmd).toEqual([])
+      expect(ask.filter((r: string) => bashMatches(r, cmd)), cmd).not.toEqual([])
+    }
+  })
+
+  it('does not ship Write(**), which Claude Code ignores and warns about, and update removes it from project settings', async () => {
+    expect((await loadSettings()).permissions.allow).not.toContain('Write(**)')
+    expect(RETIRED_ALLOW).toContain('Write(**)')
+    const { merged, changes } = mergeManagedJson('.claude/settings.json', {}, { permissions: { allow: ['Read(**)', 'Edit(**)', 'Write(**)'] } }, [], true)
+    expect(merged.permissions.allow).toEqual(['Read(**)', 'Edit(**)'])
+    expect(changes).toContain('- permissions.allow: Write(**)')
   })
 
   it('requires explicit ask approval for push, publish, and deploy commands', async () => {
@@ -149,6 +183,12 @@ describe('secret files', () => {
   it('denies reading .env files, SSH keys, cloud credentials and private keys', async () => {
     const { deny } = (await loadSettings()).permissions
     for (const p of SECRET_READ_DENY) expect(deny).toContain(p)
+  })
+
+  it('denies .env variants, ecdsa and dsa keys in subfolders too', async () => {
+    const reads = ((await loadSettings()).permissions.deny as string[]).filter(p => p.startsWith('Read('))
+    const paths = ['apps/web/.env.local', 'apps/web/.env.staging.local', 'apps/web/.env.production', 'apps/web/.env.prod', 'apps/web/.env.development', 'apps/web/.env.dev', 'apps/web/.env.staging', 'apps/web/.env.test', 'keys/id_ecdsa', 'keys/id_dsa', 'id_dsa']
+    for (const path of paths) expect(reads.filter(r => matches(r, path)), path).not.toEqual([])
   })
 
   it('leaves .env.example readable at the root and in subfolders', async () => {

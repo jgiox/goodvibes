@@ -39,7 +39,8 @@ def session_usage(path: pathlib.Path) -> dict | None:
     text = path.read_text(encoding="utf-8", errors="replace")
     mtime = path.stat().st_mtime
     messages: dict[object, dict] = {}
-    for n, line in enumerate(text.splitlines()):
+    # Not splitlines(): it also breaks on U+2028 and friends, which JSON text may hold raw.
+    for n, line in enumerate(text.split("\n")):
         try:
             entry = json.loads(line)
         except ValueError:
@@ -140,7 +141,7 @@ def usage_cmd(
     days: Annotated[str, typer.Option("--days", help="Only sessions changed in the last N days")] = "7",
     as_json: Annotated[bool, typer.Option("--json", help="Machine-readable output")] = False,
 ) -> None:
-    """Best-effort token report from local Claude Code session logs (offline)."""
+    """Show token use from local Claude Code session logs (offline, best effort)"""
     if not re.fullmatch(r"\d+", days) or int(days) < 1:
         typer.echo(f'--days must be a whole number of 1 or more (got "{days}").', err=True)
         raise typer.Exit(1)

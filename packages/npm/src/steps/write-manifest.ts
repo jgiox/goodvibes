@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto'
 import { readFile } from 'node:fs/promises'
-import { writeBlocked, writeFileAtomic } from '../utils/fs-safe.js'
+import { printable, writeBlocked, writeFileAtomic } from '../utils/fs-safe.js'
+import { isJsonObject } from '../utils/json-merge.js'
 import { join } from 'node:path'
 
 export interface Manifest {
@@ -45,18 +46,36 @@ export async function writeManifest(
   return null
 }
 
+// Keys reach delete and write calls, and a cloned repo can ship its own manifest: "a/../../.git/HEAD" must never pass a prefix check.
+const unsafeKey = (k: string): boolean =>
+  /[\u0000-\u001f\u007f-\u009f]/.test(k) || /^[A-Za-z]:/.test(k) || k.split('/').some(s => s === '' || s === '.' || s === '..')
+
+const mapOf = (v: unknown, ok: (x: unknown) => boolean): boolean => isJsonObject(v) && Object.values(v).every(ok)
+
+function manifestProblem(m: Record<string, unknown>): string | null {
+  if (m.files !== undefined && !mapOf(m.files, v => typeof v === 'string')) return '"files" is not a JSON object of file paths to hashes'
+  if (m.managed !== undefined && !mapOf(m.managed, v => Array.isArray(v) && v.every(s => typeof s === 'string'))) {
+    return '"managed" is not a JSON object of file paths to lists of text'
+  }
+  if (m.scope !== undefined && m.scope !== 'global' && m.scope !== 'project') return '"scope" is not "global" or "project"'
+  if (m.gitHook !== undefined && m.gitHook !== 'installed' && m.gitHook !== USER_REMOVED) return '"gitHook" is not "installed" or "user-removed"'
+  const bad = [...Object.keys(m.files ?? {}), ...Object.keys(m.managed ?? {})].map(posixKey).find(unsafeKey)
+  return bad === undefined ? null : `"${bad}" is not a safe relative path`
+}
+
 // Throws an actionable error for a manifest that exists but cannot be used; guessing would lose tracking.
 export function parseManifest(raw: string, path: string): Manifest {
+  const fail = (why: string) => new Error(printable(`${path} ${why}; fix it or delete it and run goodvibes init`))
   let data: unknown
   try {
     data = JSON.parse(raw)
   } catch (e) {
-    throw new Error(`${path} is not valid JSON (${(e as Error).message}); fix it or delete it and run goodvibes init`)
+    throw fail(`is not valid JSON (${(e as Error).message})`)
   }
-  const m = data as Manifest
-  if (!m || typeof m !== 'object' || Array.isArray(m) || (m.files !== undefined && (typeof m.files !== 'object' || Array.isArray(m.files)))) {
-    throw new Error(`${path} is not valid JSON (not a JSON object); fix it or delete it and run goodvibes init`)
-  }
+  if (!isJsonObject(data)) throw fail('is not valid JSON (not a JSON object)')
+  const problem = manifestProblem(data)
+  if (problem) throw fail(`is not a valid goodvibes manifest (${problem})`)
+  const m = data as unknown as Manifest
   return { ...m, files: posixKeys(m.files), ...(m.managed ? { managed: posixKeys(m.managed) } : {}) }
 }
 

@@ -379,3 +379,14 @@ def test_install_timeout_with_bytes_stderr_is_logged_as_text(mocker):
     assert result["status"] == "failed"
     assert any("uv install failed: Resolving headroom-ai" in m for m in logs)
     assert not any("b'" in m for m in logs)
+
+
+def test_every_headroom_probe_and_installer_skips_the_project_folder_when_finding_programs(mocker):
+    mocker.patch("goodvibes_cli.steps.install_headroom.detect_python", return_value="python3")
+    run = mocker.patch("goodvibes_cli.steps.install_headroom.subprocess.run", side_effect=FileNotFoundError())
+    from goodvibes_cli.steps.install_headroom import install_headroom
+
+    install_headroom(lambda m: None)
+
+    assert [c.args[0][0] for c in run.call_args_list] == ["headroom", "uv", "pipx", "python3"]
+    assert all(c.kwargs["env"]["NoDefaultCurrentDirectoryInExePath"] == "1" for c in run.call_args_list)

@@ -7,8 +7,15 @@ updates:
       interval: "weekly"
     open-pull-requests-limit: 5
 
-  - package-ecosystem: "pip"
+  # "uv" updates pyproject.toml and uv.lock together; "pip" would leave uv.lock behind.
+  - package-ecosystem: "uv"
     directory: "/packages/pip"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: "npm"
+    directory: "/workers/telemetry"
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 5

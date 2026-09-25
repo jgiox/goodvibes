@@ -102,4 +102,10 @@ describe('telemetryOptedOut', () => {
     const { telemetryOptedOut } = await import('./telemetry.js')
     expect(telemetryOptedOut({ CI: 'true' })).toBe(true)
   })
+
+  it('opts out when CI is 1 or any other value except empty, 0 and false', async () => {
+    const { telemetryOptedOut } = await import('./telemetry.js')
+    for (const v of ['1', 'true', 'TRUE', 'yes', 'woodpecker']) expect(telemetryOptedOut({ CI: v })).toBe(true)
+    for (const v of ['', ' ', '0', 'false', 'FALSE']) expect(telemetryOptedOut({ CI: v })).toBe(false)
+  })
 })

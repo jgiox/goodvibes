@@ -60,7 +60,7 @@ def _write_at(path: pathlib.Path, content: str) -> None:
 
 def _in_progress(d: pathlib.Path, marker: str) -> None:
     _repo(d, "untracked")
-    if marker == "MERGE_HEAD":
+    if marker.endswith("_HEAD"):
         (d / ".git" / marker).write_text("abc123\n")
     else:
         (d / ".git" / marker).mkdir()
@@ -73,6 +73,8 @@ FIXTURES = {
     "journal-committed-clean": lambda d: _repo(d, "committed-clean"),
     "journal-committed-modified": lambda d: _repo(d, "committed-modified"),
     "merge-in-progress": lambda d: _in_progress(d, "MERGE_HEAD"),
+    "cherry-pick-in-progress": lambda d: _in_progress(d, "CHERRY_PICK_HEAD"),
+    "revert-in-progress": lambda d: _in_progress(d, "REVERT_HEAD"),
     "rebase-merge-in-progress": lambda d: _in_progress(d, "rebase-merge"),
     "rebase-apply-in-progress": lambda d: _in_progress(d, "rebase-apply"),
     "repo": lambda d, sub, journal: _repo(d / sub, journal),
@@ -113,8 +115,12 @@ def test_hook_case(tmp_path, hook_id, case):
     env = {k: v for k, v in os.environ.items() if not k.startswith("GOODVIBES_READ_GUARD")}
     env.update(_fill(case.get("env") or {}, tmp_path))
     raw = case.get("payload")
-    payload = json.dumps(_fill(raw, tmp_path) if raw else {"tool_name": case["tool"], "tool_input": _fill(case["input"], tmp_path)})
-    command = _any_hook_command(hook_id) if raw else _hook_command(hook_id, case["tool"])
+    if "stdin" in case:
+        # Exact stdin text, for JSON layouts json.dumps never writes (line breaks, \u escapes).
+        payload, command = _fill(case["stdin"], tmp_path), _any_hook_command(hook_id)
+    else:
+        payload = json.dumps(_fill(raw, tmp_path) if raw else {"tool_name": case["tool"], "tool_input": _fill(case["input"], tmp_path)})
+        command = _any_hook_command(hook_id) if raw else _hook_command(hook_id, case["tool"])
     r = subprocess.run(
         ["sh", "-c", command], input=payload, cwd=tmp_path, capture_output=True, text=True, env=env
     )

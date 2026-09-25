@@ -89,6 +89,22 @@ describe('installGitHook', () => {
     expect(readFileSync(linked, 'utf-8')).toBe(OLD_HOOK)
   })
 
+  it('refuses to write through a .git/hooks that is a symlink to a folder outside the repository', async () => {
+    rmSync(join(dir, '.git', 'hooks'), { recursive: true, force: true })
+    symlinkSync(outside, join(dir, '.git', 'hooks'))
+    expect(await installGitHook(dir, false)).toEqual({ status: 'linked-hooks', path: '' })
+    expect(await installGitHook(dir, true)).toEqual({ status: 'linked-hooks', path: '' })
+    expect(existsSync(join(outside, 'pre-commit'))).toBe(false)
+  })
+
+  it('refuses a .git/hooks symlink even when it points at a folder inside the git folder', async () => {
+    rmSync(join(dir, '.git', 'hooks'), { recursive: true, force: true })
+    mkdirSync(join(dir, '.git', 'my-hooks'))
+    symlinkSync(join(dir, '.git', 'my-hooks'), join(dir, '.git', 'hooks'))
+    expect((await installGitHook(dir, false)).status).toBe('linked-hooks')
+    expect(existsSync(join(dir, '.git', 'my-hooks', 'pre-commit'))).toBe(false)
+  })
+
   it('returns custom-path with the configured value and writes nothing when core.hooksPath is set', async () => {
     git('config', 'core.hooksPath', '.githooks')
     expect(await installGitHook(dir, false)).toEqual({ status: 'custom-path', path: '', detail: '.githooks' })
@@ -144,6 +160,15 @@ describe('gitHookLine', () => {
     expect(gitHookLine({ status: 'custom-path', path: at, detail: '.husky' }, false)).toBe(
       'Git commit check skipped: git uses its own hooks folder here (core.hooksPath = .husky), so goodvibes left your hooks alone.')
     expect(gitHookLine({ status: 'existing-hook', path: at }, false)).toBe(EXISTING)
+    expect(gitHookLine({ status: 'linked-hooks', path: '' }, false)).toBe(
+      "Git commit check skipped: .git/hooks is a link or points outside this repository's git folder, so goodvibes left it alone.")
+    expect(gitHookLine({ status: 'linked-hooks', path: '' }, true)).toBe(
+      "Git commit check skipped: .git/hooks is a link or points outside this repository's git folder, so goodvibes left it alone.")
+  })
+
+  it('prints ? for terminal escape codes in the core.hooksPath value it shows', () => {
+    expect(gitHookLine({ status: 'custom-path', path: '', detail: 'x\u001b[2J\u0007' }, false)).toBe(
+      'Git commit check skipped: git uses its own hooks folder here (core.hooksPath = x?[2J?), so goodvibes left your hooks alone.')
   })
 
   it('prefixes only the installed and updated lines with "Would: " on a dry run', () => {

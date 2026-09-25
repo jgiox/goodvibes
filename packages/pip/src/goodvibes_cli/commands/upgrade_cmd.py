@@ -5,6 +5,7 @@ import importlib.metadata
 import json
 import os
 import pathlib
+import shlex
 import subprocess
 import sys
 import urllib.request
@@ -13,10 +14,12 @@ from typing import Annotated
 import typer
 from rich.console import Console
 from rich.panel import Panel
+from rich.text import Text
 
-from goodvibes_cli.commands.update_cmd import update_cmd
+from goodvibes_cli.commands.update_cmd import run_update
 from goodvibes_cli.steps.global_setup import claude_config_dir
 from goodvibes_cli.steps.write_manifest import ManifestError, read_manifest
+from goodvibes_cli.utils.proc import NO_CWD, run
 from goodvibes_cli.utils.sentinel_merge import version_gte
 
 console = Console()
@@ -54,28 +57,28 @@ def _self_update_pip(latest: str) -> None:
                     ["uv", "pip", "install", "--python", sys.executable, "--upgrade", req]]
     for cmd in attempts:
         try:
-            subprocess.run(cmd, check=True)
+            run(cmd, check=True)
             return
         except (subprocess.CalledProcessError, FileNotFoundError):
             continue
-    console.print(f"[red]Could not upgrade goodvibes.[/red] Run: {' '.join(attempts[0])}")
+    console.print(f"[red]Could not upgrade goodvibes.[/red] Run: {shlex.join(attempts[0])}")
     raise typer.Exit(1)
 
 
 def upgrade_cmd(
-    dry_run: Annotated[bool, typer.Option("--dry-run", help="Preview changes without writing")] = False,
+    dry_run: Annotated[bool, typer.Option("--dry-run", help="Preview what would change without writing")] = False,
 ) -> None:
-    """Install the newest goodvibes, then update this project with it."""
+    """Install the newest goodvibes, then update this project with it"""
     console.rule("[bold]goodvibes upgrade[/bold]")
 
     # The re-run carries the version it should now be; if it is not, the install did not take effect.
     target = os.environ.get(_UPGRADING_ENV)
     current = _get_package_version()
     if target and current and not version_gte(current, target):
-        console.print(
-            f"[red]Still running goodvibes {current} after installing {target}.[/red] The goodvibes on your PATH is not the one "
-            "that was upgraded. Run: uv tool install goodvibes-cli@latest (or pip install --upgrade goodvibes-cli), then goodvibes --version."
-        )
+        console.print(Panel(Text(
+            f"Still running goodvibes {current} after installing {target}. The goodvibes on your PATH is not the one that was upgraded.\n"
+            f'Run: npm install -g goodvibes-cli@{target} if you installed goodvibes with npm, or uv tool install "goodvibes-cli>={target}" if you installed it with Python. Then run goodvibes --version.'
+        ), title="Upgrade did not take effect"))
         raise typer.Exit(1)
     if not target and _running_under_uvx():
         console.print("You are running goodvibes through uvx, and uvx always runs the newest version, so there is nothing to install.")
@@ -87,14 +90,13 @@ def upgrade_cmd(
             latest = None
         if latest and current and not version_gte(current, latest):
             if dry_run:
-                console.print(f"goodvibes {latest} is available (installed: {current}). The preview below uses {current}.")
+                console.print(Panel(Text(f"goodvibes {latest} is available (installed: {current}). The preview below uses {current}."), title="New version available"))
             else:
-                console.print(f"New version available: [bold]{latest}[/bold] (installed: {current})")
-                with console.status(f"Updating goodvibes {current} → {latest}…"):
-                    _self_update_pip(latest)
+                console.print(Panel(Text(f"Updating goodvibes {current} → {latest}…"), title="New version available"))
+                _self_update_pip(latest)
                 # Re-run on the new version so the project gets its templates, not this process's.
                 # argv[0] is not executable under `python -m goodvibes_cli`, so always go through the interpreter.
-                os.execve(sys.executable, [sys.executable, "-m", "goodvibes_cli", *sys.argv[1:]], {**os.environ, _UPGRADING_ENV: latest})
+                os.execve(sys.executable, [sys.executable, "-m", "goodvibes_cli", *sys.argv[1:]], {**os.environ, **NO_CWD, _UPGRADING_ENV: latest})
 
     # In a folder goodvibes never set up, update's "not set up here" reads like a failed upgrade.
     try:
@@ -109,4 +111,4 @@ def upgrade_cmd(
             title="Nothing to update here",
         ))
         return
-    update_cmd(dry_run=dry_run, force=False)
+    run_update(dry_run=dry_run, force=False)

@@ -1,32 +1,45 @@
 import type { Command } from 'commander'
 import { intro, note } from '@clack/prompts'
 import { execa } from 'execa'
+import { homedir } from 'node:os'
 import { versionGte } from '../utils/sentinel-merge.js'
 import { packageVersion } from '../utils/version.js'
 import { runUpdate } from './update.js'
 import { readManifest } from '../steps/write-manifest.js'
 import { claudeConfigDir } from '../steps/global-setup.js'
+import { EXEC_ENV } from '../utils/exec-env.js'
 
 const _GV_UPGRADING = '_GV_UPGRADING'
 
+const npmErrorText = (e: unknown): string => {
+  const err = e as { stderr?: unknown; message?: string }
+  return `${String(err.stderr ?? '')}\n${err.message ?? String(e)}`
+}
+
+const firstErrorLine = (text: string): string => {
+  const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean)
+  return lines.find(l => /error/i.test(l)) ?? lines[0] ?? 'unknown error'
+}
+
 async function checkLatestNpmVersion(): Promise<string | null> {
   try {
-    const { stdout } = await execa('npm', ['view', 'goodvibes-cli', 'version'])
-    return stdout.trim() || null
-  } catch {
-    return null
+    // From the home folder, so a project's .npmrc cannot point npm at another registry.
+    const { stdout } = await execa('npm', ['view', 'goodvibes-cli', 'version'], { cwd: homedir(), env: EXEC_ENV })
+    if (stdout.trim()) return stdout.trim()
+    note('Could not check npm for a newer version (npm printed no version); updating with the installed version')
+  } catch (e) {
+    note(`Could not check npm for a newer version (${firstErrorLine(npmErrorText(e))}); updating with the installed version`)
   }
+  return null
 }
 
 function npmInstallFailure(e: unknown, version: string): string {
-  const err = e as { stderr?: unknown; message?: string }
-  const text = `${String(err.stderr ?? '')}\n${err.message ?? String(e)}`
+  const text = npmErrorText(e)
   const retry = `Then run: npm install -g goodvibes-cli@${version}`
   if (/EACCES|permission denied/i.test(text)) {
     return `npm cannot write its global folder (permission denied).\nFix: https://docs.npmjs.com/resolving-eacces-permissions-errors-when-installing-packages-globally\n${retry}`
   }
-  const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean)
-  return `npm install -g goodvibes-cli@${version} failed: ${lines.find(l => /error/i.test(l)) ?? lines[0] ?? 'unknown error'}\n${retry}`
+  return `npm install -g goodvibes-cli@${version} failed: ${firstErrorLine(text)}\n${retry}`
 }
 
 export function registerUpgradeCommand(program: Command): void {
@@ -44,7 +57,7 @@ export function registerUpgradeCommand(program: Command): void {
       if (target && !versionGte(current, target)) {
         note(
           `Still running goodvibes ${current} after installing ${target}. The goodvibes on your PATH is not the one that was upgraded.\n` +
-            `Run: npm install -g goodvibes-cli@${target}, then goodvibes --version.`,
+            `Run: npm install -g goodvibes-cli@${target} if you installed goodvibes with npm, or uv tool install "goodvibes-cli>=${target}" if you installed it with Python. Then run goodvibes --version.`,
           'Upgrade did not take effect',
         )
         process.exit(1)
@@ -58,7 +71,7 @@ export function registerUpgradeCommand(program: Command): void {
             note(`Updating goodvibes ${current} → ${latest}…`, 'New version available')
             try {
               // stderr is shown live and also kept, so a failure can be explained below.
-              await execa('npm', ['install', '-g', `goodvibes-cli@${latest}`], { stdin: 'inherit', stdout: 'inherit', stderr: ['pipe', 'inherit'] })
+              await execa('npm', ['install', '-g', `goodvibes-cli@${latest}`], { stdin: 'inherit', stdout: 'inherit', stderr: ['pipe', 'inherit'], env: EXEC_ENV })
             } catch (e) {
               note(npmInstallFailure(e, latest), 'Upgrade failed')
               process.exit(1)
@@ -67,7 +80,7 @@ export function registerUpgradeCommand(program: Command): void {
             // Through node itself: Windows cannot execute a .js path directly.
             const rerun = await execa(process.execPath, [process.argv[1], ...process.argv.slice(2)], {
               stdio: 'inherit',
-              env: { ...process.env, [_GV_UPGRADING]: latest },
+              env: { ...process.env, ...EXEC_ENV, [_GV_UPGRADING]: latest },
               reject: false,
             })
             process.exit(rerun.exitCode ?? 1)

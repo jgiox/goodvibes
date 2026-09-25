@@ -82,7 +82,7 @@ The first time, goodvibes installs headroom, which compresses what Claude reads.
 npx goodvibes-cli init --minimal
 ```
 
-`--minimal` also skips `.github/` and `docs/`.
+`--minimal` also skips `docs/` and the CI files in `.github/` (workflows, scripts, Dependabot, issue and pull request templates). Copilot's rules (`.github/copilot-instructions.md`) and hooks (`.github/hooks/`) are still added.
 
 ### How do I remove goodvibes?
 
@@ -127,7 +127,7 @@ goodvibes is plain files, so removing it means deleting them. Do the steps that 
 goodvibes upgrade --dry-run
 ```
 
-If you run `goodvibes upgrade` in a folder goodvibes never set up, and you have no global setup in `~/.claude` either, it installs the new version and stops with "Nothing to update here". That is not an error. To update a project, go into its folder and run `goodvibes update`; for a new project, go into its folder and run `goodvibes init`. Never run `goodvibes init` in your home folder: with `--scope project` it would put the project files there.
+If you run `goodvibes upgrade` in a folder goodvibes never set up, and you have no global setup in `~/.claude` either, it installs the new version and stops with "Nothing to update here". That is not an error. To update a project, go into its folder and run `goodvibes update`; for a new project, go into its folder and run `goodvibes init`. Never run `goodvibes init` in your home folder: with `--scope project` it would put the project files there. In your Claude Code settings folder (`~/.claude`) `init` does the global part only and never adds project files.
 
 ### How does `goodvibes update` decide which files to change?
 
@@ -254,6 +254,8 @@ goodvibes keeps its rules between a `<!-- goodvibes:start -->` line and a `<!-- 
 `.goodvibes.json` is how goodvibes remembers which files it wrote. It usually breaks when a git merge leaves conflict markers (`<<<<<<<`) in it. Open it and fix the conflict.
 
 You can also delete the file and run `goodvibes init`, which recreates it. Your files are kept, but goodvibes then treats every file that is already there as yours, so `goodvibes update` stops refreshing them. Fixing the conflict avoids that.
+
+If the message says `is not a valid goodvibes manifest`, the file is valid JSON but one entry is wrong: a setting of the wrong type, or a file path that is not a plain path inside the folder (for example one that starts with `/` or contains `..`). goodvibes stops instead of guessing, because a `.goodvibes.json` that came with a cloned project could otherwise make `goodvibes update` delete files that goodvibes never wrote. The message names the entry. Fix it or delete the file as described above.
 
 ### Why did the File Size check fail on my pull request?
 

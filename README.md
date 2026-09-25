@@ -85,7 +85,7 @@ Rules guide, guard rails stop, checks verify. Claude Code gets everything. The t
 ### Guard rails in Claude Code
 
 - **Journal check**: stops Claude Code before it runs a commit that leaves out `JOURNAL.md`. The git commit check (below) covers every tool that makes git commits.
-- **Read guard**: reading a whole file over 800 lines or 100 KB is blocked with a pointer to read a range or search instead. `.env` files, SSH keys and credential files are blocked too. `GOODVIBES_READ_GUARD=off` turns it off.
+- **Read guard**: reading a whole file over 800 lines or 100 KB is blocked with a pointer to read a range or search instead. `.env` files, SSH keys and credential files are blocked too, also in searches (Grep) and in patterns such as `cat .env*`. It is best-effort: it catches the usual ways to read a file, not every one. `GOODVIBES_READ_GUARD=off` turns it off.
 - **Permissions**: see [What Claude Code can do without asking](#what-claude-code-can-do-without-asking).
 - **Session check**: when Claude Code starts, `goodvibes doctor --quick` checks git, the rules and the journal size. It prints nothing unless something needs fixing.
 - **context7**: current library docs, added to your Claude Code user settings (Cursor and VS Code get their own file, below).
@@ -99,14 +99,14 @@ The journal check and the read guard also run in these tools. Each file runs the
 |---|---|---|
 | OpenAI Codex CLI | `.codex/hooks.json` | Codex asks you once to trust the project's hooks before they run (a review screen at startup) |
 | Gemini CLI | `.gemini/settings.json` | Hooks under `BeforeTool`. Gemini runs project hooks only in a trusted folder and shows a warning the first time it sees them |
-| GitHub Copilot cloud agent, Copilot in VS Code | `.github/hooks/goodvibes.json` | Skipped by `--minimal`, like the rest of `.github/` |
+| GitHub Copilot cloud agent, Copilot in VS Code | `.github/hooks/goodvibes.json` | Written with `--minimal` too |
 | Devin CLI | `.devin/hooks.v1.json` | |
 | Windsurf | `.windsurf/hooks.json` | Before a command and before a file read |
 | Kiro | `.kiro/hooks/goodvibes.json` | |
 | Cursor | none | Runs the hooks in `.claude/settings.json` while its "Include Third-Party Plugins, Skills, and Other Configs" setting is on (the default) |
 | GitHub Copilot CLI | none | Runs the hooks in `.claude/settings.json` as well as `.github/hooks/goodvibes.json`, so each check runs twice (same result) |
 
-The read guard understands each tool's own way of reading a file, for example a line range given as a start and an end line. The journal check ignores actions that carry no shell command, so it never blocks a file edit whose text happens to mention `git commit`.
+The read guard understands each tool's own way of reading a file, for example a line range given as a start and an end line, and checks their search tools for secret files (Copilot `Grep`, Gemini CLI `grep_search` and `read_many_files`, Devin `grep`). The journal check ignores actions that carry no shell command, so it never blocks a file edit whose text happens to mention `git commit`.
 
 Not covered: Cline (its hooks stop the whole task instead of one action), Antigravity (its hook format is not documented well enough to target), Continue (its hooks are not switched on yet), Amazon Q Developer CLI (discontinued, replaced by Kiro), and Replit, Bolt, Lovable, Base44 and ChatGPT (no hooks). The git commit check still covers the journal in every tool that makes git commits.
 
@@ -118,17 +118,17 @@ None of these tools were tested by running them: the file formats were checked a
 - **Journal check and read guard for other AI tools**: `.codex/hooks.json`, `.gemini/settings.json`, `.github/hooks/goodvibes.json`, `.devin/hooks.v1.json`, `.windsurf/hooks.json` and `.kiro/hooks/goodvibes.json`. See [Guard rails in other AI tools](#guard-rails-in-other-ai-tools).
 - **context7 for Cursor and VS Code (GitHub Copilot)**: `.cursor/mcp.json` and `.vscode/mcp.json`, each holding only the context7 server, so those tools can look up current library docs too. Windsurf keeps its MCP servers outside the project, so you add context7 there yourself: see [Windsurf setup](docs/platform-setup/windsurf.md).
 - `JOURNAL.md` (decision log), `CHANGELOG.md`, `CONTRIBUTING.md`, `SECURITY.md` and a `CLAUDE.md` with a project section for you to fill in.
-- **GitHub workflows**: tests (Node, Python or both, matched to your project), CodeQL and gitleaks security scans, dependency review that accepts only permissive licences, and a file size check (new code files stay under 500 lines; files already bigger may not grow). Third-party actions and the gitleaks image are pinned to exact versions, tokens are read-only, and superseded runs are cancelled.
-- **Dependabot**, waiting 7 days before proposing a new release, plus issue and pull request templates.
+- **GitHub workflows**: tests (Node, Python or both, matched to your project), CodeQL and gitleaks security scans, dependency review that accepts only permissive licences, and a file size check (new code files are at most 500 lines; files already bigger may not grow). Third-party actions and the gitleaks image are pinned to exact versions, tokens are read-only, and superseded runs are cancelled.
+- **Dependabot** for your GitHub Actions and for the package manager your project uses (npm for a `package.json`, uv for a `uv.lock`, or else pip for a `requirements.txt` or `pyproject.toml`), waiting 7 days before proposing a new release, plus issue and pull request templates.
 - **Guides** in `docs/`: getting started, git basics, and setup notes for each AI tool.
 
-`goodvibes init --minimal` skips headroom, `.github/` and `docs/`. Running `init` again is safe: existing files are kept and `CLAUDE.md` is merged, not replaced.
+`goodvibes init --minimal` skips headroom, `docs/` and the CI files in `.github/` (workflows, scripts, Dependabot, issue and pull request templates). It still writes Copilot's rules (`.github/copilot-instructions.md`) and hooks (`.github/hooks/`). A project whose `.github/workflows/` already holds a `.yml` or `.yaml` file gets only `file-size.yml` from the goodvibes workflows. Running `init` again is safe: existing files are kept and `CLAUDE.md` is merged, not replaced.
 
 ## Commands
 
 | Command | What it does |
 |---|---|
-| `goodvibes init` | Set goodvibes up. `--scope project` keeps everything in this folder, `--minimal` skips headroom, `.github/` and `docs/`, `--dry-run` shows what would be written |
+| `goodvibes init` | Set goodvibes up. `--scope project` keeps everything in this folder, `--minimal` skips headroom, `docs/` and the CI files in `.github/` (Copilot's rules and hooks are still added), `--dry-run` shows what would be written |
 | `goodvibes doctor` | Check git, headroom, the rules, the journal and your MCP servers. Each line is ✓ fine, ! warning or ✗ problem, and it exits with an error only for problems |
 | `goodvibes update` | Bring your goodvibes files up to date with the installed version. It shows the full plan and asks once. `--dry-run` only shows it |
 | `goodvibes upgrade` | Install the newest goodvibes, then run `update` |
@@ -160,12 +160,14 @@ It asks first before:
 
 It refuses:
 
-- force-push (`--force`, `-f`, `+branch`) and `git reset --hard`
-- opening `.env` files (`.env.example` stays readable), anything in `~/.ssh`, `~/.aws/credentials`, `~/.git-credentials`, `~/.netrc`, and `.pem`, `id_rsa` or `id_ed25519` key files
+- force-push (`--force`, `-f`, `+branch`, anywhere in the command) and `git reset --hard`
+- opening `.env` files in any folder, such as `.env.local`, `.env.production` or `apps/web/.env` (`.env.example` stays readable), anything in `~/.ssh`, `~/.aws/credentials`, `~/.git-credentials`, `~/.netrc`, and `.pem`, `id_rsa`, `id_ed25519`, `id_ecdsa` or `id_dsa` key files
 
 These rules cover Claude Code's own file tools. The read guard covers the same secret files when Claude tries `cat .env` or similar in the terminal. Hooks and permissions are a safety net for honest mistakes, not a security boundary.
 
-Versions up to 1.9.1 also auto-approved `node`, `python`, `npx`, `uv`, `npm run` and package installs. Any command can run through those, so `goodvibes update` removes exactly those rules from your project settings and keeps the ones you wrote.
+Versions up to 1.9.1 also auto-approved `node`, `python`, `npx`, `uv`, `npm run` and package installs. Any command can run through those, so `goodvibes update` removes exactly those rules from your project settings and keeps the ones you wrote. It also removes `Write(**)`, which Claude Code ignores (`Edit(**)` already covers writing files).
+
+In projects set up with version 1.10.0 or earlier, `goodvibes update` removes the old deny rules `Bash(git push --force*)` and `Bash(git push * --force*)`, which also matched `--force-with-lease`, so Claude Code asks instead of refusing. If you added one of those rules yourself, update leaves it, and `--force-with-lease` stays refused until you delete it.
 
 ## Global or one project
 
@@ -180,7 +182,7 @@ By default, `goodvibes init` sets goodvibes up for every project on your compute
 | Claude Code user MCP settings | context7 |
 | This folder | `JOURNAL.md`, `CHANGELOG.md`, CI workflows, rule files for other AI tools, context7 for Cursor and VS Code (`.cursor/mcp.json`, `.vscode/mcp.json`), hook files for other AI tools (see [Guard rails in other AI tools](#guard-rails-in-other-ai-tools)), `.claude/settings.json`, and a `CLAUDE.md` with a project section to fill in |
 
-In your other projects, Claude Code then asks before pushing, publishing or deploying, refuses force-push, `git reset --hard` and secret files, and reads big files in ranges. The journal check acts only in repos that have a `JOURNAL.md`, and the session check stays quiet outside goodvibes projects. Run `goodvibes init` inside a project folder, never in your home folder: there the default setup does the global part only, and `--scope project` would put the project files straight into your home folder.
+In your other projects, Claude Code then asks before pushing, publishing or deploying, refuses force-push, `git reset --hard` and secret files, and reads big files in ranges. The journal check acts only in repos that have a `JOURNAL.md`, and the session check stays quiet outside goodvibes projects. Run `goodvibes init` inside a project folder, never in your home folder: there the default setup does the global part only, and `--scope project` would put the project files straight into your home folder. Inside your Claude Code settings folder (`~/.claude`, or `CLAUDE_CONFIG_DIR` if you set it) `init` also does the global part only, and `--scope project` stops with an error.
 
 To keep everything inside one project instead:
 
@@ -231,7 +233,7 @@ Linux, macOS and Windows through WSL2 are supported. Native Windows works on a b
 
 ## Privacy
 
-`goodvibes init` sends one anonymous install count: an empty request with a random ID made fresh for that run. Nothing about you, your machine or your code is included, though like any web request the server sees your IP address. It is skipped in CI (`CI=true`). To turn it off, set `DO_NOT_TRACK=1` (or `true`, `yes`) or `GOODVIBES_NO_TELEMETRY=1`. The counter has no accounts or keys, so its totals are approximate.
+`goodvibes init` sends one anonymous install count: an empty request with a random ID made fresh for that run. Nothing about you, your machine or your code is included, though like any web request the server sees your IP address. It is skipped in CI (when `CI` is set to anything other than `0` or `false`). To turn it off, set `DO_NOT_TRACK=1` (or `true`, `yes`) or `GOODVIBES_NO_TELEMETRY=1`. The counter has no accounts or keys, so its totals are approximate.
 
 `goodvibes usage` and `goodvibes doctor` never send anything.
 

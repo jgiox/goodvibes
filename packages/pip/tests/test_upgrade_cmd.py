@@ -9,7 +9,8 @@ from goodvibes_cli.main import app
 
 runner = CliRunner()
 
-_ANSI = re.compile(r'\x1b\[[0-9;]*m')
+# ANSI codes and Rich panel borders, so text wrapped inside a panel reads as one line.
+_ANSI = re.compile(r'\x1b\[[0-9;]*m|[│╭╮╰╯─]')
 
 
 @pytest.fixture(autouse=True)
@@ -34,7 +35,7 @@ def test_self_update_triggers_when_newer_version_available(mocker):
     mocker.patch("goodvibes_cli.commands.upgrade_cmd._check_pypi_version", return_value="1.0.1")
     mock_update = mocker.patch("goodvibes_cli.commands.upgrade_cmd._self_update_pip")
     mock_execve = mocker.patch("goodvibes_cli.commands.upgrade_cmd.os.execve")
-    mocker.patch("goodvibes_cli.commands.upgrade_cmd.update_cmd")
+    mocker.patch("goodvibes_cli.commands.upgrade_cmd.run_update")
     result = runner.invoke(app, ["upgrade"])
     assert mock_update.call_count == 1
     assert mock_execve.call_count == 1
@@ -44,7 +45,7 @@ def test_self_update_triggers_when_newer_version_available(mocker):
 def test_dry_run_does_not_install_and_previews_the_update(mocker):
     mocker.patch("goodvibes_cli.commands.upgrade_cmd._check_pypi_version", return_value="1.0.1")
     mock_self = mocker.patch("goodvibes_cli.commands.upgrade_cmd._self_update_pip")
-    mock_update = mocker.patch("goodvibes_cli.commands.upgrade_cmd.update_cmd")
+    mock_update = mocker.patch("goodvibes_cli.commands.upgrade_cmd.run_update")
     result = runner.invoke(app, ["upgrade", "--dry-run"])
     assert result.exit_code == 0
     assert mock_self.call_count == 0
@@ -52,7 +53,7 @@ def test_dry_run_does_not_install_and_previews_the_update(mocker):
 
 
 def test_hands_project_files_to_update_when_already_newest(mocker):
-    mock_update = mocker.patch("goodvibes_cli.commands.upgrade_cmd.update_cmd")
+    mock_update = mocker.patch("goodvibes_cli.commands.upgrade_cmd.run_update")
     result = runner.invoke(app, ["upgrade"])
     assert result.exit_code == 0
     mock_update.assert_called_once_with(dry_run=False, force=False)
@@ -65,7 +66,7 @@ def test_update_alias_is_registered_in_app():
 def test_self_update_skipped_when_env_set(mocker):
     mocker.patch("goodvibes_cli.commands.upgrade_cmd._check_pypi_version", return_value="1.0.1")
     mock_self = mocker.patch("goodvibes_cli.commands.upgrade_cmd._self_update_pip")
-    mocker.patch("goodvibes_cli.commands.upgrade_cmd.update_cmd")
+    mocker.patch("goodvibes_cli.commands.upgrade_cmd.run_update")
     result = runner.invoke(app, ["upgrade"], env={"_GV_UPGRADING": "1"})
     assert mock_self.call_count == 0
     assert result.exit_code == 0
@@ -150,21 +151,65 @@ def test_self_update_stops_with_the_manual_command_when_every_installer_fails(mo
     assert e.value.exit_code == 1
 
 
+def test_self_update_failure_remedy_quotes_the_requirement_so_the_shell_does_not_treat_greater_than_as_a_redirect(mocker, tmp_path):
+    import subprocess
+    import typer
+    from goodvibes_cli.commands.upgrade_cmd import _self_update_pip
+    _prefix(mocker, tmp_path, uv_tool=True)
+    mocker.patch("goodvibes_cli.commands.upgrade_cmd.subprocess.run", side_effect=subprocess.CalledProcessError(1, "uv"))
+    printed = mocker.patch("goodvibes_cli.commands.upgrade_cmd.console.print")
+    with pytest.raises(typer.Exit):
+        _self_update_pip("1.0.1")
+    assert "Run: uv tool install 'goodvibes-cli>=1.0.1'" in printed.call_args.args[0]
+
+
 def test_upgrade_fails_loudly_instead_of_claiming_success_when_still_on_the_old_version(mocker):
-    mock_update = mocker.patch("goodvibes_cli.commands.upgrade_cmd.update_cmd")
+    mock_update = mocker.patch("goodvibes_cli.commands.upgrade_cmd.run_update")
     result = runner.invoke(app, ["upgrade"], env={"_GV_UPGRADING": "1.0.1"})
     assert result.exit_code == 1
     mock_update.assert_not_called()
-    assert "goodvibes-cli@latest" in _ANSI.sub("", result.output)
+    out = " ".join(_ANSI.sub("", result.output).split())
+    assert "Upgrade did not take effect" in out
+    assert "Run: npm install -g goodvibes-cli@1.0.1 if you installed goodvibes with npm, or uv tool install \"goodvibes-cli>=1.0.1\" if you installed it with Python. Then run goodvibes --version." in out
+
+
+def test_upgrade_prints_one_heading_and_no_second_goodvibes_update_heading(mocker, tmp_path):
+    (tmp_path / ".goodvibes.json").write_text('{"version": "1.0.0", "files": {}}', encoding="utf-8")
+    mocker.patch("pathlib.Path.cwd", return_value=tmp_path)
+    mocker.patch("goodvibes_cli.commands.upgrade_cmd.read_manifest", side_effect=lambda p: {"version": "1.0.0", "files": {}} if p == tmp_path else None)
+    result = runner.invoke(app, ["upgrade", "--dry-run"], env={"_GV_UPGRADING": "1.0.0"})
+    assert result.exit_code == 0, result.output
+    assert "goodvibes upgrade" in result.output
+    assert "goodvibes update" not in result.output
+
+
+def test_upgrade_shows_the_new_version_in_a_panel_titled_like_npm(mocker):
+    mocker.patch("goodvibes_cli.commands.upgrade_cmd._get_package_version", return_value="1.0.0")
+    mocker.patch("goodvibes_cli.commands.upgrade_cmd._check_pypi_version", return_value="1.0.1")
+    mocker.patch("goodvibes_cli.commands.upgrade_cmd._running_under_uvx", return_value=False)
+    mocker.patch("goodvibes_cli.commands.upgrade_cmd.run_update")
+    out = " ".join(_ANSI.sub("", runner.invoke(app, ["upgrade", "--dry-run"]).output).split())
+    assert "New version available" in out
+    assert "goodvibes 1.0.1 is available (installed: 1.0.0). The preview below uses 1.0.0." in out
 
 
 def test_self_update_re_runs_with_the_target_version_in_the_environment(mocker):
     mocker.patch("goodvibes_cli.commands.upgrade_cmd._check_pypi_version", return_value="1.0.1")
     mocker.patch("goodvibes_cli.commands.upgrade_cmd._self_update_pip")
     execve = mocker.patch("goodvibes_cli.commands.upgrade_cmd.os.execve")
-    mocker.patch("goodvibes_cli.commands.upgrade_cmd.update_cmd")
+    mocker.patch("goodvibes_cli.commands.upgrade_cmd.run_update")
     runner.invoke(app, ["upgrade"])
     assert execve.call_args.args[2]["_GV_UPGRADING"] == "1.0.1"
+
+
+def test_self_update_re_runs_with_the_windows_no_current_folder_switch_like_every_other_child_process(mocker, monkeypatch):
+    monkeypatch.delenv("NoDefaultCurrentDirectoryInExePath", raising=False)
+    mocker.patch("goodvibes_cli.commands.upgrade_cmd._check_pypi_version", return_value="1.0.1")
+    mocker.patch("goodvibes_cli.commands.upgrade_cmd._self_update_pip")
+    execve = mocker.patch("goodvibes_cli.commands.upgrade_cmd.os.execve")
+    mocker.patch("goodvibes_cli.commands.upgrade_cmd.run_update")
+    runner.invoke(app, ["upgrade"])
+    assert execve.call_args.args[2]["NoDefaultCurrentDirectoryInExePath"] == "1"
 
 
 from goodvibes_cli.commands import upgrade_cmd as _upgrade_module  # noqa: E402
@@ -179,7 +224,7 @@ def test_self_update_re_runs_through_the_running_interpreter_as_python_m_goodvib
     mocker.patch("goodvibes_cli.commands.upgrade_cmd._self_update_pip")
     mocker.patch("goodvibes_cli.commands.upgrade_cmd.sys.argv", [argv0, "upgrade"])
     execve = mocker.patch("goodvibes_cli.commands.upgrade_cmd.os.execve")
-    mocker.patch("goodvibes_cli.commands.upgrade_cmd.update_cmd")
+    mocker.patch("goodvibes_cli.commands.upgrade_cmd.run_update")
     runner.invoke(app, ["upgrade"])
     assert execve.call_args.args[0] == sys.executable
     assert execve.call_args.args[1] == [sys.executable, "-m", "goodvibes_cli", "upgrade"]
@@ -191,7 +236,7 @@ def test_upgrade_under_uvx_installs_nothing_and_goes_straight_to_update(mocker, 
     mocker.patch("goodvibes_cli.commands.upgrade_cmd._check_pypi_version", return_value="1.0.1")
     mock_self = mocker.patch("goodvibes_cli.commands.upgrade_cmd._self_update_pip")
     execve = mocker.patch("goodvibes_cli.commands.upgrade_cmd.os.execve")
-    mock_update = mocker.patch("goodvibes_cli.commands.upgrade_cmd.update_cmd")
+    mock_update = mocker.patch("goodvibes_cli.commands.upgrade_cmd.run_update")
     result = runner.invoke(app, ["upgrade"])
     assert result.exit_code == 0
     mock_self.assert_not_called()
@@ -204,7 +249,7 @@ def test_upgrade_says_it_could_not_reach_pypi_instead_of_silently_continuing(moc
     import urllib.error
     mocker.patch("goodvibes_cli.commands.upgrade_cmd._check_pypi_version", _REAL_CHECK_PYPI)
     mocker.patch("goodvibes_cli.commands.upgrade_cmd.urllib.request.urlopen", side_effect=urllib.error.URLError("no network"))
-    mock_update = mocker.patch("goodvibes_cli.commands.upgrade_cmd.update_cmd")
+    mock_update = mocker.patch("goodvibes_cli.commands.upgrade_cmd.run_update")
     result = runner.invoke(app, ["upgrade"])
     out = " ".join(_ANSI.sub("", result.output).split())
     assert result.exit_code == 0
@@ -214,7 +259,7 @@ def test_upgrade_says_it_could_not_reach_pypi_instead_of_silently_continuing(moc
 
 def test_upgrade_says_the_install_worked_and_how_to_update_a_project_instead_of_the_no_manifest_error_when_this_folder_has_no_goodvibes_setup(mocker):
     mocker.patch("goodvibes_cli.commands.upgrade_cmd.read_manifest", return_value=None)
-    mock_update = mocker.patch("goodvibes_cli.commands.upgrade_cmd.update_cmd")
+    mock_update = mocker.patch("goodvibes_cli.commands.upgrade_cmd.run_update")
     result = runner.invoke(app, ["upgrade"])
     assert result.exit_code == 0, result.output
     assert mock_update.call_count == 0
@@ -225,3 +270,11 @@ def test_upgrade_says_the_install_worked_and_how_to_update_a_project_instead_of_
         "To update a project, go into its folder and run: goodvibes update "
         "To set up a new project, go into its folder and run: goodvibes init"
     ) in out
+
+
+def test_self_update_runs_uv_without_searching_the_project_folder_for_it(mocker, tmp_path):
+    from goodvibes_cli.commands.upgrade_cmd import _self_update_pip
+    _prefix(mocker, tmp_path, uv_tool=True)
+    run = mocker.patch("goodvibes_cli.commands.upgrade_cmd.subprocess.run")
+    _self_update_pip("1.0.1")
+    assert run.call_args.kwargs["env"]["NoDefaultCurrentDirectoryInExePath"] == "1"

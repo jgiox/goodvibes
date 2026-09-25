@@ -20,6 +20,9 @@ class CustomBuildHook(BuildHookInterface):
     """
 
     def initialize(self, version: str, build_data: dict) -> None:
+        # The sdist gets templates/ and hooks/ at its root from force-include; a copy under src/ would ship them twice.
+        if self.target_name != "wheel":
+            return
         root = pathlib.Path(self.root)
 
         # Direct source build: root = packages/pip/, templates at ../../templates

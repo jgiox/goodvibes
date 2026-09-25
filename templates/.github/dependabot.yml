@@ -1,23 +1,8 @@
 version: 2
 
+# goodvibes init adds npm, uv or pip below when your project has their files; to add one by hand, see "GitHub checks (CI)" in docs/getting-started.md
 updates:
   - package-ecosystem: "github-actions"
-    directory: "/"
-    schedule:
-      interval: "weekly"
-    open-pull-requests-limit: 5
-    cooldown:
-      default-days: 7
-
-  - package-ecosystem: "npm"
-    directory: "/"
-    schedule:
-      interval: "weekly"
-    open-pull-requests-limit: 5
-    cooldown:
-      default-days: 7
-
-  - package-ecosystem: "pip"
     directory: "/"
     schedule:
       interval: "weekly"

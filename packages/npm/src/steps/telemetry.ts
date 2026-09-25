@@ -3,8 +3,11 @@ const TELEMETRY_URL =
 
 const truthy = (v: string | undefined) => ['1', 'true', 'yes'].includes((v ?? '').trim().toLowerCase())
 
+// CI services set CI to true, 1 or their own name; only an explicit 0 or false means not CI. The pip package uses the same rule.
+const isCi = (v: string | undefined) => !['', '0', 'false'].includes((v ?? '').trim().toLowerCase())
+
 export function telemetryOptedOut(env: NodeJS.ProcessEnv = process.env): boolean {
-  return truthy(env.DO_NOT_TRACK) || truthy(env.GOODVIBES_NO_TELEMETRY) || env.CI === 'true'
+  return truthy(env.DO_NOT_TRACK) || truthy(env.GOODVIBES_NO_TELEMETRY) || isCi(env.CI)
 }
 
 export async function sendTelemetry(): Promise<void> {

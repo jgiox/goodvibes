@@ -5,11 +5,13 @@ import importlib.resources
 import pathlib
 import shutil
 
+from goodvibes_cli.utils.detect_project_type import dependabot_yml
 from goodvibes_cli.utils.safe_path import SymlinkError, check_writable
-from goodvibes_cli.utils.scope import global_owned, project_stub
+from goodvibes_cli.utils.scope import global_owned, minimal_skipped, project_stub
 from goodvibes_cli.utils.sentinel_merge import ClaudeMdError, merge_claude
 
 FILE_SIZE_WORKFLOW = ".github/workflows/file-size.yml"
+DEPENDABOT = ".github/dependabot.yml"
 
 
 def resolve_templates_dir() -> pathlib.Path:
@@ -64,7 +66,8 @@ def copy_templates(
 
     if dry_run:
         all_files = [
-            p for p in list_template_files(template_dir)
+            p[: -len(selected_variant)] + "ci.yml" if p.endswith(selected_variant) else p
+            for p in list_template_files(template_dir)
             if not any(p.endswith(v) and v != selected_variant for v in ci_variants)
             and (scope == "project" or not global_owned(p))
         ]
@@ -73,7 +76,7 @@ def copy_templates(
     skipped_files: list[str] = []
 
     dest_workflows = dest_dir / ".github" / "workflows"
-    dest_has_workflows = dest_workflows.is_dir() and any(dest_workflows.glob("*.yml"))
+    dest_has_workflows = dest_workflows.is_dir() and any(f.suffix in (".yml", ".yaml") for f in dest_workflows.iterdir())
 
     def ignore_fn(directory: str, contents: list[str]) -> set[str]:
         ignored: set[str] = set()
@@ -91,10 +94,11 @@ def copy_templates(
                 continue
             if name == "CLAUDE.md":
                 ignored.add(name)  # sentinel merge handles it separately
+                continue
             if scope == "global" and global_owned(str(rel)):
                 ignored.add(name)
-            if minimal and (".github" in rel.parts or "docs" in rel.parts):
-                ignored.add(name)  # ponytail: MIN-01
+            if minimal and minimal_skipped(rel.as_posix()):
+                ignored.add(name)
             # Skip CI variants not matching the detected project type
             if name in ci_variants and name != selected_variant:
                 ignored.add(name)
@@ -146,6 +150,9 @@ def copy_templates(
         else:
             (dest_dir / variant_rel).rename(ci_path)
             copied[copied.index(variant_rel)] = ".github/workflows/ci.yml"
+
+    if DEPENDABOT in copied:
+        (dest_dir / DEPENDABOT).write_bytes(dependabot_yml((template_dir / DEPENDABOT).read_bytes().decode("utf-8"), dest_dir).encode("utf-8"))
 
     # Handle CLAUDE.md via sentinel merge
     claude_src = template_dir / "CLAUDE.md"

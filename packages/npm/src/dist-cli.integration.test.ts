@@ -81,6 +81,60 @@ describe('built CLI (dist/index.js)', () => {
     expect(result.stdout).toMatch(/context7 MCP: skipped/)
   })
 
+  it('init inside the CLAUDE_CONFIG_DIR folder does the global part only and keeps the global manifest global', async () => {
+    const cfg = join(configDir, 'cfg')
+    mkdirSync(cfg)
+    const inCfg = (...args: string[]) =>
+      execa(join(binDir, 'node'), [distCli, ...args], { cwd: cfg, env: { ...env, CLAUDE_CONFIG_DIR: cfg }, extendEnv: false, input: '', reject: false })
+
+    expect((await inCfg('init', '--minimal')).exitCode).toBe(0)
+    const manifest = readFileSync(join(cfg, '.goodvibes.json'), 'utf-8')
+    expect(JSON.parse(manifest).files['rules/goodvibes.md']).toBeDefined()
+
+    const project = await inCfg('init', '--minimal', '--scope', 'project')
+    expect(project.exitCode).toBe(1)
+    await inCfg('init', '--minimal')
+
+    expect(readFileSync(join(cfg, '.goodvibes.json'), 'utf-8')).toBe(manifest)
+    expect(existsSync(join(cfg, 'CLAUDE.md'))).toBe(false)
+    expect(existsSync(join(cfg, 'JOURNAL.md'))).toBe(false)
+  })
+
+  it('help texts say what --minimal skips and that update --force still keeps edited files', async () => {
+    const flat = (s: string) => s.replace(/\s+/g, ' ')
+    expect(flat((await run('init', '--help')).stdout)).toContain("--minimal Skip headroom, docs/ and the .github CI files (workflows, scripts, Dependabot, issue and PR templates); Copilot's rules and hooks in .github are still added")
+    expect(flat((await run('update', '--help')).stdout)).toContain('--force Skip the confirmation prompt (files you edited are still kept)')
+  })
+
+  it('--version and -V print only the version number, like the pip CLI', async () => {
+    for (const flag of ['--version', '-V']) {
+      const r = await run(flag)
+      expect(r.exitCode).toBe(0)
+      expect(r.stdout).toBe(pkgVersion)
+    }
+  })
+
+  it('an unknown command or no command at all exits 2, like the pip CLI', async () => {
+    expect((await run('bogus')).exitCode).toBe(2)
+    expect((await run()).exitCode).toBe(2)
+    expect((await run('init', '--bogus')).exitCode).toBe(2)
+  })
+
+  it('every command and option has the same help text as the pip CLI', async () => {
+    const flat = async (...args: string[]) => (await run(...args, '-h')).stdout.replace(/\s+/g, ' ')
+    const top = await flat()
+    for (const text of ['One-command bootstrap for vibe coding projects', 'Show the version and exit', 'Show this message and exit.',
+      'Bootstrap a project with goodvibes configuration', 'Install the newest goodvibes, then update this project with it',
+      'Update goodvibes-managed files using the manifest', 'Check that goodvibes setup is complete',
+      'Show token use from local Claude Code session logs (offline, best effort)']) expect(top).toContain(text)
+    expect(await flat('init')).toContain('--dry-run Preview files without writing to disk')
+    expect(await flat('update')).toContain('--dry-run Preview what would change without writing')
+    expect(await flat('upgrade')).toContain('--dry-run Preview what would change without writing')
+    expect(await flat('doctor')).toContain('--quick Fast local checks only; silent when all pass, always exits 0 (used by the session-start hook)')
+    const usage = await flat('usage')
+    for (const text of ['--all Every project, not just this one', 'Only sessions changed in the last N days', '--json Machine-readable output', 'Show this message and exit.']) expect(usage).toContain(text)
+  })
+
   it('a second global init leaves a rules file the user edited alone', async () => {
     await run('init', '--minimal')
     const rules = join(configDir, 'rules', 'goodvibes.md')
@@ -167,6 +221,18 @@ describe('built CLI (dist/index.js)', () => {
     expect(readFileSync(rules, 'utf-8')).toBe(rulesContent)
     expect(JSON.parse(readFileSync(join(projectDir, '.goodvibes.json'), 'utf-8')).files['AGENTS.md']).toMatch(/^[0-9a-f]{64}$/)
     expect(JSON.parse(readFileSync(join(configDir, '.goodvibes.json'), 'utf-8')).files['rules/goodvibes.md']).toMatch(/^[0-9a-f]{64}$/)
+  })
+
+  it('update stops with exit 1 and a clear message when its input ends before the question is answered', async () => {
+    await run('init', '--minimal', '--scope', 'project')
+    rmSync(join(projectDir, 'AGENTS.md'))
+    const m = JSON.parse(readFileSync(join(projectDir, '.goodvibes.json'), 'utf-8'))
+    delete m.files['AGENTS.md']
+    writeFileSync(join(projectDir, '.goodvibes.json'), JSON.stringify(m))
+    const result = await run('update')
+    expect(result.exitCode).toBe(1)
+    expect(result.stdout + result.stderr).toContain('No answer (the input ended). Nothing was changed.')
+    expect(existsSync(join(projectDir, 'AGENTS.md'))).toBe(false)
   })
 
   it('usage is registered and exits 0 with a friendly message when there are no session logs', async () => {

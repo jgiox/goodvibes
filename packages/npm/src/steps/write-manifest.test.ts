@@ -3,7 +3,7 @@ import { mkdtempSync, writeFileSync, readFileSync, rmSync, mkdirSync } from 'fs'
 import { join, sep } from 'path'
 import { tmpdir } from 'os'
 import { createHash } from 'node:crypto'
-import { writeManifest, readManifest } from './write-manifest.js'
+import { writeManifest, readManifest, parseManifest } from './write-manifest.js'
 
 describe('writeManifest / readManifest', () => {
   let tmpDir: string
@@ -100,5 +100,47 @@ describe('writeManifest / readManifest', () => {
     const data = JSON.parse(readFileSync(join(tmpDir, '.goodvibes.json'), 'utf-8'))
     expect(data.files['skipped.md']).toBe('preserved-hash-value')
     expect(data.files['CLAUDE.md']).toHaveLength(64)
+  })
+
+  it.each([
+    ['/etc/passwd'],
+    ['.claude/skills/../../.git/HEAD'],
+    ['..\\outside.txt'],
+    ['./AGENTS.md'],
+    ['docs//a.md'],
+    ['docs/'],
+    [''],
+    ['C:/Windows/x'],
+    ['evil\u001b[2J.md'],
+  ])('parseManifest rejects the unsafe file path %j with an actionable message', key => {
+    const raw = JSON.stringify({ version: '1.0.0', files: { [key]: 'abc' } })
+    expect(() => parseManifest(raw, '/p/.goodvibes.json')).toThrow(/^\/p\/\.goodvibes\.json is not a valid goodvibes manifest \(".*" is not a safe relative path\); fix it or delete it and run goodvibes init$/)
+  })
+
+  it('parseManifest rejects an unsafe path used as a managed key', () => {
+    const raw = JSON.stringify({ version: '1.0.0', files: {}, managed: { '../x.json': [] } })
+    expect(() => parseManifest(raw, 'm')).toThrow('m is not a valid goodvibes manifest ("../x.json" is not a safe relative path)')
+  })
+
+  it.each([
+    [{ files: [] }, '"files" is not a JSON object of file paths to hashes'],
+    [{ files: 'abc' }, '"files" is not a JSON object of file paths to hashes'],
+    [{ files: null }, '"files" is not a JSON object of file paths to hashes'],
+    [{ files: { 'a.md': 5 } }, '"files" is not a JSON object of file paths to hashes'],
+    [{ managed: 5 }, '"managed" is not a JSON object of file paths to lists of text'],
+    [{ managed: 'oops' }, '"managed" is not a JSON object of file paths to lists of text'],
+    [{ managed: { '.mcp.json': 'mcp:context7' } }, '"managed" is not a JSON object of file paths to lists of text'],
+    [{ managed: { '.mcp.json': [1] } }, '"managed" is not a JSON object of file paths to lists of text'],
+    [{ scope: 'weird' }, '"scope" is not "global" or "project"'],
+    [{ gitHook: true }, '"gitHook" is not "installed" or "user-removed"'],
+  ])('parseManifest rejects the wrong inner type %j', (fields, why) => {
+    const raw = JSON.stringify({ version: '1.0.0', files: {}, ...fields })
+    expect(() => parseManifest(raw, 'm')).toThrow(`m is not a valid goodvibes manifest (${why}); fix it or delete it and run goodvibes init`)
+  })
+
+  it('parseManifest error text shows ? instead of terminal escape codes from the file', () => {
+    const err = (() => { try { parseManifest('{"a": x\u001b[31mRED}', 'm') } catch (e) { return (e as Error).message } })()
+    expect(err).toContain('is not valid JSON')
+    expect(err).not.toMatch(/[\u0000-\u001f]/)
   })
 })

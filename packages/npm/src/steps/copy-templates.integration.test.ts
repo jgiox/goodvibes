@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { mkdtempSync, writeFileSync, existsSync, readFileSync, mkdirSync, symlinkSync, readdirSync } from 'fs'
+import { mkdtempSync, writeFileSync, existsSync, readFileSync, mkdirSync, symlinkSync, readdirSync, chmodSync } from 'fs'
 import { rmSync } from 'fs'
 import { join } from 'path'
 import { tmpdir } from 'os'
@@ -75,6 +75,12 @@ describe('copyTemplates', () => {
     expect(existsSync(join(tmpDir, 'CLAUDE.md'))).toBe(false)
   })
 
+  it('dry-run lists the CI workflow as ci.yml, the name init writes, not ci-<type>.yml', async () => {
+    const { written } = await copyTemplates(resolveTemplatesDir(), tmpDir, true, false, 'node')
+    expect(written).toContain(join('.github', 'workflows', 'ci.yml'))
+    expect(written.filter(f => /ci-(node|python|both)\.yml$/.test(f))).toEqual([])
+  })
+
   it('second call is idempotent — no error and CLAUDE.md not duplicated', async () => {
     const templateDir = resolveTemplatesDir()
     await copyTemplates(templateDir, tmpDir, false, false)
@@ -120,6 +126,20 @@ describe('copyTemplates', () => {
     const foreign = (f: string) => f.startsWith('.git/') || f.startsWith('node_modules/')
     expect([...written, ...skipped].filter(foreign)).toEqual([])
     expect(skipped).toContain('JOURNAL.md')
+  })
+
+  // root reads any folder, so the unreadable folder only exists for a normal user (as on CI).
+  it.skipIf(process.getuid?.() === 0)('finishes and reports its files when a project folder it does not own cannot be read', async () => {
+    mkdirSync(join(tmpDir, 'private'))
+    chmodSync(join(tmpDir, 'private'), 0o000)
+    writeFileSync(join(tmpDir, 'AGENTS.md'), '# mine\n')
+    try {
+      const { written, skipped } = await copyTemplates(resolveTemplatesDir(), tmpDir, false, false)
+      expect(written).toContain('JOURNAL.md')
+      expect(skipped).toContain('AGENTS.md')
+    } finally {
+      chmodSync(join(tmpDir, 'private'), 0o755)
+    }
   })
 })
 
@@ -244,6 +264,12 @@ describe('copyTemplates — minimal filter scope', () => {
     const { written } = await copyTemplates(templateDir, tmpDir, false, true)
     expect(written.includes('CLAUDE.md') || existsSync(join(tmpDir, 'CLAUDE.md'))).toBe(true)
   })
+
+  it('--minimal writes Copilot\'s rules and hooks but no other .github file', async () => {
+    const { written } = await copyTemplates(templateDir, tmpDir, false, true)
+    expect(written.filter(f => f.startsWith('.github')).sort()).toEqual(['.github/copilot-instructions.md', '.github/hooks/goodvibes.json'])
+    expect(readdirSync(join(tmpDir, '.github')).sort()).toEqual(['copilot-instructions.md', 'hooks'])
+  })
 })
 
 describe('copyTemplates — IDE rule files', () => {
@@ -288,9 +314,9 @@ describe('copyTemplates — IDE rule files', () => {
     expect(skipped.some(f => f.includes('goodvibes.mdc'))).toBe(true)
   })
 
-  it('--minimal skips .github/copilot-instructions.md (IDE-04)', async () => {
+  it('--minimal writes .github/copilot-instructions.md, which Copilot reads as its rules (IDE-04)', async () => {
     await copyTemplates(templateDir, tmpDir, false, true)
-    expect(existsSync(join(tmpDir, '.github', 'copilot-instructions.md'))).toBe(false)
+    expect(existsSync(join(tmpDir, '.github', 'copilot-instructions.md'))).toBe(true)
   })
 
   it('--minimal writes .cursor/rules/goodvibes.mdc (IDE-04)', async () => {
@@ -567,6 +593,18 @@ describe('copyTemplates — workflow conflict guard', () => {
     expect(existsSync(join(tmpDir, '.github', 'scripts'))).toBe(false)
   })
 
+  it('counts a workflow written as .yaml as the project\'s own CI, so ci.yml and security.yml are not added next to it', async () => {
+    const workflowsDir = join(tmpDir, '.github', 'workflows')
+    mkdirSync(workflowsDir, { recursive: true })
+    writeFileSync(join(workflowsDir, 'build.yaml'), '# my own CI\n')
+
+    await copyTemplates(templateDir, tmpDir, false, false)
+
+    expect(existsSync(join(workflowsDir, 'ci.yml'))).toBe(false)
+    expect(existsSync(join(workflowsDir, 'security.yml'))).toBe(false)
+    expect(existsSync(join(workflowsDir, 'file-size.yml'))).toBe(true)
+  })
+
   it('keeps the user\'s own file-size.yml and reports it as skipped when the project has its own workflows', async () => {
     const workflowsDir = join(tmpDir, '.github', 'workflows')
     mkdirSync(workflowsDir, { recursive: true })
@@ -664,5 +702,31 @@ describe('copyTemplates — CLAUDE.md with broken markers', () => {
     expect(problems.join('\n')).toMatch(/no <!-- goodvibes:end --> line.*fix CLAUDE\.md by hand/)
     expect(written).not.toContain('CLAUDE.md')
     expect(existsSync(join(tmpDir, 'AGENTS.md'))).toBe(true)
+  })
+})
+
+describe('copyTemplates: Dependabot entries match the project', () => {
+  let tmpDir: string
+  beforeEach(() => { tmpDir = mkdtempSync(join(tmpdir(), 'gv-copy-dependabot-')) })
+  afterEach(() => { rmSync(tmpDir, { recursive: true, force: true }) })
+  const ecosystems = () => [...readFileSync(join(tmpDir, '.github', 'dependabot.yml'), 'utf-8').matchAll(/^ {2}- package-ecosystem: "(\S+)"/gm)].map(m => m[1])
+
+  it('writes github-actions, npm and uv for a project with package.json, pyproject.toml and uv.lock', async () => {
+    for (const f of ['package.json', 'pyproject.toml', 'uv.lock']) writeFileSync(join(tmpDir, f), f === 'package.json' ? '{}' : '')
+    await copyTemplates(resolveTemplatesDir(), tmpDir, false, false, 'both', 'project')
+    expect(ecosystems()).toEqual(['github-actions', 'npm', 'uv'])
+  })
+
+  it('writes only github-actions for an empty project', async () => {
+    await copyTemplates(resolveTemplatesDir(), tmpDir, false, false, 'both', 'project')
+    expect(ecosystems()).toEqual(['github-actions'])
+  })
+
+  it('leaves an existing dependabot.yml exactly as it was', async () => {
+    mkdirSync(join(tmpDir, '.github'))
+    writeFileSync(join(tmpDir, '.github', 'dependabot.yml'), '# mine\n')
+    writeFileSync(join(tmpDir, 'package.json'), '{}')
+    await copyTemplates(resolveTemplatesDir(), tmpDir, false, false, 'node', 'project')
+    expect(readFileSync(join(tmpDir, '.github', 'dependabot.yml'), 'utf-8')).toBe('# mine\n')
   })
 })

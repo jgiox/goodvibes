@@ -406,6 +406,23 @@ describe('update command — JSON-aware merge of settings.json and .mcp.json (UP
     expect(out).toContain('.claude/settings.json: "hooks" is not a JSON object; left unchanged, fix it and re-run update')
   })
 
+  it('merges into settings and MCP files whose hooks, permissions and server maps are null', async () => {
+    mkdirSync(join(templateDir, '.vscode'), { recursive: true })
+    writeFileSync(join(templateDir, '.vscode', 'mcp.json'), readFileSync(join(realTemplates, '.vscode', 'mcp.json'), 'utf-8'))
+    mkdirSync(join(projectDir, '.vscode'), { recursive: true })
+    writeFileSync(join(projectDir, '.claude', 'settings.json'), '{"hooks": null, "permissions": null}')
+    writeFileSync(join(projectDir, '.mcp.json'), '{"mcpServers": null}')
+    writeFileSync(join(projectDir, '.vscode', 'mcp.json'), '{"servers": null}')
+    writeManifestFile({ '.claude/settings.json': 'old-hash', '.mcp.json': 'old-hash', '.vscode/mcp.json': 'old-hash' })
+
+    await runUpdate('--force')
+
+    expect(readJson('.claude/settings.json').hooks.PreToolUse.length).toBeGreaterThan(0)
+    expect(readJson('.claude/settings.json').permissions.ask).toContain('Bash(git push*)')
+    expect(readJson('.mcp.json').mcpServers.context7).toBeDefined()
+    expect(readJson('.vscode/mcp.json').servers.context7).toBeDefined()
+  })
+
   it('leaves no temp files next to the JSON files it writes', async () => {
     writeFileSync(join(projectDir, '.claude', 'settings.json'), JSON.stringify({ model: 'x' }))
     writeManifestFile({ '.claude/settings.json': 'old-hash' })
@@ -515,6 +532,63 @@ describe('update command — broken manifests and Windows keys', () => {
     const files = JSON.parse(readFileSync(join(projectDir, '.goodvibes.json'), 'utf-8')).files
     expect(files).toEqual({ 'docs/a.md': sha256('a v2\n'), 'docs/b.md': sha256('b v1\n') })
   })
+
+  it('update --force exits 1 and does not delete .git/HEAD through a .claude/skills/../../ manifest key', async () => {
+    const head = 'ref: refs/heads/main\n'
+    mkdirSync(join(projectDir, '.git'))
+    mkdirSync(join(projectDir, '.claude', 'skills'), { recursive: true })
+    writeFileSync(join(projectDir, '.git', 'HEAD'), head)
+    writeFileSync(join(projectDir, '.goodvibes.json'), JSON.stringify({ version: '1.0.0', files: { '.claude/skills/../../.git/HEAD': sha256(head) } }))
+
+    await expect(runUpdate('--force')).rejects.toThrow('exit 1')
+
+    expect(readFileSync(join(projectDir, '.git', 'HEAD'), 'utf-8')).toBe(head)
+    expect(await said()).toContain(`${join(projectDir, '.goodvibes.json')} is not a valid goodvibes manifest (".claude/skills/../../.git/HEAD" is not a safe relative path); fix it or delete it and run goodvibes init`)
+  })
+
+  it('exits 1 with a fix-it message, not a stack trace, for a ../ or absolute manifest key', async () => {
+    for (const key of ['../outside.txt', '/etc/hostname']) {
+      writeFileSync(join(projectDir, '.goodvibes.json'), JSON.stringify({ version: '1.0.0', files: { [key]: 'abc' } }))
+      await expect(runUpdate('--force')).rejects.toThrow('exit 1')
+      expect(await said()).toContain(`("${key}" is not a safe relative path); fix it or delete it and run goodvibes init`)
+    }
+  })
+
+  it('asks before adding a net-new file and adds nothing when the answer is no', async () => {
+    const { confirm } = await import('@clack/prompts')
+    vi.mocked(confirm).mockClear()
+    vi.mocked(confirm).mockResolvedValueOnce(false)
+    writeFileSync(join(templateDir, 'NEW.md'), 'new\n')
+    writeFileSync(join(projectDir, '.goodvibes.json'), JSON.stringify({ version: '1.0.0', files: {} }))
+
+    await expect(runUpdate()).rejects.toThrow('exit 0')
+
+    expect(String(vi.mocked(confirm).mock.calls[0][0].message)).toContain('add 1,')
+    expect(existsSync(join(projectDir, 'NEW.md'))).toBe(false)
+  })
+
+  it('prints ? for terminal escape codes in JSON errors and key paths, and bracketed manifest keys as they are', async () => {
+    const tpl = fileURLToPath(new URL('../../../../templates', import.meta.url))
+    mkdirSync(join(templateDir, '.claude'))
+    writeFileSync(join(templateDir, '.claude', 'settings.json'), readFileSync(join(tpl, '.claude', 'settings.json'), 'utf-8'))
+    writeFileSync(join(templateDir, '.mcp.json'), readFileSync(join(tpl, '.mcp.json'), 'utf-8'))
+    mkdirSync(join(projectDir, '.claude'))
+    writeFileSync(join(projectDir, '.claude', 'settings.json'), '{"hooks": {"\\u001b[2J": 5}}')
+    writeFileSync(join(projectDir, '.mcp.json'), '{"a": x\u001b[31mRED}')
+    writeFileSync(join(projectDir, '.goodvibes.json'), JSON.stringify({
+      version: '1.0.0',
+      files: { '.claude/settings.json': 'old', '.mcp.json': 'old', 'docs/[/x].md': 'abc', '[bold red]HI[/bold red].md': 'abc' },
+    }))
+
+    await runUpdate('--force')
+
+    const out = await said()
+    expect(out).toContain('.claude/settings.json: "hooks.?[2J" is not a JSON array; left unchanged')
+    expect(out).toContain('.mcp.json: not valid JSON (')
+    expect(out).toContain('docs/[/x].md: removed by you, not re-added')
+    expect(out).toContain('[bold red]HI[/bold red].md: removed by you, not re-added')
+    expect(out).not.toMatch(/[\u0000-\u0009\u000b-\u001f]/)
+  })
 })
 
 describe('update command — symlinks and broken CLAUDE.md markers', () => {
@@ -612,6 +686,7 @@ describe('update command — symlinks and broken CLAUDE.md markers', () => {
     expect(readFileSync(join(projectDir, 'CLAUDE.md'), 'utf-8')).toBe(broken)
     expect(readFileSync(join(projectDir, 'AGENTS.md'), 'utf-8')).toBe('tpl v2\n')
     expect(await said()).toMatch(/end line comes before the start line.*fix CLAUDE\.md by hand/)
+    expect(await said()).toContain('Applied 2 file(s). Skipped 0 user-modified file(s).') // AGENTS.md and the net-new settings.json, not CLAUDE.md
     expect(existsSync(join(projectDir, '.goodvibes.json'))).toBe(true)
   })
 })
@@ -700,6 +775,39 @@ describe('update command — one plan, one prompt, nothing written before it', (
     expect(planned).toContain('AGENTS.md')
     expect(existsSync(join(cfg, 'rules', 'goodvibes.md'))).toBe(true)
     expect(readFileSync(join(projectDir, 'AGENTS.md'), 'utf-8')).not.toBe('old agents\n')
+  })
+
+  it('asks one question that names the Claude Code settings changes, like the pip CLI', async () => {
+    const { confirm } = await import('@clack/prompts')
+    vi.mocked(confirm).mockResolvedValue(false)
+    await expect(runUpdate()).rejects.toThrow('exit 0')
+    expect(String(vi.mocked(confirm).mock.calls[0][0].message)).toMatch(
+      /^Overwrite 1 managed file\(s\), add \d+, merge goodvibes keys into \d+ file\(s\) and apply \d+ change\(s\) to your Claude Code settings\?$/)
+  })
+
+  it('with only a global setup, asks about the Claude Code settings changes alone', async () => {
+    const { confirm } = await import('@clack/prompts')
+    vi.mocked(confirm).mockResolvedValue(false)
+    rmSync(join(projectDir, '.goodvibes.json'))
+    await expect(runUpdate()).rejects.toThrow('exit 0')
+    expect(String(vi.mocked(confirm).mock.calls[0][0].message)).toMatch(/^Apply \d+ change\(s\) to your Claude Code settings\?$/)
+  })
+
+  it('run inside the Claude Code settings folder, plans and updates only the global part and adds no project files there', async () => {
+    cwdSpy.mockReturnValue(cfg)
+    const { note } = await import('@clack/prompts')
+
+    await runUpdate('--dry-run')
+    const planned = vi.mocked(note).mock.calls.map(c => String(c[0])).join('\n')
+    expect(planned).toContain('rules/goodvibes.md')
+    expect(planned).not.toContain('JOURNAL.md')
+
+    await runUpdate('--force')
+    for (const rel of ['JOURNAL.md', 'AGENTS.md', 'CLAUDE.md', '.github', 'docs']) expect(existsSync(join(cfg, rel))).toBe(false)
+    expect(existsSync(join(cfg, 'rules', 'goodvibes.md'))).toBe(true)
+    const manifest = JSON.parse(readFileSync(join(cfg, '.goodvibes.json'), 'utf-8'))
+    expect(manifest.scope).toBe('global')
+    expect(Object.keys(manifest.files)).not.toContain('JOURNAL.md')
   })
 })
 
@@ -803,6 +911,24 @@ describe('update command — respects files the user removed and layers init ski
     expect(Object.keys(manifestFiles())).toEqual(['AGENTS.md'])
   })
 
+  it('adds Copilot\'s rules and hooks to a project set up with --minimal, but no workflows, other .github files or docs', async () => {
+    put(templateDir, 'AGENTS.md', 'agents\n')
+    put(templateDir, '.github/copilot-instructions.md', 'copilot\n')
+    put(templateDir, '.github/hooks/goodvibes.json', '{}\n')
+    put(templateDir, '.github/dependabot.yml', 'deps\n')
+    put(templateDir, '.github/workflows/security.yml', 'sec\n')
+    put(templateDir, 'docs/guide.md', 'guide\n')
+    put(projectDir, 'AGENTS.md', 'agents\n')
+    writeFileSync(join(projectDir, '.goodvibes.json'), JSON.stringify({ version: '1.0.0', files: { 'AGENTS.md': sha256('agents\n') } }))
+
+    await runUpdate('--force')
+
+    expect(readFileSync(join(projectDir, '.github', 'copilot-instructions.md'), 'utf-8')).toBe('copilot\n')
+    expect(readFileSync(join(projectDir, '.github', 'hooks', 'goodvibes.json'), 'utf-8')).toBe('{}\n')
+    expect(readdirSync(join(projectDir, '.github')).sort()).toEqual(['copilot-instructions.md', 'hooks'])
+    expect(existsSync(join(projectDir, 'docs'))).toBe(false)
+  })
+
   it('adds a new workflow and a new doc when the manifest already tracks a file in that group, but not other .github files', async () => {
     put(templateDir, '.github/workflows/security.yml', 'sec\n')
     put(templateDir, '.github/workflows/ci-node.yml', 'ci\n')
@@ -856,5 +982,24 @@ describe('update command — respects files the user removed and layers init ski
 
     expect(readFileSync(join(projectDir, '.github', 'workflows', 'file-size.yml'), 'utf-8')).toBe('my own size check\n')
     expect(manifestFiles()['.github/workflows/file-size.yml']).toBe('user-owned')
+  })
+
+  it('rewrites an unedited dependabot.yml with the npm entry once the project has a package.json, and keeps an edited one', async () => {
+    const tpl = 'version: 2\nupdates:\n  - package-ecosystem: "github-actions"\n'
+    put(templateDir, '.github/dependabot.yml', tpl)
+    put(templateDir, 'AGENTS.md', 'agents\n')
+    put(projectDir, '.github/dependabot.yml', tpl)
+    put(projectDir, 'AGENTS.md', 'mine\n')
+    put(projectDir, 'package.json', '{}')
+    writeFileSync(join(projectDir, '.goodvibes.json'), JSON.stringify({ version: '1.0.0', files: { '.github/dependabot.yml': sha256(tpl), 'AGENTS.md': sha256('agents\n') } }))
+
+    await runUpdate('--force')
+    const tailored = readFileSync(join(projectDir, '.github', 'dependabot.yml'), 'utf-8')
+    expect(tailored).toContain('  - package-ecosystem: "npm"\n')
+    expect(manifestFiles()['.github/dependabot.yml']).toBe(sha256(tailored))
+
+    writeFileSync(join(projectDir, '.github', 'dependabot.yml'), tailored + '# mine\n')
+    await runUpdate('--force')
+    expect(readFileSync(join(projectDir, '.github', 'dependabot.yml'), 'utf-8')).toBe(tailored + '# mine\n')
   })
 })

@@ -53,6 +53,19 @@ describe('installHeadroom', () => {
     expect(vi.mocked(execa)).toHaveBeenCalledWith('uv', ['tool', 'install', 'headroom-ai[all]'], expect.objectContaining({ timeout: 15 * 60_000 }))
   })
 
+  it('runs every probe and installer without searching the project folder for the program', async () => {
+    const { detectPython } = await import('../utils/detect-python.js')
+    vi.mocked(detectPython).mockResolvedValueOnce('python3')
+    const { execa } = await import('execa')
+    vi.mocked(execa).mockRejectedValue(Object.assign(new Error('ENOENT'), { code: 'ENOENT' }))
+
+    const { installHeadroom } = await import('./install-headroom.js')
+    await installHeadroom(vi.fn())
+
+    expect(vi.mocked(execa).mock.calls.map(c => c[0])).toEqual(['headroom', 'uv', 'pipx', 'python3'])
+    for (const c of vi.mocked(execa).mock.calls as unknown[][]) expect(c[2]).toEqual(expect.objectContaining({ env: expect.objectContaining({ NoDefaultCurrentDirectoryInExePath: '1' }) }))
+  })
+
   it('falls back to pipx when uv is ENOENT', async () => {
     const { detectPython } = await import('../utils/detect-python.js')
     vi.mocked(detectPython).mockResolvedValueOnce('python3')

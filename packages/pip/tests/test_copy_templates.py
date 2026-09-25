@@ -69,6 +69,13 @@ def test_copy_templates_dry_run_returns_list_without_writing(tmp_dir, template_d
     assert not (tmp_dir / "CONTRIBUTING.md").exists()
 
 
+def test_copy_templates_dry_run_lists_the_ci_workflow_as_ci_yml_the_name_init_writes_not_ci_type_yml(tmp_dir, template_dir):
+    from goodvibes_cli.steps.copy_templates import copy_templates
+    written, _ = copy_templates(template_dir, tmp_dir, dry_run=True, project_type="node")
+    assert ".github/workflows/ci.yml" in written
+    assert not [f for f in written if f.endswith(("ci-node.yml", "ci-python.yml", "ci-both.yml"))]
+
+
 def test_copy_templates_second_run_does_not_overwrite(tmp_dir, template_dir, mocker):
     from goodvibes_cli.steps.copy_templates import copy_templates
     mocker.patch("goodvibes_cli.steps.copy_templates.merge_claude")
@@ -223,11 +230,36 @@ def test_copy_templates_skips_existing_cursor_mdc_and_counts_as_skipped(tmp_dir,
     assert any("goodvibes.mdc" in s for s in skipped)
 
 
-def test_copy_templates_minimal_skips_copilot_instructions(tmp_dir, template_dir, mocker):
+def test_copy_templates_minimal_writes_copilot_instructions_which_copilot_reads_as_its_rules(tmp_dir, template_dir, mocker):
     from goodvibes_cli.steps.copy_templates import copy_templates
     mocker.patch("goodvibes_cli.steps.copy_templates.merge_claude")
     copy_templates(template_dir, tmp_dir, minimal=True)
-    assert not (tmp_dir / ".github" / "copilot-instructions.md").exists()
+    assert (tmp_dir / ".github" / "copilot-instructions.md").exists()
+
+
+def test_copy_templates_minimal_writes_copilots_rules_and_hooks_but_no_other_github_file(tmp_path, template_dir, mocker):
+    from goodvibes_cli.steps.copy_templates import copy_templates
+    mocker.patch("goodvibes_cli.steps.copy_templates.merge_claude")
+    _add_file_size_templates(template_dir)
+    (template_dir / ".github" / "hooks").mkdir()
+    (template_dir / ".github" / "hooks" / "goodvibes.json").write_text("{}\n")
+    (template_dir / ".github" / "dependabot.yml").write_text("version: 2\n")
+    (template_dir / ".github" / "PULL_REQUEST_TEMPLATE.md").write_text("# PR\n")
+    dest = tmp_path / "proj"
+    dest.mkdir()
+    written, _ = copy_templates(template_dir, dest, minimal=True)
+    assert [f for f in written if f.startswith(".github")] == [".github/copilot-instructions.md", ".github/hooks/goodvibes.json"]
+    assert sorted(p.name for p in (dest / ".github").iterdir()) == ["copilot-instructions.md", "hooks"]
+    assert not (dest / "docs").exists()
+
+
+def test_copy_templates_lists_an_existing_claude_md_as_written_only_not_also_as_skipped(tmp_dir, template_dir, mocker):
+    from goodvibes_cli.steps.copy_templates import copy_templates
+    mocker.patch("goodvibes_cli.steps.copy_templates.merge_claude")
+    (tmp_dir / "CLAUDE.md").write_text("# My project\n")
+    written, skipped = copy_templates(template_dir, tmp_dir)
+    assert "CLAUDE.md" in written
+    assert "CLAUDE.md" not in skipped
 
 
 def test_copy_templates_minimal_writes_cursor_mdc(tmp_dir, template_dir, mocker):
@@ -453,6 +485,19 @@ def test_copy_templates_minimal_adds_neither_file_size_nor_ci_workflow_when_proj
     assert not (tmp_dir / ".github" / "scripts").exists()
 
 
+def test_copy_templates_counts_a_yaml_workflow_as_the_projects_own_ci_so_ci_and_security_are_not_added(tmp_dir, template_dir, mocker):
+    from goodvibes_cli.steps.copy_templates import copy_templates
+    mocker.patch("goodvibes_cli.steps.copy_templates.merge_claude")
+    _add_file_size_templates(template_dir)
+    workflows_dir = tmp_dir / ".github" / "workflows"
+    workflows_dir.mkdir(parents=True)
+    (workflows_dir / "build.yaml").write_text("# my own CI\n")
+    copy_templates(template_dir, tmp_dir)
+    assert not (workflows_dir / "ci.yml").exists()
+    assert not (workflows_dir / "security.yml").exists()
+    assert (workflows_dir / "file-size.yml").exists()
+
+
 def test_copy_templates_keeps_the_users_own_file_size_workflow_when_project_has_its_own_workflows(tmp_dir, template_dir, mocker):
     from goodvibes_cli.steps.copy_templates import copy_templates
     mocker.patch("goodvibes_cli.steps.copy_templates.merge_claude")
@@ -564,3 +609,36 @@ def test_copy_templates_minimal_global_scope_still_writes_cursor_and_vscode_mcp_
     written, _ = copy_templates(repo_templates, tmp_dir, minimal=True, scope="global")
     assert {".cursor/mcp.json", ".vscode/mcp.json"} <= set(written)
     assert not (tmp_dir / ".mcp.json").exists()
+
+
+def _ecosystems(dest):
+    import re
+    return re.findall(r'^ {2}- package-ecosystem: "(\S+)"', (dest / ".github" / "dependabot.yml").read_text(encoding="utf-8"), re.M)
+
+
+def test_copy_templates_writes_github_actions_npm_and_uv_dependabot_entries_for_a_project_with_package_json_pyproject_and_uv_lock(tmp_path):
+    from goodvibes_cli.steps.copy_templates import copy_templates, resolve_templates_dir
+    dest = tmp_path / "proj"
+    dest.mkdir()
+    for f in ("package.json", "pyproject.toml", "uv.lock"):
+        (dest / f).write_text("{}" if f == "package.json" else "")
+    copy_templates(resolve_templates_dir(), dest, project_type="both")
+    assert _ecosystems(dest) == ["github-actions", "npm", "uv"]
+
+
+def test_copy_templates_writes_only_the_github_actions_dependabot_entry_for_an_empty_project(tmp_path):
+    from goodvibes_cli.steps.copy_templates import copy_templates, resolve_templates_dir
+    dest = tmp_path / "proj"
+    dest.mkdir()
+    copy_templates(resolve_templates_dir(), dest, project_type="both")
+    assert _ecosystems(dest) == ["github-actions"]
+
+
+def test_copy_templates_leaves_an_existing_dependabot_yml_exactly_as_it_was(tmp_path):
+    from goodvibes_cli.steps.copy_templates import copy_templates, resolve_templates_dir
+    dest = tmp_path / "proj"
+    (dest / ".github").mkdir(parents=True)
+    (dest / ".github" / "dependabot.yml").write_text("# mine\n")
+    (dest / "package.json").write_text("{}")
+    copy_templates(resolve_templates_dir(), dest, project_type="node")
+    assert (dest / ".github" / "dependabot.yml").read_text() == "# mine\n"

@@ -6,6 +6,8 @@ import pathlib
 import subprocess
 
 from goodvibes_cli.steps.copy_templates import resolve_hooks_dir
+from goodvibes_cli.utils.proc import run
+from goodvibes_cli.utils.safe_path import printable
 
 MARKER = b"# goodvibes-pre-commit"
 # A cloned repo can point core.fsmonitor at a script, or be a bare repo hidden in a subfolder.
@@ -18,6 +20,7 @@ LINES = {
     "not-a-repo": "Git commit check skipped: this folder is not a git repository yet. Run git init, then goodvibes update.",
     "custom-path": "Git commit check skipped: git uses its own hooks folder here (core.hooksPath = {detail}), so goodvibes left your hooks alone.",
     "existing-hook": "Git commit check skipped: .git/hooks/pre-commit already exists and is not from goodvibes, so it was left alone.",
+    "linked-hooks": "Git commit check skipped: .git/hooks is a link or points outside this repository's git folder, so goodvibes left it alone.",
 }
 REMOVED_LINE = ".git/hooks/pre-commit: removed by you, not re-added (run goodvibes init to restore)"
 
@@ -26,13 +29,13 @@ def hook_line(result: dict, dry_run: bool) -> str | None:
     line = LINES.get(result["status"])
     if line is None:
         return None
-    line = line.format(detail=result.get("detail", ""))
+    line = line.format(detail=printable(result.get("detail", "")))
     return f"Would: {line}" if dry_run and result["status"] in ("installed", "updated") else line
 
 
 def _git(cwd: pathlib.Path, *args: str) -> str | None:
     try:
-        p = subprocess.run([*GIT, "-C", str(cwd), *args], capture_output=True, text=True)
+        p = run([*GIT, "-C", str(cwd), *args], capture_output=True, text=True)
     except FileNotFoundError:
         return None
     return p.stdout.strip() if p.returncode == 0 else None
@@ -47,7 +50,13 @@ def install_git_hook(cwd: pathlib.Path, dry_run: bool) -> dict:
     common = _git(cwd, "rev-parse", "--git-common-dir")
     if not common:
         return {"status": "not-a-repo", "path": ""}
-    hooks = pathlib.Path(os.path.abspath(os.path.join(cwd, common, "hooks")))
+    git_dir = pathlib.Path(os.path.abspath(os.path.join(cwd, common)))
+    hooks = git_dir / "hooks"
+    # A repo can ship .git/hooks as a link (or a Windows junction); writing through it would drop an executable wherever it points.
+    if os.path.lexists(hooks):
+        real = pathlib.Path(os.path.realpath(hooks))
+        if hooks.is_symlink() or real == pathlib.Path(os.path.realpath(git_dir)) or not real.is_relative_to(os.path.realpath(git_dir)):
+            return {"status": "linked-hooks", "path": ""}
     target = hooks / "pre-commit"
     packaged = (resolve_hooks_dir() / "pre-commit").read_bytes()
     result = {"path": str(target)}
