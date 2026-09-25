@@ -113,3 +113,41 @@ def test_init_in_tests_does_not_post_to_the_telemetry_endpoint(mocker, monkeypat
     mocker.patch("goodvibes_cli.commands.init_cmd.configure_mcp")
     runner.invoke(app, ["init"])
     assert fire.call_count == 0
+
+
+@pytest.mark.parametrize("flag", ["--version", "-V"])
+def test_version_flags_print_only_the_version_number_like_the_npm_cli(flag):
+    import importlib.metadata
+    result = runner.invoke(app, [flag])
+    assert result.exit_code == 0
+    assert result.output == importlib.metadata.version("goodvibes-cli") + "\n"
+
+
+@pytest.mark.parametrize("args", [["bogus"], [], ["init", "--bogus"]])
+def test_an_unknown_command_or_no_command_exits_2_like_the_npm_cli(args):
+    assert runner.invoke(app, args).exit_code == 2
+
+
+def test_every_command_and_option_has_the_same_help_text_as_the_npm_cli():
+    top = _help()
+    for text in ["One-command bootstrap for vibe coding projects", "Show the version and exit", "Show this message and exit.",
+                 "Bootstrap a project with goodvibes configuration", "Install the newest goodvibes, then update this project with it",
+                 "Update goodvibes-managed files using the manifest", "Check that goodvibes setup is complete",
+                 "Show token use from local Claude Code session logs (offline, best effort)"]:
+        assert text in top
+    assert "completion" not in top
+    assert "Bootstrap a project with goodvibes configuration." not in top
+    assert "--dry-run Preview files without writing to disk" in _help("init")
+    assert "--dry-run Preview what would change without writing" in _help("update")
+    assert "--dry-run Preview what would change without writing" in _help("upgrade")
+    assert "--quick Fast local checks only; silent when all pass, always exits 0 (used by the session-start hook)" in _help("doctor")
+    usage = _help("usage")
+    for text in ["--all Every project, not just this one", "Only sessions changed in the last N days", "--json Machine-readable output"]:
+        assert text in usage
+
+
+def test_h_is_short_for_help_on_every_command():
+    for cmd in ([], ["init"], ["update"], ["upgrade"], ["doctor"], ["usage"]):
+        result = runner.invoke(app, [*cmd, "-h"])
+        assert result.exit_code == 0, result.output
+        assert "Show this message and exit." in result.output

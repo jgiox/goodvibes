@@ -167,7 +167,29 @@ def test_upgrade_fails_loudly_instead_of_claiming_success_when_still_on_the_old_
     result = runner.invoke(app, ["upgrade"], env={"_GV_UPGRADING": "1.0.1"})
     assert result.exit_code == 1
     mock_update.assert_not_called()
-    assert "goodvibes-cli@latest" in _ANSI.sub("", result.output)
+    out = " ".join(_ANSI.sub("", result.output).split())
+    assert "Upgrade did not take effect" in out
+    assert "Run: npm install -g goodvibes-cli@1.0.1 if you installed goodvibes with npm, or uv tool install \"goodvibes-cli>=1.0.1\" if you installed it with Python. Then run goodvibes --version." in out
+
+
+def test_upgrade_prints_one_heading_and_no_second_goodvibes_update_heading(mocker, tmp_path):
+    import importlib.metadata
+    (tmp_path / ".goodvibes.json").write_text('{"version": "1.0.0", "files": {}}', encoding="utf-8")
+    mocker.patch("pathlib.Path.cwd", return_value=tmp_path)
+    result = runner.invoke(app, ["upgrade", "--dry-run"], env={"_GV_UPGRADING": importlib.metadata.version("goodvibes-cli")})
+    assert result.exit_code == 0, result.output
+    assert "goodvibes upgrade" in result.output
+    assert "goodvibes update" not in result.output
+
+
+def test_upgrade_shows_the_new_version_in_a_panel_titled_like_npm(mocker):
+    mocker.patch("goodvibes_cli.commands.upgrade_cmd._get_package_version", return_value="1.0.0")
+    mocker.patch("goodvibes_cli.commands.upgrade_cmd._check_pypi_version", return_value="1.0.1")
+    mocker.patch("goodvibes_cli.commands.upgrade_cmd._running_under_uvx", return_value=False)
+    mocker.patch("goodvibes_cli.commands.upgrade_cmd.run_update")
+    out = " ".join(_ANSI.sub("", runner.invoke(app, ["upgrade", "--dry-run"]).output).split())
+    assert "New version available" in out
+    assert "goodvibes 1.0.1 is available (installed: 1.0.0). The preview below uses 1.0.0." in out
 
 
 def test_self_update_re_runs_with_the_target_version_in_the_environment(mocker):

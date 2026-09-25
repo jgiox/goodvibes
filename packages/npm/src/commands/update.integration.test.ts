@@ -686,6 +686,7 @@ describe('update command — symlinks and broken CLAUDE.md markers', () => {
     expect(readFileSync(join(projectDir, 'CLAUDE.md'), 'utf-8')).toBe(broken)
     expect(readFileSync(join(projectDir, 'AGENTS.md'), 'utf-8')).toBe('tpl v2\n')
     expect(await said()).toMatch(/end line comes before the start line.*fix CLAUDE\.md by hand/)
+    expect(await said()).toContain('Applied 1 file(s). Skipped 0 user-modified file(s).')
     expect(existsSync(join(projectDir, '.goodvibes.json'))).toBe(true)
   })
 })
@@ -774,6 +775,22 @@ describe('update command — one plan, one prompt, nothing written before it', (
     expect(planned).toContain('AGENTS.md')
     expect(existsSync(join(cfg, 'rules', 'goodvibes.md'))).toBe(true)
     expect(readFileSync(join(projectDir, 'AGENTS.md'), 'utf-8')).not.toBe('old agents\n')
+  })
+
+  it('asks one question that names the Claude Code settings changes, like the pip CLI', async () => {
+    const { confirm } = await import('@clack/prompts')
+    vi.mocked(confirm).mockResolvedValue(false)
+    await expect(runUpdate()).rejects.toThrow('exit 0')
+    expect(String(vi.mocked(confirm).mock.calls[0][0].message)).toMatch(
+      /^Overwrite 1 managed file\(s\), add \d+, merge goodvibes keys into \d+ file\(s\) and apply \d+ change\(s\) to your Claude Code settings\?$/)
+  })
+
+  it('with only a global setup, asks about the Claude Code settings changes alone', async () => {
+    const { confirm } = await import('@clack/prompts')
+    vi.mocked(confirm).mockResolvedValue(false)
+    rmSync(join(projectDir, '.goodvibes.json'))
+    await expect(runUpdate()).rejects.toThrow('exit 0')
+    expect(String(vi.mocked(confirm).mock.calls[0][0].message)).toMatch(/^Apply \d+ change\(s\) to your Claude Code settings\?$/)
   })
 
   it('run inside the Claude Code settings folder, plans and updates only the global part and adds no project files there', async () => {

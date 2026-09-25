@@ -549,7 +549,7 @@ _NEXT_STEPS = (
     "   /plugin marketplace add DietrichGebert/ponytail\n"
     "   /plugin install ponytail@ponytail\n"
     "   Other IDEs (Cursor, Windsurf, Kiro, Antigravity, etc.): rules already active\n"
-    "3. Start coding — CLAUDE.md rules are already active"
+    "3. Start coding: CLAUDE.md rules are already active"
 )
 
 

@@ -106,6 +106,35 @@ describe('built CLI (dist/index.js)', () => {
     expect(flat((await run('update', '--help')).stdout)).toContain('--force Skip the confirmation prompt (files you edited are still kept)')
   })
 
+  it('--version and -V print only the version number, like the pip CLI', async () => {
+    for (const flag of ['--version', '-V']) {
+      const r = await run(flag)
+      expect(r.exitCode).toBe(0)
+      expect(r.stdout).toBe(pkgVersion)
+    }
+  })
+
+  it('an unknown command or no command at all exits 2, like the pip CLI', async () => {
+    expect((await run('bogus')).exitCode).toBe(2)
+    expect((await run()).exitCode).toBe(2)
+    expect((await run('init', '--bogus')).exitCode).toBe(2)
+  })
+
+  it('every command and option has the same help text as the pip CLI', async () => {
+    const flat = async (...args: string[]) => (await run(...args, '-h')).stdout.replace(/\s+/g, ' ')
+    const top = await flat()
+    for (const text of ['One-command bootstrap for vibe coding projects', 'Show the version and exit', 'Show this message and exit.',
+      'Bootstrap a project with goodvibes configuration', 'Install the newest goodvibes, then update this project with it',
+      'Update goodvibes-managed files using the manifest', 'Check that goodvibes setup is complete',
+      'Show token use from local Claude Code session logs (offline, best effort)']) expect(top).toContain(text)
+    expect(await flat('init')).toContain('--dry-run Preview files without writing to disk')
+    expect(await flat('update')).toContain('--dry-run Preview what would change without writing')
+    expect(await flat('upgrade')).toContain('--dry-run Preview what would change without writing')
+    expect(await flat('doctor')).toContain('--quick Fast local checks only; silent when all pass, always exits 0 (used by the session-start hook)')
+    const usage = await flat('usage')
+    for (const text of ['--all Every project, not just this one', 'Only sessions changed in the last N days', '--json Machine-readable output', 'Show this message and exit.']) expect(usage).toContain(text)
+  })
+
   it('a second global init leaves a rules file the user edited alone', async () => {
     await run('init', '--minimal')
     const rules = join(configDir, 'rules', 'goodvibes.md')
