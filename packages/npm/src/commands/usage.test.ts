@@ -150,11 +150,13 @@ describe('usage', () => {
 
       expect(out).toEqual([
         'Token usage for this project, last 7 days: 2 session(s)',
+        '',
         'Date        Session   Total tokens  Cache hit  Peak context',
         `${local(NOW)}  bbbbbbbb       173,000        87%       171,000 !`,
         `${local(NOW - DAY)}  aaaaaaaa           527        85%           320`,
         'Total                      173,527        87%       171,000',
         'Input 1,030, output 2,057, cache read 150,400, cache creation 20,040',
+        '',
         NEAR_LIMIT,
         FOOTER,
       ])
@@ -178,6 +180,12 @@ describe('usage', () => {
         totals: { input: 30, output: 57, cacheRead: 400, cacheCreation: 40, cacheHitRatio: 400 / 470, peakContext: 320 },
       })
       expect(err).toEqual([FOOTER])
+    })
+
+    it('keeps the blank line before the footer when no session is near the context limit', async () => {
+      writeSession(projectFolderName(cwd), 'aaaaaaaa', transcript, 0)
+      const { out } = await run()
+      expect(out.slice(-3)).toEqual(['Input 30, output 57, cache read 400, cache creation 40', '', FOOTER])
     })
 
     it('reads every project with --all', async () => {
