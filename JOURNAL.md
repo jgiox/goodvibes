@@ -1966,3 +1966,4 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 - GREEN: MCP wording, package detection and file warnings in `doctor_cmd.py`.
 - RED: `usage` layout, messages, floor hit %, `Skipped ...` on stderr, `--days` validation (exit 1), JSON footer on stderr.
 - GREEN: `usage_cmd.py` layout, messages, stderr reporting and `--days` check (also fixed a RED test that forgot to create the projects folder).
+- doctor MCP check: server names, keys, packages and hosts from .mcp.json (which arrives with any cloned repo) were printed raw, so escape codes such as ESC[2J reached the terminal (seen in an npm/pip parity run). RED tests in both packages; fix replaces C0/C1 control characters with ? in each MCP label and remedy.

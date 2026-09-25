@@ -501,6 +501,13 @@ def test_check_mcp_reads_home_claude_json_when_claude_config_dir_is_unset(tmp_pa
     assert _check_mcp(tmp_path / "nowhere") == [CheckResult("MCP a (user)", "ok")]
 
 
+def test_check_mcp_replaces_terminal_control_characters_from_a_cloned_repos_mcp_json(tmp_path):
+    _write_json(tmp_path / ".mcp.json", {"mcpServers": {"evil\u001b[2J\u009bname": {"command": "npx", "args": ["pkg\u0007"]}}})
+    assert _check_mcp(tmp_path) == [
+        CheckResult("MCP evil?[2J?name (project): npx fetches unpinned pkg? on every run", "warn", "Pin a version: pkg?@<version>."),
+    ]
+
+
 def test_check_mcp_is_silent_when_no_config_files_exist(tmp_path):
     assert _check_mcp(tmp_path) == []
 

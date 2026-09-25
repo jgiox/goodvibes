@@ -28,6 +28,13 @@ describe('mcp-check', () => {
   const userConfig = (data: unknown) => writeFileSync(join(config, '.claude.json'), JSON.stringify(data))
   const projectConfig = (servers: unknown) => writeFileSync(join(project, '.mcp.json'), JSON.stringify({ mcpServers: servers }))
 
+  it('replaces terminal control characters from a cloned repo\'s .mcp.json instead of printing them', () => {
+    projectConfig({ 'evil\u001b[2J\u009bname': { command: 'npx', args: ['pkg\u0007'] } })
+    expect(checkMcpServers(project)).toEqual([
+      { label: 'MCP evil?[2J?name (project): npx fetches unpinned pkg? on every run', status: 'warn', remedy: 'Pin a version: pkg?@<version>.' },
+    ])
+  })
+
   describe('claudeJsonPath', () => {
     it('uses .claude.json in CLAUDE_CONFIG_DIR when it exists', () => {
       userConfig({})
