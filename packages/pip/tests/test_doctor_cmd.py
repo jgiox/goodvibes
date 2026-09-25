@@ -308,6 +308,46 @@ def test_doctor_quick_reports_a_broken_goodvibes_json_and_still_exits_0(mocker, 
     assert "is not valid JSON" in result.output
 
 
+def test_check_sentinel_does_not_crash_on_a_claude_md_that_is_not_utf_8(tmp_path):
+    (tmp_path / "CLAUDE.md").write_bytes(b"\xff\xfe<!-- goodvibes:start -->\nx\n<!-- goodvibes:end -->\n")
+    assert _check_sentinel(tmp_path).status == "ok"
+
+
+def test_doctor_quick_exits_0_on_a_claude_md_that_is_not_utf_8(mocker, tmp_path):
+    (tmp_path / ".goodvibes.json").write_text('{"version": "1.8.0", "files": {}}', encoding="utf-8")
+    (tmp_path / "CLAUDE.md").write_bytes(b"\xff\xfe no block here\n")
+    mocker.patch("pathlib.Path.cwd", return_value=tmp_path)
+    mocker.patch("goodvibes_cli.commands.doctor_cmd.subprocess.run", return_value=subprocess.CompletedProcess(args=[], returncode=0, stdout="value", stderr=""))
+    from goodvibes_cli.main import app
+    result = runner.invoke(app, ["doctor", "--quick"])
+    assert result.exit_code == 0
+    assert result.output.splitlines() == ["goodvibes doctor: ✗ goodvibes sentinel block. Run: goodvibes init (will merge sentinel block)"]
+
+
+def test_doctor_quick_reports_a_check_that_crashes_as_one_line_and_still_exits_0(mocker, tmp_path):
+    (tmp_path / ".goodvibes.json").write_text('{"version": "1.8.0", "files": {}}', encoding="utf-8")
+    mocker.patch("pathlib.Path.cwd", return_value=tmp_path)
+    mocker.patch("goodvibes_cli.commands.doctor_cmd.subprocess.run", return_value=subprocess.CompletedProcess(args=[], returncode=0, stdout="value", stderr=""))
+    mocker.patch("goodvibes_cli.commands.doctor_cmd._check_sentinel", side_effect=PermissionError(13, "Permission denied", "CLAUDE.md"))
+    from goodvibes_cli.main import app
+    result = runner.invoke(app, ["doctor", "--quick"])
+    assert result.exit_code == 0
+    assert result.output.splitlines() == ["goodvibes doctor: ✗ Could not finish the checks (EACCES). Run: goodvibes doctor"]
+
+
+@pytest.mark.parametrize("args", [["doctor"], ["doctor", "--quick"]])
+def test_doctor_prints_an_escape_code_from_a_broken_goodvibes_json_message_as_a_question_mark(mocker, tmp_path, args):
+    project = tmp_path / "evil\x1b[2Jrepo"
+    project.mkdir()
+    (project / ".goodvibes.json").write_text("{ broken", encoding="utf-8")
+    mocker.patch("pathlib.Path.cwd", return_value=project)
+    mocker.patch("goodvibes_cli.commands.doctor_cmd.subprocess.run", return_value=subprocess.CompletedProcess(args=[], returncode=0, stdout="value", stderr=""))
+    from goodvibes_cli.main import app
+    result = runner.invoke(app, args)
+    assert "\x1b" not in result.output
+    assert "evil?[2Jrepo" in "".join(result.output.split())
+
+
 def test_doctor_prints_square_brackets_literally_instead_of_as_rich_markup(mocker, tmp_path):
     from goodvibes_cli.main import app
     _mock_checks(mocker, tmp_path)

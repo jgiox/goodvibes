@@ -313,6 +313,27 @@ describe('doctor command', () => {
       expect(exitSpy).toHaveBeenCalledWith(1)
       exitSpy.mockRestore()
     })
+
+    it('prints an escape code from a broken .goodvibes.json as ? instead of sending it to the terminal', async () => {
+      const { execa } = await import('execa')
+      vi.mocked(execa).mockResolvedValue({ stdout: 'value' } as any)
+      const { existsSync, readFileSync } = await import('node:fs')
+      vi.mocked(existsSync).mockReturnValue(true)
+      vi.mocked(readFileSync).mockImplementation(p => (String(p).endsWith('.goodvibes.json') ? '{"a":\u001b[2J}' : '<!-- goodvibes:start -->\n<!-- goodvibes:end -->'))
+      const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never)
+      const { note } = await import('@clack/prompts')
+      const { registerDoctorCommand } = await import('./doctor.js')
+      let capturedAction: () => Promise<void> = async () => {}
+      const program = { command: vi.fn().mockReturnThis(), description: vi.fn().mockReturnThis(),
+        option: vi.fn().mockReturnThis(), action: vi.fn((fn) => { capturedAction = fn; return { command: vi.fn() } }) }
+      registerDoctorCommand(program as any)
+      await capturedAction()
+      exitSpy.mockRestore()
+
+      const out = vi.mocked(note).mock.calls.map(c => String(c[0])).join('\n')
+      expect(out).not.toContain('\u001b')
+      expect(out).toContain('?[2J')
+    })
   })
 
   describe('version line', () => {
@@ -619,6 +640,35 @@ describe('doctor command', () => {
       const { logs, exitSpy } = await runQuick()
 
       expect(logs.join('\n')).toMatch(/\.goodvibes\.json is not valid JSON \(.+\); fix it or delete it and run goodvibes init/)
+      expect(exitSpy).not.toHaveBeenCalled()
+    })
+
+    it('prints an escape code from a broken .goodvibes.json as ? instead of sending it to the terminal', async () => {
+      const { execa } = await import('execa')
+      vi.mocked(execa).mockResolvedValue({ stdout: 'value' } as any)
+      const { existsSync, readFileSync } = await import('node:fs')
+      vi.mocked(existsSync).mockReturnValue(true)
+      vi.mocked(readFileSync).mockImplementation(p => (String(p).endsWith('.goodvibes.json') ? '{"a":\u001b[2J}' : '<!-- goodvibes:start -->\n<!-- goodvibes:end -->'))
+
+      const { logs } = await runQuick()
+
+      expect(logs.join('\n')).not.toContain('\u001b')
+      expect(logs.join('\n')).toContain('?[2J')
+    })
+
+    it('reports a check that throws as one line and still does not exit non-zero', async () => {
+      const { execa } = await import('execa')
+      vi.mocked(execa).mockResolvedValue({ stdout: 'value' } as any)
+      const { existsSync, readFileSync } = await import('node:fs')
+      vi.mocked(existsSync).mockReturnValue(true)
+      vi.mocked(readFileSync).mockImplementation(p => {
+        if (String(p).endsWith('.goodvibes.json')) return '{"version":"1.0.0","files":{}}'
+        throw Object.assign(new Error("EACCES: permission denied, open 'CLAUDE.md'"), { code: 'EACCES' })
+      })
+
+      const { logs, exitSpy } = await runQuick()
+
+      expect(logs).toEqual(['goodvibes doctor: ✗ Could not finish the checks (EACCES). Run: goodvibes doctor'])
       expect(exitSpy).not.toHaveBeenCalled()
     })
 
