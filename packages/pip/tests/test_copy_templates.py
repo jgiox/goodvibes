@@ -69,6 +69,13 @@ def test_copy_templates_dry_run_returns_list_without_writing(tmp_dir, template_d
     assert not (tmp_dir / "CONTRIBUTING.md").exists()
 
 
+def test_copy_templates_dry_run_lists_the_ci_workflow_as_ci_yml_the_name_init_writes_not_ci_type_yml(tmp_dir, template_dir):
+    from goodvibes_cli.steps.copy_templates import copy_templates
+    written, _ = copy_templates(template_dir, tmp_dir, dry_run=True, project_type="node")
+    assert ".github/workflows/ci.yml" in written
+    assert not [f for f in written if f.endswith(("ci-node.yml", "ci-python.yml", "ci-both.yml"))]
+
+
 def test_copy_templates_second_run_does_not_overwrite(tmp_dir, template_dir, mocker):
     from goodvibes_cli.steps.copy_templates import copy_templates
     mocker.patch("goodvibes_cli.steps.copy_templates.merge_claude")

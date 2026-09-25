@@ -75,6 +75,12 @@ describe('copyTemplates', () => {
     expect(existsSync(join(tmpDir, 'CLAUDE.md'))).toBe(false)
   })
 
+  it('dry-run lists the CI workflow as ci.yml, the name init writes, not ci-<type>.yml', async () => {
+    const { written } = await copyTemplates(resolveTemplatesDir(), tmpDir, true, false, 'node')
+    expect(written).toContain(join('.github', 'workflows', 'ci.yml'))
+    expect(written.filter(f => /ci-(node|python|both)\.yml$/.test(f))).toEqual([])
+  })
+
   it('second call is idempotent — no error and CLAUDE.md not duplicated', async () => {
     const templateDir = resolveTemplatesDir()
     await copyTemplates(templateDir, tmpDir, false, false)
