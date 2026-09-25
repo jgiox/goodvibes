@@ -2182,3 +2182,4 @@ Added a Standing decisions section to this journal.
 
 **What:** audit findings M7, M13 (template repo side), M15 (repo side) and the repo-workflow, packaging and hygiene lows, on `fix/audit-release`.
 - RED: `packages/pip/tests/test_hatch_build.py`: an sdist build must not copy `templates/` and `hooks/` into `src/goodvibes_cli/` (the sdist then carried all 54 template files twice). The wheel-build guard test passes and stays as the GREEN safety net. hatchling is stubbed, so no real build runs in the test.
+- GREEN: `hatch_build.py` returns early unless the target is the wheel. Verified with a real build (scratchpad `rel/pipbuild.sh`): the sdist went from 169 to 115 entries (0 copies under `src/goodvibes_cli/templates` or `hooks`, 54 templates at its root, LICENSE and NOTICE present); a wheel built from that sdist alone, outside the repo, and a wheel built straight from source each carry 54 template files, `hooks/pre-commit` and both licence files.
