@@ -1934,3 +1934,35 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 - MCP @latest RED: test that `<pkg>@latest` is reported and fixed as `<pkg>` (label and remedy), per coordinator follow-up.
 - MCP @latest GREEN: `mcp-check.ts` strips a trailing `@latest` from the package before the pin check, so label and remedy name the bare package. (a) still matches full-path `sh`/`bash`; `@next` stays pinned.
 
+## 2026-09-25 · pip: tri-state doctor, JOURNAL size and MCP checks, `goodvibes usage`
+
+**What I did:** pip side of a shared spec (npm is done separately to the same strings). Each item lands as a failing-test commit, then the implementation.
+
+- RED: doctor tests for ok/warn/fail/skip statuses, optional headroom and PATH checks, and the summary line.
+- GREEN: `CheckResult.status` replaces `passed`; headroom and a missing goodvibes CLI warn; only `fail` exits 1; summary line ends full doctor.
+- RED: regression test; rich read `[all]` in the headroom remedy as markup and dropped it (a server name in brackets would be read the same way).
+- GREEN: doctor panels render labels and remedies as plain `Text`, not markup.
+- RED: JOURNAL.md over 10 KB warns in doctor and doctor --quick; the file is not changed.
+- GREEN: `_check_journal` (size rounded up to whole KB, 1 KB = 1024 bytes); runs in both modes.
+- RED: MCP server check (user/local/project scope; piped download, unpinned launcher package, remote http, literal secret; bad JSON warns).
+- GREEN: `claude_json_path`, `server_problems`, `_check_mcp` in full doctor only; reads local files only, never contacts a server, prints key names only.
+- RED: `goodvibes usage` tests on fixture JSONL (duplicate message ids, a malformed line, entries without usage, day window, --all, --json, empty cases).
+- GREEN: new `commands/usage_cmd.py`, registered in `main.py`. Offline; reads only usage numbers; `--json` always prints valid JSON (messages go to stderr).
+
+**Files changed:** packages/pip/src/goodvibes_cli/commands/doctor_cmd.py, packages/pip/src/goodvibes_cli/commands/usage_cmd.py (new), packages/pip/src/goodvibes_cli/main.py, packages/pip/tests/test_doctor_cmd.py, packages/pip/tests/test_usage_cmd.py (new), JOURNAL.md.
+
+**Tests run:** pip pytest 420 passed on Python 3.11 and 3.10; verify-phase1 to 5 PASS (no script changes needed).
+
+**Docs updated:** JOURNAL.md only. README/FAQ/CHANGELOG still need the `doctor` statuses and `goodvibes usage`.
+
+## 2026-09-25 · pip: doctor and usage strings aligned with the shared parity spec
+
+**What I did:** The coordinator's parity spec fixes the exact strings npm and pip both print. RED then GREEN for each part.
+
+- RED: doctor "How to fix" joins with `: `; PATH check says "goodvibes command"; `--quick` period rules; manifest error listed first.
+- GREEN: those doctor changes in `doctor_cmd.py`.
+- RED: MCP wording from npm; `@latest` unpinned; uvx `--from` and value-taking options (`--python 3.12`); a path command is not a launcher; bad-file warnings with error code, each in its own scope position.
+- RED: `<pkg>@latest` is reported and remedied as `<pkg>` (coordinator addendum).
+- GREEN: MCP wording, package detection and file warnings in `doctor_cmd.py`.
+- RED: `usage` layout, messages, floor hit %, `Skipped ...` on stderr, `--days` validation (exit 1), JSON footer on stderr.
+- GREEN: `usage_cmd.py` layout, messages, stderr reporting and `--days` check (also fixed a RED test that forgot to create the projects folder).
