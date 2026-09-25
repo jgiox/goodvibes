@@ -11,6 +11,7 @@ from typing import Annotated, Literal
 import typer
 from rich.console import Console
 from rich.panel import Panel
+from rich.text import Text
 
 from goodvibes_cli.steps.global_setup import claude_config_dir
 from goodvibes_cli.steps.write_manifest import ManifestError, read_manifest
@@ -160,11 +161,11 @@ def doctor_cmd(
 
     version = _installed_version()
     lines = [f"goodvibes v{version}"] + [f"{SYMBOLS[r.status]} {r.label}" for r in results]
-    console.print(Panel("\n".join(lines), title="goodvibes doctor"))
+    console.print(Panel(Text("\n".join(lines)), title="goodvibes doctor"))
 
     fixes = [f"{r.label} — {r.remedy}" for r in results if r.status in ("warn", "fail") and r.remedy]
     if fixes:
-        console.print(Panel("\n".join(fixes), title="How to fix"))
+        console.print(Panel(Text("\n".join(fixes)), title="How to fix"))
     typer.echo(summary_line(results))
     if any(r.status == "fail" for r in results):
         raise typer.Exit(1)
