@@ -39,6 +39,17 @@ describe('installGitHook', () => {
     expect(existsSync(join(outside, '.git'))).toBe(false)
   })
 
+  it('returns not-a-repo when git is not installed', async () => {
+    const path = process.env.PATH
+    process.env.PATH = outside
+    try {
+      expect((await installGitHook(dir, false)).status).toBe('not-a-repo')
+    } finally {
+      process.env.PATH = path
+    }
+    expect(existsSync(target())).toBe(false)
+  })
+
   it('installs the packaged hook with mode 0755 when there is no pre-commit hook', async () => {
     const result = await installGitHook(dir, false)
     expect(result).toEqual({ status: 'installed', path: target() })
@@ -112,5 +123,11 @@ describe('installGitHook', () => {
     git('worktree', 'add', '-q', wt)
     expect(await installGitHook(wt, false)).toEqual({ status: 'installed', path: target() })
     expect(existsSync(target())).toBe(true)
+  })
+})
+
+describe('resolveHooksDir', () => {
+  it('points at a folder holding the goodvibes pre-commit hook', () => {
+    expect(readFileSync(join(resolveHooksDir(), 'pre-commit'), 'utf-8')).toContain('# goodvibes-pre-commit')
   })
 })

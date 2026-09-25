@@ -21,6 +21,13 @@ export function resolveTemplatesDir(): string {
   return fileURLToPath(new URL('../../../../templates', import.meta.url))
 }
 
+// Same two-candidate probe as resolveTemplatesDir: dist → packages/npm/hooks (prebuild copy), source → repo-root hooks/.
+export function resolveHooksDir(): string {
+  const distRelative = fileURLToPath(new URL('../hooks', import.meta.url))
+  if (existsSync(distRelative)) return distRelative
+  return fileURLToPath(new URL('../../../../hooks', import.meta.url))
+}
+
 export async function listTemplateFiles(templateDir: string): Promise<string[]> {
   const results: string[] = []
 
