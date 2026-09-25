@@ -615,7 +615,7 @@ describe('update command — respects files the user removed and layers init ski
     rmSync(projectDir, { recursive: true, force: true })
   })
 
-  it('does not re-create a tracked file the user deleted, reports it and drops it from the manifest', async () => {
+  it('keeps a deleted AGENTS.md absent over two update runs, reports it once and records it as user-removed', async () => {
     put(templateDir, 'AGENTS.md', 'agents v2\n')
     put(templateDir, 'GEMINI.md', 'gemini v2\n')
     put(projectDir, 'GEMINI.md', 'gemini v1\n')
@@ -623,15 +623,43 @@ describe('update command — respects files the user removed and layers init ski
       version: '1.0.0',
       files: { 'AGENTS.md': sha256('agents v1\n'), 'GEMINI.md': sha256('gemini v1\n') },
     }))
+    const { note } = await import('@clack/prompts')
+    const notes = () => vi.mocked(note).mock.calls.map(c => String(c[0])).join('\n')
 
     await runUpdate('--force')
 
     expect(existsSync(join(projectDir, 'AGENTS.md'))).toBe(false)
     expect(readFileSync(join(projectDir, 'GEMINI.md'), 'utf-8')).toBe('gemini v2\n')
-    const { note } = await import('@clack/prompts')
-    const out = vi.mocked(note).mock.calls.map(c => String(c[0])).join('\n')
-    expect(out).toContain('AGENTS.md: removed by you, not re-added (run goodvibes init to restore)')
-    expect(Object.keys(manifestFiles())).toEqual(['GEMINI.md'])
+    expect(notes()).toContain('AGENTS.md: removed by you, not re-added (run goodvibes init to restore)')
+    expect(manifestFiles()['AGENTS.md']).toBe('user-removed')
+
+    vi.mocked(note).mockClear()
+    await runUpdate('--force')
+
+    expect(existsSync(join(projectDir, 'AGENTS.md'))).toBe(false)
+    expect(notes()).not.toContain('AGENTS.md')
+    expect(manifestFiles()['AGENTS.md']).toBe('user-removed')
+  })
+
+  it('never overwrites a user-removed file the user created again', async () => {
+    put(templateDir, 'AGENTS.md', 'agents v2\n')
+    put(projectDir, 'AGENTS.md', 'my own agents\n')
+    writeFileSync(join(projectDir, '.goodvibes.json'), JSON.stringify({ version: '1.0.0', files: { 'AGENTS.md': 'user-removed' } }))
+
+    await runUpdate('--force')
+    await runUpdate('--force')
+
+    expect(readFileSync(join(projectDir, 'AGENTS.md'), 'utf-8')).toBe('my own agents\n')
+  })
+
+  it('does not count user-removed entries as tracking a layer, so no new docs arrive after the user deleted them all', async () => {
+    put(templateDir, 'docs/a.md', 'a\n')
+    put(templateDir, 'docs/new.md', 'new\n')
+    writeFileSync(join(projectDir, '.goodvibes.json'), JSON.stringify({ version: '1.0.0', files: { 'docs/a.md': 'user-removed' } }))
+
+    await runUpdate('--force')
+
+    expect(existsSync(join(projectDir, 'docs'))).toBe(false)
   })
 
   it('adds no workflows, other .github files or docs when the manifest tracks none from that group', async () => {

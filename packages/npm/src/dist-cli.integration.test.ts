@@ -124,4 +124,30 @@ describe('built CLI (dist/index.js)', () => {
     const pkg = JSON.parse(readFileSync(fileURLToPath(new URL('../package.json', import.meta.url)), 'utf-8'))
     expect(pkg.engines.node).toBe('>=22.12.0')
   })
+
+  it('a deleted AGENTS.md and rules file stay deleted over two updates, and init restores both', async () => {
+    await run('init', '--minimal')
+    const agents = join(projectDir, 'AGENTS.md')
+    const rules = join(configDir, 'rules', 'goodvibes.md')
+    const agentsContent = readFileSync(agents, 'utf-8')
+    const rulesContent = readFileSync(rules, 'utf-8')
+    rmSync(agents)
+    rmSync(rules)
+
+    for (let i = 0; i < 2; i++) {
+      const upd = await run('update', '--force')
+      expect(upd.exitCode).toBe(0)
+      expect(existsSync(agents)).toBe(false)
+      expect(existsSync(rules)).toBe(false)
+    }
+    expect(JSON.parse(readFileSync(join(projectDir, '.goodvibes.json'), 'utf-8')).files['AGENTS.md']).toBe('user-removed')
+    expect(JSON.parse(readFileSync(join(configDir, '.goodvibes.json'), 'utf-8')).files['rules/goodvibes.md']).toBe('user-removed')
+
+    await run('init', '--minimal')
+
+    expect(readFileSync(agents, 'utf-8')).toBe(agentsContent)
+    expect(readFileSync(rules, 'utf-8')).toBe(rulesContent)
+    expect(JSON.parse(readFileSync(join(projectDir, '.goodvibes.json'), 'utf-8')).files['AGENTS.md']).toMatch(/^[0-9a-f]{64}$/)
+    expect(JSON.parse(readFileSync(join(configDir, '.goodvibes.json'), 'utf-8')).files['rules/goodvibes.md']).toMatch(/^[0-9a-f]{64}$/)
+  })
 })
