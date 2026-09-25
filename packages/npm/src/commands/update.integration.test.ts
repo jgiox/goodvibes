@@ -173,6 +173,18 @@ describe('update command — JSON-aware merge of settings.json and .mcp.json (UP
     rmSync(projectDir, { recursive: true, force: true })
   })
 
+  it('removes the allow rules older goodvibes versions shipped from a hand-edited project settings.json', async () => {
+    const old = JSON.stringify({ permissions: { allow: ['Read(**)'] } }, null, 2)
+    const userEdited = { permissions: { allow: ['Read(**)', 'Bash(node*)', 'Bash(uv*)', 'Bash(make*)'] } }
+    writeFileSync(join(projectDir, '.claude', 'settings.json'), JSON.stringify(userEdited, null, 2))
+    writeFileSync(join(projectDir, '.mcp.json'), tplMcp)
+    writeManifestFile({ '.claude/settings.json': sha256(old), '.mcp.json': sha256(tplMcp) })
+
+    await runUpdate('--force')
+
+    expect(readJson('.claude/settings.json').permissions.allow).toEqual(['Read(**)', 'Bash(make*)'])
+  })
+
   it('adds the journal-gate hook and ask rules to a hand-edited settings.json and keeps the user keys', async () => {
     const v171 = JSON.stringify({ permissions: { allow: ['Read(**)'], deny: ['Bash(git reset --hard*)'] } }, null, 2)
     const userEdited = {

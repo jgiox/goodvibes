@@ -123,3 +123,19 @@ def test_write_json_leaves_the_old_file_intact_when_the_write_fails(tmp_path, mo
 
 def test_present_ids_returns_nothing_for_content_that_is_not_an_object():
     assert present_ids(".claude/settings.json", TPL_SETTINGS, []) == []
+
+
+RETIRED = ['Bash(npm install*)', 'Bash(npm run*)', 'Bash(npx*)', 'Bash(pip install*)', 'Bash(uv*)', 'Bash(python*)', 'Bash(node*)', 'Bash(git restore *)']
+RETIRE_USER = {"permissions": {"allow": ["Read(**)", *RETIRED, "Bash(make test*)"]}}
+
+
+def test_retiring_removes_allow_rules_that_auto_approved_arbitrary_code_and_keeps_user_rules():
+    merged, changes = merge_managed_json(".claude/settings.json", {}, RETIRE_USER, [], retire_allow=True)
+    assert merged["permissions"]["allow"] == ["Read(**)", "Bash(make test*)"]
+    for r in RETIRED:
+        assert f"- permissions.allow: {r}" in changes
+
+
+def test_allow_rules_are_left_alone_when_not_retiring():
+    merged, _ = merge_managed_json(".claude/settings.json", {}, RETIRE_USER)
+    assert merged["permissions"]["allow"] == RETIRE_USER["permissions"]["allow"]

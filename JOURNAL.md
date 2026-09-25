@@ -1783,3 +1783,17 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 **Next time:** Known gaps, all fail open and out of scope: `"$(git commit)"` inside double quotes, an apostrophe in an inline (not full-line) comment, `pushd`, `(cd x); git commit` (the subshell cd is still applied), `--git-dir`/`--work-tree` pointing at another repo, `sh -c` and aliases. BWK awk's `split(s, a, "c")` also splits on newlines, so the hook uses regex separators; keep it that way.
 
 **Docs updated:** JOURNAL.md.
+
+---
+
+## 2026-09-25 · update removes the allow rules older versions shipped
+
+**What I did:** goodvibes up to 1.9.1 shipped project allow rules that auto-approved arbitrary code (`Bash(node*)`, `Bash(python*)`, `Bash(npx*)`, `Bash(uv*)`, `Bash(npm run*)`, `Bash(npm install*)`, `Bash(pip install*)`) and `Bash(git restore *)`. The new template drops them, but `update` never touched `allow` in a settings file the user had edited, so existing projects kept them. `update` now removes exactly those strings from the project `.claude/settings.json` (never from `~/.claude/settings.json`, where goodvibes never wrote allow rules, so anything there is the user's own) and lists each removal. npm and pip.
+
+**Files changed:** packages/npm/src/utils/json-merge.ts, packages/npm/src/commands/update.ts, packages/pip/src/goodvibes_cli/utils/json_merge.py, packages/pip/src/goodvibes_cli/commands/update_cmd.py, their tests, JOURNAL.md.
+
+**Why:** Audit finding S3 left existing installs exposed.
+
+**Tests run:** RED: npm 2 failed (json-merge, update integration); pip 2 failed (json_merge, update_cmd).
+
+**Docs updated:** JOURNAL.md.

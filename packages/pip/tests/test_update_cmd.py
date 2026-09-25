@@ -262,6 +262,17 @@ def _read(project_dir, rel):
     return json.loads((project_dir / rel).read_text(encoding="utf-8"))
 
 
+def test_update_removes_allow_rules_older_versions_shipped_from_hand_edited_project_settings(merge_dirs):
+    old = json.dumps({"permissions": {"allow": ["Read(**)"]}}, indent=2)
+    user = {"permissions": {"allow": ["Read(**)", "Bash(node*)", "Bash(uv*)", "Bash(make*)"]}}
+    (merge_dirs / ".claude" / "settings.json").write_text(json.dumps(user, indent=2), encoding="utf-8")
+    (merge_dirs / ".mcp.json").write_text(_TPL_MCP, encoding="utf-8")
+    _write_manifest(merge_dirs, {".claude/settings.json": _sha(old), ".mcp.json": _sha(_TPL_MCP)})
+    result = runner.invoke(app, ["update", "--force"])
+    assert result.exit_code == 0, result.output
+    assert _read(merge_dirs, ".claude/settings.json")["permissions"]["allow"] == ["Read(**)", "Bash(make*)"]
+
+
 def test_update_merges_journal_gate_and_ask_rules_into_hand_edited_settings(merge_dirs):
     v171 = json.dumps({"permissions": {"allow": ["Read(**)"], "deny": ["Bash(git reset --hard*)"]}}, indent=2)
     user = {

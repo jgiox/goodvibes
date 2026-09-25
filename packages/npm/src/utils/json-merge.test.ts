@@ -117,3 +117,19 @@ describe('mergeManagedJson', () => {
     expect(merged.hooks.SessionStart).toEqual([{ matcher: 'startup', hooks: [doctorV2, mine] }])
   })
 })
+
+describe('retiring allow rules older goodvibes versions shipped', () => {
+  const retired = ['Bash(npm install*)', 'Bash(npm run*)', 'Bash(npx*)', 'Bash(pip install*)', 'Bash(uv*)', 'Bash(python*)', 'Bash(node*)', 'Bash(git restore *)']
+  const user = { permissions: { allow: ['Read(**)', ...retired, 'Bash(make test*)'] } }
+
+  it('removes every allow rule that auto-approved arbitrary code from a project settings file and keeps the user own rules', () => {
+    const { merged, changes } = mergeManagedJson('.claude/settings.json', {}, user, [], true)
+    expect(merged.permissions.allow).toEqual(['Read(**)', 'Bash(make test*)'])
+    for (const r of retired) expect(changes).toContain(`- permissions.allow: ${r}`)
+  })
+
+  it('leaves allow rules alone when not retiring (the user-level settings file, where goodvibes never wrote allow rules)', () => {
+    const { merged } = mergeManagedJson('.claude/settings.json', {}, user)
+    expect(merged.permissions.allow).toEqual(user.permissions.allow)
+  })
+})
