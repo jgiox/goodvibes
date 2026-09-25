@@ -140,6 +140,7 @@ async function checkGitHook(cwd: string, gitHook: string | undefined): Promise<C
       : { label: 'Git commit check not installed', status: 'warn', remedy: update },
     'custom-path': { label: 'Git commit check not managed (core.hooksPath is set)', status: 'skip' },
     'existing-hook': { label: 'Git commit check not managed (your own pre-commit hook)', status: 'skip' },
+    'linked-hooks': { label: 'Git commit check not managed (.git/hooks is a link or outside the git folder)', status: 'skip' },
   }
   return result[status] ? [result[status]] : []
 }

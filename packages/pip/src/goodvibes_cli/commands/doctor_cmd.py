@@ -99,6 +99,7 @@ def _check_git_hook(cwd: pathlib.Path) -> list[CheckResult]:
         "installed": [CheckResult("Git commit check not installed", "warn", "Run: goodvibes update")],
         "custom-path": [CheckResult("Git commit check not managed (core.hooksPath is set)", "skip")],
         "existing-hook": [CheckResult("Git commit check not managed (your own pre-commit hook)", "skip")],
+        "linked-hooks": [CheckResult("Git commit check not managed (.git/hooks is a link or outside the git folder)", "skip")],
     }.get(status, [])
 
 
