@@ -2064,3 +2064,14 @@ Added a Standing decisions section to this journal.
   - The `--scope project` section now says headroom is still installed on the computer and registered for the user.
 - Kept the old `#about-the-journal-gate-hook` anchor working.
 - Tests: link and anchor check over every public doc (0 problems); npm vitest 713 passed, 1 skipped; pip 593 passed; verify-phase1 and phase4 PASS.
+
+## 2026-09-25: Journal check for every tool (git pre-commit hook)
+
+**What:** added `hooks/pre-commit`, a POSIX sh git hook that blocks a commit which leaves out JOURNAL.md. It works in every AI tool and for manual commits.
+- Allows: repos without JOURNAL.md, message-only amends, merges, cherry-picks, reverts and rebases.
+- Skipped by `--no-verify` or `GOODVIBES_JOURNAL_CHECK=off`.
+- 17 shared cases in `tests/hooks/git-pre-commit.cases.json`, all passing against the real hook in throwaway repos.
+
+**Why:** the maintainer asked for the journal check to work outside Claude Code.
+
+**Decision:** goodvibes writes the hook into the local `.git/hooks/` from its own package copy. It never points `core.hooksPath` at a folder inside the repo, because that would let a cloned repo run its own scripts once goodvibes turned the setting on.
