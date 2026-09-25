@@ -50,7 +50,7 @@ def session_usage(path: pathlib.Path) -> dict | None:
             continue
         counts = {key: _tokens(usage.get(field)) for key, field in FIELDS}
         # Claude Code logs a streamed reply several times under one id; the last copy has the most output.
-        msg_id = message.get("id") or ("line", n)
+        msg_id = message["id"] if isinstance(message.get("id"), str) else ("line", n)
         if msg_id not in messages or counts["output"] > messages[msg_id]["output"]:
             messages[msg_id] = counts
     if not messages:

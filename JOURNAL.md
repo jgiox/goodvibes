@@ -2047,3 +2047,7 @@ Added a Standing decisions section to this journal.
   - The file-size check trusts `HEAD^` when `main` is first pushed. Kept by design: existing code is grandfathered, and checking every file on the first push would fail every existing project with a big file.
 
   RED tests for the first two: a pip usage test plus an npm parity guard, and 6 read-guard cases.
+- GREEN:
+  - pip `usage` keys only string message ids and treats anything else as its own entry, as npm does.
+  - The read guard's Read branch parses a numeric `offset` and `limit`. It allows a limit up to the line cap, and otherwise blocks when more than the cap would remain after the offset.
+  - Tests: npm hook cases and usage (224 passed); pip full suite (593 passed); pip hook cases under BWK awk and busybox awk (197 passed each).
