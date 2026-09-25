@@ -775,6 +775,23 @@ describe('update command — one plan, one prompt, nothing written before it', (
     expect(existsSync(join(cfg, 'rules', 'goodvibes.md'))).toBe(true)
     expect(readFileSync(join(projectDir, 'AGENTS.md'), 'utf-8')).not.toBe('old agents\n')
   })
+
+  it('run inside the Claude Code settings folder, plans and updates only the global part and adds no project files there', async () => {
+    cwdSpy.mockReturnValue(cfg)
+    const { note } = await import('@clack/prompts')
+
+    await runUpdate('--dry-run')
+    const planned = vi.mocked(note).mock.calls.map(c => String(c[0])).join('\n')
+    expect(planned).toContain('rules/goodvibes.md')
+    expect(planned).not.toContain('JOURNAL.md')
+
+    await runUpdate('--force')
+    for (const rel of ['JOURNAL.md', 'AGENTS.md', 'CLAUDE.md', '.github', 'docs']) expect(existsSync(join(cfg, rel))).toBe(false)
+    expect(existsSync(join(cfg, 'rules', 'goodvibes.md'))).toBe(true)
+    const manifest = JSON.parse(readFileSync(join(cfg, '.goodvibes.json'), 'utf-8'))
+    expect(manifest.scope).toBe('global')
+    expect(Object.keys(manifest.files)).not.toContain('JOURNAL.md')
+  })
 })
 
 describe('update command — respects files the user removed and layers init skipped', () => {

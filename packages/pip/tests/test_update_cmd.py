@@ -927,3 +927,25 @@ def test_update_merges_into_settings_and_mcp_files_whose_hooks_permissions_and_s
     assert "Bash(git push*)" in _read(merge_dirs, ".claude/settings.json")["permissions"]["ask"]
     assert "context7" in _read(merge_dirs, ".mcp.json")["mcpServers"]
     assert "context7" in _read(merge_dirs, ".vscode/mcp.json")["servers"]
+
+
+def test_update_inside_the_claude_settings_folder_updates_only_the_global_part_and_adds_no_project_files(plain_dirs, mocker, monkeypatch):
+    template_dir, project_dir = plain_dirs
+    _tpl(template_dir, ["JOURNAL.md", "AGENTS.md", "docs/onboarding.md"])
+    monkeypatch.setenv("CLAUDE_CONFIG_DIR", str(project_dir))
+    manifest = json.dumps({"version": "1.0.0", "scope": "global", "files": {"rules/goodvibes.md": "abc"}})
+    (project_dir / ".goodvibes.json").write_text(manifest, encoding="utf-8")
+    apply = mocker.patch("goodvibes_cli.commands.update_cmd.apply_global_config", return_value={
+        "config_dir": str(project_dir), "written": ["rules/goodvibes.md"], "kept": [], "removed": [], "retired": [], "settings_changes": [], "settings_error": None})
+
+    dry = runner.invoke(app, ["update", "--dry-run"])
+    assert dry.exit_code == 0, dry.output
+    assert "rules/goodvibes.md" in _out(dry)
+    assert "JOURNAL.md" not in _out(dry)
+
+    result = runner.invoke(app, ["update", "--force"])
+    assert result.exit_code == 0, result.output
+    for rel in ("JOURNAL.md", "AGENTS.md", "docs"):
+        assert not (project_dir / rel).exists()
+    assert (project_dir / ".goodvibes.json").read_text(encoding="utf-8") == manifest
+    assert apply.call_args.kwargs["dry_run"] is False
