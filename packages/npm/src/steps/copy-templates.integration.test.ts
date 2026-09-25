@@ -325,6 +325,19 @@ describe('copyTemplates — IDE rule files', () => {
     expect(existsSync(join(tmpDir, '.mcp.json'))).toBe(true)
   })
 
+  it('writes the context7 MCP files for Cursor and VS Code on fresh init', async () => {
+    const { written } = await copyTemplates(templateDir, tmpDir, false, false)
+    expect(written).toEqual(expect.arrayContaining(['.cursor/mcp.json', '.vscode/mcp.json']))
+    expect(JSON.parse(readFileSync(join(tmpDir, '.cursor', 'mcp.json'), 'utf-8')).mcpServers.context7.url).toBe('https://mcp.context7.com/mcp')
+    expect(JSON.parse(readFileSync(join(tmpDir, '.vscode', 'mcp.json'), 'utf-8')).servers.context7.url).toBe('https://mcp.context7.com/mcp')
+  })
+
+  it('--minimal and global scope still write the Cursor and VS Code MCP files, which those tools read only from the project', async () => {
+    await copyTemplates(templateDir, tmpDir, false, true, 'both', 'global')
+    expect(existsSync(join(tmpDir, '.cursor', 'mcp.json'))).toBe(true)
+    expect(existsSync(join(tmpDir, '.vscode', 'mcp.json'))).toBe(true)
+  })
+
   it('global scope writes project files but not skills, .mcp.json or the rules block', async () => {
     const { written } = await copyTemplates(templateDir, tmpDir, false, false, 'both', 'global')
     expect(existsSync(join(tmpDir, '.claude', 'skills'))).toBe(false)

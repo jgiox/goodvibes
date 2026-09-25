@@ -2111,3 +2111,9 @@ Added a Standing decisions section to this journal.
 **Why:** the maintainer asked to try the first release through the new `release` environment. After merge, the maintainer pushes `npm-v1.10.0` and `pip-v1.10.0` on main and approves both runs.
 
 **Tests:** npm vitest 793 passed, 1 skipped; pip 667 passed; `--version` prints 1.10.0 in both CLIs; verify-phase1 to 5 PASS.
+
+## 2026-09-25: context7 for Cursor and VS Code (GitHub Copilot)
+
+**What:** `goodvibes init` ships `.cursor/mcp.json` and `.vscode/mcp.json` with only the context7 entry, and `update` merges that entry the way it merges `.mcp.json`, in npm and pip.
+**Formats (verified):** context7's client docs (`docs/resources/all-clients.mdx` in upstash/context7): Cursor `.cursor/mcp.json`, key `mcpServers`, entry `{"url": ...}`; VS Code `.vscode/mcp.json`, key `servers`, entry `{"type": "http", "url": ...}`. Windsurf is `mcpServers` with `serverUrl` (context7 README up to 2.0.0), but its file path could not be confirmed from a primary source (docs.windsurf.com blocked here; search results name both `~/.codeium/windsurf/mcp_config.json` and `~/.codeium/mcp_config.json`), so goodvibes does not write it; the Windsurf setup note explains the manual step.
+- RED: npm `mcp-json.test.ts`, `json-merge.test.ts`, `copy-templates.integration.test.ts`, `update.integration.test.ts`, `dist-cli.integration.test.ts`; pip `test_mcp_json.py`, `test_json_merge.py`, `test_copy_templates.py`, `test_update_cmd.py`, `test_init_cmd.py`. The two "deleted file stays deleted" and "installed id not re-added" guards already pass, because that logic is shared.

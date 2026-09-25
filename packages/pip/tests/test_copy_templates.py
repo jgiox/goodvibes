@@ -508,3 +508,11 @@ def test_copy_templates_returns_only_files_this_run_created(tmp_path, template_d
     assert "AGENTS.md" in skipped
     assert "CONTRIBUTING.md" in written
     assert ".github/workflows/ci.yml" in written
+
+
+def test_copy_templates_minimal_global_scope_still_writes_cursor_and_vscode_mcp_files(tmp_dir):
+    from goodvibes_cli.steps.copy_templates import copy_templates
+    repo_templates = pathlib.Path(__file__).resolve().parents[3] / "templates"
+    written, _ = copy_templates(repo_templates, tmp_dir, minimal=True, scope="global")
+    assert {".cursor/mcp.json", ".vscode/mcp.json"} <= set(written)
+    assert not (tmp_dir / ".mcp.json").exists()

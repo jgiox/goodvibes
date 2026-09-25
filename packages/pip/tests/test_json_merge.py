@@ -11,6 +11,8 @@ TPL_SETTINGS = {
     "hooks": {"PreToolUse": [GATE_V2]},
 }
 TPL_MCP = {"mcpServers": {"context7": {"type": "http", "url": "https://mcp.context7.com/mcp"}}}
+TPL_CURSOR = {"mcpServers": {"context7": {"url": "https://mcp.context7.com/mcp"}}}
+TPL_VSCODE = {"servers": {"context7": {"type": "http", "url": "https://mcp.context7.com/mcp"}}}
 
 
 def test_managed_ids_lists_ask_deny_and_marked_hooks_but_never_allow():
@@ -23,6 +25,35 @@ def test_managed_ids_lists_ask_deny_and_marked_hooks_but_never_allow():
 
 def test_managed_ids_lists_one_id_per_template_mcp_server():
     assert managed_ids(".mcp.json", TPL_MCP) == ["mcp:context7"]
+
+
+def test_managed_ids_lists_context7_for_the_cursor_and_vscode_mcp_files():
+    assert managed_ids(".cursor/mcp.json", TPL_CURSOR) == ["mcp:context7"]
+    assert managed_ids(".vscode/mcp.json", TPL_VSCODE) == ["mcp:context7"]
+
+
+def test_present_ids_finds_context7_under_servers_in_vscode_mcp_json():
+    assert present_ids(".vscode/mcp.json", TPL_VSCODE, {"servers": {"context7": {}}}) == ["mcp:context7"]
+    assert present_ids(".vscode/mcp.json", TPL_VSCODE, {"mcpServers": {"context7": {}}}) == []
+
+
+def test_merge_adds_context7_under_servers_in_vscode_mcp_json_and_keeps_user_servers_and_inputs():
+    user = {"inputs": [{"id": "token"}], "servers": {"github": {"type": "http", "url": "https://api.githubcopilot.com/mcp"}}}
+    merged, changes = merge_managed_json(".vscode/mcp.json", TPL_VSCODE, user)
+    assert merged == {"inputs": user["inputs"], "servers": {**user["servers"], "context7": TPL_VSCODE["servers"]["context7"]}}
+    assert changes == ["+ servers.context7"]
+
+
+def test_merge_adds_context7_under_mcp_servers_in_cursor_mcp_json_and_keeps_user_servers():
+    merged, changes = merge_managed_json(".cursor/mcp.json", TPL_CURSOR, {"mcpServers": {"postgres": {"command": "pg-mcp"}}})
+    assert merged["mcpServers"] == {"postgres": {"command": "pg-mcp"}, "context7": TPL_CURSOR["mcpServers"]["context7"]}
+    assert changes == ["+ mcpServers.context7"]
+
+
+def test_merge_does_not_re_add_context7_to_vscode_mcp_json_after_the_user_removed_it():
+    merged, changes = merge_managed_json(".vscode/mcp.json", TPL_VSCODE, {"servers": {}}, ["mcp:context7"])
+    assert merged == {"servers": {}}
+    assert changes == []
 
 
 def test_present_ids_returns_only_managed_ids_found_in_content():
