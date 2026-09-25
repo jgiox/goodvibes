@@ -150,7 +150,7 @@ A commit is a saved checkpoint of your project with a short message saying what 
 
 Write the message as a short description of what the commit does, such as "fix: show error when login fails", not "fixed stuff". To see your history, run `git log --oneline`.
 
-In Claude Code, the AI can run `git add` and `git commit` for you without asking. If it forgets `JOURNAL.md`, the goodvibes journal check blocks the commit until it adds it.
+In Claude Code, the AI can run `git add` and `git commit` for you without asking. If a commit leaves out `JOURNAL.md`, the goodvibes journal check stops it, whether an AI tool or you made it. Add a short entry to `JOURNAL.md`, stage it, and commit again. To skip the check once, add `--no-verify` to the commit command.
 
 ## Send your branch to GitHub (push)
 

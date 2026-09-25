@@ -40,7 +40,7 @@ It is free, open source (Apache 2.0) and works on its own: no account, no servic
 | The AI over-builds | Engineering rules and the **ponytail** minimalism ladder: smallest change that works, no new dependency for what a few lines can do, fail loud instead of hiding errors |
 | Tokens and context run out | Claude reads big files a range at a time (**read guard**), replies are short from the first message (**caveman**, at its `ultra` level), what it reads is compressed (**headroom**), and **`goodvibes usage`** shows where your tokens went |
 | "Done" without proof | The rules require passing tests, pasted output and updated docs before a task counts as done. A failing test comes before every bug fix |
-| Each session starts from zero | **JOURNAL.md** keeps decisions across sessions and tools. In Claude Code, a commit is blocked until the journal is updated |
+| Each session starts from zero | **JOURNAL.md** keeps decisions across sessions and tools, and a commit that leaves it out is blocked, in every tool |
 | Risky commands | Claude Code asks before `git push`, publishing, deploying or deleting branches, refuses force-push and `git reset --hard`, and will not open `.env` files, SSH keys or credential files |
 | Outdated library knowledge | **context7** gives Claude Code current library docs. Free, no key |
 | Nothing checks your work | GitHub workflows for tests, security scanning, secret scanning, dependency review and file size, plus Dependabot |
@@ -71,7 +71,7 @@ goodvibes works in three layers. Each one catches what the one before it missed.
 | **2. Guard rails** | Claude Code | Hooks and permissions that stop a step before it happens: an unrecorded commit, a whole-file read of a huge file, a force-push, a peek at `.env` |
 | **3. Checks** | GitHub | Workflows that test and scan every pull request, whichever tool or person wrote the code |
 
-Rules guide, guard rails stop, checks verify. Other AI tools get layers 1 and 3; Claude Code gets all three.
+Rules guide, guard rails stop, checks verify. Other AI tools get layers 1 and 3, plus the git commit check; Claude Code gets everything.
 
 ## What `goodvibes init` sets up
 
@@ -84,7 +84,7 @@ Rules guide, guard rails stop, checks verify. Other AI tools get layers 1 and 3;
 
 ### Guard rails in Claude Code
 
-- **Journal check**: `git commit` is blocked until `JOURNAL.md` is staged, so every change leaves a note for the next session.
+- **Journal check**: stops Claude Code before it runs a commit that leaves out `JOURNAL.md`. The git commit check (below) covers every other tool.
 - **Read guard**: reading a whole file over 800 lines or 100 KB is blocked with a pointer to read a range or search instead. `.env` files, SSH keys and credential files are blocked too. `GOODVIBES_READ_GUARD=off` turns it off.
 - **Permissions**: see [What Claude Code can do without asking](#what-claude-code-can-do-without-asking).
 - **Session check**: when Claude Code starts, `goodvibes doctor --quick` checks git, the rules and the journal size. It prints nothing unless something needs fixing.
@@ -93,6 +93,7 @@ Rules guide, guard rails stop, checks verify. Other AI tools get layers 1 and 3;
 
 ### In your project
 
+- **Git commit check** in `.git/hooks/pre-commit`: blocks any commit that leaves out `JOURNAL.md`, from any AI tool or from you, so every change leaves a note. It lives in your local git folder and is never committed, so each person who clones runs `goodvibes update` once. It never replaces a pre-commit hook you already have. `git commit --no-verify` skips it once.
 - `JOURNAL.md` (decision log), `CHANGELOG.md`, `CONTRIBUTING.md`, `SECURITY.md` and a `CLAUDE.md` with a project section for you to fill in.
 - **GitHub workflows**: tests (Node, Python or both, matched to your project), CodeQL and gitleaks security scans, dependency review that accepts only permissive licences, and a file size check (new code files stay under 500 lines; files already bigger may not grow). Third-party actions and the gitleaks image are pinned to exact versions, tokens are read-only, and superseded runs are cancelled.
 - **Dependabot**, waiting 7 days before proposing a new release, plus issue and pull request templates.
@@ -119,6 +120,7 @@ Rules guide, guard rails stop, checks verify. Other AI tools get layers 1 and 3;
 - `.claude/settings.json` and `.mcp.json` are merged: goodvibes refreshes only its own entries (the journal check, the read guard, the ask and deny rules, context7) and keeps everything you added.
 - Anything goodvibes added that you deleted stays deleted. `goodvibes init` brings deleted files back if you want them.
 - Skills goodvibes no longer ships are removed, unless you edited them.
+- The git commit check is refreshed; if you deleted `.git/hooks/pre-commit`, it stays deleted.
 - goodvibes never writes through a symlink. If the goodvibes block in your `CLAUDE.md` is damaged, it leaves the file alone and tells you how to fix it.
 
 ## What Claude Code can do without asking

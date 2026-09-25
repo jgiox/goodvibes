@@ -39,7 +39,7 @@ Answers to common questions about goodvibes, with the exact steps to fix the usu
 
 goodvibes sets up your project so an AI coding tool works more carefully. One command (`npx goodvibes-cli init`) gives the AI a clear set of working rules, adds checks that stop common mistakes, and sets up GitHub to test every change.
 
-You do not need Claude Code. The rules work in 14 AI tools, including Cursor, GitHub Copilot and Windsurf, and the GitHub checks run whichever tool wrote the code. The guard rails are Claude Code only: the journal check, the read guard, the session check, the permissions, the skills and `goodvibes usage`. They rely on hooks (small scripts Claude Code runs before an action), which other tools do not have. See [How it works](README.md#how-it-works).
+You do not need Claude Code. The rules work in 14 AI tools, including Cursor, GitHub Copilot and Windsurf, and the GitHub checks run whichever tool wrote the code. The journal check works everywhere too, as a git hook (a script git runs before every commit). The other guard rails are Claude Code only: the read guard, the session check, the permissions, the skills and `goodvibes usage`. They rely on Claude Code hooks (small scripts Claude Code runs before an action), which other tools do not have. See [How it works](README.md#how-it-works).
 
 ### Does goodvibes cost anything or need an account?
 
@@ -111,7 +111,9 @@ goodvibes is plain files, so removing it means deleting them. Do the steps that 
 
    If you installed with Python, run `uv tool uninstall goodvibes-cli`, or `pip uninstall goodvibes-cli` if you used pip.
 
-4. **The project files.** `.goodvibes.json` lists the files goodvibes wrote: each entry with a long hash value is one of them, and entries marked `user-owned` are your own files. Delete the ones you do not want, then delete `.goodvibes.json`. You may want to keep `JOURNAL.md` and `CHANGELOG.md`, which hold your project's history. With `--scope project`, also delete everything in `CLAUDE.md` from `<!-- goodvibes:start -->` to `<!-- goodvibes:end -->`.
+4. **The git commit check.** Delete `.git/hooks/pre-commit` in each project where goodvibes installed it.
+
+5. **The project files.** `.goodvibes.json` lists the files goodvibes wrote: each entry with a long hash value is one of them, and entries marked `user-owned` are your own files. Delete the ones you do not want, then delete `.goodvibes.json`. You may want to keep `JOURNAL.md` and `CHANGELOG.md`, which hold your project's history. With `--scope project`, also delete everything in `CLAUDE.md` from `<!-- goodvibes:start -->` to `<!-- goodvibes:end -->`.
 
 ## Updating
 
@@ -168,9 +170,11 @@ In 1.9.0, `upgrade` used its own copy step that ignored the install scope. If yo
 
 ### Why is my commit blocked by the journal check?
 
-The journal check is a Claude Code hook (a small script Claude Code runs before a command). It blocks `git commit` until `JOURNAL.md` is staged, so every change leaves a note for the next session. It acts only on commits Claude Code runs, and only in repositories that have a `JOURNAL.md`.
+The journal check stops a commit that leaves out `JOURNAL.md`, so every change leaves a note for the next session. It is a git hook (`.git/hooks/pre-commit`), so it works in every AI tool and for commits you type yourself, plus a Claude Code hook that stops Claude before it runs the commit. It acts only in repositories that have a `JOURNAL.md`.
 
-If it says `JOURNAL.md not staged`, ask Claude to add a journal entry, then stage it with the rest of the change:
+If git says `this commit leaves out JOURNAL.md`, or Claude Code says `JOURNAL.md not staged`, add a short entry to the journal and stage it with the rest of the change. To skip the check once, use `git commit --no-verify`.
+
+For example:
 
 ```sh
 git add JOURNAL.md

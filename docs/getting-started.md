@@ -34,7 +34,7 @@ The loop is the same in every AI tool: ask, check, save, share.
    git commit -m "feat: add hello page"
    ```
 
-   Naming files one by one keeps stray files, such as a `.env` file with passwords, out of your history. If git says "not a git repository", this folder is not under git yet: see [Git and GitHub basics](onboarding.md#start-a-new-project). In Claude Code, the AI can run both commands for you without asking, and the [journal check](#journal-check-claude-code-only) stops the commit if `JOURNAL.md` is missing.
+   Naming files one by one keeps stray files, such as a `.env` file with passwords, out of your history. If git says "not a git repository", this folder is not under git yet: see [Git and GitHub basics](onboarding.md#start-a-new-project). In Claude Code, the AI can run both commands for you without asking. In every tool, and when you commit yourself, the [journal check](#journal-check-claude-code-only) stops a commit that leaves out `JOURNAL.md`.
 7. **Share it (a push).** `git push` sends your commits to GitHub, where the [checks](#github-checks-ci) run. Claude Code always asks you before it pushes. New to branches and pull requests? Read [Git and GitHub basics](onboarding.md).
 
 ## Rules and ponytail: how the AI works
@@ -141,27 +141,37 @@ Every agent reads the journal at the start of every session, so a long one costs
 **Turn it off.** Delete `JOURNAL.md`. The journal check then does nothing in this project. The rule files still mention the journal; remove those lines from them if you want the AI to stop asking for it.
 
 <a id="about-the-journal-gate-hook"></a>
-## Journal check (Claude Code only)
+<a id="journal-check-claude-code-only"></a>
+## Journal check
 
-**What it is.** A Claude Code hook that runs before every terminal command Claude Code runs.
+**What it is.** Two small checks that stop a commit which leaves out `JOURNAL.md`:
 
-**Why it helps you.** The journal only works if every change leaves a note. The check makes that impossible to forget.
+- a **git hook** (`.git/hooks/pre-commit`, a script git runs before every commit). It works in every AI tool and for commits you type yourself.
+- a **Claude Code hook** that stops Claude Code before it even runs the commit.
 
-**What it does.** When Claude Code runs `git commit` and `JOURNAL.md` is not staged (added with `git add`), the commit is blocked with this message:
+**Why it helps you.** The journal only works if every change leaves a note. The check makes that impossible to forget, whoever or whatever makes the commit.
+
+**What it does.** When a commit leaves out `JOURNAL.md`, git stops it with:
 
 ```
-BLOCKED: JOURNAL.md not staged. Update JOURNAL.md, then: git add JOURNAL.md
+goodvibes: this commit leaves out JOURNAL.md. Add a short entry saying what changed and why, then run: git add JOURNAL.md
+To skip the check once: git commit --no-verify
 ```
 
-Claude then updates the journal and commits again. Details:
+In Claude Code you may see `BLOCKED: JOURNAL.md not staged` instead; it means the same. Add an entry, stage it with `git add JOURNAL.md`, and commit again. Details:
 
-- It acts only in repositories that have a `JOURNAL.md`.
-- It checks only commits Claude Code runs through its own Bash tool. Commits you type yourself, commits from your editor's Git panel, and commits by other AI tools are not checked.
-- `git commit --amend`, and commits during a merge or rebase, are let through.
-- It follows the commit to the right repository, including `cd somewhere && git commit` and `git -C somewhere commit`. If it cannot tell which repository a commit runs in (for example after more than one `cd`), it blocks with a "cannot verify" message instead of guessing. Run the commit as its own command from inside the repository.
-- It is a safety net for honest mistakes, not a security boundary.
+- It acts only in repositories that have a `JOURNAL.md` in the top folder.
+- Merges, rebases, cherry-picks, reverts and amends that only change the message are let through.
+- `goodvibes init` and `goodvibes update` put the git hook in `.git/hooks/`, which is your own copy of the project and is never committed. So everyone who clones the project runs `goodvibes update` once to get it. If the folder was not a git repository yet, run `git init`, then `goodvibes update`.
+- goodvibes never replaces a pre-commit hook you already have, and leaves hook managers such as husky alone (they set `core.hooksPath`). `goodvibes doctor` tells you whether the check is active.
+- The Claude Code hook follows the commit to the right repository, including `cd somewhere && git commit` and `git -C somewhere commit`. If it cannot tell which repository a commit runs in, it blocks with a "cannot verify" message; run the commit as its own command from inside the repository.
+- Both are a safety net for honest mistakes, not a security boundary.
 
-**Turn it off.** Delete the `PreToolUse` entry whose command starts with `: goodvibes-journal-gate` from `~/.claude/settings.json` and from this project's `.claude/settings.json`. `goodvibes update` does not add it back.
+**Turn it off.**
+
+- Once: `git commit --no-verify`.
+- For a terminal session: set `GOODVIBES_JOURNAL_CHECK=off` (git hook only).
+- For good: delete `.git/hooks/pre-commit`; `goodvibes update` does not add it back (`goodvibes init` does). For the Claude Code hook, delete the `PreToolUse` entry whose command starts with `: goodvibes-journal-gate` from `~/.claude/settings.json` and from this project's `.claude/settings.json`; `goodvibes update` does not add it back.
 
 <a id="about-the-read-guard-claude-code-only"></a>
 
