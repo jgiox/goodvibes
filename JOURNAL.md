@@ -1868,3 +1868,9 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 - GREEN: `claude_json_path`, `server_problems`, `_check_mcp` in full doctor only; reads local files only, never contacts a server, prints key names only.
 - RED: `goodvibes usage` tests on fixture JSONL (duplicate message ids, a malformed line, entries without usage, day window, --all, --json, empty cases).
 - GREEN: new `commands/usage_cmd.py`, registered in `main.py`. Offline; reads only usage numbers; `--json` always prints valid JSON (messages go to stderr).
+
+**Files changed:** packages/pip/src/goodvibes_cli/commands/doctor_cmd.py, packages/pip/src/goodvibes_cli/commands/usage_cmd.py (new), packages/pip/src/goodvibes_cli/main.py, packages/pip/tests/test_doctor_cmd.py, packages/pip/tests/test_usage_cmd.py (new), JOURNAL.md.
+
+**Tests run:** pip pytest 420 passed on Python 3.11 and 3.10; verify-phase1 to 5 PASS (no script changes needed).
+
+**Docs updated:** JOURNAL.md only. README/FAQ/CHANGELOG still need the `doctor` statuses and `goodvibes usage`.
