@@ -2028,3 +2028,16 @@ Added a Standing decisions section to this journal.
 - Read guard fails open on `sudo cat`, `xargs cat`, `find -exec`, a heredoc fed to a shell, and paths containing quotes or globs.
 - `~/.ssh/*.pub` is blocked too, deliberately.
 - If a project already has its own workflows, `file-size.yml` is not added.
+
+## 2026-09-25: Public docs rewrite for beginners and experienced readers
+
+**What:**
+- Rewrote README.md: the problem it solves, who it is for, a benefits table, a four-step quick start, how the three layers work (rules, Claude Code guard rails, GitHub checks), what init sets up, commands, updating, permissions, scope, supported tools, requirements, privacy and docs.
+- Rewrote the npm and pip package READMEs to the same structure with absolute links.
+- Added a "Working on goodvibes itself" section to CONTRIBUTING.md.
+- Removed em dashes from CONTRIBUTING and SECURITY (repo and template copies).
+- Fixed the README licence line: caveman and ponytail are MIT, the file-size check is from block/buzz (Apache-2.0), and headroom is installed separately.
+
+**Why:** the maintainer asked for docs that let novices and experienced developers understand what goodvibes is, what it does and how they benefit.
+
+**Tests:** checked every relative link and anchor in the rewritten files. No code changed.

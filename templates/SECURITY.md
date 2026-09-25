@@ -13,4 +13,4 @@ Instead, report it privately using GitHub's private vulnerability reporting feat
 
 ## Scope
 
-This security policy applies to the code in this repository. It does not apply to issues in third-party dependencies — please report those to the upstream project.
+This security policy applies to the code in this repository. Problems in third-party dependencies belong with that project; please report them upstream.

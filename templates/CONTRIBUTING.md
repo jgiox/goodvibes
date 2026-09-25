@@ -43,7 +43,7 @@ Thanks for wanting to improve this project. Every contribution helps, no matter 
 
    Replace `fix/my-fix` with your actual branch name.
 
-7. **Open a pull request.** Go to your fork on GitHub. You will usually see a banner at the top saying "You recently pushed a branch — open a pull request." Click the button. If the banner is not there, click the "Pull requests" tab, then "New pull request", and select your branch.
+7. **Open a pull request.** Go to your fork on GitHub. You will usually see a yellow banner near the top that names your branch, with a "Compare & pull request" button. Click it. If the banner is not there, click the "Pull requests" tab, then "New pull request", and select your branch.
 
 ## What makes a good pull request
 
