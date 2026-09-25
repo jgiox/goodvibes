@@ -14,6 +14,7 @@ import { join } from 'node:path'
 import { createHash } from 'node:crypto'
 import { packageVersion } from '../utils/version.js'
 import { copy } from 'fs-extra'
+import { gitHookLine, hookInPlace, installGitHook, type GitHookResult } from '../steps/git-hook.js'
 
 const removedNote = (rel: string) => `${rel}: removed by you, not re-added (run goodvibes init to restore)`
 
@@ -169,6 +170,11 @@ export async function runUpdate(dryRun: boolean, force: boolean): Promise<void> 
     if (changes.length > 0) merges.push({ rel, merged, changes })
   }
 
+  // A hook the manifest says goodvibes installed, now missing, was deleted by the user: never re-add it.
+  const hookPlan = manifest && manifest.gitHook !== USER_REMOVED ? await installGitHook(cwd, true) : null
+  const hookRemoved = manifest?.gitHook === 'installed' && hookPlan?.status === 'installed'
+  const hookWrites = !hookRemoved && (hookPlan?.status === 'installed' || hookPlan?.status === 'updated')
+
   if (manifest) {
     note(
       [
@@ -181,6 +187,7 @@ export async function runUpdate(dryRun: boolean, force: boolean): Promise<void> 
         ...mergeErrors.map(e => `Cannot merge ${e}`),
         ...removed.map(removedNote),
         ...Object.values(blocked),
+        hookRemoved ? removedNote('.git/hooks/pre-commit') : hookPlan && gitHookLine(hookPlan, true),
       ]
         .filter(Boolean)
         .join('\n') || 'Nothing to change in this project.',
@@ -193,7 +200,7 @@ export async function runUpdate(dryRun: boolean, force: boolean): Promise<void> 
   }
 
   const globalChanges = globalPlan ? globalPlan.written.length + globalPlan.retired.length + globalPlan.settingsChanges.length : 0
-  if (!force && (globalChanges > 0 || overwrite.length > 0 || netNew.length > 0 || retired.length > 0 || merges.length > 0)) {
+  if (!force && (globalChanges > 0 || overwrite.length > 0 || netNew.length > 0 || retired.length > 0 || merges.length > 0 || hookWrites)) {
     const proceed = await confirm({
       message:
         `Overwrite ${overwrite.length} managed file(s), add ${netNew.length}, merge goodvibes keys into ${merges.length} file(s)` +
@@ -251,6 +258,14 @@ export async function runUpdate(dryRun: boolean, force: boolean): Promise<void> 
     await removeRetired(cwd, rel, '.claude/skills')
   }
 
+  let hookResult: GitHookResult | null = null
+  let gitHook = manifest.gitHook
+  if (hookRemoved) gitHook = USER_REMOVED
+  else if (hookPlan) {
+    hookResult = await installGitHook(cwd, false)
+    if (hookInPlace(hookResult)) gitHook = 'installed'
+  }
+
   // Preserve skipped (user-modified) files' prior hashes so they stay
   // protected on every later run instead of dropping out of the manifest.
   const preserved: Record<string, string> = {}
@@ -272,6 +287,7 @@ export async function runUpdate(dryRun: boolean, force: boolean): Promise<void> 
     preserved,
     await managedRecord(cwd, templateDir, manifest.managed),
     scope,
+    gitHook,
   )
 
   const applied = overwrite.length + netNew.length
@@ -285,7 +301,8 @@ export async function runUpdate(dryRun: boolean, force: boolean): Promise<void> 
       ...Object.values(blocked),
       ...(manifestBlocked ? [manifestBlocked] : []),
       ...claudeProblems,
-    ].join('\n'),
+      hookRemoved ? removedNote('.git/hooks/pre-commit') : hookResult && gitHookLine(hookResult, false),
+    ].filter(Boolean).join('\n'),
     'Update complete',
   )
   if (claudeProblems.length > 0) {

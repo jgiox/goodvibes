@@ -69,6 +69,12 @@ vi.mock('fs-extra', () => ({
   copy: vi.fn().mockResolvedValue(undefined),
 }))
 
+// Unit tests must never run real git: cwd here is the goodvibes checkout itself.
+vi.mock('../steps/git-hook.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../steps/git-hook.js')>()),
+  installGitHook: vi.fn().mockResolvedValue({ status: 'not-a-repo', path: '/p/.git/hooks/pre-commit' }),
+}))
+
 describe('update command', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -188,6 +194,7 @@ describe('update command', () => {
       expect.any(Object),
       expect.any(Object),
       'project',
+      undefined,
     )
   })
 
@@ -217,6 +224,7 @@ describe('update command', () => {
       expect.any(Object),
       expect.any(Object),
       'project',
+      undefined,
     )
   })
 
@@ -256,5 +264,137 @@ describe('update command', () => {
     const writtenFiles = vi.mocked(writeManifest).mock.calls[0][1] as string[]
     expect(writtenFiles).not.toContain('docs/onboarding.md')
     expect(writtenFiles).toContain('.claude/skills/skills.md')
+  })
+})
+
+describe('update and the git commit check', () => {
+  const INSTALLED = 'Git commit check installed: commits that leave out JOURNAL.md are blocked in every tool (.git/hooks/pre-commit)'
+  const REMOVED = '.git/hooks/pre-commit: removed by you, not re-added (run goodvibes init to restore)'
+  const hookAt = '/p/.git/hooks/pre-commit'
+
+  beforeEach(async () => {
+    vi.clearAllMocks()
+    const { existsSync } = await import('node:fs')
+    vi.mocked(existsSync).mockReturnValue(true)
+    const { listTemplateFiles } = await import('../steps/copy-templates.js')
+    vi.mocked(listTemplateFiles).mockResolvedValue([])
+    const { confirm } = await import('@clack/prompts')
+    vi.mocked(confirm).mockResolvedValue(true)
+  })
+
+  async function runUpdate(gitHook: 'installed' | 'user-removed' | undefined, statuses: Array<{ status: string; detail?: string }>, ...args: string[]) {
+    const { readManifest } = await import('../steps/write-manifest.js')
+    const { installGitHook } = await import('../steps/git-hook.js')
+    vi.mocked(readManifest).mockImplementation(async (dir: string) =>
+      dir === '/fake/.claude' ? null : { version: '1.9.0', files: {}, ...(gitHook ? { gitHook } : {}) })
+    for (const r of statuses) vi.mocked(installGitHook).mockResolvedValueOnce({ path: hookAt, ...r } as any)
+    const { registerUpdateCommand } = await import('../commands/update.js')
+    const { Command } = await import('commander')
+    const program = new Command()
+    program.exitOverride()
+    registerUpdateCommand(program)
+    await program.parseAsync(['node', 'goodvibes', 'update', ...args])
+  }
+
+  const noteText = async () => vi.mocked((await import('@clack/prompts')).note).mock.calls.map(c => String(c[0])).join('\n')
+  const manifestGitHook = async () => vi.mocked((await import('../steps/write-manifest.js')).writeManifest).mock.calls[0][6]
+  const hookCalls = async () => vi.mocked((await import('../steps/git-hook.js')).installGitHook).mock.calls
+
+  it('installs the hook for an older manifest without gitHook and records installed', async () => {
+    await runUpdate(undefined, [{ status: 'installed' }, { status: 'installed' }])
+
+    expect(await hookCalls()).toEqual([[process.cwd(), true], [process.cwd(), false]])
+    expect(await noteText()).toContain(INSTALLED)
+    expect(await manifestGitHook()).toBe('installed')
+  })
+
+  it('does not re-add a hook the user deleted: records user-removed and prints the removed line in the plan and once after applying', async () => {
+    const { note } = await import('@clack/prompts')
+    await runUpdate('installed', [{ status: 'installed' }])
+
+    expect(await hookCalls()).toEqual([[process.cwd(), true]])
+    const byTitle = (t: string) => vi.mocked(note).mock.calls.filter(c => c[1] === t).map(c => String(c[0])).join('\n')
+    expect(byTitle('Plan').split(REMOVED).length - 1).toBe(1)
+    expect(byTitle('Update complete').split(REMOVED).length - 1).toBe(1)
+    expect(await noteText()).not.toContain('Git commit check installed')
+    expect(await manifestGitHook()).toBe('user-removed')
+  })
+
+  it('does nothing and prints nothing about the hook when gitHook is user-removed', async () => {
+    await runUpdate('user-removed', [])
+
+    expect(await hookCalls()).toEqual([])
+    const text = await noteText()
+    expect(text).not.toContain('Git commit check')
+    expect(text).not.toContain('pre-commit')
+    expect(await manifestGitHook()).toBe('user-removed')
+  })
+
+  it('rewrites an older goodvibes hook, prints the updated line and keeps gitHook installed', async () => {
+    await runUpdate('installed', [{ status: 'updated' }, { status: 'updated' }])
+
+    expect(await noteText()).toContain('Git commit check updated (.git/hooks/pre-commit)')
+    expect(await manifestGitHook()).toBe('installed')
+  })
+
+  it('records installed and prints nothing about the hook when it is already current', async () => {
+    await runUpdate(undefined, [{ status: 'current' }, { status: 'current' }])
+
+    expect(await noteText()).not.toContain('Git commit check')
+    expect(await manifestGitHook()).toBe('installed')
+  })
+
+  it('leaves gitHook unchanged and prints the skip line with the value when core.hooksPath is set', async () => {
+    await runUpdate('installed', [{ status: 'custom-path', detail: '.husky' }, { status: 'custom-path', detail: '.husky' }])
+
+    expect(await noteText()).toContain('Git commit check skipped: git uses its own hooks folder here (core.hooksPath = .husky), so goodvibes left your hooks alone.')
+    expect(await manifestGitHook()).toBe('installed')
+  })
+
+  it('leaves gitHook out and prints the skip line in a folder that is not a git repository', async () => {
+    await runUpdate(undefined, [{ status: 'not-a-repo' }, { status: 'not-a-repo' }])
+
+    expect(await noteText()).toContain('Git commit check skipped: this folder is not a git repository yet. Run git init, then goodvibes update.')
+    expect(await manifestGitHook()).toBeUndefined()
+  })
+
+  it('leaves gitHook unchanged and prints the skip line when the user has their own pre-commit hook', async () => {
+    await runUpdate(undefined, [{ status: 'existing-hook' }, { status: 'existing-hook' }])
+
+    expect(await noteText()).toContain('Git commit check skipped: .git/hooks/pre-commit already exists and is not from goodvibes, so it was left alone.')
+    expect(await manifestGitHook()).toBeUndefined()
+  })
+
+  it('--dry-run prints the Would line, only asks the installer for a dry run and writes no manifest', async () => {
+    const { writeManifest } = await import('../steps/write-manifest.js')
+    await runUpdate(undefined, [{ status: 'installed' }], '--dry-run')
+
+    expect(await hookCalls()).toEqual([[process.cwd(), true]])
+    expect(await noteText()).toContain(`Would: ${INSTALLED}`)
+    expect(vi.mocked(writeManifest)).not.toHaveBeenCalled()
+  })
+
+  it('shows the hook line in the plan and asks the single question when only the hook would change', async () => {
+    const { confirm, note } = await import('@clack/prompts')
+    await runUpdate(undefined, [{ status: 'installed' }, { status: 'installed' }])
+
+    expect(vi.mocked(confirm)).toHaveBeenCalledTimes(1)
+    const plan = vi.mocked(note).mock.calls.findIndex(c => c[1] === 'Plan')
+    expect(String(vi.mocked(note).mock.calls[plan][0])).toContain(`Would: ${INSTALLED}`)
+    expect(vi.mocked(note).mock.invocationCallOrder[plan]).toBeLessThan(vi.mocked(confirm).mock.invocationCallOrder[0])
+  })
+
+  it('installs nothing and writes no manifest when the question is answered no', async () => {
+    const { confirm } = await import('@clack/prompts')
+    const { writeManifest } = await import('../steps/write-manifest.js')
+    vi.mocked(confirm).mockResolvedValue(false)
+    const exitSpy = vi.spyOn(process, 'exit').mockImplementation(((code?: number) => { throw new Error(`exit ${code}`) }) as never)
+    try {
+      await expect(runUpdate(undefined, [{ status: 'installed' }])).rejects.toThrow('exit 0')
+    } finally {
+      exitSpy.mockRestore()
+    }
+    expect(await hookCalls()).toEqual([[process.cwd(), true]])
+    expect(vi.mocked(writeManifest)).not.toHaveBeenCalled()
   })
 })

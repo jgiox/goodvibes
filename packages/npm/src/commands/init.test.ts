@@ -59,6 +59,12 @@ vi.mock('../steps/write-manifest.js', () => ({
   readManifest: vi.fn().mockResolvedValue(null),
 }))
 
+// Unit tests must never run real git: cwd here is the goodvibes checkout itself.
+vi.mock('../steps/git-hook.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../steps/git-hook.js')>()),
+  installGitHook: vi.fn().mockResolvedValue({ status: 'not-a-repo', path: '/p/.git/hooks/pre-commit' }),
+}))
+
 describe('init command', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -222,6 +228,7 @@ describe('init command', () => {
       undefined,
       expect.any(Object),
       'global',
+      undefined,
     )
   })
 
@@ -648,5 +655,142 @@ describe('init re-run keeps the previous manifest', () => {
       exitSpy.mockRestore()
       vi.mocked(readManifest).mockResolvedValue(null)
     }
+  })
+})
+
+describe('init installs the git commit check', () => {
+  const INSTALLED = 'Git commit check installed: commits that leave out JOURNAL.md are blocked in every tool (.git/hooks/pre-commit)'
+  const hookAt = '/p/.git/hooks/pre-commit'
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  async function runInit(...args: string[]) {
+    const { tasks } = await import('@clack/prompts')
+    const { copyTemplates, listTemplateFiles, resolveTemplatesDir } = await import('../steps/copy-templates.js')
+    vi.mocked(resolveTemplatesDir).mockReturnValue('/fake/templates')
+    vi.mocked(listTemplateFiles).mockResolvedValue(['CLAUDE.md'])
+    vi.mocked(copyTemplates).mockResolvedValue({ written: ['CLAUDE.md'], skipped: [], problems: [] })
+    vi.mocked(tasks).mockImplementation(async (taskList: any[]) => {
+      for (const t of taskList) await t.task(vi.fn())
+    })
+    const { registerInitCommand } = await import('./init.js')
+    const { Command } = await import('commander')
+    const program = new Command()
+    program.exitOverride()
+    registerInitCommand(program)
+    await program.parseAsync(['node', 'goodvibes', 'init', '--minimal', ...args])
+  }
+
+  const notes = async () => (await import('@clack/prompts')).note
+  const noteText = async () => vi.mocked(await notes()).mock.calls.map(c => String(c[0])).join('\n')
+  const manifestGitHook = async () => {
+    const { writeManifest } = await import('../steps/write-manifest.js')
+    return vi.mocked(writeManifest).mock.calls[0][6]
+  }
+
+  it('installs the hook, prints the installed line and records gitHook installed', async () => {
+    const { installGitHook } = await import('../steps/git-hook.js')
+    vi.mocked(installGitHook).mockResolvedValue({ status: 'installed', path: hookAt })
+
+    await runInit('--scope', 'project')
+
+    expect(vi.mocked(installGitHook)).toHaveBeenCalledWith(process.cwd(), false)
+    expect(await noteText()).toContain(INSTALLED)
+    expect(await manifestGitHook()).toBe('installed')
+  })
+
+  it('restores a hook the user removed and records gitHook installed again', async () => {
+    const { installGitHook } = await import('../steps/git-hook.js')
+    const { readManifest } = await import('../steps/write-manifest.js')
+    vi.mocked(installGitHook).mockResolvedValue({ status: 'installed', path: hookAt })
+    vi.mocked(readManifest).mockResolvedValue({ version: '1.9.0', files: {}, gitHook: 'user-removed' })
+    try {
+      await runInit('--scope', 'project')
+      expect(await manifestGitHook()).toBe('installed')
+    } finally {
+      vi.mocked(readManifest).mockResolvedValue(null)
+    }
+  })
+
+  it('records gitHook installed and prints nothing about the hook when it is already current', async () => {
+    const { installGitHook } = await import('../steps/git-hook.js')
+    vi.mocked(installGitHook).mockResolvedValue({ status: 'current', path: hookAt })
+
+    await runInit('--scope', 'project')
+
+    expect(await noteText()).not.toContain('Git commit check')
+    expect(await manifestGitHook()).toBe('installed')
+  })
+
+  it('records gitHook installed and prints the updated line when an older goodvibes hook is rewritten', async () => {
+    const { installGitHook } = await import('../steps/git-hook.js')
+    vi.mocked(installGitHook).mockResolvedValue({ status: 'updated', path: hookAt })
+
+    await runInit('--scope', 'project')
+
+    expect(await noteText()).toContain('Git commit check updated (.git/hooks/pre-commit)')
+    expect(await manifestGitHook()).toBe('installed')
+  })
+
+  it('keeps the previous gitHook and prints the skip line when core.hooksPath is set', async () => {
+    const { installGitHook } = await import('../steps/git-hook.js')
+    const { readManifest } = await import('../steps/write-manifest.js')
+    vi.mocked(installGitHook).mockResolvedValue({ status: 'custom-path', path: hookAt, detail: '.husky' })
+    vi.mocked(readManifest).mockResolvedValue({ version: '1.9.0', files: {}, gitHook: 'user-removed' })
+    try {
+      await runInit('--scope', 'project')
+      expect(await noteText()).toContain('Git commit check skipped: git uses its own hooks folder here (core.hooksPath = .husky), so goodvibes left your hooks alone.')
+      expect(await manifestGitHook()).toBe('user-removed')
+    } finally {
+      vi.mocked(readManifest).mockResolvedValue(null)
+    }
+  })
+
+  it('leaves gitHook out and prints the skip line in a folder that is not a git repository', async () => {
+    const { installGitHook } = await import('../steps/git-hook.js')
+    vi.mocked(installGitHook).mockResolvedValue({ status: 'not-a-repo', path: hookAt })
+
+    await runInit('--scope', 'project')
+
+    expect(await noteText()).toContain('Git commit check skipped: this folder is not a git repository yet. Run git init, then goodvibes update.')
+    expect(await manifestGitHook()).toBeUndefined()
+  })
+
+  it('leaves gitHook unchanged and prints the skip line when the user has their own pre-commit hook', async () => {
+    const { installGitHook } = await import('../steps/git-hook.js')
+    vi.mocked(installGitHook).mockResolvedValue({ status: 'existing-hook', path: hookAt })
+
+    await runInit('--scope', 'project')
+
+    expect(await noteText()).toContain('Git commit check skipped: .git/hooks/pre-commit already exists and is not from goodvibes, so it was left alone.')
+    expect(await manifestGitHook()).toBeUndefined()
+  })
+
+  it('--dry-run asks the installer for a dry run, prints the Would line and writes no manifest', async () => {
+    const { installGitHook } = await import('../steps/git-hook.js')
+    const { writeManifest } = await import('../steps/write-manifest.js')
+    vi.mocked(installGitHook).mockResolvedValue({ status: 'installed', path: hookAt })
+
+    await runInit('--scope', 'project', '--dry-run')
+
+    expect(vi.mocked(installGitHook)).toHaveBeenCalledTimes(1)
+    expect(vi.mocked(installGitHook)).toHaveBeenCalledWith(process.cwd(), true)
+    expect(await noteText()).toContain(`Would: ${INSTALLED}`)
+    expect(vi.mocked(writeManifest)).not.toHaveBeenCalled()
+  })
+
+  it('never calls the installer when init runs in global scope from the home folder', async () => {
+    const { installGitHook } = await import('../steps/git-hook.js')
+    const { homedir } = await import('node:os')
+    const cwdSpy = vi.spyOn(process, 'cwd').mockReturnValue(homedir())
+    try {
+      await runInit()
+      await runInit('--dry-run')
+    } finally {
+      cwdSpy.mockRestore()
+    }
+    expect(vi.mocked(installGitHook)).not.toHaveBeenCalled()
   })
 })

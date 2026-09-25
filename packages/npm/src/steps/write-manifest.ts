@@ -8,6 +8,7 @@ export interface Manifest {
   files: Record<string, string>
   managed?: Record<string, string[]>
   scope?: 'global' | 'project'
+  gitHook?: 'installed' | 'user-removed'
 }
 
 export const MANIFEST_PATH = '.goodvibes.json'
@@ -28,6 +29,7 @@ export async function writeManifest(
   preserved?: Record<string, string>,
   managed?: Record<string, string[]>,
   scope?: 'global' | 'project',
+  gitHook?: Manifest['gitHook'],
 ): Promise<string | null> {
   const blocked = await writeBlocked(destDir, MANIFEST_PATH)
   if (blocked) return blocked
@@ -38,7 +40,7 @@ export async function writeManifest(
     const content = await readFile(join(destDir, rel), 'utf-8')
     files[posixKey(rel)] = createHash('sha256').update(content, 'utf8').digest('hex')
   }
-  const manifest: Manifest = { version, files, ...(managed ? { managed: posixKeys(managed) } : {}), ...(scope ? { scope } : {}) }
+  const manifest: Manifest = { version, files, ...(managed ? { managed: posixKeys(managed) } : {}), ...(scope ? { scope } : {}), ...(gitHook ? { gitHook } : {}) }
   await writeFileAtomic(join(destDir, MANIFEST_PATH), JSON.stringify(manifest, null, 2) + '\n')
   return null
 }
