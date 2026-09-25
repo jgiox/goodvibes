@@ -107,6 +107,20 @@ describe('copyTemplates', () => {
     const content = readFileSync(journalPath, 'utf-8')
     expect(content).toBe(customContent)
   })
+
+  it('reports only goodvibes files as written or skipped, never the project\'s own files such as .git or node_modules', async () => {
+    mkdirSync(join(tmpDir, '.git', 'hooks'), { recursive: true })
+    writeFileSync(join(tmpDir, '.git', 'hooks', 'pre-commit.sample'), '#!/bin/sh\n')
+    mkdirSync(join(tmpDir, 'node_modules', 'left-pad'), { recursive: true })
+    writeFileSync(join(tmpDir, 'node_modules', 'left-pad', 'index.js'), '')
+    writeFileSync(join(tmpDir, 'JOURNAL.md'), '# mine\n')
+
+    const { written, skipped } = await copyTemplates(resolveTemplatesDir(), tmpDir, false, false)
+
+    const foreign = (f: string) => f.startsWith('.git/') || f.startsWith('node_modules/')
+    expect([...written, ...skipped].filter(foreign)).toEqual([])
+    expect(skipped).toContain('JOURNAL.md')
+  })
 })
 
 describe('copyTemplates — CI variant selection', () => {
