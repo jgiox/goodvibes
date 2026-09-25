@@ -7,7 +7,7 @@ import { execa } from 'execa'
 import { listTemplateFiles } from './copy-templates.js'
 import { readManifest, type Manifest, MANIFEST_PATH, USER_OWNED, USER_REMOVED } from './write-manifest.js'
 import { mergeManagedJson, presentIds, isJsonObject, shapeError } from '../utils/json-merge.js'
-import { removeRetired, writeFileAtomic } from '../utils/fs-safe.js'
+import { printable, removeRetired, writeFileAtomic } from '../utils/fs-safe.js'
 import { goodvibesBlock } from '../utils/scope.js'
 import { versionGte } from '../utils/sentinel-merge.js'
 
@@ -92,7 +92,12 @@ export async function applyGlobalConfig(templateDir: string, version: string, dr
       files[rel] = USER_REMOVED
       continue
     }
-    if (exists && sha(await readFile(dest, 'utf-8')) !== recorded) {
+    const current = exists ? sha(await readFile(dest, 'utf-8')) : undefined
+    if (current === sha(content)) {
+      files[rel] = current
+      continue
+    }
+    if (current && current !== recorded) {
       result.kept.push(rel)
       if (recorded) files[rel] = recorded
       continue
@@ -160,5 +165,5 @@ export function formatGlobal(g: GlobalResult, cli: CliStatus | undefined, c7: Mc
   ]
   if (c7) lines.push(`context7 MCP: ${c7.status}${c7.reason ? ` (${c7.reason})` : ''}`)
   if (cli) lines.push(`goodvibes CLI: ${cli.status}${cli.reason ? ` (${cli.reason})` : ''}`)
-  return lines.join('\n') || 'already up to date'
+  return lines.map(printable).join('\n') || 'already up to date'
 }

@@ -117,13 +117,13 @@ def merge_managed_json(
     if key:
         for name, server in (tpl.get(key) or {}).items():
             current = (merged.get(key) or {}).get(name)
-            if current:
+            if isinstance(current, dict):
                 nxt = {**current, **server}
                 if nxt != current:
                     merged[key][name] = nxt
                     changes.append(f"~ {key}.{name}")
             elif f"mcp:{name}" not in installed:
-                merged.setdefault(key, {})[name] = server
+                merged[key] = {**(merged.get(key) or {}), name: server}
                 changes.append(f"+ {key}.{name}")
         return merged, changes
 
@@ -137,7 +137,7 @@ def merge_managed_json(
             have = (merged.get("permissions") or {}).get(lst) or []
             if p in have or f"{lst}:{p}" in installed:
                 continue
-            merged.setdefault("permissions", {})[lst] = [*have, p]
+            merged["permissions"] = {**(merged.get("permissions") or {}), lst: [*have, p]}
             changes.append(f"+ permissions.{lst}: {p}")
 
     for event, groups in (tpl.get("hooks") or {}).items():
@@ -156,7 +156,7 @@ def merge_managed_json(
                     user_hooks[j] = copy.deepcopy(tpl_hook)
                     changes.append(f"~ hooks.{event}: {hid}")
             elif f"hook:{event}:{hid}" not in installed:
-                merged.setdefault("hooks", {})[event] = [*user_groups, g]
+                merged["hooks"] = {**(merged.get("hooks") or {}), event: [*user_groups, g]}
                 changes.append(f"+ hooks.{event}: {hid}")
     return merged, changes
 

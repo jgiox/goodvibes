@@ -849,8 +849,9 @@ def test_update_force_exits_1_and_does_not_delete_git_head_through_a_claude_skil
 
     assert result.exit_code == 1
     assert (project_dir / ".git" / "HEAD").read_text(encoding="utf-8") == head
-    out = " ".join(_ANSI.sub("", result.output).split())
-    assert f'{project_dir / ".goodvibes.json"} is not a valid goodvibes manifest (".claude/skills/../../.git/HEAD" is not a safe relative path); fix it or delete it and run goodvibes init' in out
+    # Rich breaks the long temp path mid-word, so compare with all whitespace removed.
+    out = "".join(_ANSI.sub("", result.output).split())
+    assert "".join(f'{project_dir / ".goodvibes.json"} is not a valid goodvibes manifest (".claude/skills/../../.git/HEAD" is not a safe relative path); fix it or delete it and run goodvibes init'.split()) in out
 
 
 @pytest.mark.parametrize("key", ["../outside.txt", "/etc/hostname"])

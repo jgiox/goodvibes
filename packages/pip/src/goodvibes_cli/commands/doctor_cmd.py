@@ -22,6 +22,7 @@ from rich.text import Text
 from goodvibes_cli.steps.git_hook import install_git_hook
 from goodvibes_cli.steps.global_setup import claude_config_dir
 from goodvibes_cli.steps.write_manifest import ManifestError, read_manifest
+from goodvibes_cli.utils.safe_path import printable as _printable
 
 # ponytail: not imported from sentinel_merge — define locally to avoid coupling
 SENTINEL_START = "<!-- goodvibes:start -->"
@@ -201,11 +202,6 @@ def _load_json(path: pathlib.Path) -> tuple[dict, list[CheckResult]]:
 def _servers(section: object) -> dict:
     servers = section.get("mcpServers") if isinstance(section, dict) else None
     return servers if isinstance(servers, dict) else {}
-
-
-def _printable(text: str) -> str:
-    # .mcp.json arrives with any cloned repo; raw escape codes in it could rewrite what the terminal shows.
-    return re.sub(r"[\x00-\x1f\x7f-\x9f]", "?", text)
 
 
 def _check_mcp(cwd: pathlib.Path) -> list[CheckResult]:

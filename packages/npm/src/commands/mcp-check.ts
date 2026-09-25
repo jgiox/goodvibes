@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import type { CheckResult } from './doctor.js'
+import { printable } from '../utils/fs-safe.js'
 
 type Server = { command?: unknown; args?: unknown; url?: unknown; env?: unknown; headers?: unknown }
 type Problem = [string, string]
@@ -9,8 +10,6 @@ type Problem = [string, string]
 const SECRET_KEY = /key|token|secret|password|authorization/i
 const VAR_REF = /\$\{[^}]+\}/
 const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '::1'])
-// .mcp.json arrives with any cloned repo; raw escape codes in it could rewrite what the terminal shows.
-const printable = (s: string): string => s.replace(/[\u0000-\u001f\u007f-\u009f]/g, '?')
 
 export function claudeJsonPath(): string {
   const dir = process.env.CLAUDE_CONFIG_DIR
