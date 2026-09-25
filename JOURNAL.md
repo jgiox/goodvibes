@@ -1754,3 +1754,5 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 - item 6a detail GREEN: a recreated 'user-removed' file becomes 'user-owned' and is kept on every run, including init, in the project manifest and the config-dir manifest (323 passed).
 - item 5 detail RED: update without --force must show the project plan (not only counts) before asking (1 failed).
 - item 5 detail GREEN: the dry-run plan lines are built once and shown as 'Planned — project files' before the single prompt (323 passed).
+
+- 2026-09-25: verify-phase2 NPM-PKG-04 and NPM-08-ORDER and verify-phase5 UPGRADE-IN-INDEX updated for the Node 22.12 entry point (version check in index.ts, commands registered in cli.ts). All five phase gates pass on the merged tree.

@@ -39,7 +39,7 @@ check "VERIFY-PHASE5"     "test -f scripts/verify-phase5.sh"
 # -----------------------------------------------------------------------
 
 # Use grep -v '^#' | grep -q to exclude comment lines (T-05-01)
-check "UPGRADE-IN-INDEX"   "grep -v '^#' packages/npm/src/index.ts | grep -q 'registerUpgradeCommand'"
+check "UPGRADE-IN-INDEX"   "grep -v '^#' packages/npm/src/cli.ts | grep -q 'registerUpgradeCommand'"
 check "UPGRADE-IN-MAIN"    "grep -v '^#' packages/pip/src/goodvibes_cli/main.py | grep -q 'upgrade_cmd'"
 check "UPGRADE-DRY-RUN-TS" "grep -q 'dry-run' packages/npm/src/commands/upgrade.ts"
 check "UPGRADE-DRY-RUN-PY" "grep -q 'dry.run' packages/pip/src/goodvibes_cli/commands/upgrade_cmd.py"
