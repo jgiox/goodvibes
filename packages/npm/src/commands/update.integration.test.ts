@@ -363,6 +363,30 @@ describe('update command — JSON-aware merge of settings.json and .mcp.json (UP
     expect(out).toContain('.mcp.json: not a JSON object; left unchanged')
   })
 
+  it('leaves an MCP file or settings.json whose nested maps have the wrong type unchanged and reports each one', async () => {
+    for (const d of ['.cursor', '.vscode']) {
+      mkdirSync(join(templateDir, d), { recursive: true })
+      writeFileSync(join(templateDir, d, 'mcp.json'), readFileSync(join(realTemplates, d, 'mcp.json'), 'utf-8'))
+      mkdirSync(join(projectDir, d), { recursive: true })
+    }
+    writeFileSync(join(projectDir, '.cursor', 'mcp.json'), '{"mcpServers":[]}')
+    writeFileSync(join(projectDir, '.vscode', 'mcp.json'), '{"servers":"oops"}')
+    writeFileSync(join(projectDir, '.claude', 'settings.json'), '{"hooks":[]}')
+    writeManifestFile({ '.cursor/mcp.json': 'old-hash', '.vscode/mcp.json': 'old-hash', '.claude/settings.json': 'old-hash' })
+    const { note } = await import('@clack/prompts')
+    vi.mocked(note).mockClear()
+
+    await runUpdate('--force')
+
+    expect(readFileSync(join(projectDir, '.cursor', 'mcp.json'), 'utf-8')).toBe('{"mcpServers":[]}')
+    expect(readFileSync(join(projectDir, '.vscode', 'mcp.json'), 'utf-8')).toBe('{"servers":"oops"}')
+    expect(readFileSync(join(projectDir, '.claude', 'settings.json'), 'utf-8')).toBe('{"hooks":[]}')
+    const out = vi.mocked(note).mock.calls.map(c => String(c[0])).join('\n')
+    expect(out).toContain('.cursor/mcp.json: "mcpServers" is not a JSON object; left unchanged, fix it and re-run update')
+    expect(out).toContain('.vscode/mcp.json: "servers" is not a JSON object; left unchanged, fix it and re-run update')
+    expect(out).toContain('.claude/settings.json: "hooks" is not a JSON object; left unchanged, fix it and re-run update')
+  })
+
   it('leaves no temp files next to the JSON files it writes', async () => {
     writeFileSync(join(projectDir, '.claude', 'settings.json'), JSON.stringify({ model: 'x' }))
     writeManifestFile({ '.claude/settings.json': 'old-hash' })

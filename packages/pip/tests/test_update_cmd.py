@@ -495,6 +495,29 @@ def test_update_reports_settings_that_are_not_a_json_object_and_leaves_them_unch
     assert ".claude/settings.json: not a JSON object; left unchanged" in _ANSI.sub("", result.output)
 
 
+def test_update_reports_mcp_files_and_settings_whose_nested_maps_have_the_wrong_type_and_leaves_them_unchanged(merge_dirs):
+    tpl = merge_dirs.parent / "templates"
+    for d, key in ((".cursor", "mcpServers"), (".vscode", "servers")):
+        (tpl / d).mkdir()
+        (tpl / d / "mcp.json").write_text(json.dumps({key: {"context7": {"url": "https://mcp.context7.com/mcp"}}}), encoding="utf-8")
+        (merge_dirs / d).mkdir()
+    (merge_dirs / ".cursor" / "mcp.json").write_text('{"mcpServers":[]}', encoding="utf-8")
+    (merge_dirs / ".vscode" / "mcp.json").write_text('{"servers":"oops"}', encoding="utf-8")
+    (merge_dirs / ".claude" / "settings.json").write_text('{"hooks":[]}', encoding="utf-8")
+    _write_manifest(merge_dirs, {".cursor/mcp.json": "old-hash", ".vscode/mcp.json": "old-hash", ".claude/settings.json": "old-hash"})
+
+    result = runner.invoke(app, ["update", "--force"])
+
+    assert result.exit_code == 0, result.output
+    assert (merge_dirs / ".cursor" / "mcp.json").read_text(encoding="utf-8") == '{"mcpServers":[]}'
+    assert (merge_dirs / ".vscode" / "mcp.json").read_text(encoding="utf-8") == '{"servers":"oops"}'
+    assert (merge_dirs / ".claude" / "settings.json").read_text(encoding="utf-8") == '{"hooks":[]}'
+    out = " ".join(_ANSI.sub("", result.output).split())
+    assert '.cursor/mcp.json: "mcpServers" is not a JSON object; left unchanged, fix it and re-run update' in out
+    assert '.vscode/mcp.json: "servers" is not a JSON object; left unchanged, fix it and re-run update' in out
+    assert '.claude/settings.json: "hooks" is not a JSON object; left unchanged, fix it and re-run update' in out
+
+
 def test_update_merge_keeps_non_ascii_text_in_settings(merge_dirs):
     (merge_dirs / ".claude" / "settings.json").write_text(json.dumps({"env": {"GREETING": "héllo"}}, ensure_ascii=False), encoding="utf-8")
     _write_manifest(merge_dirs, {".claude/settings.json": "old-hash"})
