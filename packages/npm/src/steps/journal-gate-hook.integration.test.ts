@@ -375,4 +375,19 @@ describe('journal-gate hook', () => {
     const { exitCode } = await runHook("# don't forget the journal\ngit commit -m x\necho 'done'", repoDir)
     expect(exitCode).toBe(2)
   })
+
+  it('blocks a commit when only a later commit in the same command uses --amend', async () => {
+    const { exitCode } = await runHook('git commit -m x && git commit --amend --no-edit', repoDir)
+    expect(exitCode).toBe(2)
+  })
+
+  it('blocks a commit whose --amend appears only in a trailing comment', async () => {
+    const { exitCode } = await runHook('git commit -m x # --amend', repoDir)
+    expect(exitCode).toBe(2)
+  })
+
+  it('allows a command in which every commit uses --amend', async () => {
+    const { exitCode } = await runHook('git commit --amend -m x && git commit --amend --no-edit', repoDir)
+    expect(exitCode).toBe(0)
+  })
 })

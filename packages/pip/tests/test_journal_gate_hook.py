@@ -335,3 +335,15 @@ def test_blocks_commit_split_across_lines_with_backslash_newline_continuation(re
 
 def test_blocks_commit_that_follows_full_line_comment_containing_an_apostrophe(repo_dir):
     assert _run_hook("# don't forget the journal\ngit commit -m x\necho 'done'", repo_dir).returncode == 2
+
+
+def test_blocks_commit_when_only_a_later_commit_in_the_same_command_uses_amend(repo_dir):
+    assert _run_hook("git commit -m x && git commit --amend --no-edit", repo_dir).returncode == 2
+
+
+def test_blocks_commit_whose_amend_appears_only_in_a_trailing_comment(repo_dir):
+    assert _run_hook("git commit -m x # --amend", repo_dir).returncode == 2
+
+
+def test_allows_command_in_which_every_commit_uses_amend(repo_dir):
+    assert _run_hook("git commit --amend -m x && git commit --amend --no-edit", repo_dir).returncode == 0
