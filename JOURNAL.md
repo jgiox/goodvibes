@@ -1865,5 +1865,6 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 **Tests run:**
 - RED: read-guard cases and runners committed with the hook absent; all 132 read-guard cases fail in both runners.
 - GREEN: hook added to templates/.claude/settings.json and .claude/settings.json (hooks identical; global-setup test now expects 2 PreToolUse groups). vitest 570 passed, 1 skipped; pytest 490 passed; runners also pass under BWK awk, busybox awk and a busybox userland. json-merge needs no change: each marker is its own group.
+- Refactor: 59 of the 68 journal-gate cases moved to tests/hooks/journal-gate.cases.json; the 9 that need unusual setup (git -C into other repos, a -C target outside the temp repo, the fsmonitor bare repo) stay inline in the two journal-gate test files. 68 cases before and after; 200 hook cases pass in each runner.
 
 **Docs updated:** JOURNAL.md.
