@@ -1874,3 +1874,9 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 **Tests run:** pip pytest 420 passed on Python 3.11 and 3.10; verify-phase1 to 5 PASS (no script changes needed).
 
 **Docs updated:** JOURNAL.md only. README/FAQ/CHANGELOG still need the `doctor` statuses and `goodvibes usage`.
+
+## 2026-09-25 · pip: doctor and usage strings aligned with the shared parity spec
+
+**What I did:** The coordinator's parity spec fixes the exact strings npm and pip both print. RED then GREEN for each part.
+
+- RED: doctor "How to fix" joins with `: `; PATH check says "goodvibes command"; `--quick` period rules; manifest error listed first.

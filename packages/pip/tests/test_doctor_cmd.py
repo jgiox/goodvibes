@@ -74,15 +74,15 @@ def test_check_headroom_warns_when_headroom_times_out(mocker):
 
 def test_check_goodvibes_cli_is_ok_when_goodvibes_is_on_path(mocker):
     mocker.patch("goodvibes_cli.commands.doctor_cmd.shutil.which", return_value="/usr/local/bin/goodvibes")
-    assert _check_goodvibes_cli() == CheckResult(label="goodvibes CLI on PATH", status="ok")
+    assert _check_goodvibes_cli() == CheckResult(label="goodvibes command on PATH", status="ok")
 
 
 def test_check_goodvibes_cli_warns_when_goodvibes_is_not_on_path(mocker):
     mocker.patch("goodvibes_cli.commands.doctor_cmd.shutil.which", return_value=None)
     result = _check_goodvibes_cli()
     assert result.status == "warn"
-    assert result.label == "goodvibes CLI not on PATH"
-    assert result.remedy == "Run: uv tool install goodvibes-cli"
+    assert result.label == "goodvibes command not on PATH"
+    assert result.remedy == "Optional: lets the session-start check run. Install: uv tool install goodvibes-cli (or: npm install -g goodvibes-cli)"
 
 
 def test_check_git_config_fails_when_git_is_missing(mocker):
@@ -179,7 +179,7 @@ def test_doctor_exits_0_and_counts_warnings_when_only_optional_parts_are_missing
     result = runner.invoke(app, ["doctor"])
     assert result.exit_code == 0
     assert "! headroom check" in result.output
-    assert "! goodvibes CLI not on PATH" in result.output
+    assert "! goodvibes command not on PATH" in result.output
     assert result.output.rstrip().splitlines()[-1] == "Ready, with 2 warning(s)."
 
 
@@ -511,3 +511,50 @@ def test_doctor_quick_skips_the_mcp_check(mocker, tmp_path):
     )
     result = runner.invoke(app, ["doctor", "--quick"])
     assert result.output == ""
+
+
+def test_doctor_how_to_fix_lines_join_label_and_remedy_with_a_colon(mocker, tmp_path):
+    from goodvibes_cli.main import app
+    _mock_checks(mocker, tmp_path, headroom="warn")
+    result = runner.invoke(app, ["doctor"])
+    assert "headroom check: Run: uv tool install headroom" in result.output
+    assert "—" not in result.output
+
+
+def test_doctor_quick_adds_a_period_only_when_the_label_lacks_one_and_the_remedy_only_when_present(mocker, tmp_path):
+    from goodvibes_cli.main import app
+    mocker.patch("pathlib.Path.cwd", return_value=tmp_path)
+    mocker.patch("goodvibes_cli.commands.doctor_cmd._check_git_config", side_effect=[
+        CheckResult(label="name missing.", status="fail", remedy="Fix it"),
+        CheckResult(label="email missing", status="warn"),
+    ])
+    result = runner.invoke(app, ["doctor", "--quick"])
+    assert result.output.splitlines() == [
+        "goodvibes doctor: ✗ name missing. Fix it",
+        "goodvibes doctor: ! email missing.",
+    ]
+
+
+def test_doctor_quick_never_runs_the_path_check(mocker, tmp_path):
+    from goodvibes_cli.main import app
+    mocker.patch("pathlib.Path.cwd", return_value=tmp_path)
+    mocker.patch("goodvibes_cli.commands.doctor_cmd.subprocess.run", return_value=subprocess.CompletedProcess(args=[], returncode=0, stdout="v", stderr=""))
+    which = mocker.patch("goodvibes_cli.commands.doctor_cmd.shutil.which", return_value=None)
+    result = runner.invoke(app, ["doctor", "--quick"])
+    assert result.output == ""
+    which.assert_not_called()
+
+
+def test_doctor_lists_a_broken_manifest_before_every_other_check(mocker, tmp_path):
+    from goodvibes_cli.main import app
+    (tmp_path / ".goodvibes.json").write_text("{ broken", encoding="utf-8")
+    mocker.patch("goodvibes_cli.commands.doctor_cmd.pathlib.Path.cwd", return_value=tmp_path)
+    mocker.patch("goodvibes_cli.commands.doctor_cmd._check_headroom", return_value=CheckResult("headroom check", "ok"))
+    mocker.patch("goodvibes_cli.commands.doctor_cmd._check_git_config", return_value=CheckResult("git check", "fail", "Fix git"))
+    full = [l.strip("│ ") for l in runner.invoke(app, ["doctor"]).output.splitlines()]
+    checks = [l for l in full if l[:2] in ("✓ ", "! ", "✗ ", "- ")]
+    assert checks[0].startswith("✗ .goodvibes.json")
+    assert checks[1] == "✓ headroom check"
+    quick = runner.invoke(app, ["doctor", "--quick"]).output.splitlines()
+    assert quick[0].startswith("goodvibes doctor: ✗ .goodvibes.json")
+    assert quick[1] == "goodvibes doctor: ✗ git check. Fix git"
