@@ -1880,3 +1880,4 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 **What I did:** The coordinator's parity spec fixes the exact strings npm and pip both print. RED then GREEN for each part.
 
 - RED: doctor "How to fix" joins with `: `; PATH check says "goodvibes command"; `--quick` period rules; manifest error listed first.
+- GREEN: those doctor changes in `doctor_cmd.py`.

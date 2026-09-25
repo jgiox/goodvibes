@@ -170,8 +170,12 @@ def _check_mcp(cwd: pathlib.Path) -> list[CheckResult]:
 
 def _check_goodvibes_cli() -> CheckResult:
     if shutil.which("goodvibes"):
-        return CheckResult("goodvibes CLI on PATH", "ok")
-    return CheckResult("goodvibes CLI not on PATH", "warn", "Run: uv tool install goodvibes-cli")
+        return CheckResult("goodvibes command on PATH", "ok")
+    return CheckResult(
+        "goodvibes command not on PATH",
+        "warn",
+        "Optional: lets the session-start check run. Install: uv tool install goodvibes-cli (or: npm install -g goodvibes-cli)",
+    )
 
 
 def _check_git_config(key: str) -> CheckResult:
@@ -248,19 +252,20 @@ def doctor_cmd(
         # Exit 2 from a SessionStart hook blocks the session, so quick mode reports and always exits 0.
         # Outside a goodvibes project (no manifest) only the machine-wide git checks apply.
         scope, manifest_checks = _project_scope(cwd)
-        checks = [_check_git_config("user.name"), _check_git_config("user.email"), *manifest_checks, *(_rule_checks(cwd, scope) if scope else []), *_check_journal(cwd)]
+        checks = [*manifest_checks, _check_git_config("user.name"), _check_git_config("user.email"), *(_rule_checks(cwd, scope) if scope else []), *_check_journal(cwd)]
         for r in checks:
             if r.status in ("warn", "fail"):
-                typer.echo(f"goodvibes doctor: {SYMBOLS[r.status]} {r.label}." + (f" {r.remedy}" if r.remedy else ""))
+                head = r.label if r.label.endswith(".") else f"{r.label}."
+                typer.echo(f"goodvibes doctor: {SYMBOLS[r.status]} {head}" + (f" {r.remedy}" if r.remedy else ""))
         return
 
     scope, manifest_checks = _project_scope(cwd)
     results = [
+        *manifest_checks,
         _check_headroom(),
         _check_goodvibes_cli(),
         _check_git_config("user.name"),
         _check_git_config("user.email"),
-        *manifest_checks,
         *_rule_checks(cwd, scope),
         *_check_journal(cwd),
         *_check_mcp(cwd),
@@ -270,7 +275,7 @@ def doctor_cmd(
     lines = [f"goodvibes v{version}"] + [f"{SYMBOLS[r.status]} {r.label}" for r in results]
     console.print(Panel(Text("\n".join(lines)), title="goodvibes doctor"))
 
-    fixes = [f"{r.label} — {r.remedy}" for r in results if r.status in ("warn", "fail") and r.remedy]
+    fixes = [f"{r.label}: {r.remedy}" for r in results if r.status in ("warn", "fail") and r.remedy]
     if fixes:
         console.print(Panel(Text("\n".join(fixes)), title="How to fix"))
     typer.echo(summary_line(results))
