@@ -35,6 +35,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/2.0.0/),
 
 ### Fixed
 
+- `goodvibes update` run where it cannot ask (a script, a pipe or CI with no input) now stops with "No answer (the input ended). Nothing was changed." and exit code 1 in both versions. The npm version used to exit with code 13 and no message; run `goodvibes update --force` to apply without asking
 - `goodvibes update` also refreshes the tool list of the goodvibes hook groups, so projects set up earlier send Grep (and Gemini CLI's search and multi-file read tools) through the read guard too. A group where you added your own hooks keeps your tool list
 - `goodvibes update` run inside the Claude Code settings folder (`~/.claude`, or `CLAUDE_CONFIG_DIR`) now updates only the global setup. It used to read the global `.goodvibes.json` as a project one and add about 25 project files (JOURNAL.md, AGENTS.md and others) to that folder
 - Telemetry is now skipped whenever `CI` is set to anything other than `0` or `false` (for example `CI=1`), not only for `CI=true`. npm and pip use the same rule

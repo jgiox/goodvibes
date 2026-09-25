@@ -2281,3 +2281,4 @@ Added a Standing decisions section to this journal.
 
 **Why:** left open by the parity pass. With stdin closed (a script, a pipe, CI), npm `update` hung on the clack prompt and Node exited 13 ("unsettled top-level await") with no message; pip printed click's bare "Aborted." and exited 1.
 - RED: npm `dist-cli.integration.test.ts` (built CLI, empty stdin, a net-new file to add) and pip `test_update_cmd.py`: exit 1, "No answer (the input ended). Nothing was changed.", nothing written.
+- GREEN: npm `update.ts` races the clack confirm against `process.stdin` 'end' and exits 1 with the message; pip `update_cmd.py` wraps both `typer.confirm` calls in `_ask`, which turns click's Abort into the same message and exit 1 when stdin is not a terminal (Ctrl-C at a terminal still aborts as before). Checked on the built CLIs with closed stdin: identical message, exit 1 in both. CHANGELOG Fixed entry. Tests: npm 1029 passed, 2 skipped; pip 918 passed.

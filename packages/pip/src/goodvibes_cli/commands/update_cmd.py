@@ -6,6 +6,7 @@ import importlib.metadata
 import json
 import pathlib
 import shutil
+import sys
 from typing import Annotated
 
 import typer
@@ -53,6 +54,17 @@ def _assert_safe(base: pathlib.Path, rel: str) -> None:
         raise ValueError(f"Unsafe manifest key rejected: {rel}")
 
 
+def _ask(question: str) -> bool:
+    try:
+        return typer.confirm(question)
+    except typer.Abort:
+        # Ctrl-C at a terminal still aborts; closed input (a script or CI) gets a clear message.
+        if sys.stdin.isatty():
+            raise
+        console.print("No answer (the input ended). Nothing was changed.", markup=False)
+        raise typer.Exit(1)
+
+
 def update_cmd(
     dry_run: Annotated[bool, typer.Option("--dry-run", help="Preview what would change without writing")] = False,
     force: Annotated[bool, typer.Option("--force", help="Skip the confirmation prompt (files you edited are still kept)")] = False,
@@ -98,7 +110,7 @@ def run_update(dry_run: bool, force: bool) -> None:
         if dry_run:
             console.print(DRY_RUN_END)
             return
-        if not force and global_changes and not typer.confirm(f"Apply {global_changes} change(s) to your Claude Code settings?"):
+        if not force and global_changes and not _ask(f"Apply {global_changes} change(s) to your Claude Code settings?"):
             console.print(CANCELLED)
             return
         apply_global()
@@ -245,7 +257,7 @@ def run_update(dry_run: bool, force: bool) -> None:
 
     if not force and (overwrite or net_new or merges or retired or global_changes or hook_changes):
         also_global = f" and apply {global_changes} change(s) to your Claude Code settings" if global_changes else ""
-        confirmed = typer.confirm(
+        confirmed = _ask(
             f"Overwrite {len(overwrite)} managed file(s), add {len(net_new)}, merge goodvibes keys into {len(merges)} file(s){also_global}?"
         )
         if not confirmed:

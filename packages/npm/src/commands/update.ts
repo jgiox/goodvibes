@@ -210,12 +210,18 @@ export async function runUpdate(dryRun: boolean, force: boolean): Promise<void> 
   const globalChanges = globalPlan ? globalPlan.written.length + globalPlan.retired.length + globalPlan.settingsChanges.length : 0
   if (!force && (globalChanges > 0 || overwrite.length > 0 || netNew.length > 0 || retired.length > 0 || merges.length > 0 || hookWrites)) {
     const settings = `${globalChanges} change(s) to your Claude Code settings`
-    const proceed = await confirm({
+    // With the input closed (a script or CI) the prompt never settles, and Node would exit 13 without a word.
+    const inputEnded = new Promise<'ended'>(resolve => process.stdin.once('end', () => resolve('ended')))
+    const proceed = await Promise.race([confirm({
       message: !manifest
         ? `Apply ${settings}?`
         : `Overwrite ${overwrite.length} managed file(s), add ${netNew.length}, merge goodvibes keys into ${merges.length} file(s)` +
           `${globalChanges > 0 ? ` and apply ${settings}` : ''}?`,
-    })
+    }), inputEnded])
+    if (proceed === 'ended') {
+      cancel('No answer (the input ended). Nothing was changed.')
+      process.exit(1)
+    }
     if (isCancel(proceed) || !proceed) {
       cancel('Update cancelled. Nothing was changed.')
       process.exit(0)
