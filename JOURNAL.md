@@ -1885,3 +1885,4 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 - RED: `<pkg>@latest` is reported and remedied as `<pkg>` (coordinator addendum).
 - GREEN: MCP wording, package detection and file warnings in `doctor_cmd.py`.
 - RED: `usage` layout, messages, floor hit %, `Skipped ...` on stderr, `--days` validation (exit 1), JSON footer on stderr.
+- GREEN: `usage_cmd.py` layout, messages, stderr reporting and `--days` check (also fixed a RED test that forgot to create the projects folder).

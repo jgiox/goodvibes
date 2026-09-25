@@ -198,6 +198,7 @@ def test_usage_json_prints_machine_output_with_camel_case_keys(projects):
 
 
 def test_usage_json_prints_empty_valid_json_when_the_project_has_no_sessions(projects):
+    projects.mkdir(parents=True)
     result = runner.invoke(app, ["usage", "--json"])
     assert result.exit_code == 0
     assert "No Claude Code sessions found for this project" in result.stderr
