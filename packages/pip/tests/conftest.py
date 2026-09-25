@@ -30,6 +30,20 @@ def _isolate_global_setup(request, mocker, tmp_path, monkeypatch):
 
 
 @pytest.fixture
+def git_env(tmp_path, monkeypatch):
+    """Real git with no user, system or inherited GIT_* config; returns the env for child processes."""
+    import os
+    for k in list(os.environ):
+        if k.startswith(("GIT_", "GOODVIBES_")):
+            monkeypatch.delenv(k)
+    for k, v in {"HOME": str(tmp_path), "GIT_CONFIG_GLOBAL": os.devnull, "GIT_CONFIG_NOSYSTEM": "1",
+                 "GIT_CEILING_DIRECTORIES": str(tmp_path.parent),
+                 "GIT_AUTHOR_NAME": "T", "GIT_AUTHOR_EMAIL": "t@e", "GIT_COMMITTER_NAME": "T", "GIT_COMMITTER_EMAIL": "t@e"}.items():
+        monkeypatch.setenv(k, v)
+    return dict(os.environ)
+
+
+@pytest.fixture
 def tmp_dir(tmp_path):
     """Temporary directory for file operation tests."""
     return tmp_path

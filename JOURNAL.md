@@ -2075,3 +2075,8 @@ Added a Standing decisions section to this journal.
 **Why:** the maintainer asked for the journal check to work outside Claude Code.
 
 **Decision:** goodvibes writes the hook into the local `.git/hooks/` from its own package copy. It never points `core.hooksPath` at a folder inside the repo, because that would let a cloned repo run its own scripts once goodvibes turned the setting on.
+
+## 2026-09-25: pip installs the git pre-commit journal check
+
+**What:** the pip package ships `hooks/pre-commit` and installs it into `.git/hooks/` from `init` and `update`; `doctor` reports on it. Follows the shared spec, so strings match npm.
+- RED: installer unit tests (`tests/test_git_hook.py`) and the shared-cases runner (`tests/test_git_hook_cases.py`); `test_hook_cases.py` now skips `git-*.cases.json`, which the new runner owns.

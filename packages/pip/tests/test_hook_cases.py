@@ -91,6 +91,7 @@ def _fill(v, d: pathlib.Path):
 CASES = [
     pytest.param(f.name.removesuffix(".cases.json"), c, id=f"{f.name.removesuffix('.cases.json')}: {c['name']}")
     for f in sorted(CASES_DIR.glob("*.cases.json"))
+    if not f.name.startswith("git-")
     for c in json.loads(f.read_text(encoding="utf-8"))
 ]
 
