@@ -155,12 +155,14 @@ export function registerUsageCommand(program: Command): void {
       const shown = sessions.slice(0, 10)
       const sum = (t: Totals) => commas(t.input + t.output + t.cacheRead + t.cacheCreation)
       say(`Token usage for ${all ? 'all projects' : 'this project'}, last ${days} days: ${sessions.length} session(s)${sessions.length > shown.length ? `, showing the ${shown.length} most recent` : ''}`)
+      say('')
       say(columns('Date'.padEnd(12) + 'Session'.padEnd(10), 'Total tokens', 'Cache hit', 'Peak context'))
       for (const s of shown) {
         say(columns(localDate(s.mtime).padEnd(12) + s.id.slice(0, 8).padEnd(10), sum(s), percent(s.cacheHitRatio), commas(s.peakContext)) + (s.peakContext > NEAR_LIMIT ? ' !' : ''))
       }
       say(columns('Total'.padEnd(22), sum(totals), percent(totals.cacheHitRatio), commas(totals.peakContext)))
       say(`Input ${commas(totals.input)}, output ${commas(totals.output)}, cache read ${commas(totals.cacheRead)}, cache creation ${commas(totals.cacheCreation)}`)
+      say('')
       if (shown.some(s => s.peakContext > NEAR_LIMIT)) say('! near the context limit of most Claude models (200k); starting a fresh session is cheaper')
       say(FOOTER)
     })
