@@ -17,6 +17,7 @@ from goodvibes_cli.commands.doctor_cmd import (
     _check_git_config,
     _check_goodvibes_cli,
     _check_headroom,
+    _check_journal,
     _check_sentinel,
     doctor_cmd,
     summary_line,
@@ -310,3 +311,52 @@ def test_doctor_prints_square_brackets_literally_instead_of_as_rich_markup(mocke
     result = runner.invoke(app, ["doctor"])
     assert "headroom-ai[all]" in result.output
     assert "[bold]x[/bold]" in result.output
+
+
+JOURNAL_HINT = 'Keep lasting decisions in its "Standing decisions" section and keep new entries short.'
+
+
+def test_check_journal_warns_when_journal_is_larger_than_10_kb_and_leaves_it_unchanged(tmp_path):
+    journal = tmp_path / "JOURNAL.md"
+    journal.write_bytes(b"x" * 12 * 1024)
+    assert _check_journal(tmp_path) == [CheckResult("JOURNAL.md is 12 KB; agents read it every session", "warn", JOURNAL_HINT)]
+    assert journal.read_bytes() == b"x" * 12 * 1024
+
+
+def test_check_journal_rounds_a_partial_kilobyte_up(tmp_path):
+    (tmp_path / "JOURNAL.md").write_bytes(b"x" * (10 * 1024 + 1))
+    assert _check_journal(tmp_path)[0].label.startswith("JOURNAL.md is 11 KB;")
+
+
+def test_check_journal_reports_nothing_at_exactly_10_kb(tmp_path):
+    (tmp_path / "JOURNAL.md").write_bytes(b"x" * 10 * 1024)
+    assert _check_journal(tmp_path) == []
+
+
+def test_check_journal_reports_nothing_when_there_is_no_journal(tmp_path):
+    assert _check_journal(tmp_path) == []
+
+
+def test_doctor_quick_prints_the_journal_size_warning_and_exits_0(mocker, tmp_path):
+    from goodvibes_cli.main import app
+    (tmp_path / "JOURNAL.md").write_bytes(b"x" * 20 * 1024)
+    mocker.patch("pathlib.Path.cwd", return_value=tmp_path)
+    mocker.patch(
+        "goodvibes_cli.commands.doctor_cmd.subprocess.run",
+        return_value=subprocess.CompletedProcess(args=[], returncode=0, stdout="value", stderr=""),
+    )
+    result = runner.invoke(app, ["doctor", "--quick"])
+    assert result.exit_code == 0
+    assert result.output.splitlines() == [
+        "goodvibes doctor: ! JOURNAL.md is 20 KB; agents read it every session. " + JOURNAL_HINT,
+    ]
+
+
+def test_doctor_counts_a_large_journal_as_a_warning(mocker, tmp_path):
+    from goodvibes_cli.main import app
+    _mock_checks(mocker, tmp_path)
+    (tmp_path / "JOURNAL.md").write_bytes(b"x" * 20 * 1024)
+    result = runner.invoke(app, ["doctor"])
+    assert result.exit_code == 0
+    assert "! JOURNAL.md is 20 KB; agents read it every session" in result.output
+    assert result.output.rstrip().splitlines()[-1] == "Ready, with 1 warning(s)."

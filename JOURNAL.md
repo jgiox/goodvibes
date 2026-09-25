@@ -1862,3 +1862,4 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 - GREEN: `CheckResult.status` replaces `passed`; headroom and a missing goodvibes CLI warn; only `fail` exits 1; summary line ends full doctor.
 - RED: regression test; rich read `[all]` in the headroom remedy as markup and dropped it (a server name in brackets would be read the same way).
 - GREEN: doctor panels render labels and remedies as plain `Text`, not markup.
+- RED: JOURNAL.md over 10 KB warns in doctor and doctor --quick; the file is not changed.
