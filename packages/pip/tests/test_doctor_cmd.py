@@ -599,3 +599,97 @@ def test_doctor_lists_a_broken_manifest_before_every_other_check(mocker, tmp_pat
     quick = runner.invoke(app, ["doctor", "--quick"]).output.splitlines()
     assert quick[0].startswith("goodvibes doctor: ✗ .goodvibes.json")
     assert quick[1] == "goodvibes doctor: ✗ git check. Fix git"
+
+
+_PACKAGED_HOOK = (pathlib.Path(__file__).resolve().parents[3] / "hooks" / "pre-commit").read_bytes()
+
+
+@pytest.fixture
+def hook_repo(tmp_path, git_env):
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    subprocess.run(["git", "init", "-q", "-b", "main"], cwd=repo, check=True, capture_output=True)
+    (repo / "JOURNAL.md").write_text("# J\n")
+    return repo
+
+
+def _hook_file(repo):
+    return repo / ".git" / "hooks" / "pre-commit"
+
+
+def _snapshot(repo):
+    return sorted((str(p), p.read_bytes() if p.is_file() and not p.is_symlink() else None) for p in repo.rglob("*"))
+
+
+def test_check_git_hook_is_ok_when_the_hook_matches_the_package(hook_repo):
+    from goodvibes_cli.commands.doctor_cmd import _check_git_hook
+    _hook_file(hook_repo).write_bytes(_PACKAGED_HOOK)
+    before = _snapshot(hook_repo)
+    assert _check_git_hook(hook_repo) == [CheckResult("Git commit check installed", "ok")]
+    assert _snapshot(hook_repo) == before
+
+
+def test_check_git_hook_warns_when_the_goodvibes_hook_is_out_of_date(hook_repo):
+    from goodvibes_cli.commands.doctor_cmd import _check_git_hook
+    _hook_file(hook_repo).write_text("# goodvibes-pre-commit: old\n")
+    before = _snapshot(hook_repo)
+    assert _check_git_hook(hook_repo) == [CheckResult("Git commit check out of date", "warn", "Run: goodvibes update")]
+    assert _snapshot(hook_repo) == before
+
+
+def test_check_git_hook_skips_as_turned_off_when_the_user_removed_it(hook_repo):
+    from goodvibes_cli.commands.doctor_cmd import _check_git_hook
+    (hook_repo / ".goodvibes.json").write_text(json.dumps({"version": "1.9.1", "files": {}, "gitHook": "user-removed"}))
+    assert _check_git_hook(hook_repo) == [CheckResult("Git commit check turned off", "skip")]
+    assert not _hook_file(hook_repo).exists()
+
+
+def test_check_git_hook_warns_when_the_hook_is_not_installed(hook_repo):
+    from goodvibes_cli.commands.doctor_cmd import _check_git_hook
+    assert _check_git_hook(hook_repo) == [CheckResult("Git commit check not installed", "warn", "Run: goodvibes update")]
+    assert not _hook_file(hook_repo).exists()
+
+
+def test_check_git_hook_skips_when_core_hookspath_is_set(hook_repo):
+    from goodvibes_cli.commands.doctor_cmd import _check_git_hook
+    subprocess.run(["git", "config", "core.hooksPath", "elsewhere"], cwd=hook_repo, check=True)
+    assert _check_git_hook(hook_repo) == [CheckResult("Git commit check not managed (core.hooksPath is set)", "skip")]
+
+
+def test_check_git_hook_skips_a_pre_commit_hook_that_is_not_from_goodvibes(hook_repo):
+    from goodvibes_cli.commands.doctor_cmd import _check_git_hook
+    _hook_file(hook_repo).write_text("#!/bin/sh\necho mine\n")
+    assert _check_git_hook(hook_repo) == [CheckResult("Git commit check not managed (your own pre-commit hook)", "skip")]
+    assert _hook_file(hook_repo).read_text() == "#!/bin/sh\necho mine\n"
+
+
+def test_check_git_hook_reports_nothing_without_a_journal(hook_repo):
+    from goodvibes_cli.commands.doctor_cmd import _check_git_hook
+    (hook_repo / "JOURNAL.md").unlink()
+    assert _check_git_hook(hook_repo) == []
+
+
+def test_check_git_hook_reports_nothing_outside_a_git_repo(tmp_path, git_env):
+    from goodvibes_cli.commands.doctor_cmd import _check_git_hook
+    (tmp_path / "plain").mkdir()
+    (tmp_path / "plain" / "JOURNAL.md").write_text("# J\n")
+    assert _check_git_hook(tmp_path / "plain") == []
+
+
+def test_doctor_lists_the_git_hook_check_after_the_journal_size_and_before_mcp(mocker, tmp_path):
+    from goodvibes_cli.main import app
+    _mock_checks(mocker, tmp_path)
+    mocker.patch("goodvibes_cli.commands.doctor_cmd._check_journal", return_value=[CheckResult("journal size", "ok")])
+    mocker.patch("goodvibes_cli.commands.doctor_cmd._check_git_hook", return_value=[CheckResult("Git commit check installed", "ok")])
+    mocker.patch("goodvibes_cli.commands.doctor_cmd._check_mcp", return_value=[CheckResult("MCP x (user)", "ok")])
+    lines = runner.invoke(app, ["doctor"]).output
+    assert lines.index("journal size") < lines.index("✓ Git commit check installed") < lines.index("MCP x (user)")
+
+
+def test_doctor_quick_never_runs_the_git_hook_check(mocker, tmp_path):
+    from goodvibes_cli.main import app
+    _mock_checks(mocker, tmp_path)
+    check = mocker.patch("goodvibes_cli.commands.doctor_cmd._check_git_hook", return_value=[])
+    result = runner.invoke(app, ["doctor", "--quick"])
+    assert result.exit_code == 0
+    check.assert_not_called()

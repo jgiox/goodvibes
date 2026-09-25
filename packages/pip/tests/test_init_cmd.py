@@ -359,3 +359,106 @@ def test_init_records_a_recreated_user_removed_file_as_user_owned_and_keeps_it(r
 
     assert agents.read_text(encoding="utf-8") == "my own agents\n"
     assert _manifest_files(real_project)["AGENTS.md"] == "user-owned"
+
+
+INSTALLED_LINE = "Git commit check installed: commits that leave out JOURNAL.md are blocked in every tool (.git/hooks/pre-commit)"
+UPDATED_LINE = "Git commit check updated (.git/hooks/pre-commit)"
+NOT_A_REPO_LINE = "Git commit check skipped: this folder is not a git repository yet. Run git init, then goodvibes update."
+EXISTING_LINE = "Git commit check skipped: .git/hooks/pre-commit already exists and is not from goodvibes, so it was left alone."
+
+
+def _hook(mocker, status, **extra):
+    return mocker.patch("goodvibes_cli.commands.init_cmd.install_git_hook", return_value={"status": status, "path": "/p/.git/hooks/pre-commit", **extra})
+
+
+def _manifest(proj):
+    import json
+    return json.loads((proj / ".goodvibes.json").read_text(encoding="utf-8"))
+
+
+def _flat(result):
+    return " ".join(result.output.split())
+
+
+@pytest.mark.parametrize("status,line", [("installed", INSTALLED_LINE), ("updated", UPDATED_LINE), ("current", None)])
+def test_init_installs_the_git_hook_and_records_it_as_installed(runner, real_project, mocker, status, line):
+    from goodvibes_cli.main import app as main_app
+    hook = _hook(mocker, status)
+    result = runner.invoke(main_app, ["init", "--minimal"])
+    assert result.exit_code == 0, result.output
+    hook.assert_called_once_with(real_project, False)
+    assert _manifest(real_project)["gitHook"] == "installed"
+    if line:
+        assert line in _flat(result)
+    else:
+        assert "Git commit check" not in result.output
+
+
+def test_init_restores_a_git_hook_the_user_removed(runner, real_project, mocker):
+    import json
+    from goodvibes_cli.main import app as main_app
+    (real_project / ".goodvibes.json").write_text(json.dumps({"version": "1.9.0", "files": {}, "gitHook": "user-removed"}), encoding="utf-8")
+    hook = _hook(mocker, "installed")
+    result = runner.invoke(main_app, ["init", "--minimal"])
+    assert result.exit_code == 0, result.output
+    hook.assert_called_once_with(real_project, False)
+    assert _manifest(real_project)["gitHook"] == "installed"
+
+
+@pytest.mark.parametrize("status,extra,line", [
+    ("not-a-repo", {}, NOT_A_REPO_LINE),
+    ("custom-path", {"detail": ".husky"}, "Git commit check skipped: git uses its own hooks folder here (core.hooksPath = .husky), so goodvibes left your hooks alone."),
+    ("existing-hook", {}, EXISTING_LINE),
+])
+def test_init_prints_the_skip_line_and_leaves_git_hook_unchanged_when_it_cannot_install(runner, real_project, mocker, status, extra, line):
+    import json
+    from goodvibes_cli.main import app as main_app
+    (real_project / ".goodvibes.json").write_text(json.dumps({"version": "1.9.0", "files": {}, "gitHook": "user-removed"}), encoding="utf-8")
+    _hook(mocker, status, **extra)
+    result = runner.invoke(main_app, ["init", "--minimal"])
+    assert result.exit_code == 0, result.output
+    assert line in _flat(result)
+    assert _manifest(real_project)["gitHook"] == "user-removed"
+
+
+def test_init_leaves_an_older_manifest_without_git_hook_when_it_cannot_install(runner, real_project, mocker):
+    from goodvibes_cli.main import app as main_app
+    _hook(mocker, "not-a-repo")
+    assert runner.invoke(main_app, ["init", "--minimal"]).exit_code == 0
+    assert "gitHook" not in _manifest(real_project)
+
+
+def test_init_dry_run_reports_the_git_hook_with_would_and_writes_nothing(runner, real_project, mocker):
+    from goodvibes_cli.main import app as main_app
+    hook = _hook(mocker, "installed")
+    result = runner.invoke(main_app, ["init", "--dry-run", "--minimal"])
+    assert result.exit_code == 0, result.output
+    hook.assert_called_once_with(real_project, True)
+    assert f"Would: {INSTALLED_LINE}" in _flat(result)
+    assert not (real_project / ".goodvibes.json").exists()
+
+
+def test_init_dry_run_prints_skip_lines_without_would(runner, real_project, mocker):
+    from goodvibes_cli.main import app as main_app
+    _hook(mocker, "existing-hook")
+    result = runner.invoke(main_app, ["init", "--dry-run", "--minimal"])
+    assert EXISTING_LINE in _flat(result)
+    assert f"Would: {EXISTING_LINE}" not in _flat(result)
+
+
+def test_init_dry_run_prints_nothing_about_a_current_git_hook(runner, real_project, mocker):
+    from goodvibes_cli.main import app as main_app
+    _hook(mocker, "current")
+    result = runner.invoke(main_app, ["init", "--dry-run", "--minimal"])
+    assert "Git commit check" not in result.output
+
+
+@pytest.mark.parametrize("dry", [False, True])
+def test_init_in_the_home_folder_with_global_scope_never_calls_the_git_hook_installer(runner, real_project, mocker, dry):
+    from goodvibes_cli.main import app as main_app
+    mocker.patch("pathlib.Path.home", return_value=real_project)
+    hook = _hook(mocker, "installed")
+    result = runner.invoke(main_app, ["init", "--minimal", *(["--dry-run"] if dry else [])])
+    assert result.exit_code == 0, result.output
+    hook.assert_not_called()
+    assert "Git commit check" not in result.output

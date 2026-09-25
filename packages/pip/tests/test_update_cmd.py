@@ -567,3 +567,136 @@ def test_update_does_not_add_new_docs_when_every_tracked_doc_is_user_removed(pla
     assert runner.invoke(app, ["update", "--force"]).exit_code == 0
 
     assert not (project_dir / "docs").exists()
+
+
+INSTALLED_LINE = "Git commit check installed: commits that leave out JOURNAL.md are blocked in every tool (.git/hooks/pre-commit)"
+HOOK_REMOVED_LINE = ".git/hooks/pre-commit: removed by you, not re-added (run goodvibes init to restore)"
+
+
+def _hook(mocker, status, **extra):
+    return mocker.patch("goodvibes_cli.commands.update_cmd.install_git_hook", return_value={"status": status, "path": "/p/.git/hooks/pre-commit", **extra})
+
+
+def _hook_manifest(project_dir, **fields):
+    (project_dir / ".goodvibes.json").write_text(json.dumps({"version": "1.9.0", "files": {}, **fields}), encoding="utf-8")
+
+
+def _out(result):
+    return " ".join(_ANSI.sub("", result.output).split())
+
+
+def test_update_does_nothing_and_says_nothing_about_a_git_hook_the_user_removed(plain_dirs):
+    import unittest.mock
+    _, project_dir = plain_dirs
+    _hook_manifest(project_dir, gitHook="user-removed")
+    with unittest.mock.patch("goodvibes_cli.commands.update_cmd.install_git_hook") as hook:
+        result = runner.invoke(app, ["update", "--force"])
+    assert result.exit_code == 0, result.output
+    hook.assert_not_called()
+    assert "pre-commit" not in result.output and "Git commit check" not in result.output
+    assert _read(project_dir, ".goodvibes.json")["gitHook"] == "user-removed"
+
+
+def test_update_marks_a_deleted_git_hook_user_removed_prints_it_once_and_does_not_reinstall(plain_dirs, mocker):
+    _, project_dir = plain_dirs
+    _hook_manifest(project_dir, gitHook="installed")
+    hook = _hook(mocker, "installed")
+    first = runner.invoke(app, ["update", "--force"])
+    assert first.exit_code == 0, first.output
+    hook.assert_called_once_with(project_dir, True)
+    assert _out(first).count(HOOK_REMOVED_LINE) == 1
+    assert INSTALLED_LINE not in _out(first)
+    assert _read(project_dir, ".goodvibes.json")["gitHook"] == "user-removed"
+
+    hook.reset_mock()
+    second = runner.invoke(app, ["update", "--force"])
+    hook.assert_not_called()
+    assert "pre-commit" not in second.output
+
+
+UPDATED_LINE = "Git commit check updated (.git/hooks/pre-commit)"
+
+
+@pytest.mark.parametrize("fields,status,line", [
+    ({}, "installed", INSTALLED_LINE),
+    ({}, "updated", UPDATED_LINE),
+    ({}, "current", None),
+    ({"gitHook": "installed"}, "updated", UPDATED_LINE),
+    ({"gitHook": "installed"}, "current", None),
+])
+def test_update_installs_the_git_hook_and_records_it_as_installed(plain_dirs, mocker, fields, status, line):
+    _, project_dir = plain_dirs
+    _hook_manifest(project_dir, **fields)
+    hook = _hook(mocker, status)
+    result = runner.invoke(app, ["update", "--force"])
+    assert result.exit_code == 0, result.output
+    hook.assert_any_call(project_dir, False)
+    assert _read(project_dir, ".goodvibes.json")["gitHook"] == "installed"
+    if line:
+        assert line in _out(result)
+    else:
+        assert "Git commit check" not in result.output
+
+
+@pytest.mark.parametrize("status,extra,line", [
+    ("not-a-repo", {}, "Git commit check skipped: this folder is not a git repository yet. Run git init, then goodvibes update."),
+    ("custom-path", {"detail": "hooks-dir"}, "Git commit check skipped: git uses its own hooks folder here (core.hooksPath = hooks-dir), so goodvibes left your hooks alone."),
+    ("existing-hook", {}, "Git commit check skipped: .git/hooks/pre-commit already exists and is not from goodvibes, so it was left alone."),
+])
+@pytest.mark.parametrize("fields", [{}, {"gitHook": "installed"}])
+def test_update_prints_the_skip_line_and_leaves_git_hook_unchanged(plain_dirs, mocker, status, extra, line, fields):
+    _, project_dir = plain_dirs
+    _hook_manifest(project_dir, **fields)
+    _hook(mocker, status, **extra)
+    result = runner.invoke(app, ["update", "--force"])
+    assert result.exit_code == 0, result.output
+    assert line in _out(result)
+    assert _read(project_dir, ".goodvibes.json").get("gitHook") == fields.get("gitHook")
+
+
+def test_update_dry_run_reports_the_git_hook_with_would_and_changes_nothing(plain_dirs, mocker):
+    _, project_dir = plain_dirs
+    _hook_manifest(project_dir)
+    before = (project_dir / ".goodvibes.json").read_text(encoding="utf-8")
+    hook = _hook(mocker, "installed")
+    result = runner.invoke(app, ["update", "--dry-run"])
+    assert result.exit_code == 0, result.output
+    hook.assert_called_once_with(project_dir, True)
+    assert f"Would: {INSTALLED_LINE}" in _out(result)
+    assert (project_dir / ".goodvibes.json").read_text(encoding="utf-8") == before
+
+
+def test_update_dry_run_reports_a_deleted_git_hook_and_keeps_the_manifest(plain_dirs, mocker):
+    _, project_dir = plain_dirs
+    _hook_manifest(project_dir, gitHook="installed")
+    before = (project_dir / ".goodvibes.json").read_text(encoding="utf-8")
+    _hook(mocker, "installed")
+    result = runner.invoke(app, ["update", "--dry-run"])
+    assert HOOK_REMOVED_LINE in _out(result)
+    assert (project_dir / ".goodvibes.json").read_text(encoding="utf-8") == before
+
+
+def test_update_shows_the_git_hook_in_the_plan_before_its_single_question(plain_dirs, mocker):
+    _, project_dir = plain_dirs
+    _hook_manifest(project_dir)
+    hook = _hook(mocker, "installed")
+    result = runner.invoke(app, ["update"], input="y\n")
+    assert result.exit_code == 0, result.output
+    out = _out(result)
+    assert out.count("[y/N]") == 1
+    assert out.index(f"Would: {INSTALLED_LINE}") < out.index("[y/N]")
+    hook.assert_any_call(project_dir, False)
+    assert _read(project_dir, ".goodvibes.json")["gitHook"] == "installed"
+
+
+def test_update_answering_no_leaves_the_git_hook_and_manifest_unchanged(plain_dirs, mocker):
+    _, project_dir = plain_dirs
+    _hook_manifest(project_dir)
+    before = (project_dir / ".goodvibes.json").read_text(encoding="utf-8")
+    hook = _hook(mocker, "updated")
+    confirm = mocker.patch("goodvibes_cli.commands.update_cmd.typer.confirm", return_value=False)
+    result = runner.invoke(app, ["update"])
+    assert result.exit_code == 0, result.output
+    confirm.assert_called_once()
+    hook.assert_called_once_with(project_dir, True)
+    assert (project_dir / ".goodvibes.json").read_text(encoding="utf-8") == before
