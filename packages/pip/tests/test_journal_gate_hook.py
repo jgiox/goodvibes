@@ -319,3 +319,11 @@ def test_does_not_run_fsmonitor_command_of_bare_repo_that_command_text_only_ment
 )
 def test_blocks_commit_whose_git_is_glued_to_a_shell_operator(repo_dir, command):
     assert _run_hook(command, repo_dir).returncode == 2
+
+
+@pytest.mark.parametrize(
+    "command",
+    ["git log --oneline | grep commit", "git help commit", "git cat-file commit HEAD", "git log -1 && echo last commit"],
+)
+def test_allows_git_command_whose_subcommand_is_not_commit(repo_dir, command):
+    assert _run_hook(command, repo_dir).returncode == 0

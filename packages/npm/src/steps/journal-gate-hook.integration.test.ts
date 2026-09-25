@@ -353,4 +353,16 @@ describe('journal-gate hook', () => {
       expect(exitCode).toBe(2)
     })
   }
+
+  for (const command of [
+    'git log --oneline | grep commit',
+    'git help commit',
+    'git cat-file commit HEAD',
+    'git log -1 && echo last commit',
+  ]) {
+    it(`allows a git command whose subcommand is not commit: ${command}`, async () => {
+      const { exitCode } = await runHook(command, repoDir)
+      expect(exitCode).toBe(0)
+    })
+  }
 })
