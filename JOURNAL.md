@@ -1883,4 +1883,5 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 - Doctor/MCP GREEN: `doctor.ts` (headroom ENOENT says not installed, any other error says not working; PATH warn label; journal label + remedy) and `mcp-check.ts` (npm launchers read `-p`/`--package`, uvx reads `--from` and skips option values; `@latest` unpinned; path commands are not launchers; unreadable config gives `could not be read (<code>)`, missing stays silent). --quick formatting already matched the spec.
 - Usage RED: tests for the spec's blank lines (after the header, and before the note and footer).
 - Usage GREEN: `usage.ts` prints a blank line after the header and after the breakdown line.
+- MCP @latest RED: test that `<pkg>@latest` is reported and fixed as `<pkg>` (label and remedy), per coordinator follow-up.
 

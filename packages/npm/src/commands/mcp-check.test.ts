@@ -117,14 +117,14 @@ describe('mcp-check', () => {
       ])
     })
 
-    it('treats @latest as unpinned for npx and uvx', () => {
+    it('treats @latest as unpinned for npx and uvx and names the package without @latest', () => {
       projectConfig({
         a: { command: 'npx', args: ['-y', 'some-mcp@latest'] },
         b: { command: 'uvx', args: ['mcp-server-fetch@latest'] },
       })
       expect(checkMcpServers(project)).toEqual([
-        { label: 'MCP a (project): npx fetches unpinned some-mcp@latest on every run', status: 'warn', remedy: 'Pin a version: some-mcp@latest@<version>.' },
-        { label: 'MCP b (project): uvx fetches unpinned mcp-server-fetch@latest on every run', status: 'warn', remedy: 'Pin a version: mcp-server-fetch@latest==<version>.' },
+        { label: 'MCP a (project): npx fetches unpinned some-mcp on every run', status: 'warn', remedy: 'Pin a version: some-mcp@<version>.' },
+        { label: 'MCP b (project): uvx fetches unpinned mcp-server-fetch on every run', status: 'warn', remedy: 'Pin a version: mcp-server-fetch==<version>.' },
       ])
     })
 
