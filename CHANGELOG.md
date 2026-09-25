@@ -6,8 +6,25 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/2.0.0/),
 
 ## [Unreleased]
 
+### Added
+
+- Read guard hook (Claude Code): stops whole-file reads of big files (over 800 lines or 100 KB) through the Read tool or `cat`/`less`/`more`/`nl`/large `head`, `tail` and `sed -n` ranges, and tells Claude to read a range or search instead. It also stops reads of `.env` files (not `.env.example`), SSH keys, cloud and git credential files and private keys. `GOODVIBES_READ_GUARD=off` turns it off; `GOODVIBES_READ_GUARD_LINES` and `GOODVIBES_READ_GUARD_KB` change the limits
+- `goodvibes usage`: an offline report of the tokens recent Claude Code sessions used (input, output, cache read and write, cache hit rate, peak context), from Claude Code's local logs. `--all`, `--days N`, `--json`. Best effort, because Claude Code's log format is internal
+- `goodvibes doctor` checks MCP servers in `~/.claude.json` and `.mcp.json` and warns about plain `http://` addresses, secrets written into the file, launchers that fetch an unpinned package on every start, and downloads piped into a shell. It never contacts a server or prints a secret
+- `goodvibes doctor` warns when `JOURNAL.md` is over 10 KB, including in the session-start check
+- `JOURNAL.md` starts with a "Standing decisions" section, and the rules tell agents to read it plus the last five entries instead of the whole journal
+- Rules: ask for `--json`/`--porcelain`/`-q` output and summarise it; change approach after the same failure twice; confirm results on the current commit; say "not found" only for the places searched; dry-run first; a regression test must fail without its fix. `CLAUDE.md` also says what to keep when context is summarised
+- File Size CI check: a new code file may have at most 500 lines and a file already over the limit may not grow; per-file limits in `.github/file-size-limits.json`. Adapted from block/buzz (Apache-2.0)
+- CI templates cancel superseded pull request runs, have job time limits, and dependency review allows only permissive licences. Dependabot waits 7 days before proposing a new release
+- Tests keep each shipped skill under 12 KB, and hook test cases live in shared files that the npm and pip tests both run
+
+### Changed
+
+- `goodvibes doctor` has three levels: ✓ fine, ! warning, ✗ problem. headroom and the `goodvibes` command being missing are warnings, because both are optional, and only problems make `doctor` exit with an error. It ends with `Ready.`, `Ready, with N warning(s).` or `Not ready: N problem(s).`
+
 ### Security
 
+- Shipped settings deny reading `.env` files (but not `.env.example`), `~/.ssh`, `~/.aws/credentials`, `~/.git-credentials`, `~/.netrc` and `.pem`/`id_rsa`/`id_ed25519` files, and ask before Claude Code edits `.claude/settings.json`, `.claude/settings.local.json`, `.mcp.json` or `.claude/hooks/`, so it cannot quietly loosen its own guard rails
 - Journal check: git could be made to run code before any approval. A bare git repository committed inside a project, with `core.fsmonitor` set in its config, ran that command as soon as the hook saw text such as `# git -C vendor/evil commit`. The hook now runs every git call with `-c core.fsmonitor=false -c safe.bareRepository=explicit`. `goodvibes update` installs the fixed hook, including in `~/.claude/settings.json`. Until you update, `git config --global safe.bareRepository explicit` blocks it
 - Shipped project settings no longer auto-approve arbitrary code: `Bash(node*)`, `Bash(python*)`, `Bash(npx*)`, `Bash(uv*)` (which also matched `uvx`), `Bash(npm run*)`, `Bash(npm install*)`, `Bash(pip install*)` and `Bash(git restore *)` are gone from `allow`, so those commands prompt. `update` removes exactly those rules from edited project settings too, never from `~/.claude/settings.json`. Force-push variants (`-f`, `--force` anywhere, `+branch`) are denied; `git restore`, branch and stash deletes, `git clean` and `--force-with-lease` ask first
 - goodvibes never writes through a symlink: a symlinked file or folder in a project (for example `.claude -> ~/.claude` in a cloned repo) is skipped and reported instead of being written through

@@ -34,6 +34,7 @@ By default this sets goodvibes up for every project on your computer (rules, ski
 6. **Journal check (Claude Code only)**: Claude Code cannot `git commit` until `JOURNAL.md` is staged
 7. **context7 (Claude Code)**: up-to-date library docs, free, no key
 8. **Session check (Claude Code only)**: `goodvibes doctor --quick` runs when Claude Code starts and stays silent unless something needs fixing
+9. **Read guard (Claude Code only)**: stops Claude Code from reading whole big files or secret files such as `.env`; `GOODVIBES_READ_GUARD=off` turns it off
 
 Running it a second time is safe: existing files are not overwritten, and your own settings are kept.
 
@@ -46,6 +47,7 @@ goodvibes init --scope project   # Everything inside this project only (default:
 goodvibes update                 # Bring goodvibes files up to date; keeps your edits (--dry-run to preview)
 goodvibes upgrade                # Install the newest goodvibes, then run update
 goodvibes doctor                 # Check the setup and print a fix for anything missing
+goodvibes usage                  # Token use of recent Claude Code sessions in this project (offline)
 ```
 
 ## Requirements

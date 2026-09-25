@@ -2,6 +2,21 @@
 
 Log what you built, what you learned, and what you want to revisit.
 
+## Standing decisions
+
+Read this section and the last five entries before acting; older entries only when needed.
+
+- npm and pip CLIs behave the same and print the same strings; change both in one PR.
+- Tests never touch the real `~/.claude`, `~/.claude.json`, global npm/uv installs or the `claude` CLI.
+- Never publish or deploy without explicit approval from the maintainer; releases run only from `main` or a matching tag on `main`, through the `release` environment.
+- Bug fixes: failing test commit first (RED), then the fix (GREEN); stage JOURNAL.md in every commit.
+- Hooks are POSIX `sh` plus POSIX `awk` (dash, mawk, BWK awk, busybox); no jq, bash-isms or gawk extensions. Every git call in a hook uses `-c core.fsmonitor=false -c safe.bareRepository=explicit`.
+- The `hooks` in `templates/.claude/settings.json` and `.claude/settings.json` stay identical; the journal gate stays `PreToolUse[0].hooks[0]`; each goodvibes hook has its own matcher group and `: goodvibes-<id>;` marker.
+- `update` never adds allow rules to a settings file the user edited; retired allow rules are removed from project settings only, never from `~/.claude/settings.json`.
+- goodvibes never writes through a symlink inside a project; config-dir JSON writes are atomic and keep the file mode.
+- Manifest keys use forward slashes on every platform.
+- Local npm 10 rewrites `packages/npm/package-lock.json` and uv rewrites `packages/pip/uv.lock`; never commit those incidental changes (use `npx -y npm@11` for real lock updates).
+
 ---
 
 ## 2026-06-23 — Initialized project and completed Phase 1: template content & repo foundation
@@ -1983,3 +1998,33 @@ Per the gaps_found routing, corrected the premature `ROADMAP.md`/`STATE.md` comp
 - Refactor: 59 of the 68 journal-gate cases moved to tests/hooks/journal-gate.cases.json; the 9 that need unusual setup (git -C into other repos, a -C target outside the temp repo, the fsmonitor bare repo) stay inline in the two journal-gate test files. 68 cases before and after; 200 hook cases pass in each runner.
 
 **Docs updated:** JOURNAL.md.
+
+## 2026-09-25: Twelve ideas from portal-ai-plugins, buzz and agent-beacon (integration)
+
+**What:** Merged five worker branches:
+- rules, permissions and CI templates (ideas 1, 3, 4, 5, 6, 12);
+- read guard and shared hook cases (2, 7);
+- npm and pip doctor tiers, MCP check and `usage` (3, 8, 10, 11);
+- file-size ratchet (9).
+
+On top of the merges:
+- File-size check compares a push with `github.event.before`.
+- Dependabot cooldown raised to 7 days (GitHub.com already defaults to 3; verified in the github/docs source).
+- dependency-review now also allows CC-BY-3.0, CC-BY-4.0, PSF-2.0 and Zlib (caniuse-lite, spdx-exceptions, typing_extensions, pako).
+- npm/pip parity spec applied, checked by running both built CLIs on the same fixtures.
+- MCP labels replace terminal control characters.
+
+Added a Standing decisions section to this journal.
+
+**Docs:** README, FAQ, docs/getting-started.md (plus its template copy), both package READMEs, and the CHANGELOG `[Unreleased]` Added/Changed/Security sections.
+
+**Tests:**
+- npm vitest: 706 passed, 1 skipped
+- pip pytest: 586 passed on 3.11 and 3.10
+- verify-phase1 to 5: all PASS
+- actionlint: clean
+
+**Open:**
+- Read guard fails open on `sudo cat`, `xargs cat`, `find -exec`, a heredoc fed to a shell, and paths containing quotes or globs.
+- `~/.ssh/*.pub` is blocked too, deliberately.
+- If a project already has its own workflows, `file-size.yml` is not added.

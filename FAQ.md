@@ -130,7 +130,7 @@ If you ran `goodvibes init --scope project`, everything is inside the project an
 
 ## Will `goodvibes update` overwrite my `.claude/settings.json` or `.mcp.json`?
 
-No. If you never edited them, update replaces them with the new version. If you edited them, or they were yours before `goodvibes init`, update only adds or refreshes the goodvibes parts: the journal check hook, the session check, the ask-before-publish and deny rules, and the context7 server. Your own permissions, hooks and MCP servers stay exactly as they are. It never adds "allow" rules to a file you edited.
+No. If you never edited them, update replaces them with the new version. If you edited them, or they were yours before `goodvibes init`, update only adds or refreshes the goodvibes parts: the journal check hook, the read guard hook, the session check, the ask-before-publish and deny rules, and the context7 server. Your own permissions, hooks and MCP servers stay exactly as they are. It never adds "allow" rules to a file you edited.
 
 One exception: versions up to 1.9.1 put allow rules for `node`, `python`, `npx`, `uv`, `npm run`, `npm install`, `pip install` and `git restore` into the project settings. Those let any command run without a prompt, so update removes exactly those rules and lists each one it removes. Allow rules you wrote yourself are kept. It never touches allow rules in `~/.claude/settings.json`.
 
@@ -202,6 +202,30 @@ file and run `goodvibes init`, which recreates it (your own files are kept).
 
 The first time, goodvibes installs headroom, which downloads a few gigabytes of model files and
 can take several minutes. Later runs skip it. `goodvibes init --minimal` skips headroom entirely.
+
+---
+
+## Claude Code says "goodvibes read guard" and will not read a file
+
+That is the read guard hook. If the file is big, Claude should read part of it (a range of lines) or search it; it usually does this by itself after the message. If the file looks like a secrets file (`.env`, an SSH key, a credentials file), Claude should ask you for the one value it needs instead of reading the whole file. If you really want Claude to read it, set `GOODVIBES_READ_GUARD=off` before starting Claude Code. See [docs/getting-started.md](docs/getting-started.md#about-the-read-guard-claude-code-only).
+
+---
+
+## `goodvibes doctor` says `JOURNAL.md` is too big
+
+Agents read `JOURNAL.md` at the start of every session, so a long journal costs tokens every time. The rules tell them to read only the "Standing decisions" section at the top and the last five entries. Move decisions that still apply into "Standing decisions" (one line each) and keep new entries short. Never delete old entries; they are the project's history. It is only a warning.
+
+---
+
+## The File Size check failed on my pull request
+
+goodvibes ships a CI check that keeps code files small, because AI tools read and edit small files more cheaply and more reliably. A new code file may have at most 500 lines, and a file that is already longer may not grow. Ask your AI tool to move the new code into a new file. If one file really must be bigger, give it its own limit in `.github/file-size-limits.json`, for example `{ "allow": { "src/big.ts": 900 } }`. The check's message shows the exact line to add.
+
+---
+
+## What does `goodvibes usage` show, and is it accurate?
+
+It reads the session logs Claude Code keeps on your computer (`~/.claude/projects`) and adds up the tokens each recent session used: new input, output, and input that came from the cache. A high cache hit is good (cached input is cheaper). A "peak context" near 200,000 means the session was close to the limit of most Claude models, and starting a fresh session is usually cheaper. It never sends anything anywhere and never shows what you or Claude wrote. Claude Code's log format is internal and can change, so treat the numbers as estimates.
 
 ---
 
