@@ -12,11 +12,13 @@ from goodvibes_cli.steps.configure_mcp import configure_mcp
 from goodvibes_cli.steps.copy_templates import copy_templates, list_template_files, resolve_templates_dir
 from goodvibes_cli.steps.git_hook import KEEPS, hook_line, install_git_hook
 from goodvibes_cli.steps.install_headroom import install_headroom
+from goodvibes_cli.steps.project_copies import EDITED, STRIPPED, old_skill_copies, removed_line
 from goodvibes_cli.steps.telemetry import opted_out, start_telemetry_thread
 from goodvibes_cli.steps.write_manifest import USER_OWNED, USER_REMOVED, ManifestError, read_manifest, write_manifest
 from goodvibes_cli.utils.detect_project_type import detect_project_type
 from goodvibes_cli.utils.json_merge import managed_record
-from goodvibes_cli.utils.safe_path import SymlinkError
+from goodvibes_cli.utils.safe_path import SymlinkError, remove_retired
+from goodvibes_cli.utils.sentinel_merge import ClaudeMdError, strip_block
 from goodvibes_cli.steps.global_setup import apply_global_config, claude_config_dir, ensure_global_cli, format_global, register_context7
 from goodvibes_cli.utils.scope import global_owned, minimal_skipped, same_path
 
@@ -96,6 +98,18 @@ def init_cmd(
             files = [f[: -len(selected)] + "ci.yml" if f.endswith(selected) else f
                      for f in all_files if not any(f.endswith(v) and not f.endswith(selected) for v in ci_variants)]
         file_list = "\n".join(f"  Would write: {f}" for f in files) or "  (no project files: run init inside a project folder)"
+        if in_project and scope == "global":
+            try:
+                unedited, _ = old_skill_copies(cwd, (read_manifest(cwd) or {}).get("files") or {})
+            except ManifestError as e:
+                console.print(str(e), style="red", markup=False)
+                raise typer.Exit(1)
+            try:
+                strip = strip_block(cwd / "CLAUDE.md", dry_run=True)
+            except (ClaudeMdError, SymlinkError) as e:
+                strip = False
+                file_list += f"\n  {e}"
+            file_list += "".join(["\n  Would remove the old goodvibes rules block from CLAUDE.md"] if strip else []) + "".join(f"\n  Would remove: {r}" for r in unedited)
         console.print(Panel(file_list, title="Dry run — no files written"))
         dry_hook = hook_line(install_git_hook(cwd, True), True) if in_project else None
         if dry_hook:
@@ -118,6 +132,8 @@ def init_cmd(
 
     created_files: list[str] = []
     skipped_files_list: list[str] = []
+    cleanup: list[str] = []
+    unedited: list[str] = []
 
     global_result = cli_result = c7_result = None
     hook_result: dict | None = None
@@ -136,6 +152,20 @@ def init_cmd(
                 created_files.extend(written)
                 skipped_files_list.extend(skipped)
             hook_result = install_git_hook(cwd, False)
+            if scope == "global":
+                # A project set up in project scope keeps its old rules block and skill copies; Claude would load both versions.
+                unedited, edited = old_skill_copies(cwd, prev.get("files") or {})
+                try:
+                    if strip_block(cwd / "CLAUDE.md"):
+                        cleanup.append(STRIPPED)
+                except ClaudeMdError as e:
+                    skipped_files_list.append(str(e))
+                except SymlinkError as e:
+                    if str(e) not in skipped_files_list:
+                        skipped_files_list.append(str(e))
+                for rel in unedited:
+                    remove_retired(cwd, rel, ".claude/skills")
+                cleanup += [removed_line(r) for r in unedited] + ([EDITED + ", ".join(edited)] if edited else [])
 
         # ponytail: default to skipped — minimal path never enters the block
         headroom_result: dict[str, str] = {"status": "skipped", "reason": ""}
@@ -169,7 +199,7 @@ def init_cmd(
     if in_project:
         written = [f for f in created_files if f != ".goodvibes.json"]
         # init restores missing files; one the user recreated after removing it is theirs now.
-        previous = {k: USER_OWNED if v == USER_REMOVED and (cwd / k).exists() else v for k, v in (prev.get("files") or {}).items()}
+        previous = {k: USER_OWNED if v == USER_REMOVED and (cwd / k).exists() else v for k, v in (prev.get("files") or {}).items() if k not in unedited}
         # A re-run writes only missing files; everything recorded earlier keeps its entry and managed ids.
         try:
             write_manifest(
@@ -194,6 +224,8 @@ def init_cmd(
         console.print(Panel(written_str, title=f"Files written ({len(created_files)})"))
     else:
         console.print(Panel(f"No project files written: {cwd} is your {'Claude Code settings' if in_config_dir else 'home'} folder.\nRun goodvibes init inside a project folder to add JOURNAL.md, CI and IDE rule files.", title="Project files"))
+    if cleanup:
+        console.print(Panel(Text("\n".join(cleanup)), title="Old project copies"))
     if skipped_files_list:
         skipped_str = "\n".join(skipped_files_list)
         console.print(Panel(skipped_str, title=f"Files skipped ({len(skipped_files_list)})"))

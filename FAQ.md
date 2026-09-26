@@ -58,7 +58,7 @@ Slash commands such as `/ponytail-review` work only in the Claude Code terminal.
 No. You can run `goodvibes init` in a project that already has files, and run it again later.
 
 - Files you already have are kept. goodvibes adds only the files that are missing, and records in `.goodvibes.json` which files it wrote, so it never treats yours as its own.
-- `CLAUDE.md` is merged. With the default setup, an existing `CLAUDE.md` is left as it is. With `--scope project`, goodvibes adds its rules between a `<!-- goodvibes:start -->` line and a `<!-- goodvibes:end -->` line and leaves the rest of the file alone.
+- `CLAUDE.md` is merged. With the default setup, your text in an existing `CLAUDE.md` is kept, and an old goodvibes block in it (from `--scope project` or goodvibes before 1.9.0) is removed, because the rules now come from `~/.claude/rules/goodvibes.md`. With `--scope project`, goodvibes adds its rules between a `<!-- goodvibes:start -->` line and a `<!-- goodvibes:end -->` line and leaves the rest of the file alone.
 - Settings are merged. goodvibes adds its entries to `~/.claude/settings.json` and keeps yours. If your project already has a `.claude/settings.json`, `init` keeps it and `goodvibes update` later adds only the goodvibes entries.
 - goodvibes never writes through a symlink (a shortcut to another file or folder). It skips that path and tells you.
 
@@ -168,9 +168,13 @@ goodvibes --version
 
 That installs the newest version and removes the pin, so later upgrades work. From 1.10.0, `goodvibes upgrade` replaces the pin itself, and if the new version still does not take effect, it stops with an error and the exact command to run instead of saying "Updated".
 
-### Why does my `CLAUDE.md` have the full rules block after `goodvibes upgrade`?
+### Why does my project's `CLAUDE.md` still have an old goodvibes rules block?
 
-In 1.9.0, `upgrade` used its own copy step that ignored the install scope. If you ran `goodvibes upgrade` in a project set up with the global default, its `CLAUDE.md` may now contain the full rules block as well, so Claude Code reads the rules twice. Open `CLAUDE.md` and delete everything from `<!-- goodvibes:start -->` to `<!-- goodvibes:end -->`. Your own project section above it stays.
+A project set up before 1.9.0 keeps the rules in `CLAUDE.md`, between `<!-- goodvibes:start -->` and `<!-- goodvibes:end -->`, and the skills in `.claude/skills/`. The default setup now puts both in `~/.claude`, so Claude Code reads two versions of the rules. The same happens after `goodvibes upgrade` in 1.9.0, which ignored the install scope.
+
+From 1.11.2, `goodvibes init` and `goodvibes update` fix this: they remove the old block (your own text in `CLAUDE.md` stays) and every skill copy you never edited, and list what they removed. Skill copies you edited stay, and goodvibes names them so you can delete the ones you no longer need.
+
+On 1.11.1 or older, open `CLAUDE.md` and delete everything from `<!-- goodvibes:start -->` to `<!-- goodvibes:end -->`, then delete the goodvibes skill folders in `.claude/skills/` that you never edited. Do the same for the skill folders if you ran `goodvibes update` with 1.9.0 to 1.11.1 in that project: it stopped tracking them, so goodvibes no longer knows they are its copies.
 
 ## Claude Code guard rails
 

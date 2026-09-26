@@ -51,6 +51,34 @@ function markerProblem(starts: number[], ends: number[]): string | null {
   return null
 }
 
+function markers(destPath: string, existing: string): { starts: number[]; ends: number[] } {
+  const starts = [...existing.matchAll(START_LINE)].map(m => m.index)
+  const ends = [...existing.matchAll(END_LINE)].map(m => m.index)
+  const problem = markerProblem(starts, ends)
+  if (problem) {
+    throw new MarkerError(
+      `${destPath} ${problem}, so goodvibes did not change it; fix CLAUDE.md by hand: keep exactly one ${SENTINEL_START} line ` +
+        `followed later by one ${SENTINEL_END} line, or delete both to get a fresh block.`,
+    )
+  }
+  return { starts, ends }
+}
+
+// Removes the goodvibes block and keeps the text around it; true when there was a block.
+export async function stripBlock(destPath: string, dryRun = false): Promise<boolean> {
+  if (!(await pathExists(destPath))) return false
+  const existing = await readFile(destPath, 'utf-8')
+  const { starts, ends } = markers(destPath, existing)
+  if (starts.length === 0) return false
+  if (!dryRun) {
+    const eol = existing.includes('\r\n') ? '\r\n' : '\n'
+    const after = existing.slice(ends[0] + SENTINEL_END.length).replace(/^(?:[ \t]*\r?\n)+/, '')
+    const parts = [existing.slice(0, starts[0]).trimEnd(), after.trimEnd()].filter(Boolean)
+    await writeFile(destPath, parts.join(eol + eol) + (parts.length > 0 ? eol : ''))
+  }
+  return true
+}
+
 // Throws MarkerError without writing when the markers are ambiguous, so no user text is ever cut.
 export async function mergeClaude(destPath: string, templateContent: string): Promise<void> {
   const templateBlock = extractSentinelBlock(templateContent)
@@ -63,16 +91,7 @@ export async function mergeClaude(destPath: string, templateContent: string): Pr
   const existing = await readFile(destPath, 'utf-8')
   const eol = existing.includes('\r\n') ? '\r\n' : '\n'
   const block = templateBlock.replace(/\r?\n/g, eol)
-  const starts = [...existing.matchAll(START_LINE)].map(m => m.index)
-  const ends = [...existing.matchAll(END_LINE)].map(m => m.index)
-
-  const problem = markerProblem(starts, ends)
-  if (problem) {
-    throw new MarkerError(
-      `${destPath} ${problem}, so goodvibes did not change it; fix CLAUDE.md by hand: keep exactly one ${SENTINEL_START} line ` +
-        `followed later by one ${SENTINEL_END} line, or delete both to get a fresh block.`,
-    )
-  }
+  const { starts, ends } = markers(destPath, existing)
 
   if (starts.length === 0) {
     await writeFile(destPath, existing.trimEnd() + eol + eol + block + eol)
