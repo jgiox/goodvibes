@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { mkdtempSync, writeFileSync, readFileSync, mkdirSync } from 'fs'
+import { mkdtempSync, writeFileSync, readFileSync, mkdirSync, symlinkSync } from 'fs'
 import { rmSync } from 'fs'
 import { join } from 'path'
 import { tmpdir } from 'os'
@@ -279,5 +279,45 @@ describe('stripBlock', () => {
     writeFileSync(f, text)
     expect(await stripBlock(f, true)).toBe(true)
     expect(readFileSync(f, 'utf-8')).toBe(text)
+  })
+})
+
+describe('stripBlock and mergeClaude refuse files they cannot rewrite safely', () => {
+  let dir: string
+  beforeEach(() => { dir = mkdtempSync(join(tmpdir(), 'gv-safe-')) })
+  afterEach(() => { rmSync(dir, { recursive: true, force: true }) })
+  const notUtf8 = Buffer.concat([Buffer.from(`${SENTINEL_START}\n# goodvibes: v0.1.0\nold\n${SENTINEL_END}\ncaf`), Buffer.from([0xe9]), Buffer.from('\n')])
+
+  it('stripBlock throws and leaves a file that is not UTF-8 unchanged', async () => {
+    const f = join(dir, 'CLAUDE.md')
+    writeFileSync(f, notUtf8)
+    await expect(stripBlock(f)).rejects.toBeInstanceOf(MarkerError)
+    expect(readFileSync(f).equals(notUtf8)).toBe(true)
+  })
+
+  it('mergeClaude throws and leaves a file that is not UTF-8 unchanged', async () => {
+    const f = join(dir, 'CLAUDE.md')
+    writeFileSync(f, notUtf8)
+    await expect(mergeClaude(f, TEMPLATE_CONTENT)).rejects.toBeInstanceOf(MarkerError)
+    expect(readFileSync(f).equals(notUtf8)).toBe(true)
+  })
+
+  it('stripBlock never writes through a symlinked CLAUDE.md', async () => {
+    const target = join(dir, 'outside.md')
+    const text = `${SENTINEL_START}\nold\n${SENTINEL_END}\nkeep\n`
+    writeFileSync(target, text)
+    mkdirSync(join(dir, 'proj'))
+    symlinkSync(target, join(dir, 'proj', 'CLAUDE.md'))
+    await expect(stripBlock(join(dir, 'proj', 'CLAUDE.md'))).rejects.toBeInstanceOf(MarkerError)
+    expect(readFileSync(target, 'utf-8')).toBe(text)
+  })
+
+  it('mergeClaude never writes through a symlinked CLAUDE.md', async () => {
+    const target = join(dir, 'outside.md')
+    writeFileSync(target, 'mine\n')
+    mkdirSync(join(dir, 'proj'))
+    symlinkSync(target, join(dir, 'proj', 'CLAUDE.md'))
+    await expect(mergeClaude(join(dir, 'proj', 'CLAUDE.md'), TEMPLATE_CONTENT)).rejects.toBeInstanceOf(MarkerError)
+    expect(readFileSync(target, 'utf-8')).toBe('mine\n')
   })
 })

@@ -1068,6 +1068,30 @@ describe('update command — a project set up in project scope before goodvibes 
     expect(readFileSync(join(projectDir, 'CLAUDE.md'), 'utf-8')).toBe(OLD_CLAUDE)
   })
 
+  it('never deletes through a skills folder swapped for a symlink after the question', async () => {
+    const outside = mkdtempSync(join(tmpdir(), 'gv-old-outside-'))
+    try {
+      mkdirSync(join(outside, 'caveman'))
+      writeFileSync(join(outside, 'caveman', 'SKILL.md'), 'caveman as shipped\n')
+      const { confirm } = await import('@clack/prompts')
+      vi.mocked(confirm).mockImplementationOnce(async () => {
+        rmSync(join(projectDir, '.claude', 'skills'), { recursive: true, force: true })
+        symlinkSync(outside, join(projectDir, '.claude', 'skills'))
+        return true
+      })
+
+      await runUpdate()
+
+      expect(readFileSync(join(outside, 'caveman', 'SKILL.md'), 'utf-8')).toBe('caveman as shipped\n')
+      const out = await shown()
+      expect(out).toContain('.claude/skills/caveman/SKILL.md: symlink, not written')
+      expect(out).not.toContain('.claude/skills/caveman/SKILL.md: removed, now set up for all your projects')
+      expect(JSON.parse(readFileSync(join(projectDir, '.goodvibes.json'), 'utf-8')).files).toHaveProperty(['.claude/skills/caveman/SKILL.md'])
+    } finally {
+      rmSync(outside, { recursive: true, force: true })
+    }
+  })
+
   it('counts the cleanup in its question, like the pip CLI', async () => {
     const { confirm } = await import('@clack/prompts')
     vi.mocked(confirm).mockResolvedValue(false)

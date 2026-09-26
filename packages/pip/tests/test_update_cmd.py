@@ -1102,3 +1102,26 @@ def test_update_in_global_scope_counts_the_cleanup_in_its_question(plain_dirs, m
     runner.invoke(app, ["update"])
     assert confirm.call_args.args[0] == "Overwrite 0 managed file(s), add 0, merge goodvibes keys into 0 file(s) and remove 3 old project copies?"
     assert (project_dir / ".claude" / "skills" / "caveman" / "SKILL.md").exists()
+
+
+def test_update_never_deletes_through_a_skills_folder_swapped_for_a_symlink_after_the_question(plain_dirs, mocker, tmp_path):
+    import shutil
+    _, project_dir = plain_dirs
+    _old_global_project(project_dir)
+    outside = tmp_path / "external" / "skills"
+    (outside / "caveman").mkdir(parents=True)
+    (outside / "caveman" / "SKILL.md").write_text("caveman as shipped\n", encoding="utf-8")
+
+    def swap(_question):
+        shutil.rmtree(project_dir / ".claude" / "skills")
+        (project_dir / ".claude" / "skills").symlink_to(outside)
+        return True
+
+    mocker.patch("goodvibes_cli.commands.update_cmd.typer.confirm", side_effect=swap)
+    result = runner.invoke(app, ["update"])
+
+    assert (outside / "caveman" / "SKILL.md").read_text(encoding="utf-8") == "caveman as shipped\n"
+    out = _out(result)
+    assert ".claude/skills/caveman/SKILL.md: symlink, not written" in out
+    assert ".claude/skills/caveman/SKILL.md: removed, now set up for all your projects" not in out
+    assert ".claude/skills/caveman/SKILL.md" in _read(project_dir, ".goodvibes.json")["files"]
