@@ -1057,3 +1057,48 @@ def test_update_stops_with_exit_1_and_a_clear_message_when_its_input_ends_before
     assert result.exit_code == 1
     assert "No answer (the input ended). Nothing was changed." in " ".join(_ANSI.sub("", result.output).split())
     assert not (project_dir / "NEW.md").exists()
+
+
+def _old_global_project(project_dir):
+    from .test_init_cmd import _old_project
+    _old_project(project_dir, scope="global")
+
+
+def test_update_in_global_scope_removes_the_old_rules_block_and_unedited_skill_copies_and_keeps_edited_ones(plain_dirs):
+    _, project_dir = plain_dirs
+    _old_global_project(project_dir)
+
+    result = runner.invoke(app, ["update", "--force"])
+
+    assert result.exit_code == 0, result.output
+    assert (project_dir / "CLAUDE.md").read_text(encoding="utf-8") == "# CLAUDE.md\n\nmy notes\n\nmore mine\n"
+    assert not (project_dir / ".claude" / "skills" / "caveman").exists()
+    assert (project_dir / ".claude" / "skills" / "mine" / "SKILL.md").read_text(encoding="utf-8") == "my edit\n"
+    files = _read(project_dir, ".goodvibes.json")["files"]
+    assert ".claude/skills/caveman/SKILL.md" not in files
+    assert ".claude/skills/mine/SKILL.md" in files
+    out = _out(result)
+    assert "CLAUDE.md: removed the old goodvibes rules block; the rules now come from your Claude Code settings folder" in out
+    assert ".claude/skills/cavecrew/SKILL.md: removed, now set up for all your projects" in out
+    assert "Edited skill copies stay in this project; the same skills are now set up for all your projects, so Claude may load both. Delete a copy you no longer need: .claude/skills/mine/SKILL.md" in out
+
+
+def test_update_dry_run_in_global_scope_plans_the_cleanup_without_changing_anything(plain_dirs):
+    _, project_dir = plain_dirs
+    _old_global_project(project_dir)
+
+    out = _out(runner.invoke(app, ["update", "--dry-run"]))
+
+    assert "CLAUDE.md: will remove the old goodvibes rules block; the rules now come from your Claude Code settings folder" in out
+    assert "Will remove, now set up for all your projects (2): .claude/skills/cavecrew/SKILL.md, .claude/skills/caveman/SKILL.md" in out
+    assert (project_dir / ".claude" / "skills" / "caveman" / "SKILL.md").exists()
+    assert "old rules" in (project_dir / "CLAUDE.md").read_text(encoding="utf-8")
+
+
+def test_update_in_global_scope_counts_the_cleanup_in_its_question(plain_dirs, mocker):
+    _, project_dir = plain_dirs
+    _old_global_project(project_dir)
+    confirm = mocker.patch("goodvibes_cli.commands.update_cmd.typer.confirm", return_value=False)
+    runner.invoke(app, ["update"])
+    assert confirm.call_args.args[0] == "Overwrite 0 managed file(s), add 0, merge goodvibes keys into 0 file(s) and remove 3 old project copies?"
+    assert (project_dir / ".claude" / "skills" / "caveman" / "SKILL.md").exists()

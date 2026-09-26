@@ -3,7 +3,7 @@ import { mkdtempSync, writeFileSync, readFileSync, mkdirSync } from 'fs'
 import { rmSync } from 'fs'
 import { join } from 'path'
 import { tmpdir } from 'os'
-import { mergeClaude, extractVersion, versionGte } from './sentinel-merge.js'
+import { mergeClaude, extractVersion, versionGte, stripBlock, MarkerError } from './sentinel-merge.js'
 
 const SENTINEL_START = '<!-- goodvibes:start -->'
 const SENTINEL_END = '<!-- goodvibes:end -->'
@@ -236,5 +236,48 @@ describe('mergeClaude', () => {
     const content = readFileSync(destPath, 'utf-8')
     expect(content).toContain(SENTINEL_START)
     expect(content.replace(/\r\n/g, '')).not.toContain('\n')
+  })
+})
+
+describe('stripBlock', () => {
+  let dir: string
+  beforeEach(() => { dir = mkdtempSync(join(tmpdir(), 'gv-strip-')) })
+  afterEach(() => { rmSync(dir, { recursive: true, force: true }) })
+
+  it('removes the goodvibes block and keeps the text around it', async () => {
+    const f = join(dir, 'CLAUDE.md')
+    writeFileSync(f, `# CLAUDE.md\n\nmy notes\n\n${SENTINEL_START}\n# goodvibes: v1.7.1\nold rules\n${SENTINEL_END}\n\nmore mine\n`)
+    expect(await stripBlock(f)).toBe(true)
+    expect(readFileSync(f, 'utf-8')).toBe('# CLAUDE.md\n\nmy notes\n\nmore mine\n')
+  })
+
+  it('keeps Windows line endings', async () => {
+    const f = join(dir, 'CLAUDE.md')
+    writeFileSync(f, `# CLAUDE.md\r\n\r\n${SENTINEL_START}\r\nold\r\n${SENTINEL_END}\r\n`)
+    expect(await stripBlock(f)).toBe(true)
+    expect(readFileSync(f, 'utf-8')).toBe('# CLAUDE.md\r\n')
+  })
+
+  it('returns false and leaves a file without markers unchanged', async () => {
+    const f = join(dir, 'CLAUDE.md')
+    writeFileSync(f, '# CLAUDE.md\n\nmine only\n')
+    expect(await stripBlock(f)).toBe(false)
+    expect(readFileSync(f, 'utf-8')).toBe('# CLAUDE.md\n\nmine only\n')
+  })
+
+  it('throws and leaves the file unchanged when the markers are ambiguous', async () => {
+    const f = join(dir, 'CLAUDE.md')
+    const text = `${SENTINEL_START}\na\n${SENTINEL_START}\nb\n${SENTINEL_END}\n`
+    writeFileSync(f, text)
+    await expect(stripBlock(f)).rejects.toBeInstanceOf(MarkerError)
+    expect(readFileSync(f, 'utf-8')).toBe(text)
+  })
+
+  it('reports a block without changing the file in a dry run', async () => {
+    const f = join(dir, 'CLAUDE.md')
+    const text = `${SENTINEL_START}\nold\n${SENTINEL_END}\n`
+    writeFileSync(f, text)
+    expect(await stripBlock(f, true)).toBe(true)
+    expect(readFileSync(f, 'utf-8')).toBe(text)
   })
 })
