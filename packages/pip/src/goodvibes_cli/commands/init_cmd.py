@@ -17,7 +17,7 @@ from goodvibes_cli.steps.telemetry import opted_out, start_telemetry_thread
 from goodvibes_cli.steps.write_manifest import USER_OWNED, USER_REMOVED, ManifestError, read_manifest, write_manifest
 from goodvibes_cli.utils.detect_project_type import detect_project_type
 from goodvibes_cli.utils.json_merge import managed_record
-from goodvibes_cli.utils.safe_path import SymlinkError, remove_retired
+from goodvibes_cli.utils.safe_path import SymlinkError, check_writable, remove_retired
 from goodvibes_cli.utils.sentinel_merge import ClaudeMdError, strip_block
 from goodvibes_cli.steps.global_setup import apply_global_config, claude_config_dir, ensure_global_cli, format_global, register_context7
 from goodvibes_cli.utils.scope import global_owned, minimal_skipped, same_path
@@ -133,7 +133,7 @@ def init_cmd(
     created_files: list[str] = []
     skipped_files_list: list[str] = []
     cleanup: list[str] = []
-    unedited: list[str] = []
+    gone: list[str] = []
 
     global_result = cli_result = c7_result = None
     hook_result: dict | None = None
@@ -164,8 +164,14 @@ def init_cmd(
                     if str(e) not in skipped_files_list:
                         skipped_files_list.append(str(e))
                 for rel in unedited:
+                    try:
+                        check_writable(cwd, cwd / rel)
+                    except SymlinkError as e:
+                        skipped_files_list.append(str(e))
+                        continue
                     remove_retired(cwd, rel, ".claude/skills")
-                cleanup += [removed_line(r) for r in unedited] + ([EDITED + ", ".join(edited)] if edited else [])
+                    gone.append(rel)
+                cleanup += [removed_line(r) for r in gone] + ([EDITED + ", ".join(edited)] if edited else [])
 
         # ponytail: default to skipped — minimal path never enters the block
         headroom_result: dict[str, str] = {"status": "skipped", "reason": ""}
@@ -199,7 +205,7 @@ def init_cmd(
     if in_project:
         written = [f for f in created_files if f != ".goodvibes.json"]
         # init restores missing files; one the user recreated after removing it is theirs now.
-        previous = {k: USER_OWNED if v == USER_REMOVED and (cwd / k).exists() else v for k, v in (prev.get("files") or {}).items() if k not in unedited}
+        previous = {k: USER_OWNED if v == USER_REMOVED and (cwd / k).exists() else v for k, v in (prev.get("files") or {}).items() if k not in gone}
         # A re-run writes only missing files; everything recorded earlier keeps its entry and managed ids.
         try:
             write_manifest(

@@ -192,9 +192,16 @@ export function registerInitCommand(program: Command): void {
                 if (!(e instanceof MarkerError)) throw e
                 problems.push(e.message)
               }
-              for (const rel of unedited) await removeRetired(cwd, rel, '.claude/skills')
-              removedCopies.push(...unedited)
-              cleanup.push(...unedited.map(removedLine), ...(edited.length > 0 ? [EDITED + edited.join(', ')] : []))
+              for (const rel of unedited) {
+                const blocked = await writeBlocked(cwd, rel)
+                if (blocked) {
+                  skippedFiles.push(blocked)
+                  continue
+                }
+                await removeRetired(cwd, rel, '.claude/skills')
+                removedCopies.push(rel)
+              }
+              cleanup.push(...removedCopies.map(removedLine), ...(edited.length > 0 ? [EDITED + edited.join(', ')] : []))
             }
             return `Copied ${written.length} files`
           },

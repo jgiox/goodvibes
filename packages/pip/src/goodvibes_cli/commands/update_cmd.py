@@ -330,8 +330,17 @@ def run_update(dry_run: bool, force: bool) -> None:
     for rel, merged, _ in merges:
         write_json(cwd / rel, merged)
 
+    gone: list[str] = []
     for rel in retired + moved:
+        # Checked again after the question: the folder may have become a symlink while update waited.
+        try:
+            check_writable(cwd, cwd / rel)
+        except SymlinkError as e:
+            not_written.append(str(e))
+            blocked.append(rel)
+            continue
         remove_retired(cwd, rel, ".claude/skills")
+        gone.append(rel)
     stripped = False
     if strip_error:
         problems.append(strip_error)
@@ -369,8 +378,8 @@ def run_update(dry_run: bool, force: bool) -> None:
     hook_msg = REMOVED_LINE if hook_removed else hook_line(hook_result, False) if hook_result else None
     summary = [f"Applied {len(applied)} file(s). Skipped {skipped_count} user-modified file(s)."]
     summary += [f"Merged {len(ch)} goodvibes key(s) into {rel}." for rel, _, ch in merges]
-    summary += [f"{rel}: removed, no longer shipped by goodvibes" for rel in retired]
-    summary += ([STRIPPED] if stripped else []) + [removed_line(rel) for rel in moved]
+    summary += [f"{rel}: removed, no longer shipped by goodvibes" for rel in retired if rel in gone]
+    summary += ([STRIPPED] if stripped else []) + [removed_line(rel) for rel in moved if rel in gone]
     summary += [f"Not merged: {e}" for e in merge_errors]
     summary += [f"{rel}: {REMOVED}" for rel in removed]
     summary += not_written + problems + ([hook_msg] if hook_msg else [])

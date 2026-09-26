@@ -1,5 +1,7 @@
 import { outputFile, pathExists } from 'fs-extra'
-import { readFile, writeFile } from 'node:fs/promises'
+import { lstat, readFile, writeFile } from 'node:fs/promises'
+import { basename, dirname } from 'node:path'
+import { writeBlocked } from './fs-safe.js'
 
 const SENTINEL_START = '<!-- goodvibes:start -->'
 const SENTINEL_END = '<!-- goodvibes:end -->'
@@ -51,6 +53,23 @@ function markerProblem(starts: number[], ends: number[]): string | null {
   return null
 }
 
+// Checked here, just before the write: a caller's earlier check can be stale by the time the file is written.
+async function refuseLink(destPath: string): Promise<void> {
+  if (!(await lstat(dirname(destPath)).catch(() => null))) return // mergeClaude may create the folder; a missing folder is no link
+  const why = await writeBlocked(dirname(destPath), basename(destPath))
+  if (why) throw new MarkerError(why)
+}
+
+// Node's plain utf-8 read turns a bad byte into U+FFFD, which the write would then save over the user's text.
+async function readUtf8(destPath: string): Promise<string> {
+  try {
+    return new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(await readFile(destPath))
+  } catch (e) {
+    if (!(e instanceof TypeError)) throw e
+    throw new MarkerError(`${destPath} is not UTF-8 text, so goodvibes did not change it; save it as UTF-8 and re-run.`)
+  }
+}
+
 function markers(destPath: string, existing: string): { starts: number[]; ends: number[] } {
   const starts = [...existing.matchAll(START_LINE)].map(m => m.index)
   const ends = [...existing.matchAll(END_LINE)].map(m => m.index)
@@ -66,8 +85,9 @@ function markers(destPath: string, existing: string): { starts: number[]; ends: 
 
 // Removes the goodvibes block and keeps the text around it; true when there was a block.
 export async function stripBlock(destPath: string, dryRun = false): Promise<boolean> {
+  await refuseLink(destPath)
   if (!(await pathExists(destPath))) return false
-  const existing = await readFile(destPath, 'utf-8')
+  const existing = await readUtf8(destPath)
   const { starts, ends } = markers(destPath, existing)
   if (starts.length === 0) return false
   if (!dryRun) {
@@ -82,13 +102,14 @@ export async function stripBlock(destPath: string, dryRun = false): Promise<bool
 // Throws MarkerError without writing when the markers are ambiguous, so no user text is ever cut.
 export async function mergeClaude(destPath: string, templateContent: string): Promise<void> {
   const templateBlock = extractSentinelBlock(templateContent)
+  await refuseLink(destPath)
 
   if (!(await pathExists(destPath))) {
     await outputFile(destPath, templateContent)
     return
   }
 
-  const existing = await readFile(destPath, 'utf-8')
+  const existing = await readUtf8(destPath)
   const eol = existing.includes('\r\n') ? '\r\n' : '\n'
   const block = templateBlock.replace(/\r?\n/g, eol)
   const { starts, ends } = markers(destPath, existing)

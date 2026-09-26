@@ -296,9 +296,17 @@ export async function runUpdate(dryRun: boolean, force: boolean): Promise<void> 
     await writeFileAtomic(join(cwd, m.rel), JSON.stringify(m.merged, null, 2) + '\n')
   }
 
+  const gone: string[] = []
   for (const rel of [...retired, ...moved]) {
+    // Checked again after the question: the folder may have become a symlink while update waited.
+    const why = await writeBlocked(cwd, rel)
+    if (why) {
+      blocked[rel] = why
+      continue
+    }
     await assertSafe(cwd, rel)
     await removeRetired(cwd, rel, '.claude/skills')
+    gone.push(rel)
   }
   let stripped = false
   if (stripError) claudeProblems.push(stripError)
@@ -347,9 +355,9 @@ export async function runUpdate(dryRun: boolean, force: boolean): Promise<void> 
     shown([
       `Applied ${applied} file(s). Skipped ${skip.length + kept.length} user-modified file(s).`,
       ...merges.map(m => `Merged ${m.changes.length} goodvibes key(s) into ${m.rel}.`),
-      ...retired.map(rel => `${rel}: removed, no longer shipped by goodvibes`),
+      ...retired.filter(rel => gone.includes(rel)).map(rel => `${rel}: removed, no longer shipped by goodvibes`),
       ...(stripped ? [STRIPPED] : []),
-      ...moved.map(removedLine),
+      ...moved.filter(rel => gone.includes(rel)).map(removedLine),
       ...mergeErrors.map(e => `Not merged: ${e}`),
       ...removed.map(removedNote),
       ...Object.values(blocked),
