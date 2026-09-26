@@ -560,3 +560,71 @@ def test_init_next_steps_give_both_ponytail_plugin_commands_marked_optional_for_
     assert init_cmd._NEXT_STEPS == _NEXT_STEPS
     out = _plain(runner.invoke(main_app, ["init", "--minimal", "--scope", "project", *(["--dry-run"] if dry else [])]))
     assert " ".join(_NEXT_STEPS.split()) in out
+
+
+_OLD_CLAUDE = "# CLAUDE.md\n\nmy notes\n\n<!-- goodvibes:start -->\n# goodvibes: v1.7.1\n\nold rules\n<!-- goodvibes:end -->\n\nmore mine\n"
+
+
+def _old_project(proj, scope=None):
+    """A project set up by goodvibes 1.7 (project scope): rules block in CLAUDE.md, skills copied into the project."""
+    import hashlib
+    import json
+    (proj / "CLAUDE.md").write_text(_OLD_CLAUDE, encoding="utf-8")
+    files = {"CLAUDE.md": hashlib.sha256(_OLD_CLAUDE.encode("utf-8")).hexdigest()}
+    for name in ("caveman", "cavecrew", "mine"):
+        (proj / ".claude" / "skills" / name).mkdir(parents=True)
+        (proj / ".claude" / "skills" / name / "SKILL.md").write_text(f"{name} as shipped\n", encoding="utf-8")
+        files[f".claude/skills/{name}/SKILL.md"] = hashlib.sha256(f"{name} as shipped\n".encode("utf-8")).hexdigest()
+    (proj / ".claude" / "skills" / "mine" / "SKILL.md").write_text("my edit\n", encoding="utf-8")
+    manifest = {"version": "1.7.1", "files": files, **({"scope": scope} if scope else {})}
+    (proj / ".goodvibes.json").write_text(json.dumps(manifest), encoding="utf-8")
+
+
+def test_init_in_global_scope_removes_the_old_rules_block_and_unedited_skill_copies_from_a_1_7_project(runner, real_project):
+    from goodvibes_cli.main import app as main_app
+    proj = real_project
+    _old_project(proj)
+
+    result = runner.invoke(main_app, ["init", "--minimal"])
+
+    assert result.exit_code == 0, result.output
+    assert (proj / "CLAUDE.md").read_text(encoding="utf-8") == "# CLAUDE.md\n\nmy notes\n\nmore mine\n"
+    assert not (proj / ".claude" / "skills" / "caveman").exists()
+    assert not (proj / ".claude" / "skills" / "cavecrew").exists()
+    assert (proj / ".claude" / "skills" / "mine" / "SKILL.md").read_text(encoding="utf-8") == "my edit\n"
+    files = _manifest_files(proj)
+    assert ".claude/skills/caveman/SKILL.md" not in files
+    assert ".claude/skills/mine/SKILL.md" in files
+    out = _plain(result)
+    assert "CLAUDE.md: removed the old goodvibes rules block; the rules now come from your Claude Code settings folder" in out
+    assert ".claude/skills/caveman/SKILL.md: removed, now set up for all your projects" in out
+    assert "Edited skill copies stay in this project; the same skills are now set up for all your projects, so Claude may load both. Delete a copy you no longer need: .claude/skills/mine/SKILL.md" in out
+
+
+def test_init_dry_run_in_global_scope_lists_the_old_copies_it_would_remove_and_changes_nothing(runner, real_project):
+    from goodvibes_cli.main import app as main_app
+    proj = real_project
+    _old_project(proj)
+
+    result = runner.invoke(main_app, ["init", "--minimal", "--dry-run"])
+
+    assert result.exit_code == 0, result.output
+    out = _plain(result)
+    assert "Would remove the old goodvibes rules block from CLAUDE.md" in out
+    assert "Would remove: .claude/skills/caveman/SKILL.md" in out
+    assert "Would remove: .claude/skills/mine/SKILL.md" not in out
+    assert (proj / "CLAUDE.md").read_text(encoding="utf-8") == _OLD_CLAUDE
+    assert (proj / ".claude" / "skills" / "caveman" / "SKILL.md").exists()
+
+
+def test_init_with_project_scope_keeps_project_skills_and_refreshes_the_block(runner, real_project):
+    from goodvibes_cli.main import app as main_app
+    proj = real_project
+    _old_project(proj)
+
+    result = runner.invoke(main_app, ["init", "--minimal", "--scope", "project"])
+
+    assert result.exit_code == 0, result.output
+    assert (proj / ".claude" / "skills" / "caveman" / "SKILL.md").exists()
+    assert "# goodvibes: v1.7.1" not in (proj / "CLAUDE.md").read_text(encoding="utf-8")
+    assert "<!-- goodvibes:start -->" in (proj / "CLAUDE.md").read_text(encoding="utf-8")

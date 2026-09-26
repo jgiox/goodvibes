@@ -86,6 +86,34 @@ def _marker_problem(starts: list, ends: list) -> str | None:
     return None
 
 
+def _markers(path: pathlib.Path, text: str) -> tuple[list, list]:
+    starts, ends = list(_START_LINE.finditer(text)), list(_END_LINE.finditer(text))
+    problem = _marker_problem(starts, ends) if starts or ends else None
+    if problem:
+        raise ClaudeMdError(
+            f"{path.name}: {problem}; goodvibes left it unchanged. Please fix CLAUDE.md by hand: keep exactly one "
+            f"{SENTINEL_START} line followed later by one {SENTINEL_END} line (or delete both), then re-run."
+        )
+    return starts, ends
+
+
+def strip_block(path: pathlib.Path, dry_run: bool = False) -> bool:
+    """Remove the goodvibes block from path, keeping the text around it; True when there was a block."""
+    check_writable(path.parent, path)
+    if not path.is_file():
+        return False
+    existing = _read_text(path)
+    starts, ends = _markers(path, existing)
+    if not starts:
+        return False
+    if not dry_run:
+        nl = "\r\n" if "\r\n" in existing else "\n"
+        after = re.sub(r"^(?:[ \t]*\r?\n)+", "", existing[ends[0].end():])
+        parts = [p for p in (existing[:starts[0].start()].rstrip(), after.rstrip()) if p]
+        _write_text(path, (nl + nl).join(parts) + (nl if parts else ""))
+    return True
+
+
 def merge_claude(dest_path: pathlib.Path, template_content: str) -> None:
     """Merge goodvibes sentinel block into dest_path from template_content.
 
@@ -107,19 +135,12 @@ def merge_claude(dest_path: pathlib.Path, template_content: str) -> None:
     existing = _read_text(dest_path)
     nl = "\r\n" if "\r\n" in existing else "\n"
     block = template_block.replace("\r\n", "\n").replace("\n", nl)
-    starts, ends = list(_START_LINE.finditer(existing)), list(_END_LINE.finditer(existing))
+    starts, ends = _markers(dest_path, existing)
 
-    if not starts and not ends:
+    if not starts:
         # Case B: no sentinel — append block
         _write_text(dest_path, existing.rstrip() + nl + nl + block + nl)
         return
-
-    problem = _marker_problem(starts, ends)
-    if problem:
-        raise ClaudeMdError(
-            f"{dest_path.name}: {problem}; goodvibes left it unchanged. Please fix CLAUDE.md by hand: keep exactly one "
-            f"{SENTINEL_START} line followed later by one {SENTINEL_END} line (or delete both), then re-run."
-        )
 
     start_idx, end_idx = starts[0].start(), ends[0].end()
     existing_version = extract_version(existing[start_idx:end_idx])

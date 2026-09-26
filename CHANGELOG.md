@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/2.0.0/),
 
 ## [Unreleased]
 
+### Fixed
+
+- `goodvibes init` and `goodvibes update` now clean up a project set up before 1.9.0. Such a project kept its old rules block in `CLAUDE.md` and its skill copies in `.claude/skills/`, and the default setup never touched them, so Claude Code read the old rules (for example 1.7) next to the new ones in `~/.claude`. Both commands now remove the old block (the rest of `CLAUDE.md` stays) and every skill copy that is unchanged since goodvibes wrote it, and list what they removed; `--dry-run` shows it first, and `update` counts it in its question. Edited skill copies stay and are named. `--scope project` is unchanged.
+- The npm CLI no longer rewrites a `CLAUDE.md` that is not valid UTF-8 (a bad byte came back as `�`) or one that is a symlink; like the pip CLI, it now stops with a message and leaves the file unchanged.
+
 ## [1.11.1] - 2026-09-25
 
 ### Fixed

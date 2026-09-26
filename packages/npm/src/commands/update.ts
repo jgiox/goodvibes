@@ -2,7 +2,8 @@ import type { Command } from 'commander'
 import { intro, outro, note, confirm, isCancel, cancel } from '@clack/prompts'
 import { listTemplateFiles, resolveTemplatesDir } from '../steps/copy-templates.js'
 import { readManifest, writeManifest, posixKey, USER_OWNED, USER_REMOVED, type Manifest } from '../steps/write-manifest.js'
-import { mergeClaude, MarkerError } from '../utils/sentinel-merge.js'
+import { mergeClaude, MarkerError, stripBlock } from '../utils/sentinel-merge.js'
+import { EDITED, STRIP_PLAN, STRIPPED, oldSkillCopies, removedLine } from '../steps/project-copies.js'
 import { MANAGED_JSON, mergeManagedJson, managedRecord, isJsonObject, shapeError } from '../utils/json-merge.js'
 import { assertSafe, printable, removeRetired, writeBlocked, writeFileAtomic } from '../utils/fs-safe.js'
 import { applyGlobalConfig, claudeConfigDir, formatGlobal } from '../steps/global-setup.js'
@@ -153,6 +154,23 @@ export async function runUpdate(dryRun: boolean, force: boolean): Promise<void> 
     ? await categorise(templateDir, cwd, manifest, projectType, scope)
     : { overwrite: [], skip: [], netNew: [], kept: [], removed: [], stillRemoved: [], retired: [], blocked: {} as Record<string, string> }
 
+  // A project set up in project scope keeps its old rules block and skill copies; Claude would load both versions.
+  const oldCopies = manifest !== null && scope === 'global'
+  const { unedited: moved, edited } = manifest && oldCopies ? await oldSkillCopies(cwd, manifest.files) : { unedited: [], edited: [] }
+  skip.push(...edited)
+  let strip = false
+  let stripError: string | null = null
+  if (oldCopies) {
+    const why = await writeBlocked(cwd, 'CLAUDE.md')
+    try {
+      if (why) blocked['CLAUDE.md'] = why
+      else strip = await stripBlock(join(cwd, 'CLAUDE.md'), true)
+    } catch (e) {
+      if (!(e instanceof MarkerError)) throw e
+      stripError = e.message
+    }
+  }
+
   // User-modified settings.json and MCP files still receive goodvibes-managed keys.
   const merges: { rel: string; merged: Record<string, unknown>; changes: string[] }[] = []
   const mergeErrors: string[] = []
@@ -193,6 +211,10 @@ export async function runUpdate(dryRun: boolean, force: boolean): Promise<void> 
         netNew.length > 0 ? `Will add net-new (${netNew.length}): ${netNew.join(', ')}` : null,
         kept.length > 0 ? `Will keep — already yours, not written by goodvibes (${kept.length}): ${kept.join(', ')}` : null,
         retired.length > 0 ? `Will remove — no longer shipped by goodvibes (${retired.length}): ${retired.join(', ')}` : null,
+        moved.length > 0 ? `Will remove, now set up for all your projects (${moved.length}): ${moved.join(', ')}` : null,
+        strip ? STRIP_PLAN : null,
+        stripError,
+        edited.length > 0 ? EDITED + edited.join(', ') : null,
         ...merges.map(m => `Will merge goodvibes keys into ${m.rel}:\n  ${m.changes.join('\n  ')}`),
         ...mergeErrors.map(e => `Cannot merge ${e}`),
         ...removed.map(removedNote),
@@ -208,7 +230,8 @@ export async function runUpdate(dryRun: boolean, force: boolean): Promise<void> 
   }
 
   const globalChanges = globalPlan ? globalPlan.written.length + globalPlan.retired.length + globalPlan.settingsChanges.length : 0
-  if (!force && (globalChanges > 0 || overwrite.length > 0 || netNew.length > 0 || retired.length > 0 || merges.length > 0 || hookWrites)) {
+  const cleanupCount = moved.length + (strip ? 1 : 0)
+  if (!force && (globalChanges > 0 || overwrite.length > 0 || netNew.length > 0 || retired.length > 0 || cleanupCount > 0 || merges.length > 0 || hookWrites)) {
     const settings = `${globalChanges} change(s) to your Claude Code settings`
     // With the input closed (a script or CI) the prompt never settles, and Node would exit 13 without a word.
     const inputEnded = new Promise<'ended'>(resolve => process.stdin.once('end', () => resolve('ended')))
@@ -216,7 +239,7 @@ export async function runUpdate(dryRun: boolean, force: boolean): Promise<void> 
       message: !manifest
         ? `Apply ${settings}?`
         : `Overwrite ${overwrite.length} managed file(s), add ${netNew.length}, merge goodvibes keys into ${merges.length} file(s)` +
-          `${globalChanges > 0 ? ` and apply ${settings}` : ''}?`,
+          `${cleanupCount > 0 ? ` and remove ${cleanupCount} old project copies` : ''}${globalChanges > 0 ? ` and apply ${settings}` : ''}?`,
     }), inputEnded])
     if (proceed === 'ended') {
       cancel('No answer (the input ended). Nothing was changed.')
@@ -273,9 +296,27 @@ export async function runUpdate(dryRun: boolean, force: boolean): Promise<void> 
     await writeFileAtomic(join(cwd, m.rel), JSON.stringify(m.merged, null, 2) + '\n')
   }
 
-  for (const rel of retired) {
+  const gone: string[] = []
+  for (const rel of [...retired, ...moved]) {
+    // Checked again after the question: the folder may have become a symlink while update waited.
+    const why = await writeBlocked(cwd, rel)
+    if (why) {
+      blocked[rel] = why
+      continue
+    }
     await assertSafe(cwd, rel)
     await removeRetired(cwd, rel, '.claude/skills')
+    gone.push(rel)
+  }
+  let stripped = false
+  if (stripError) claudeProblems.push(stripError)
+  else if (strip) {
+    try {
+      stripped = await stripBlock(join(cwd, 'CLAUDE.md'))
+    } catch (e) {
+      if (!(e instanceof MarkerError)) throw e
+      claudeProblems.push(e.message)
+    }
   }
 
   let hookResult: GitHookResult | null = null
@@ -314,7 +355,9 @@ export async function runUpdate(dryRun: boolean, force: boolean): Promise<void> 
     shown([
       `Applied ${applied} file(s). Skipped ${skip.length + kept.length} user-modified file(s).`,
       ...merges.map(m => `Merged ${m.changes.length} goodvibes key(s) into ${m.rel}.`),
-      ...retired.map(rel => `${rel}: removed, no longer shipped by goodvibes`),
+      ...retired.filter(rel => gone.includes(rel)).map(rel => `${rel}: removed, no longer shipped by goodvibes`),
+      ...(stripped ? [STRIPPED] : []),
+      ...moved.filter(rel => gone.includes(rel)).map(removedLine),
       ...mergeErrors.map(e => `Not merged: ${e}`),
       ...removed.map(removedNote),
       ...Object.values(blocked),

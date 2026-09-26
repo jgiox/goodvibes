@@ -15,6 +15,7 @@ from rich.panel import Panel
 from rich.text import Text
 
 from goodvibes_cli.steps.copy_templates import DEPENDABOT, FILE_SIZE_WORKFLOW, list_template_files, resolve_templates_dir
+from goodvibes_cli.steps.project_copies import EDITED, STRIP_PLAN, STRIPPED, old_skill_copies, removed_line
 from goodvibes_cli.steps.git_hook import KEEPS, REMOVED_LINE, hook_line, install_git_hook
 from goodvibes_cli.steps.write_manifest import USER_OWNED, USER_REMOVED, ManifestError, read_manifest, write_manifest
 from goodvibes_cli.utils.detect_project_type import dependabot_yml, detect_project_type
@@ -22,7 +23,7 @@ from goodvibes_cli.utils.json_merge import MANAGED_JSON, managed_record, merge_m
 from goodvibes_cli.steps.global_setup import apply_global_config, claude_config_dir, format_global
 from goodvibes_cli.utils.safe_path import SymlinkError, check_writable, printable, remove_retired
 from goodvibes_cli.utils.scope import global_owned, minimal_skipped, same_path
-from goodvibes_cli.utils.sentinel_merge import ClaudeMdError, merge_claude
+from goodvibes_cli.utils.sentinel_merge import ClaudeMdError, merge_claude, strip_block
 
 console = Console()
 
@@ -196,6 +197,21 @@ def run_update(dry_run: bool, force: bool) -> None:
         elif _group(dest_rel) is None or _group(dest_rel) in tracked_groups:
             net_new.append(dest_rel)
 
+    # A project set up in project scope keeps its old rules block and skill copies; Claude would load both versions.
+    moved: list[str] = []
+    edited: list[str] = []
+    strip = False
+    strip_error: str | None = None
+    if scope == "global":
+        moved, edited = old_skill_copies(cwd, manifest["files"])
+        skip += edited
+        try:
+            strip = strip_block(cwd / "CLAUDE.md", dry_run=True)
+        except SymlinkError as e:
+            not_written.append(str(e))
+        except ClaudeMdError as e:
+            strip_error = str(e)
+
     # User-modified settings.json and MCP files still receive goodvibes-managed keys.
     merges: list[tuple[str, dict, list[str]]] = []
     merge_errors: list[str] = []
@@ -233,6 +249,9 @@ def run_update(dry_run: bool, force: bool) -> None:
         lines.append(f"Will keep — already yours, not written by goodvibes ({len(kept)}): {', '.join(kept)}")
     if retired:
         lines.append(f"Will remove — no longer shipped by goodvibes ({len(retired)}): {', '.join(retired)}")
+    if moved:
+        lines.append(f"Will remove, now set up for all your projects ({len(moved)}): {', '.join(moved)}")
+    lines += ([STRIP_PLAN] if strip else []) + ([strip_error] if strip_error else []) + ([EDITED + ", ".join(edited)] if edited else [])
     lines += merge_lines
     lines += [f"{rel}: {REMOVED}" for rel in removed]
     lines += not_written
@@ -255,10 +274,12 @@ def run_update(dry_run: bool, force: bool) -> None:
         console.print(DRY_RUN_END)
         return
 
-    if not force and (overwrite or net_new or merges or retired or global_changes or hook_changes):
+    cleanup_count = len(moved) + strip
+    if not force and (overwrite or net_new or merges or retired or cleanup_count or global_changes or hook_changes):
+        also_cleanup = f" and remove {cleanup_count} old project copies" if cleanup_count else ""
         also_global = f" and apply {global_changes} change(s) to your Claude Code settings" if global_changes else ""
         confirmed = _ask(
-            f"Overwrite {len(overwrite)} managed file(s), add {len(net_new)}, merge goodvibes keys into {len(merges)} file(s){also_global}?"
+            f"Overwrite {len(overwrite)} managed file(s), add {len(net_new)}, merge goodvibes keys into {len(merges)} file(s){also_cleanup}{also_global}?"
         )
         if not confirmed:
             console.print(CANCELLED)
@@ -309,8 +330,27 @@ def run_update(dry_run: bool, force: bool) -> None:
     for rel, merged, _ in merges:
         write_json(cwd / rel, merged)
 
-    for rel in retired:
+    gone: list[str] = []
+    for rel in retired + moved:
+        # Checked again after the question: the folder may have become a symlink while update waited.
+        try:
+            check_writable(cwd, cwd / rel)
+        except SymlinkError as e:
+            not_written.append(str(e))
+            blocked.append(rel)
+            continue
         remove_retired(cwd, rel, ".claude/skills")
+        gone.append(rel)
+    stripped = False
+    if strip_error:
+        problems.append(strip_error)
+    elif strip:
+        try:
+            stripped = strip_block(cwd / "CLAUDE.md")
+        except SymlinkError as e:
+            not_written.append(str(e))
+        except ClaudeMdError as e:
+            problems.append(str(e))
 
     hook_result = install_git_hook(cwd, False) if hook_plan is not None else None
     if hook_removed:
@@ -338,7 +378,8 @@ def run_update(dry_run: bool, force: bool) -> None:
     hook_msg = REMOVED_LINE if hook_removed else hook_line(hook_result, False) if hook_result else None
     summary = [f"Applied {len(applied)} file(s). Skipped {skipped_count} user-modified file(s)."]
     summary += [f"Merged {len(ch)} goodvibes key(s) into {rel}." for rel, _, ch in merges]
-    summary += [f"{rel}: removed, no longer shipped by goodvibes" for rel in retired]
+    summary += [f"{rel}: removed, no longer shipped by goodvibes" for rel in retired if rel in gone]
+    summary += ([STRIPPED] if stripped else []) + [removed_line(rel) for rel in moved if rel in gone]
     summary += [f"Not merged: {e}" for e in merge_errors]
     summary += [f"{rel}: {REMOVED}" for rel in removed]
     summary += not_written + problems + ([hook_msg] if hook_msg else [])

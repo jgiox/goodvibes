@@ -13,7 +13,10 @@ import { applyGlobalConfig, claudeConfigDir, ensureGlobalCli, registerContext7, 
 import { GLOBAL_OWNED, MINIMAL_SKIPPED, samePath, type Scope } from '../utils/scope.js'
 import { gitHookLine, hookInPlace, installGitHook, type GitHookResult } from '../steps/git-hook.js'
 import { homedir } from 'node:os'
-import { resolve, parse } from 'node:path'
+import { join, resolve, parse } from 'node:path'
+import { EDITED, STRIPPED, oldSkillCopies, removedLine } from '../steps/project-copies.js'
+import { MarkerError, stripBlock } from '../utils/sentinel-merge.js'
+import { removeRetired, writeBlocked } from '../utils/fs-safe.js'
 
 // ponytail: inline helper — too small to justify a separate module
 function formatHeadroomStatus(hr: HeadroomResult | undefined, mr: McpResult | undefined): string {
@@ -100,7 +103,27 @@ export function registerInitCommand(program: Command): void {
           ? allFiles.filter(f => !MINIMAL_SKIPPED(f))
           : allFiles.filter(f => !ciVariants.some((v: string) => f.endsWith(v) && v !== selectedVariant))
             .map(f => f.endsWith(selectedVariant) ? f.slice(0, -selectedVariant.length) + 'ci.yml' : f)
-        note(files.map(f => `  Would write: ${f}`).join('\n') || '  (no project files: run init inside a project folder)', 'Dry run — no files written')
+        const cleanup: string[] = []
+        if (inProject && scope === 'global') {
+          let prev: Manifest | null = null
+          try {
+            prev = await readManifest(cwd)
+          } catch (e) {
+            cancel((e as Error).message)
+            process.exit(1)
+          }
+          const { unedited } = await oldSkillCopies(cwd, prev?.files ?? {})
+          const why = await writeBlocked(cwd, 'CLAUDE.md')
+          try {
+            if (why) cleanup.push(`  ${why}`)
+            else if (await stripBlock(join(cwd, 'CLAUDE.md'), true)) cleanup.push('  Would remove the old goodvibes rules block from CLAUDE.md')
+          } catch (e) {
+            if (!(e instanceof MarkerError)) throw e
+            cleanup.push(`  ${e.message}`)
+          }
+          cleanup.push(...unedited.map(r => `  Would remove: ${r}`))
+        }
+        note([...files.map(f => `  Would write: ${f}`), ...cleanup].join('\n') || '  (no project files: run init inside a project folder)', 'Dry run — no files written')
         const hookLine = inProject ? gitHookLine(await installGitHook(cwd, true), true) : null
         if (hookLine) note(hookLine, 'Git commit check')
         note(
@@ -127,6 +150,8 @@ export function registerInitCommand(program: Command): void {
       const createdFiles: string[] = []
       const skippedFiles: string[] = []
       const problems: string[] = []
+      const cleanup: string[] = []
+      const removedCopies: string[] = []
       let headroomResult: HeadroomResult | undefined
       let mcpResult: McpResult | undefined
       let globalResult: GlobalResult | undefined
@@ -155,6 +180,29 @@ export function registerInitCommand(program: Command): void {
             skippedFiles.push(...skipped)
             problems.push(...found)
             gitHookResult = await installGitHook(cwd, false)
+            if (scope === 'global') {
+              // A project set up in project scope keeps its old rules block and skill copies; Claude would load both versions.
+              const { unedited, edited } = await oldSkillCopies(cwd, prevManifest?.files ?? {})
+              const why = await writeBlocked(cwd, 'CLAUDE.md')
+              try {
+                if (why) {
+                  if (!skippedFiles.includes(why)) skippedFiles.push(why)
+                } else if (await stripBlock(join(cwd, 'CLAUDE.md'))) cleanup.push(STRIPPED)
+              } catch (e) {
+                if (!(e instanceof MarkerError)) throw e
+                problems.push(e.message)
+              }
+              for (const rel of unedited) {
+                const blocked = await writeBlocked(cwd, rel)
+                if (blocked) {
+                  skippedFiles.push(blocked)
+                  continue
+                }
+                await removeRetired(cwd, rel, '.claude/skills')
+                removedCopies.push(rel)
+              }
+              cleanup.push(...removedCopies.map(removedLine), ...(edited.length > 0 ? [EDITED + edited.join(', ')] : []))
+            }
             return `Copied ${written.length} files`
           },
         })
@@ -211,7 +259,7 @@ export function registerInitCommand(program: Command): void {
           cwd,
           createdFiles.filter(f => f !== '.goodvibes.json'),
           _ver,
-          prevManifest?.files,
+          prevManifest ? Object.fromEntries(Object.entries(prevManifest.files).filter(([k]) => !removedCopies.includes(k))) : undefined,
           await managedRecord(cwd, templateDir, prevManifest?.managed),
           scope,
           gitHookResult && hookInPlace(gitHookResult) ? 'installed' : prevManifest?.gitHook,
@@ -224,6 +272,7 @@ export function registerInitCommand(program: Command): void {
       if (globalResult) note(formatGlobal(globalResult, cliResult, context7Result), `Global setup (${globalResult.configDir})`)
       if (inProject) note(createdFiles.join('\n') || '(none)', `Files written (${createdFiles.length})`)
       else note(`No project files written: ${cwd} is your ${inConfigDir ? 'Claude Code settings' : 'home'} folder.\nRun goodvibes init inside a project folder to add JOURNAL.md, CI and IDE rule files.`, 'Project files')
+      if (cleanup.length > 0) note(cleanup.join('\n'), 'Old project copies')
       if (skippedFiles.length > 0) {
         note(skippedFiles.join('\n'), `Files skipped (${skippedFiles.length})`)
       }

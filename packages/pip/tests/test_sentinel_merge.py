@@ -242,3 +242,41 @@ def test_merge_claude_gives_a_clear_error_for_a_claude_md_that_is_not_utf8(tmp_d
     assert not isinstance(e.value, UnicodeDecodeError)
     assert "UTF-8" in str(e.value)
     assert dest.read_bytes() == b"# caf\xe9 notes\n"
+
+
+# ---------------------------------------------------------------------------
+# strip_block
+# ---------------------------------------------------------------------------
+
+def test_strip_block_removes_the_goodvibes_block_and_keeps_the_text_around_it(tmp_path):
+    from goodvibes_cli.utils.sentinel_merge import strip_block
+    f = tmp_path / "CLAUDE.md"
+    f.write_text(f"# CLAUDE.md\n\nmy notes\n\n{SENTINEL_START}\n# goodvibes: v1.7.1\nold rules\n{SENTINEL_END}\n\nmore mine\n", encoding="utf-8")
+    assert strip_block(f) is True
+    assert f.read_text(encoding="utf-8") == "# CLAUDE.md\n\nmy notes\n\nmore mine\n"
+
+
+def test_strip_block_keeps_windows_line_endings(tmp_path):
+    from goodvibes_cli.utils.sentinel_merge import strip_block
+    f = tmp_path / "CLAUDE.md"
+    f.write_bytes(f"# CLAUDE.md\r\n\r\n{SENTINEL_START}\r\nold\r\n{SENTINEL_END}\r\n".encode("utf-8"))
+    assert strip_block(f) is True
+    assert f.read_bytes() == b"# CLAUDE.md\r\n"
+
+
+def test_strip_block_returns_false_and_leaves_a_file_without_markers_unchanged(tmp_path):
+    from goodvibes_cli.utils.sentinel_merge import strip_block
+    f = tmp_path / "CLAUDE.md"
+    f.write_text("# CLAUDE.md\n\nmine only\n", encoding="utf-8")
+    assert strip_block(f) is False
+    assert f.read_text(encoding="utf-8") == "# CLAUDE.md\n\nmine only\n"
+
+
+def test_strip_block_raises_and_leaves_the_file_unchanged_when_the_markers_are_ambiguous(tmp_path):
+    from goodvibes_cli.utils.sentinel_merge import ClaudeMdError, strip_block
+    f = tmp_path / "CLAUDE.md"
+    text = f"{SENTINEL_START}\na\n{SENTINEL_START}\nb\n{SENTINEL_END}\n"
+    f.write_text(text, encoding="utf-8")
+    with pytest.raises(ClaudeMdError):
+        strip_block(f)
+    assert f.read_text(encoding="utf-8") == text
