@@ -1,7 +1,7 @@
 """Tests for sentinel_merge — Wave 1 (03-02-PLAN.md)."""
 import pytest
 
-from .fixtures import SENTINEL_START, SENTINEL_END, TEMPLATE_CONTENT, TEMPLATE_CONTENT_V130
+from .fixtures import EDITED_170_BLOCK, NEWER_TEMPLATE, SENTINEL_START, SENTINEL_END, SHIPPED_170_BLOCK, TEMPLATE_CONTENT, TEMPLATE_CONTENT_V130
 
 
 # ---------------------------------------------------------------------------
@@ -120,14 +120,41 @@ def test_merge_claude_case_b_idempotent_on_no_sentinel_file(tmp_dir):
 def test_merge_claude_case_c_replaces_older_sentinel_block(tmp_dir):
     from goodvibes_cli.utils.sentinel_merge import merge_claude
     dest = tmp_dir / "CLAUDE.md"
-    old_block = f"{SENTINEL_START}\n# goodvibes: v0.9.0\n\nOld rules.\n{SENTINEL_END}"
-    dest.write_text(f"# User content before\n\n{old_block}\n\nUser content after.")
-    merge_claude(dest, TEMPLATE_CONTENT)
+    dest.write_text(f"# User content before\n\n{SHIPPED_170_BLOCK}\n\nUser content after.")
+    assert merge_claude(dest, NEWER_TEMPLATE) == "written"
     content = dest.read_text()
     assert "# User content before" in content
     assert "User content after." in content
-    assert "# goodvibes: v1.0.0" in content
-    assert "v0.9.0" not in content
+    assert "# goodvibes: v9.9.9" in content
+    assert "v1.7.0" not in content
+
+
+def test_merge_claude_keeps_an_edited_older_block_and_writes_the_new_block_beside_it(tmp_dir):
+    from goodvibes_cli.utils.sentinel_merge import merge_claude
+    dest = tmp_dir / "CLAUDE.md"
+    text = f"# Mine\n\n{EDITED_170_BLOCK}\n"
+    dest.write_text(text, encoding="utf-8")
+    assert merge_claude(dest, NEWER_TEMPLATE) == "kept"
+    assert dest.read_text(encoding="utf-8") == text
+    assert (tmp_dir / "CLAUDE.md.goodvibes-new").read_text(encoding="utf-8") == f"{SENTINEL_START}\n# goodvibes: v9.9.9\n\nnew rules\n{SENTINEL_END}\n"
+
+
+def test_merge_claude_dry_run_reports_a_kept_block_without_writing_anything(tmp_dir):
+    from goodvibes_cli.utils.sentinel_merge import merge_claude
+    dest = tmp_dir / "CLAUDE.md"
+    dest.write_text(EDITED_170_BLOCK + "\n", encoding="utf-8")
+    assert merge_claude(dest, NEWER_TEMPLATE, dry_run=True) == "kept"
+    assert not (tmp_dir / "CLAUDE.md.goodvibes-new").exists()
+
+
+def test_every_block_goodvibes_ships_is_listed_as_shipped():
+    import hashlib
+    import pathlib
+    from goodvibes_cli.utils.sentinel_merge import SHIPPED_BLOCKS, block_digest
+    template = (pathlib.Path(__file__).resolve().parents[3] / "templates" / "CLAUDE.md").read_text(encoding="utf-8")
+    assert block_digest(template) in SHIPPED_BLOCKS, f"add {block_digest(template)} to SHIPPED_BLOCKS in sentinel_merge.py and sentinel-merge.ts"
+    assert block_digest(SHIPPED_170_BLOCK) == hashlib.sha256(SHIPPED_170_BLOCK.encode("utf-8")).hexdigest()
+    assert block_digest(SHIPPED_170_BLOCK.replace("\n", "\r\n")) in SHIPPED_BLOCKS
 
 
 def test_merge_claude_case_d_skips_write_when_version_equal(tmp_dir):
@@ -251,16 +278,16 @@ def test_merge_claude_gives_a_clear_error_for_a_claude_md_that_is_not_utf8(tmp_d
 def test_strip_block_removes_the_goodvibes_block_and_keeps_the_text_around_it(tmp_path):
     from goodvibes_cli.utils.sentinel_merge import strip_block
     f = tmp_path / "CLAUDE.md"
-    f.write_text(f"# CLAUDE.md\n\nmy notes\n\n{SENTINEL_START}\n# goodvibes: v1.7.1\nold rules\n{SENTINEL_END}\n\nmore mine\n", encoding="utf-8")
-    assert strip_block(f) is True
+    f.write_text(f"# CLAUDE.md\n\nmy notes\n\n{SHIPPED_170_BLOCK}\n\nmore mine\n", encoding="utf-8")
+    assert strip_block(f) == "removed"
     assert f.read_text(encoding="utf-8") == "# CLAUDE.md\n\nmy notes\n\nmore mine\n"
 
 
 def test_strip_block_keeps_windows_line_endings(tmp_path):
     from goodvibes_cli.utils.sentinel_merge import strip_block
     f = tmp_path / "CLAUDE.md"
-    f.write_bytes(f"# CLAUDE.md\r\n\r\n{SENTINEL_START}\r\nold\r\n{SENTINEL_END}\r\n".encode("utf-8"))
-    assert strip_block(f) is True
+    f.write_bytes(f"# CLAUDE.md\r\n\r\n{SHIPPED_170_BLOCK}\r\n".replace("\n", "\r\n").replace("\r\r", "\r").encode("utf-8"))
+    assert strip_block(f) == "removed"
     assert f.read_bytes() == b"# CLAUDE.md\r\n"
 
 
@@ -268,8 +295,17 @@ def test_strip_block_returns_false_and_leaves_a_file_without_markers_unchanged(t
     from goodvibes_cli.utils.sentinel_merge import strip_block
     f = tmp_path / "CLAUDE.md"
     f.write_text("# CLAUDE.md\n\nmine only\n", encoding="utf-8")
-    assert strip_block(f) is False
+    assert strip_block(f) == ""
     assert f.read_text(encoding="utf-8") == "# CLAUDE.md\n\nmine only\n"
+
+
+def test_strip_block_keeps_a_block_the_user_edited(tmp_path):
+    from goodvibes_cli.utils.sentinel_merge import strip_block
+    f = tmp_path / "CLAUDE.md"
+    text = f"# CLAUDE.md\n\n{EDITED_170_BLOCK}\n"
+    f.write_text(text, encoding="utf-8")
+    assert strip_block(f) == "kept"
+    assert f.read_text(encoding="utf-8") == text
 
 
 def test_strip_block_raises_and_leaves_the_file_unchanged_when_the_markers_are_ambiguous(tmp_path):

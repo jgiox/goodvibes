@@ -3,7 +3,10 @@ import { mkdtempSync, writeFileSync, readFileSync, mkdirSync, symlinkSync } from
 import { rmSync } from 'fs'
 import { join } from 'path'
 import { tmpdir } from 'os'
-import { mergeClaude, extractVersion, versionGte, stripBlock, MarkerError } from './sentinel-merge.js'
+import { createHash } from 'node:crypto'
+import { fileURLToPath } from 'node:url'
+import { mergeClaude, extractVersion, versionGte, stripBlock, MarkerError, SHIPPED_BLOCKS, blockDigest } from './sentinel-merge.js'
+import { EDITED_170_BLOCK, NEWER_TEMPLATE, SHIPPED_170_BLOCK } from '../commands/old-project.fixture.js'
 
 const SENTINEL_START = '<!-- goodvibes:start -->'
 const SENTINEL_END = '<!-- goodvibes:end -->'
@@ -132,17 +135,40 @@ describe('mergeClaude', () => {
 
   it('Case C: replaces sentinel block when existing version is older', async () => {
     const destPath = join(tmpDir, 'CLAUDE.md')
-    const oldBlock = `${SENTINEL_START}\n# goodvibes: v0.9.0\n\nOld rules.\n${SENTINEL_END}`
-    const existing = `# User content before\n\n${oldBlock}\n\nUser content after.`
+    const existing = `# User content before\n\n${SHIPPED_170_BLOCK}\n\nUser content after.`
     writeFileSync(destPath, existing)
-    await mergeClaude(destPath, TEMPLATE_CONTENT)
+    expect(await mergeClaude(destPath, NEWER_TEMPLATE)).toBe('written')
     const content = readFileSync(destPath, 'utf-8')
     expect(content).toContain('# User content before')
     expect(content).toContain('User content after.')
-    expect(content).toContain('# goodvibes: v1.0.0')
-    expect(content).not.toContain('v0.9.0')
-    // Old rules should be replaced
-    expect(content).not.toContain('Old rules.')
+    expect(content).toContain('# goodvibes: v9.9.9')
+    expect(content).not.toContain('v1.7.0')
+  })
+
+  it('keeps an edited older block and writes the new block beside it', async () => {
+    const destPath = join(tmpDir, 'CLAUDE.md')
+    const text = `# Mine\n\n${EDITED_170_BLOCK}\n`
+    writeFileSync(destPath, text)
+    expect(await mergeClaude(destPath, NEWER_TEMPLATE)).toBe('kept')
+    expect(readFileSync(destPath, 'utf-8')).toBe(text)
+    expect(readFileSync(join(tmpDir, 'CLAUDE.md.goodvibes-new'), 'utf-8')).toBe(`${SENTINEL_START}\n# goodvibes: v9.9.9\n\nnew rules\n${SENTINEL_END}\n`)
+  })
+
+  it('reports a kept block in a dry run without writing anything', async () => {
+    const destPath = join(tmpDir, 'CLAUDE.md')
+    writeFileSync(destPath, EDITED_170_BLOCK + '\n')
+    expect(await mergeClaude(destPath, NEWER_TEMPLATE, true)).toBe('kept')
+    expect(() => readFileSync(join(tmpDir, 'CLAUDE.md.goodvibes-new'))).toThrow()
+  })
+
+  it('lists every block goodvibes ships, the same way as the pip CLI', () => {
+    const template = readFileSync(fileURLToPath(new URL('../../../../templates/CLAUDE.md', import.meta.url)), 'utf-8')
+    expect(SHIPPED_BLOCKS.has(blockDigest(template)), `add ${blockDigest(template)} to SHIPPED_BLOCKS in sentinel-merge.ts and sentinel_merge.py`).toBe(true)
+    expect(blockDigest(SHIPPED_170_BLOCK.replace(/\n/g, '\r\n'))).toBe(blockDigest(SHIPPED_170_BLOCK))
+    const pip = readFileSync(fileURLToPath(new URL('../../../pip/src/goodvibes_cli/utils/sentinel_merge.py', import.meta.url)), 'utf-8')
+    const pipSet = pip.slice(pip.indexOf('SHIPPED_BLOCKS'), pip.indexOf('})', pip.indexOf('SHIPPED_BLOCKS')))
+    expect([...pipSet.matchAll(/[0-9a-f]{64}/g)].map(m => m[0]).sort()).toEqual([...SHIPPED_BLOCKS].sort())
+    expect(createHash('sha256').update(SHIPPED_170_BLOCK).digest('hex')).toBe(blockDigest(SHIPPED_170_BLOCK))
   })
 
   it('Case D: skips write when existing sentinel version equals template version', async () => {
@@ -166,8 +192,6 @@ describe('mergeClaude', () => {
     expect(content).toBe(existingContent)
     expect(content).toContain('v2.0.0')
   })
-
-  const OLD = `${SENTINEL_START}\n# goodvibes: v0.9.0\n\nOld rules.\n${SENTINEL_END}`
 
   async function expectRefused(existing: string, reason: RegExp) {
     const destPath = join(tmpDir, 'CLAUDE.md')
@@ -210,20 +234,20 @@ describe('mergeClaude', () => {
 
   it('accepts marker lines with trailing whitespace', async () => {
     const destPath = join(tmpDir, 'CLAUDE.md')
-    writeFileSync(destPath, `before\n${SENTINEL_START}  \n# goodvibes: v0.9.0\n${SENTINEL_END}\t\nafter\n`)
-    await mergeClaude(destPath, TEMPLATE_CONTENT)
+    writeFileSync(destPath, `before\n${SHIPPED_170_BLOCK.replace(SENTINEL_START, SENTINEL_START + '  ').replace(SENTINEL_END, SENTINEL_END + '\t')}\nafter\n`)
+    await mergeClaude(destPath, NEWER_TEMPLATE)
     const content = readFileSync(destPath, 'utf-8')
-    expect(content).toContain('# goodvibes: v1.0.0')
+    expect(content).toContain('# goodvibes: v9.9.9')
     expect(content.startsWith('before\n')).toBe(true)
     expect(content.endsWith('after\n')).toBe(true)
   })
 
   it('keeps CRLF line endings when replacing the block', async () => {
     const destPath = join(tmpDir, 'CLAUDE.md')
-    writeFileSync(destPath, `before\r\n\r\n${OLD.split('\n').join('\r\n')}\r\nafter\r\n`)
-    await mergeClaude(destPath, TEMPLATE_CONTENT)
+    writeFileSync(destPath, `before\r\n\r\n${SHIPPED_170_BLOCK.split('\n').join('\r\n')}\r\nafter\r\n`)
+    await mergeClaude(destPath, NEWER_TEMPLATE)
     const content = readFileSync(destPath, 'utf-8')
-    expect(content).toContain('# goodvibes: v1.0.0')
+    expect(content).toContain('# goodvibes: v9.9.9')
     expect(content.replace(/\r\n/g, '')).not.toContain('\n')
     expect(content.startsWith('before\r\n')).toBe(true)
     expect(content.endsWith('after\r\n')).toBe(true)
@@ -246,23 +270,31 @@ describe('stripBlock', () => {
 
   it('removes the goodvibes block and keeps the text around it', async () => {
     const f = join(dir, 'CLAUDE.md')
-    writeFileSync(f, `# CLAUDE.md\n\nmy notes\n\n${SENTINEL_START}\n# goodvibes: v1.7.1\nold rules\n${SENTINEL_END}\n\nmore mine\n`)
-    expect(await stripBlock(f)).toBe(true)
+    writeFileSync(f, `# CLAUDE.md\n\nmy notes\n\n${SHIPPED_170_BLOCK}\n\nmore mine\n`)
+    expect(await stripBlock(f)).toBe('removed')
     expect(readFileSync(f, 'utf-8')).toBe('# CLAUDE.md\n\nmy notes\n\nmore mine\n')
   })
 
   it('keeps Windows line endings', async () => {
     const f = join(dir, 'CLAUDE.md')
-    writeFileSync(f, `# CLAUDE.md\r\n\r\n${SENTINEL_START}\r\nold\r\n${SENTINEL_END}\r\n`)
-    expect(await stripBlock(f)).toBe(true)
+    writeFileSync(f, `# CLAUDE.md\r\n\r\n${SHIPPED_170_BLOCK.split('\n').join('\r\n')}\r\n`)
+    expect(await stripBlock(f)).toBe('removed')
     expect(readFileSync(f, 'utf-8')).toBe('# CLAUDE.md\r\n')
   })
 
   it('returns false and leaves a file without markers unchanged', async () => {
     const f = join(dir, 'CLAUDE.md')
     writeFileSync(f, '# CLAUDE.md\n\nmine only\n')
-    expect(await stripBlock(f)).toBe(false)
+    expect(await stripBlock(f)).toBe('')
     expect(readFileSync(f, 'utf-8')).toBe('# CLAUDE.md\n\nmine only\n')
+  })
+
+  it('keeps a block the user edited', async () => {
+    const f = join(dir, 'CLAUDE.md')
+    const text = `# CLAUDE.md\n\n${EDITED_170_BLOCK}\n`
+    writeFileSync(f, text)
+    expect(await stripBlock(f)).toBe('kept')
+    expect(readFileSync(f, 'utf-8')).toBe(text)
   })
 
   it('throws and leaves the file unchanged when the markers are ambiguous', async () => {
@@ -275,9 +307,9 @@ describe('stripBlock', () => {
 
   it('reports a block without changing the file in a dry run', async () => {
     const f = join(dir, 'CLAUDE.md')
-    const text = `${SENTINEL_START}\nold\n${SENTINEL_END}\n`
+    const text = `${SHIPPED_170_BLOCK}\n`
     writeFileSync(f, text)
-    expect(await stripBlock(f, true)).toBe(true)
+    expect(await stripBlock(f, true)).toBe('removed')
     expect(readFileSync(f, 'utf-8')).toBe(text)
   })
 })

@@ -1092,7 +1092,8 @@ def test_update_dry_run_in_global_scope_plans_the_cleanup_without_changing_anyth
     assert "CLAUDE.md: will remove the old goodvibes rules block; the rules now come from your Claude Code settings folder" in out
     assert "Will remove, now set up for all your projects (2): .claude/skills/cavecrew/SKILL.md, .claude/skills/caveman/SKILL.md" in out
     assert (project_dir / ".claude" / "skills" / "caveman" / "SKILL.md").exists()
-    assert "old rules" in (project_dir / "CLAUDE.md").read_text(encoding="utf-8")
+    from .test_init_cmd import _OLD_CLAUDE
+    assert (project_dir / "CLAUDE.md").read_text(encoding="utf-8") == _OLD_CLAUDE
 
 
 def test_update_in_global_scope_counts_the_cleanup_in_its_question(plain_dirs, mocker):
@@ -1125,3 +1126,34 @@ def test_update_never_deletes_through_a_skills_folder_swapped_for_a_symlink_afte
     assert ".claude/skills/caveman/SKILL.md: symlink, not written" in out
     assert ".claude/skills/caveman/SKILL.md: removed, now set up for all your projects" not in out
     assert ".claude/skills/caveman/SKILL.md" in _read(project_dir, ".goodvibes.json")["files"]
+
+
+def test_update_in_global_scope_keeps_an_old_rules_block_the_user_edited(plain_dirs):
+    from .test_init_cmd import _EDITED_CLAUDE, _old_project
+    _, project_dir = plain_dirs
+    _old_project(project_dir, scope="global", claude=_EDITED_CLAUDE)
+
+    result = runner.invoke(app, ["update", "--force"])
+
+    assert result.exit_code == 0, result.output
+    assert (project_dir / "CLAUDE.md").read_text(encoding="utf-8") == _EDITED_CLAUDE
+    out = _out(result)
+    assert "CLAUDE.md: kept the old goodvibes rules block because you edited it; Claude also reads the rules in your Claude Code settings folder, so remove the block by hand when you no longer need it" in out
+    assert "will remove the old goodvibes rules block" not in out
+
+
+def test_update_keeps_an_edited_claude_md_block_and_writes_the_new_block_beside_it(plain_dirs):
+    from .fixtures import EDITED_170_BLOCK, NEWER_TEMPLATE
+    template_dir, project_dir = plain_dirs
+    (template_dir / "CLAUDE.md").write_text(NEWER_TEMPLATE, encoding="utf-8")
+    mine = f"# CLAUDE.md\n\n{EDITED_170_BLOCK}\n"
+    (project_dir / "CLAUDE.md").write_text(mine, encoding="utf-8")
+    _write_manifest(project_dir, {"CLAUDE.md": _sha(mine)})
+
+    result = runner.invoke(app, ["update", "--force"])
+
+    assert result.exit_code == 0, result.output
+    assert (project_dir / "CLAUDE.md").read_text(encoding="utf-8") == mine
+    assert "# goodvibes: v9.9.9" in (project_dir / "CLAUDE.md.goodvibes-new").read_text(encoding="utf-8")
+    assert "CLAUDE.md: kept your edited goodvibes rules block; the new block is in CLAUDE.md.goodvibes-new, copy over what you want, then delete that file" in _out(result)
+    assert _read(project_dir, ".goodvibes.json")["files"]["CLAUDE.md"] == _sha(mine)

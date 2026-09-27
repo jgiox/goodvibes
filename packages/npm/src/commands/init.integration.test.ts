@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { mkdtempSync, readFileSync, rmSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
-import { OLD_CLAUDE, oldProject } from './old-project.fixture.js'
+import { EDITED_CLAUDE, OLD_CLAUDE, oldProject } from './old-project.fixture.js'
 
 vi.mock('@clack/prompts', () => ({
   intro: vi.fn(),
@@ -87,5 +87,50 @@ describe('init in global scope on a project set up in project scope by goodvibes
     const claude = readFileSync(join(projectDir, 'CLAUDE.md'), 'utf-8')
     expect(claude).not.toContain('# goodvibes: v1.7.1')
     expect(claude).toContain('<!-- goodvibes:start -->')
+  })
+})
+
+describe('init keeps an old rules block the user edited', () => {
+  let projectDir: string
+  let cwdSpy: ReturnType<typeof vi.spyOn>
+
+  async function runInit(...flags: string[]): Promise<string> {
+    const { registerInitCommand } = await import('./init.js')
+    const { Command } = await import('commander')
+    const { note } = await import('@clack/prompts')
+    vi.mocked(note).mockClear()
+    const program = new Command()
+    program.exitOverride()
+    registerInitCommand(program)
+    await program.parseAsync(['node', 'goodvibes', 'init', '--minimal', ...flags])
+    return vi.mocked(note).mock.calls.map(c => String(c[0])).join('\n')
+  }
+
+  beforeEach(() => {
+    projectDir = mkdtempSync(join(tmpdir(), 'gv-init-edited-'))
+    cwdSpy = vi.spyOn(process, 'cwd').mockReturnValue(projectDir)
+    oldProject(projectDir, undefined, EDITED_CLAUDE)
+  })
+
+  afterEach(() => {
+    cwdSpy.mockRestore()
+    rmSync(projectDir, { recursive: true, force: true })
+  })
+
+  it('in global scope, keeps the block and says why', async () => {
+    const out = await runInit()
+
+    expect(readFileSync(join(projectDir, 'CLAUDE.md'), 'utf-8')).toBe(EDITED_CLAUDE)
+    expect(existsSync(join(projectDir, '.claude', 'skills', 'caveman'))).toBe(false)
+    expect(out).toContain('CLAUDE.md: kept the old goodvibes rules block because you edited it; Claude also reads the rules in your Claude Code settings folder, so remove the block by hand when you no longer need it')
+    expect(out).not.toContain('CLAUDE.md: removed the old goodvibes rules block')
+  })
+
+  it('with --scope project, keeps the block and writes the new block beside it', async () => {
+    const out = await runInit('--scope', 'project')
+
+    expect(readFileSync(join(projectDir, 'CLAUDE.md'), 'utf-8')).toBe(EDITED_CLAUDE)
+    expect(readFileSync(join(projectDir, 'CLAUDE.md.goodvibes-new'), 'utf-8')).toContain('# goodvibes: v')
+    expect(out).toContain('CLAUDE.md: kept your edited goodvibes rules block; the new block is in CLAUDE.md.goodvibes-new, copy over what you want, then delete that file')
   })
 })
