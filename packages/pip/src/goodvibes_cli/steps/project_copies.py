@@ -8,6 +8,8 @@ from goodvibes_cli.steps.write_manifest import USER_OWNED, USER_REMOVED
 from goodvibes_cli.utils.safe_path import SymlinkError, check_writable
 
 STRIPPED = "CLAUDE.md: removed the old goodvibes rules block; the rules now come from your Claude Code settings folder"
+KEPT_OLD_BLOCK = "CLAUDE.md: kept the old goodvibes rules block because you edited it; Claude also reads the rules in your Claude Code settings folder, so remove the block by hand when you no longer need it"
+KEPT_BLOCK = "CLAUDE.md: kept your edited goodvibes rules block; the new block is in CLAUDE.md.goodvibes-new, copy over what you want, then delete that file"
 STRIP_PLAN = "CLAUDE.md: will remove the old goodvibes rules block; the rules now come from your Claude Code settings folder"
 EDITED = "Edited skill copies stay in this project; the same skills are now set up for all your projects, so Claude may load both. Delete a copy you no longer need: "
 

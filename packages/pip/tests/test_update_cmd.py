@@ -131,7 +131,7 @@ def test_update_uses_merge_claude_for_claude_md(mocker, tmp_path):
     mocker.patch("goodvibes_cli.commands.update_cmd.write_manifest")
     result = runner.invoke(app, ["update", "--force"])
     assert result.exit_code == 0
-    mock_merge.assert_called_once()
+    assert [c for c in mock_merge.call_args_list if not c.kwargs.get("dry_run")] == [mocker.call(project_dir / "CLAUDE.md", "# Template\n")]
     mock_copy.assert_not_called()
 
 
@@ -203,9 +203,8 @@ def test_update_refreshes_claude_block_and_preserves_outside_content(mocker, tmp
     project_dir = tmp_path / "project"
     project_dir.mkdir()
     # Manifest records the hash as written by init (block only, no custom prose yet).
-    initial_claude_md = (
-        "<!-- goodvibes:start -->\n# goodvibes: v1.0.0\n\nold rules\n<!-- goodvibes:end -->\n"
-    )
+    from .fixtures import SHIPPED_170_BLOCK
+    initial_claude_md = SHIPPED_170_BLOCK + "\n"
     # The user then appended custom prose outside the block — the whole-file hash no
     # longer matches the manifest even though the sentinel block itself is untouched.
     existing_claude_md = "# My Project\n\nCustom prose that must survive.\n\n" + initial_claude_md
@@ -229,7 +228,7 @@ def test_update_refreshes_claude_block_and_preserves_outside_content(mocker, tmp
     updated = (project_dir / "CLAUDE.md").read_text(encoding="utf-8")
     assert "Custom prose that must survive." in updated
     assert "new rules" in updated
-    assert "old rules" not in updated
+    assert "v1.7.0" not in updated
 
 
 _REPO_TEMPLATES = pathlib.Path(__file__).resolve().parents[3] / "templates"

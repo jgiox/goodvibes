@@ -15,7 +15,7 @@ from rich.panel import Panel
 from rich.text import Text
 
 from goodvibes_cli.steps.copy_templates import DEPENDABOT, FILE_SIZE_WORKFLOW, list_template_files, resolve_templates_dir
-from goodvibes_cli.steps.project_copies import EDITED, STRIP_PLAN, STRIPPED, old_skill_copies, removed_line
+from goodvibes_cli.steps.project_copies import EDITED, KEPT_BLOCK, KEPT_OLD_BLOCK, STRIP_PLAN, STRIPPED, old_skill_copies, removed_line
 from goodvibes_cli.steps.git_hook import KEEPS, REMOVED_LINE, hook_line, install_git_hook
 from goodvibes_cli.steps.write_manifest import USER_OWNED, USER_REMOVED, ManifestError, read_manifest, write_manifest
 from goodvibes_cli.utils.detect_project_type import dependabot_yml, detect_project_type
@@ -136,6 +136,7 @@ def run_update(dry_run: bool, force: bool) -> None:
     removed: list[str] = []
     still_removed: list[str] = []
     retired: list[str] = []
+    block_kept = False
 
     def symlinked(rel: str) -> bool:
         try:
@@ -164,7 +165,11 @@ def run_update(dry_run: bool, force: bool) -> None:
         if rel == "CLAUDE.md":
             # merge_claude only ever replaces the sentinel block, so it's always safe
             # to run even when custom prose outside the block changes the whole-file hash.
-            overwrite.append(rel)
+            try:
+                block_kept = (template_dir / rel).exists() and merge_claude(dest_path, (template_dir / rel).read_text(encoding="utf-8"), dry_run=True) == "kept"
+            except (ClaudeMdError, SymlinkError):
+                block_kept = False  # the real merge below reports it
+            (skip if block_kept else overwrite).append(rel)
             continue
         dest_sha = hashlib.sha256(dest_path.read_bytes()).hexdigest()
         if dest_sha == manifest_sha and rel.startswith(".claude/skills/") and not (template_dir / rel).exists():
@@ -200,7 +205,7 @@ def run_update(dry_run: bool, force: bool) -> None:
     # A project set up in project scope keeps its old rules block and skill copies; Claude would load both versions.
     moved: list[str] = []
     edited: list[str] = []
-    strip = False
+    strip = ""
     strip_error: str | None = None
     if scope == "global":
         moved, edited = old_skill_copies(cwd, manifest["files"])
@@ -251,7 +256,7 @@ def run_update(dry_run: bool, force: bool) -> None:
         lines.append(f"Will remove — no longer shipped by goodvibes ({len(retired)}): {', '.join(retired)}")
     if moved:
         lines.append(f"Will remove, now set up for all your projects ({len(moved)}): {', '.join(moved)}")
-    lines += ([STRIP_PLAN] if strip else []) + ([strip_error] if strip_error else []) + ([EDITED + ", ".join(edited)] if edited else [])
+    lines += ([STRIP_PLAN] if strip == "removed" else []) + ([KEPT_OLD_BLOCK] if strip == "kept" else []) + ([strip_error] if strip_error else []) + ([EDITED + ", ".join(edited)] if edited else [])
     lines += merge_lines
     lines += [f"{rel}: {REMOVED}" for rel in removed]
     lines += not_written
@@ -274,7 +279,7 @@ def run_update(dry_run: bool, force: bool) -> None:
         console.print(DRY_RUN_END)
         return
 
-    cleanup_count = len(moved) + strip
+    cleanup_count = len(moved) + (strip == "removed")
     if not force and (overwrite or net_new or merges or retired or cleanup_count or global_changes or hook_changes):
         also_cleanup = f" and remove {cleanup_count} old project copies" if cleanup_count else ""
         also_global = f" and apply {global_changes} change(s) to your Claude Code settings" if global_changes else ""
@@ -330,6 +335,15 @@ def run_update(dry_run: bool, force: bool) -> None:
     for rel, merged, _ in merges:
         write_json(cwd / rel, merged)
 
+    if block_kept:
+        try:
+            if merge_claude(cwd / "CLAUDE.md", (template_dir / "CLAUDE.md").read_text(encoding="utf-8")) == "kept":
+                not_written.append(KEPT_BLOCK)
+        except SymlinkError as e:
+            not_written.append(str(e))
+        except ClaudeMdError as e:
+            problems.append(str(e))
+
     gone: list[str] = []
     for rel in retired + moved:
         # Checked again after the question: the folder may have become a symlink while update waited.
@@ -344,9 +358,9 @@ def run_update(dry_run: bool, force: bool) -> None:
     stripped = False
     if strip_error:
         problems.append(strip_error)
-    elif strip:
+    elif strip == "removed":
         try:
-            stripped = strip_block(cwd / "CLAUDE.md")
+            stripped = strip_block(cwd / "CLAUDE.md") == "removed"
         except SymlinkError as e:
             not_written.append(str(e))
         except ClaudeMdError as e:

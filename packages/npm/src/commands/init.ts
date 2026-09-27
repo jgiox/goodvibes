@@ -14,7 +14,7 @@ import { GLOBAL_OWNED, MINIMAL_SKIPPED, samePath, type Scope } from '../utils/sc
 import { gitHookLine, hookInPlace, installGitHook, type GitHookResult } from '../steps/git-hook.js'
 import { homedir } from 'node:os'
 import { join, resolve, parse } from 'node:path'
-import { EDITED, STRIPPED, oldSkillCopies, removedLine } from '../steps/project-copies.js'
+import { EDITED, KEPT_OLD_BLOCK, STRIPPED, oldSkillCopies, removedLine } from '../steps/project-copies.js'
 import { MarkerError, stripBlock } from '../utils/sentinel-merge.js'
 import { removeRetired, writeBlocked } from '../utils/fs-safe.js'
 
@@ -116,7 +116,10 @@ export function registerInitCommand(program: Command): void {
           const why = await writeBlocked(cwd, 'CLAUDE.md')
           try {
             if (why) cleanup.push(`  ${why}`)
-            else if (await stripBlock(join(cwd, 'CLAUDE.md'), true)) cleanup.push('  Would remove the old goodvibes rules block from CLAUDE.md')
+            else {
+              const strip = await stripBlock(join(cwd, 'CLAUDE.md'), true)
+              if (strip) cleanup.push(strip === 'removed' ? '  Would remove the old goodvibes rules block from CLAUDE.md' : `  ${KEPT_OLD_BLOCK}`)
+            }
           } catch (e) {
             if (!(e instanceof MarkerError)) throw e
             cleanup.push(`  ${e.message}`)
@@ -187,7 +190,10 @@ export function registerInitCommand(program: Command): void {
               try {
                 if (why) {
                   if (!skippedFiles.includes(why)) skippedFiles.push(why)
-                } else if (await stripBlock(join(cwd, 'CLAUDE.md'))) cleanup.push(STRIPPED)
+                } else {
+                  const strip = await stripBlock(join(cwd, 'CLAUDE.md'))
+                  if (strip) cleanup.push(strip === 'removed' ? STRIPPED : KEPT_OLD_BLOCK)
+                }
               } catch (e) {
                 if (!(e instanceof MarkerError)) throw e
                 problems.push(e.message)

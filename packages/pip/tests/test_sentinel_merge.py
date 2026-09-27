@@ -229,23 +229,24 @@ def test_merge_claude_ignores_markers_that_are_not_alone_on_their_line(tmp_dir):
 def test_merge_claude_accepts_marker_lines_with_trailing_whitespace(tmp_dir):
     from goodvibes_cli.utils.sentinel_merge import merge_claude
     dest = tmp_dir / "CLAUDE.md"
-    dest.write_text(f"# Mine\n{SENTINEL_START}   \n# goodvibes: v0.1.0\nold\n{SENTINEL_END}\t\nafter\n", encoding="utf-8")
-    merge_claude(dest, TEMPLATE_CONTENT)
+    block = SHIPPED_170_BLOCK.replace(SENTINEL_START, SENTINEL_START + "   ").replace(SENTINEL_END, SENTINEL_END + "\t")
+    dest.write_text(f"# Mine\n{block}\nafter\n", encoding="utf-8")
+    assert merge_claude(dest, NEWER_TEMPLATE) == "written"
     content = dest.read_text(encoding="utf-8")
-    assert "old" not in content
+    assert "v1.7.0" not in content
     assert content.startswith("# Mine\n")
     assert content.endswith("after\n")
-    assert "# goodvibes: v1.0.0" in content
+    assert "# goodvibes: v9.9.9" in content
 
 
 def test_merge_claude_keeps_crlf_line_endings_when_replacing_the_block(tmp_dir):
     from goodvibes_cli.utils.sentinel_merge import merge_claude
     dest = tmp_dir / "CLAUDE.md"
-    dest.write_bytes(f"# Mine\r\n{SENTINEL_START}\r\n# goodvibes: v0.1.0\r\nold\r\n{SENTINEL_END}\r\nafter\r\n".encode())
-    merge_claude(dest, TEMPLATE_CONTENT)
+    dest.write_bytes(f"# Mine\r\n{SHIPPED_170_BLOCK}\r\nafter\r\n".replace("\r\n", "\n").replace("\n", "\r\n").encode())
+    assert merge_claude(dest, NEWER_TEMPLATE) == "written"
     raw = dest.read_bytes()
-    assert b"old" not in raw
-    assert b"# goodvibes: v1.0.0" in raw
+    assert b"v1.7.0" not in raw
+    assert b"# goodvibes: v9.9.9" in raw
     assert raw.count(b"\n") == raw.count(b"\r\n")
     assert raw.startswith(b"# Mine\r\n") and raw.endswith(b"after\r\n")
 

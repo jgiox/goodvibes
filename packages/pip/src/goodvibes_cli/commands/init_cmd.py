@@ -12,7 +12,7 @@ from goodvibes_cli.steps.configure_mcp import configure_mcp
 from goodvibes_cli.steps.copy_templates import copy_templates, list_template_files, resolve_templates_dir
 from goodvibes_cli.steps.git_hook import KEEPS, hook_line, install_git_hook
 from goodvibes_cli.steps.install_headroom import install_headroom
-from goodvibes_cli.steps.project_copies import EDITED, STRIPPED, old_skill_copies, removed_line
+from goodvibes_cli.steps.project_copies import EDITED, KEPT_OLD_BLOCK, STRIPPED, old_skill_copies, removed_line
 from goodvibes_cli.steps.telemetry import opted_out, start_telemetry_thread
 from goodvibes_cli.steps.write_manifest import USER_OWNED, USER_REMOVED, ManifestError, read_manifest, write_manifest
 from goodvibes_cli.utils.detect_project_type import detect_project_type
@@ -107,9 +107,9 @@ def init_cmd(
             try:
                 strip = strip_block(cwd / "CLAUDE.md", dry_run=True)
             except (ClaudeMdError, SymlinkError) as e:
-                strip = False
+                strip = ""
                 file_list += f"\n  {e}"
-            file_list += "".join(["\n  Would remove the old goodvibes rules block from CLAUDE.md"] if strip else []) + "".join(f"\n  Would remove: {r}" for r in unedited)
+            file_list += {"removed": "\n  Would remove the old goodvibes rules block from CLAUDE.md", "kept": f"\n  {KEPT_OLD_BLOCK}"}.get(strip, "") + "".join(f"\n  Would remove: {r}" for r in unedited)
         console.print(Panel(file_list, title="Dry run — no files written"))
         dry_hook = hook_line(install_git_hook(cwd, True), True) if in_project else None
         if dry_hook:
@@ -156,8 +156,9 @@ def init_cmd(
                 # A project set up in project scope keeps its old rules block and skill copies; Claude would load both versions.
                 unedited, edited = old_skill_copies(cwd, prev.get("files") or {})
                 try:
-                    if strip_block(cwd / "CLAUDE.md"):
-                        cleanup.append(STRIPPED)
+                    strip = strip_block(cwd / "CLAUDE.md")
+                    if strip:
+                        cleanup.append(STRIPPED if strip == "removed" else KEPT_OLD_BLOCK)
                 except ClaudeMdError as e:
                     skipped_files_list.append(str(e))
                 except SymlinkError as e:

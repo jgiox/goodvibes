@@ -172,7 +172,7 @@ That installs the newest version and removes the pin, so later upgrades work. Fr
 
 A project set up before 1.9.0 keeps the rules in `CLAUDE.md`, between `<!-- goodvibes:start -->` and `<!-- goodvibes:end -->`, and the skills in `.claude/skills/`. The default setup now puts both in `~/.claude`, so Claude Code reads two versions of the rules. The same happens after `goodvibes upgrade` in 1.9.0, which ignored the install scope.
 
-From 1.11.2, `goodvibes init` and `goodvibes update` fix this: they remove the old block (your own text in `CLAUDE.md` stays) and every skill copy you never edited, and list what they removed. Skill copies you edited stay, and goodvibes names them so you can delete the ones you no longer need.
+From 1.11.2, `goodvibes init` and `goodvibes update` fix this: they remove the old block (your own text in `CLAUDE.md` stays) and every skill copy you never edited, and list what they removed. A block or skill copy you edited stays, and goodvibes names it so you can remove it by hand when you no longer need it.
 
 On 1.11.1 or older, open `CLAUDE.md` and delete everything from `<!-- goodvibes:start -->` to `<!-- goodvibes:end -->`, then delete the goodvibes skill folders in `.claude/skills/` that you never edited. Do the same for the skill folders if you ran `goodvibes update` with 1.9.0 to 1.11.1 in that project: it stopped tracking them, so goodvibes no longer knows they are its copies.
 

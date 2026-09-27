@@ -3,7 +3,7 @@ import { intro, outro, note, confirm, isCancel, cancel } from '@clack/prompts'
 import { listTemplateFiles, resolveTemplatesDir } from '../steps/copy-templates.js'
 import { readManifest, writeManifest, posixKey, USER_OWNED, USER_REMOVED, type Manifest } from '../steps/write-manifest.js'
 import { mergeClaude, MarkerError, stripBlock } from '../utils/sentinel-merge.js'
-import { EDITED, STRIP_PLAN, STRIPPED, oldSkillCopies, removedLine } from '../steps/project-copies.js'
+import { EDITED, KEPT_BLOCK, KEPT_OLD_BLOCK, STRIP_PLAN, STRIPPED, oldSkillCopies, removedLine } from '../steps/project-copies.js'
 import { MANAGED_JSON, mergeManagedJson, managedRecord, isJsonObject, shapeError } from '../utils/json-merge.js'
 import { assertSafe, printable, removeRetired, writeBlocked, writeFileAtomic } from '../utils/fs-safe.js'
 import { applyGlobalConfig, claudeConfigDir, formatGlobal } from '../steps/global-setup.js'
@@ -65,7 +65,12 @@ async function categorise(
     } else if (rel === 'CLAUDE.md') {
       // mergeClaude only ever replaces the sentinel block, so it's always safe to
       // run even when custom prose outside the block changes the whole-file hash.
-      overwrite.push(rel)
+      const tpl = join(templateDir, rel)
+      const blockKept = existsSync(tpl) && (await mergeClaude(destPath, await readFile(tpl, 'utf-8'), true).catch(e => {
+        if (!(e instanceof MarkerError)) throw e
+        return 'written' // the real merge below reports it
+      })) === 'kept'
+      ;(blockKept ? skip : overwrite).push(rel)
     } else {
       const destContent = await readFile(destPath, 'utf-8')
       const destSha = createHash('sha256').update(destContent, 'utf8').digest('hex')
@@ -158,7 +163,7 @@ export async function runUpdate(dryRun: boolean, force: boolean): Promise<void> 
   const oldCopies = manifest !== null && scope === 'global'
   const { unedited: moved, edited } = manifest && oldCopies ? await oldSkillCopies(cwd, manifest.files) : { unedited: [], edited: [] }
   skip.push(...edited)
-  let strip = false
+  let strip: 'removed' | 'kept' | '' = ''
   let stripError: string | null = null
   if (oldCopies) {
     const why = await writeBlocked(cwd, 'CLAUDE.md')
@@ -212,7 +217,7 @@ export async function runUpdate(dryRun: boolean, force: boolean): Promise<void> 
         kept.length > 0 ? `Will keep — already yours, not written by goodvibes (${kept.length}): ${kept.join(', ')}` : null,
         retired.length > 0 ? `Will remove — no longer shipped by goodvibes (${retired.length}): ${retired.join(', ')}` : null,
         moved.length > 0 ? `Will remove, now set up for all your projects (${moved.length}): ${moved.join(', ')}` : null,
-        strip ? STRIP_PLAN : null,
+        strip === 'removed' ? STRIP_PLAN : strip === 'kept' ? KEPT_OLD_BLOCK : null,
         stripError,
         edited.length > 0 ? EDITED + edited.join(', ') : null,
         ...merges.map(m => `Will merge goodvibes keys into ${m.rel}:\n  ${m.changes.join('\n  ')}`),
@@ -230,7 +235,7 @@ export async function runUpdate(dryRun: boolean, force: boolean): Promise<void> 
   }
 
   const globalChanges = globalPlan ? globalPlan.written.length + globalPlan.retired.length + globalPlan.settingsChanges.length : 0
-  const cleanupCount = moved.length + (strip ? 1 : 0)
+  const cleanupCount = moved.length + (strip === 'removed' ? 1 : 0)
   if (!force && (globalChanges > 0 || overwrite.length > 0 || netNew.length > 0 || retired.length > 0 || cleanupCount > 0 || merges.length > 0 || hookWrites)) {
     const settings = `${globalChanges} change(s) to your Claude Code settings`
     // With the input closed (a script or CI) the prompt never settles, and Node would exit 13 without a word.
@@ -296,6 +301,16 @@ export async function runUpdate(dryRun: boolean, force: boolean): Promise<void> 
     await writeFileAtomic(join(cwd, m.rel), JSON.stringify(m.merged, null, 2) + '\n')
   }
 
+  const claudeNotes: string[] = []
+  if (skip.includes('CLAUDE.md')) {
+    try {
+      if ((await mergeClaude(join(cwd, 'CLAUDE.md'), await readFile(join(templateDir, 'CLAUDE.md'), 'utf-8'))) === 'kept') claudeNotes.push(KEPT_BLOCK)
+    } catch (e) {
+      if (!(e instanceof MarkerError)) throw e
+      claudeProblems.push(e.message)
+    }
+  }
+
   const gone: string[] = []
   for (const rel of [...retired, ...moved]) {
     // Checked again after the question: the folder may have become a symlink while update waited.
@@ -310,9 +325,9 @@ export async function runUpdate(dryRun: boolean, force: boolean): Promise<void> 
   }
   let stripped = false
   if (stripError) claudeProblems.push(stripError)
-  else if (strip) {
+  else if (strip === 'removed') {
     try {
-      stripped = await stripBlock(join(cwd, 'CLAUDE.md'))
+      stripped = (await stripBlock(join(cwd, 'CLAUDE.md'))) === 'removed'
     } catch (e) {
       if (!(e instanceof MarkerError)) throw e
       claudeProblems.push(e.message)
@@ -357,6 +372,7 @@ export async function runUpdate(dryRun: boolean, force: boolean): Promise<void> 
       ...merges.map(m => `Merged ${m.changes.length} goodvibes key(s) into ${m.rel}.`),
       ...retired.filter(rel => gone.includes(rel)).map(rel => `${rel}: removed, no longer shipped by goodvibes`),
       ...(stripped ? [STRIPPED] : []),
+      ...claudeNotes,
       ...moved.filter(rel => gone.includes(rel)).map(removedLine),
       ...mergeErrors.map(e => `Not merged: ${e}`),
       ...removed.map(removedNote),
