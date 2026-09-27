@@ -501,3 +501,18 @@ def test_apply_global_config_only_reports_the_new_version_in_dry_run():
 
     assert "rules/goodvibes.md: will write goodvibes' new version to rules/goodvibes.md.goodvibes-new; your copy stays" in format_global(r, None, None).splitlines()
     assert not (cfg / "rules" / "goodvibes.md.goodvibes-new").exists()
+
+
+def test_apply_global_config_keeps_a_goodvibes_hook_the_user_edited_in_the_global_settings():
+    cfg = _cfg()
+    apply_global_config(TEMPLATES, "9.9.9", dry_run=False)
+    settings = json.loads((cfg / "settings.json").read_text(encoding="utf-8"))
+    gate = next(g for g in settings["hooks"]["PreToolUse"] if "goodvibes-journal-gate" in g["hooks"][0]["command"])
+    gate["hooks"][0]["command"] += " # mine"
+    (cfg / "settings.json").write_text(json.dumps(settings), encoding="utf-8")
+
+    r = apply_global_config(TEMPLATES, "9.9.9", dry_run=False, restore=False)
+
+    assert json.loads((cfg / "settings.json").read_text(encoding="utf-8"))["hooks"] == settings["hooks"]
+    path = cfg / "settings.json"
+    assert f"{path}: kept your edited hook goodvibes-journal-gate (PreToolUse); goodvibes did not replace it with its new version" in format_global(r, None, None).splitlines()

@@ -303,4 +303,17 @@ describe('applyGlobalConfig (real temp CLAUDE_CONFIG_DIR)', () => {
     )
     expect(existsSync(join(cfg, 'rules', 'goodvibes.md.goodvibes-new'))).toBe(false)
   })
+
+  it('keeps a goodvibes hook the user edited in the global settings', async () => {
+    const { formatGlobal } = await import('./global-setup.js')
+    await applyGlobalConfig(templateDir, '9.9.9', false, true)
+    const settings = readJson('settings.json')
+    settings.hooks.PreToolUse.find((g: Record<string, any>) => g.hooks[0].command.includes('goodvibes-journal-gate')).hooks[0].command += ' # mine'
+    writeFileSync(join(cfg, 'settings.json'), JSON.stringify(settings))
+    const r = await applyGlobalConfig(templateDir, '9.9.9', false)
+    expect(readJson('settings.json').hooks).toEqual(settings.hooks)
+    expect(formatGlobal(r, undefined, undefined).split('\n')).toContain(
+      `${join(cfg, 'settings.json')}: kept your edited hook goodvibes-journal-gate (PreToolUse); goodvibes did not replace it with its new version`,
+    )
+  })
 })

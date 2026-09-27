@@ -555,7 +555,9 @@ describe('update command — broken manifests and Windows keys', () => {
     expect(readFileSync(join(projectDir, 'docs', 'a.md'), 'utf-8')).toBe('a v2\n')
     expect(readFileSync(join(projectDir, 'docs', 'b.md'), 'utf-8')).toBe('b edited by me\n')
     const files = JSON.parse(readFileSync(join(projectDir, '.goodvibes.json'), 'utf-8')).files
-    expect(files).toEqual({ 'docs/a.md': sha256('a v2\n'), 'docs/b.md': sha256('b v1\n') })
+    // The edited file keeps its content; goodvibes' v2 is offered beside it and recorded as offered.
+    expect(files).toEqual({ 'docs/a.md': sha256('a v2\n'), 'docs/b.md': sha256('b v2\n') })
+    expect(readFileSync(join(projectDir, 'docs', 'b.md.goodvibes-new'), 'utf-8')).toBe('b v2\n')
   })
 
   it('update --force exits 1 and does not delete .git/HEAD through a .claude/skills/../../ manifest key', async () => {

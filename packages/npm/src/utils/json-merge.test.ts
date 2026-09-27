@@ -4,8 +4,13 @@ import { fileURLToPath } from 'node:url'
 import { createHash } from 'node:crypto'
 import { managedIds, presentIds, mergeManagedJson, shapeError } from './json-merge.js'
 
-const gate = { matcher: 'Bash', hooks: [{ type: 'command', command: ': goodvibes-journal-gate; exit 0' }] }
-const gateV2 = { matcher: 'Bash', hooks: [{ type: 'command', command: ': goodvibes-journal-gate; exit 2' }] }
+const repoJson = (rel: string) => JSON.parse(readFileSync(fileURLToPath(new URL(`../../../../${rel}`, import.meta.url)), 'utf-8'))
+const settingsNow = repoJson('templates/.claude/settings.json')
+const settingsOld = repoJson('tests/shipped/settings-1.10.0.json')
+const groupOf = (c: Record<string, any>, id: string, event = 'PreToolUse') => c.hooks[event].find((g: Record<string, any>) => g.hooks[0].command.startsWith(`: ${id};`))
+// Real hooks: only a value goodvibes shipped counts as its own, so made-up ones would be kept as the user's.
+const gate = groupOf(settingsOld, 'goodvibes-journal-gate')
+const gateV2 = groupOf(settingsNow, 'goodvibes-journal-gate')
 const userHook = { matcher: 'Edit', hooks: [{ type: 'command', command: 'npx prettier --write' }] }
 const tplSettings = {
   permissions: { allow: ['Bash(npx*)'], ask: ['Bash(git push*)'], deny: ['Bash(git reset --hard*)'] },
@@ -118,17 +123,13 @@ describe('mergeManagedJson', () => {
     expect(changes).toEqual(['+ mcpServers.context7'])
   })
 
-  it('keeps a user-added headers block on context7 while updating its managed fields', () => {
+  it("keeps a context7 entry with the user's own url and headers as it is", () => {
     const user = {
       mcpServers: { context7: { type: 'http', url: 'https://old.example/mcp', headers: { Authorization: 'Bearer ${CONTEXT7_API_KEY}' } } },
     }
-    const { merged, changes } = mergeManagedJson('.mcp.json', tplMcp, user)
-    expect(merged.mcpServers.context7).toEqual({
-      type: 'http',
-      url: 'https://mcp.context7.com/mcp',
-      headers: { Authorization: 'Bearer ${CONTEXT7_API_KEY}' },
-    })
-    expect(changes).toEqual(['~ mcpServers.context7'])
+    const { merged, changes } = mergeManagedJson('.mcp.json', tplMcp, structuredClone(user))
+    expect(merged).toEqual(user)
+    expect(changes).toEqual([])
   })
 
   it('reports no changes when every managed key is already current', () => {
@@ -145,13 +146,13 @@ describe('mergeManagedJson', () => {
   })
 
   it('keeps a user hook added next to the goodvibes-doctor hook in the SessionStart group', () => {
-    const doctor = { type: 'command', command: ': goodvibes-doctor; goodvibes doctor --quick', timeout: 10 }
-    const doctorV2 = { type: 'command', command: ': goodvibes-doctor; goodvibes doctor --quick', timeout: 20 }
+    const doctor = groupOf(settingsNow, 'goodvibes-doctor', 'SessionStart')
     const mine = { type: 'command', command: 'echo hello' }
-    const user = { hooks: { SessionStart: [{ matcher: 'startup', hooks: [doctor, mine] }] } }
-    const tpl = { hooks: { SessionStart: [{ matcher: 'startup', hooks: [doctorV2] }] } }
-    const { merged } = mergeManagedJson('.claude/settings.json', tpl, user)
-    expect(merged.hooks.SessionStart).toEqual([{ matcher: 'startup', hooks: [doctorV2, mine] }])
+    const user = { hooks: { SessionStart: [{ ...doctor, hooks: [...doctor.hooks, mine] }] } }
+    const tpl = { hooks: { SessionStart: [doctor] } }
+    const { merged, changes } = mergeManagedJson('.claude/settings.json', tpl, structuredClone(user))
+    expect(merged.hooks.SessionStart).toEqual(user.hooks.SessionStart)
+    expect(changes).toEqual([])
   })
 })
 
@@ -212,12 +213,13 @@ describe('mergeManagedJson with null containers and empty entries', () => {
 })
 
 describe('refreshing goodvibes hook groups and retired deny rules', () => {
-  const guard = (cmd: string, matcher: string) => ({ matcher, hooks: [{ type: 'command', command: `: goodvibes-read-guard; ${cmd}` }] })
-  const tpl = { hooks: { PreToolUse: [guard('v2', 'Read|Bash|Grep')] }, permissions: { deny: ['Bash(git push --force *)'] } }
+  const tpl = { hooks: { PreToolUse: [groupOf(settingsNow, 'goodvibes-read-guard')] }, permissions: { deny: ['Bash(git push --force *)'] } }
 
   it('refreshes the matcher of the goodvibes hook group so new tools reach the read guard', () => {
-    const { merged, changes } = mergeManagedJson('.claude/settings.json', tpl, { hooks: { PreToolUse: [guard('v1', 'Read|Bash')] } })
-    expect(merged.hooks.PreToolUse).toEqual([guard('v2', 'Read|Bash|Grep')])
+    const old = structuredClone(groupOf(settingsOld, 'goodvibes-read-guard'))
+    expect(old.matcher).toBe('Read|Bash')
+    const { merged, changes } = mergeManagedJson('.claude/settings.json', tpl, { hooks: { PreToolUse: [old] } })
+    expect(merged.hooks.PreToolUse).toEqual([groupOf(settingsNow, 'goodvibes-read-guard')])
     expect(changes).toContain('~ hooks.PreToolUse: goodvibes-read-guard')
   })
 
@@ -237,11 +239,13 @@ describe('refreshing goodvibes hook groups and retired deny rules', () => {
 
 describe('matcher refresh in a shared group', () => {
   it('keeps the matcher of a group where the user added their own hooks next to the goodvibes hook', () => {
-    const tpl = { hooks: { PreToolUse: [{ matcher: 'Read|Bash|Grep', hooks: [{ type: 'command', command: ': goodvibes-read-guard; v2' }] }] } }
-    const user = { hooks: { PreToolUse: [{ matcher: 'Read|Bash|Edit', hooks: [{ type: 'command', command: './mine.sh' }, { type: 'command', command: ': goodvibes-read-guard; v1' }] }] } }
+    const now = groupOf(settingsNow, 'goodvibes-read-guard')
+    const tpl = { hooks: { PreToolUse: [now] } }
+    const v1 = structuredClone(groupOf(settingsOld, 'goodvibes-read-guard').hooks[0])
+    const user = { hooks: { PreToolUse: [{ matcher: 'Read|Bash|Edit', hooks: [{ type: 'command', command: './mine.sh' }, v1] }] } }
     const { merged } = mergeManagedJson('.claude/settings.json', tpl, user)
     expect(merged.hooks.PreToolUse[0].matcher).toBe('Read|Bash|Edit')
-    expect(merged.hooks.PreToolUse[0].hooks[1].command).toBe(': goodvibes-read-guard; v2')
+    expect(merged.hooks.PreToolUse[0].hooks[1]).toEqual(now.hooks[0])
   })
 })
 

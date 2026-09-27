@@ -154,6 +154,8 @@ Run `goodvibes update --dry-run` first to see every entry it would add or change
 
 If you delete a goodvibes part on purpose (for example the journal check hook), update remembers that in `.goodvibes.json` and does not add it back.
 
+From 1.11.2, the same goes for goodvibes parts you changed. If you edit the journal check hook, the read guard hook or the session check (or the tools a goodvibes hook runs for), or the `context7` entry, update keeps your version and prints `kept your edited hook ...` or `kept your edited ... entry`. goodvibes recognises every version of these it ever shipped, so an old version you never touched is still refreshed.
+
 ### I deleted a goodvibes file. Will `goodvibes update` bring it back?
 
 No. update notices the file is gone, tells you once, and records it as removed in `.goodvibes.json`, so later updates leave it alone. If you want it back, run `goodvibes init`, which restores missing goodvibes files. If you create a file with the same name yourself, it is yours: goodvibes never overwrites it.

@@ -1,10 +1,22 @@
 """Unit tests for json_merge (pure functions, no I/O)."""
 import copy
+import json
+import pathlib
 
 from goodvibes_cli.utils.json_merge import managed_ids, merge_managed_json, present_ids, shape_error
 
-GATE = {"matcher": "Bash", "hooks": [{"type": "command", "command": ": goodvibes-journal-gate; exit 0"}]}
-GATE_V2 = {"matcher": "Bash", "hooks": [{"type": "command", "command": ": goodvibes-journal-gate; exit 2"}]}
+from .fixtures import SETTINGS_1100
+
+_TEMPLATE_SETTINGS = json.loads((pathlib.Path(__file__).resolve().parents[3] / "templates" / ".claude" / "settings.json").read_text(encoding="utf-8"))
+
+
+def _group(content, hid):
+    return next(g for g in content["hooks"]["PreToolUse"] if f": {hid};" in g["hooks"][0]["command"])
+
+
+# Real hooks: only a value goodvibes shipped counts as its own, so made-up ones would be kept as the user's.
+GATE = _group(SETTINGS_1100, "goodvibes-journal-gate")
+GATE_V2 = _group(_TEMPLATE_SETTINGS, "goodvibes-journal-gate")
 USER_HOOK = {"matcher": "Edit", "hooks": [{"type": "command", "command": "npx prettier --write"}]}
 TPL_SETTINGS = {
     "permissions": {"allow": ["Bash(npx*)"], "ask": ["Bash(git push*)"], "deny": ["Bash(git reset --hard*)"]},
@@ -109,15 +121,11 @@ def test_merge_adds_context7_and_keeps_other_mcp_servers():
     assert changes == ["+ mcpServers.context7"]
 
 
-def test_merge_keeps_user_headers_on_context7_while_updating_managed_fields():
+def test_merge_keeps_a_context7_entry_with_the_users_own_url_and_headers_as_it_is():
     user = {"mcpServers": {"context7": {"type": "http", "url": "https://old.example/mcp", "headers": {"Authorization": "Bearer ${CONTEXT7_API_KEY}"}}}}
-    merged, changes = merge_managed_json(".mcp.json", TPL_MCP, user)
-    assert merged["mcpServers"]["context7"] == {
-        "type": "http",
-        "url": "https://mcp.context7.com/mcp",
-        "headers": {"Authorization": "Bearer ${CONTEXT7_API_KEY}"},
-    }
-    assert changes == ["~ mcpServers.context7"]
+    merged, changes = merge_managed_json(".mcp.json", TPL_MCP, copy.deepcopy(user))
+    assert merged == user
+    assert changes == []
 
 
 def test_merge_reports_no_changes_when_managed_keys_are_current():
@@ -234,16 +242,14 @@ def test_merge_fills_an_empty_context7_entry_with_the_template_fields_even_when_
     assert changes == ["~ mcpServers.context7"]
 
 
-def _guard(cmd, matcher):
-    return {"matcher": matcher, "hooks": [{"type": "command", "command": f": goodvibes-read-guard; {cmd}"}]}
-
-
-_TPL_REFRESH = {"hooks": {"PreToolUse": [_guard("v2", "Read|Bash|Grep")]}, "permissions": {"deny": ["Bash(git push --force *)"]}}
+_TPL_REFRESH = {"hooks": {"PreToolUse": [_group(_TEMPLATE_SETTINGS, "goodvibes-read-guard")]}, "permissions": {"deny": ["Bash(git push --force *)"]}}
 
 
 def test_refreshes_the_matcher_of_the_goodvibes_hook_group_so_new_tools_reach_the_read_guard():
-    merged, changes = merge_managed_json(".claude/settings.json", _TPL_REFRESH, {"hooks": {"PreToolUse": [_guard("v1", "Read|Bash")]}})
-    assert merged["hooks"]["PreToolUse"] == [_guard("v2", "Read|Bash|Grep")]
+    old = copy.deepcopy(_group(SETTINGS_1100, "goodvibes-read-guard"))
+    assert old["matcher"] == "Read|Bash"
+    merged, changes = merge_managed_json(".claude/settings.json", _TPL_REFRESH, {"hooks": {"PreToolUse": [old]}})
+    assert merged["hooks"]["PreToolUse"] == [_group(_TEMPLATE_SETTINGS, "goodvibes-read-guard")]
     assert "~ hooks.PreToolUse: goodvibes-read-guard" in changes
 
 

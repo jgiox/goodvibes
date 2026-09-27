@@ -88,7 +88,7 @@ def test_update_calls_write_manifest_after_applying_changes(mocker):
     mock_write.assert_called_once()
 
 
-def test_update_skips_user_modified_files(mocker):
+def test_update_skips_user_modified_files(mocker, tmp_path):
     """Files with a different SHA than the manifest are categorised as skip and excluded from write_manifest.
 
     Uses a non-CLAUDE.md fixture — CLAUDE.md is always routed to overwrite via
@@ -96,7 +96,7 @@ def test_update_skips_user_modified_files(mocker):
     """
     manifest = {"version": "1.0.0", "files": {"docs/onboarding.md": "expectedsha"}}
     mocker.patch("goodvibes_cli.commands.update_cmd.read_manifest", return_value=manifest)
-    mocker.patch("goodvibes_cli.commands.update_cmd.resolve_templates_dir")
+    mocker.patch("goodvibes_cli.commands.update_cmd.resolve_templates_dir", return_value=tmp_path)
     mocker.patch("goodvibes_cli.commands.update_cmd.detect_project_type", return_value="both")
     mocker.patch("goodvibes_cli.commands.update_cmd.list_template_files", return_value=[])
     # File exists with different content → real sha256 ≠ "expectedsha" → skip

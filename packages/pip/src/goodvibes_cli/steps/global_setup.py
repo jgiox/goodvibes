@@ -10,9 +10,10 @@ import subprocess
 import sys
 
 from goodvibes_cli.steps.copy_templates import list_template_files
+from goodvibes_cli.steps.project_copies import offer_line
 from goodvibes_cli.steps.write_manifest import MANIFEST_PATH, USER_OWNED, USER_REMOVED, read_manifest
 from goodvibes_cli.utils.json_merge import (
-    file_allow_rules, merge_managed_json, overridden_lines, present_ids, shape_error, user_allow_rules, write_json, yielded_ids,
+    file_allow_rules, kept_entry_lines, merge_managed_json, overridden_lines, present_ids, shape_error, user_allow_rules, write_json, yielded_ids,
 )
 from goodvibes_cli.utils.proc import run, which
 from goodvibes_cli.utils.scope import goodvibes_block
@@ -84,7 +85,7 @@ def apply_global_config(template_dir: pathlib.Path, version: str, dry_run: bool,
         if rel.startswith(".claude/skills/"):
             owned.append((rel[len(".claude/"):], (template_dir / rel).read_text(encoding="utf-8")))
 
-    result: dict = {"config_dir": str(cfg), "written": [], "kept": [], "removed": [], "retired": [], "settings_changes": [], "settings_warnings": [], "settings_error": None}
+    result: dict = {"config_dir": str(cfg), "written": [], "kept": [], "removed": [], "retired": [], "settings_changes": [], "settings_warnings": [], "settings_error": None, "offered": [], "dry_run": dry_run}
     files: dict[str, str] = {}
     for rel, content in owned:
         dest = cfg / rel
@@ -107,7 +108,13 @@ def apply_global_config(template_dir: pathlib.Path, version: str, dry_run: bool,
             continue
         if current and current != recorded:
             result["kept"].append(rel)
-            if recorded:
+            if recorded and recorded != _sha(content):
+                # Offered once per version: the manifest now records it, the user's copy stays.
+                result["offered"].append(rel)
+                files[rel] = _sha(content)
+                if not dry_run:
+                    dest.with_name(dest.name + ".goodvibes-new").write_text(content, encoding="utf-8")
+            elif recorded:
                 files[rel] = recorded
             continue
         result["written"].append(rel)
@@ -146,6 +153,7 @@ def apply_global_config(template_dir: pathlib.Path, version: str, dry_run: bool,
         result["settings_changes"] = changes
         local = [r for f in ("settings.json", "settings.local.json") for r in file_allow_rules(project / ".claude" / f, tpl)] if project else []
         result["settings_warnings"] = overridden_lines(str(settings_path), [*user_allow_rules(merged, tpl), *local], merged, tpl)
+        result["settings_warnings"] += kept_entry_lines(str(settings_path), tpl, user)
         if not dry_run and changes:
             cfg.mkdir(parents=True, exist_ok=True)
             write_json(settings_path, merged)
@@ -160,7 +168,9 @@ def apply_global_config(template_dir: pathlib.Path, version: str, dry_run: bool,
 
 def format_global(g: dict, cli: dict | None, c7: dict | None) -> str:
     lines = [f"written: {f}" for f in g["written"]]
-    lines += [f"kept (you edited it): {f}" for f in g["kept"]]
+    offered = g.get("offered", [])
+    lines += [f"kept (you edited it): {f}" for f in g["kept"] if f not in offered]
+    lines += [offer_line(f, g.get("dry_run", False)) for f in offered]
     lines += [f"{f}: removed by you, not re-added (run goodvibes init to restore)" for f in g.get("removed", [])]
     lines += [f"{f}: removed, no longer shipped by goodvibes" for f in g.get("retired", [])]
     lines += [f"settings.json {c}" for c in g["settings_changes"]]

@@ -15,12 +15,12 @@ from rich.panel import Panel
 from rich.text import Text
 
 from goodvibes_cli.steps.copy_templates import DEPENDABOT, FILE_SIZE_WORKFLOW, list_template_files, resolve_templates_dir
-from goodvibes_cli.steps.project_copies import EDITED, KEPT_BLOCK, KEPT_OLD_BLOCK, STRIP_PLAN, STRIPPED, old_skill_copies, removed_line
+from goodvibes_cli.steps.project_copies import EDITED, KEPT_BLOCK, KEPT_OLD_BLOCK, STRIP_PLAN, STRIPPED, offer_line, old_skill_copies, removed_line
 from goodvibes_cli.steps.git_hook import KEEPS, REMOVED_LINE, hook_line, install_git_hook
 from goodvibes_cli.steps.write_manifest import USER_OWNED, USER_REMOVED, ManifestError, read_manifest, write_manifest
 from goodvibes_cli.utils.detect_project_type import dependabot_yml, detect_project_type
 from goodvibes_cli.utils.json_merge import (
-    MANAGED_JSON, file_allow_rules, managed_ids, managed_record, merge_managed_json, overridden_lines, shape_error,
+    MANAGED_JSON, file_allow_rules, kept_entry_lines, managed_ids, managed_record, merge_managed_json, overridden_lines, shape_error,
     user_allow_rules, write_json,
 )
 from goodvibes_cli.steps.global_setup import apply_global_config, claude_config_dir, format_global
@@ -223,6 +223,7 @@ def run_update(dry_run: bool, force: bool) -> None:
     # User-modified settings.json and MCP files still receive goodvibes-managed keys.
     merges: list[tuple[str, dict, list[str]]] = []
     merge_errors: list[str] = []
+    kept_notes: list[str] = []
     # Allow rules from the files Claude Code reads beside the project settings; an ask rule would override them.
     settings_rel = ".claude/settings.json"
     handled = settings_rel in [*overwrite, *net_new, *skip, *kept] and (template_dir / settings_rel).exists()
@@ -251,6 +252,7 @@ def run_update(dry_run: bool, force: bool) -> None:
         )
         if changes:
             merges.append((rel, merged, changes))
+        kept_notes += kept_entry_lines(rel, tpl, user)
     permission_notes: list[str] = []
     settings_fresh: dict | None = None
     if settings_tpl:
@@ -277,6 +279,20 @@ def run_update(dry_run: bool, force: bool) -> None:
     merge_lines = [f"Will merge goodvibes keys into {rel}:\n  " + "\n  ".join(ch) for rel, _, ch in merges]
     merge_lines += [f"Cannot merge {e}" for e in merge_errors]
 
+    # A file the user edited keeps their copy; goodvibes' new version goes beside it once per version.
+    offers: list[tuple[str, bytes]] = []
+    for rel in skip:
+        if rel in MANAGED_JSON or rel == "CLAUDE.md" or rel in edited:
+            continue
+        src = template_dir / ".github" / "workflows" / f"ci-{project_type}.yml" if rel == ".github/workflows/ci.yml" else template_dir / rel
+        if not src.is_file():
+            continue
+        data = src.read_bytes()
+        if rel == DEPENDABOT:
+            data = dependabot_yml(data.decode("utf-8"), cwd).encode("utf-8")
+        if hashlib.sha256(data).hexdigest() != manifest["files"].get(rel):
+            offers.append((rel, data))
+
     lines = []
     if overwrite:
         lines.append(f"Will overwrite ({len(overwrite)}): {', '.join(overwrite)}")
@@ -291,7 +307,7 @@ def run_update(dry_run: bool, force: bool) -> None:
     if moved:
         lines.append(f"Will remove, now set up for all your projects ({len(moved)}): {', '.join(moved)}")
     lines += ([STRIP_PLAN] if strip == "removed" else []) + ([KEPT_OLD_BLOCK] if strip == "kept" else []) + ([strip_error] if strip_error else []) + ([EDITED + ", ".join(edited)] if edited else [])
-    lines += merge_lines + permission_notes
+    lines += merge_lines + permission_notes + kept_notes + [offer_line(rel, True) for rel, _ in offers]
     lines += [f"{rel}: {REMOVED}" for rel in removed]
     lines += not_written
 
@@ -314,7 +330,7 @@ def run_update(dry_run: bool, force: bool) -> None:
         return
 
     cleanup_count = len(moved) + (strip == "removed")
-    if not force and (overwrite or net_new or merges or retired or cleanup_count or global_changes or hook_changes):
+    if not force and (overwrite or net_new or merges or offers or retired or cleanup_count or global_changes or hook_changes):
         also_cleanup = f" and remove {cleanup_count} old project copies" if cleanup_count else ""
         also_global = f" and apply {global_changes} change(s) to your Claude Code settings" if global_changes else ""
         confirmed = _ask(
@@ -372,6 +388,16 @@ def run_update(dry_run: bool, force: bool) -> None:
     for rel, merged, _ in merges:
         write_json(cwd / rel, merged)
 
+    offered: dict[str, str] = {}
+    for rel, data in offers:
+        try:
+            check_writable(cwd, cwd / f"{rel}.goodvibes-new")
+        except SymlinkError as e:
+            not_written.append(str(e))
+            continue
+        (cwd / f"{rel}.goodvibes-new").write_bytes(data)
+        offered[rel] = hashlib.sha256(data).hexdigest()
+
     if block_kept:
         try:
             if merge_claude(cwd / "CLAUDE.md", (template_dir / "CLAUDE.md").read_text(encoding="utf-8")) == "kept":
@@ -412,6 +438,8 @@ def run_update(dry_run: bool, force: bool) -> None:
     # Preserve skipped (user-modified) files' prior hashes so they stay
     # protected on every later run instead of dropping out of the manifest.
     preserved = {rel: manifest["files"][rel] for rel in skip + blocked}
+    # The offered version is recorded, so the same one is not offered again.
+    preserved.update(offered)
     preserved.update({rel: USER_OWNED for rel in kept})
     # Recorded, not dropped: a dropped entry would look net-new on the next update and come back.
     preserved.update({rel: USER_REMOVED for rel in removed + still_removed})
@@ -431,6 +459,7 @@ def run_update(dry_run: bool, force: bool) -> None:
     summary += [f"Merged {len(ch)} goodvibes key(s) into {rel}." for rel, _, ch in merges]
     summary += [f"{rel}: removed, no longer shipped by goodvibes" for rel in retired if rel in gone]
     summary += ([STRIPPED] if stripped else []) + [removed_line(rel) for rel in moved if rel in gone]
+    summary += [offer_line(rel, False) for rel in offered]
     summary += [f"Not merged: {e}" for e in merge_errors]
     summary += [f"{rel}: {REMOVED}" for rel in removed]
     summary += not_written + problems + ([hook_msg] if hook_msg else [])

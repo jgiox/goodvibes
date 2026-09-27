@@ -3,8 +3,8 @@ import { intro, outro, note, confirm, isCancel, cancel } from '@clack/prompts'
 import { listTemplateFiles, resolveTemplatesDir } from '../steps/copy-templates.js'
 import { readManifest, writeManifest, posixKey, USER_OWNED, USER_REMOVED, type Manifest } from '../steps/write-manifest.js'
 import { mergeClaude, MarkerError, stripBlock } from '../utils/sentinel-merge.js'
-import { EDITED, KEPT_BLOCK, KEPT_OLD_BLOCK, STRIP_PLAN, STRIPPED, oldSkillCopies, removedLine } from '../steps/project-copies.js'
-import { MANAGED_JSON, fileAllowRules, managedIds, mergeManagedJson, managedRecord, isJsonObject, overriddenLines, shapeError, userAllowRules } from '../utils/json-merge.js'
+import { EDITED, KEPT_BLOCK, KEPT_OLD_BLOCK, STRIP_PLAN, STRIPPED, offerLine, oldSkillCopies, removedLine } from '../steps/project-copies.js'
+import { MANAGED_JSON, fileAllowRules, keptEntryLines, managedIds, mergeManagedJson, managedRecord, isJsonObject, overriddenLines, shapeError, userAllowRules } from '../utils/json-merge.js'
 import { assertSafe, printable, removeRetired, writeBlocked, writeFileAtomic } from '../utils/fs-safe.js'
 import { applyGlobalConfig, claudeConfigDir, formatGlobal } from '../steps/global-setup.js'
 import { GLOBAL_OWNED, MINIMAL_SKIPPED, samePath, type Scope } from '../utils/scope.js'
@@ -178,6 +178,7 @@ export async function runUpdate(dryRun: boolean, force: boolean): Promise<void> 
 
   // User-modified settings.json and MCP files still receive goodvibes-managed keys.
   const merges: { rel: string; merged: Record<string, unknown>; changes: string[] }[] = []
+  const keptNotes: string[] = []
   const mergeErrors: string[] = []
   // Allow rules from the files Claude Code reads beside the project settings; an ask rule would override them.
   const settingsRel = '.claude/settings.json'
@@ -208,6 +209,7 @@ export async function runUpdate(dryRun: boolean, force: boolean): Promise<void> 
     const tpl = JSON.parse(await readFile(tplPath, 'utf-8'))
     const { merged, changes } = mergeManagedJson(rel, tpl, user, manifest?.managed?.[rel], rel === settingsRel, rel === settingsRel ? extraAllow : [])
     if (changes.length > 0) merges.push({ rel, merged, changes })
+    keptNotes.push(...keptEntryLines(rel, tpl, user))
   }
   let permissionNotes: string[] = []
   let settingsFresh: Record<string, unknown> | null = null
@@ -234,6 +236,17 @@ export async function runUpdate(dryRun: boolean, force: boolean): Promise<void> 
     if (final !== undefined) permissionNotes = overriddenLines(settingsRel, [...userAllowRules(final, settingsTpl), ...extraAllow], final, settingsTpl)
   }
 
+  // A file the user edited keeps their copy; goodvibes' new version goes beside it once per version.
+  const offers: { rel: string; data: string }[] = []
+  for (const rel of skip) {
+    if (MANAGED_JSON.includes(rel) || rel === 'CLAUDE.md' || edited.includes(rel) || !manifest) continue
+    const src = rel === '.github/workflows/ci.yml' ? join(templateDir, '.github', 'workflows', `ci-${projectType}.yml`) : join(templateDir, rel)
+    if (!existsSync(src)) continue
+    let data = await readFile(src, 'utf-8')
+    if (rel === '.github/dependabot.yml') data = dependabotYml(data, cwd)
+    if (createHash('sha256').update(data, 'utf8').digest('hex') !== manifest.files[rel]) offers.push({ rel, data })
+  }
+
   // A hook the manifest says goodvibes installed, now missing, was deleted by the user: never re-add it.
   const hookPlan = manifest && manifest.gitHook !== USER_REMOVED ? await installGitHook(cwd, true) : null
   const hookRemoved = manifest?.gitHook === 'installed' && hookPlan?.status === 'installed'
@@ -254,6 +267,8 @@ export async function runUpdate(dryRun: boolean, force: boolean): Promise<void> 
         ...merges.map(m => `Will merge goodvibes keys into ${m.rel}:\n  ${m.changes.join('\n  ')}`),
         ...mergeErrors.map(e => `Cannot merge ${e}`),
         ...permissionNotes,
+        ...keptNotes,
+        ...offers.map(o => offerLine(o.rel, true)),
         ...removed.map(removedNote),
         ...Object.values(blocked),
         hookRemoved ? removedNote('.git/hooks/pre-commit') : hookPlan && gitHookLine(hookPlan, true),
@@ -268,7 +283,7 @@ export async function runUpdate(dryRun: boolean, force: boolean): Promise<void> 
 
   const globalChanges = globalPlan ? globalPlan.written.length + globalPlan.retired.length + globalPlan.settingsChanges.length : 0
   const cleanupCount = moved.length + (strip === 'removed' ? 1 : 0)
-  if (!force && (globalChanges > 0 || overwrite.length > 0 || netNew.length > 0 || retired.length > 0 || cleanupCount > 0 || merges.length > 0 || hookWrites)) {
+  if (!force && (globalChanges > 0 || overwrite.length > 0 || netNew.length > 0 || retired.length > 0 || cleanupCount > 0 || merges.length > 0 || offers.length > 0 || hookWrites)) {
     const settings = `${globalChanges} change(s) to your Claude Code settings`
     // With the input closed (a script or CI) the prompt never settles, and Node would exit 13 without a word.
     const inputEnded = new Promise<'ended'>(resolve => process.stdin.once('end', () => resolve('ended')))
@@ -334,6 +349,17 @@ export async function runUpdate(dryRun: boolean, force: boolean): Promise<void> 
     await writeFileAtomic(join(cwd, m.rel), JSON.stringify(m.merged, null, 2) + '\n')
   }
 
+  const offered: Record<string, string> = {}
+  for (const o of offers) {
+    const why = await writeBlocked(cwd, `${o.rel}.goodvibes-new`)
+    if (why) {
+      blocked[`${o.rel}.goodvibes-new`] = why
+      continue
+    }
+    await writeFile(join(cwd, `${o.rel}.goodvibes-new`), o.data, 'utf-8')
+    offered[o.rel] = createHash('sha256').update(o.data, 'utf8').digest('hex')
+  }
+
   const claudeNotes: string[] = []
   if (skip.includes('CLAUDE.md')) {
     try {
@@ -382,6 +408,8 @@ export async function runUpdate(dryRun: boolean, force: boolean): Promise<void> 
     if (rel in manifest.files) preserved[rel] = manifest.files[rel]
   }
   if (claudeProblems.length > 0 && 'CLAUDE.md' in manifest.files) preserved['CLAUDE.md'] = manifest.files['CLAUDE.md']
+  // The offered version is recorded, so the same one is not offered again.
+  Object.assign(preserved, offered)
   for (const rel of kept) {
     preserved[rel] = USER_OWNED
   }
@@ -406,6 +434,7 @@ export async function runUpdate(dryRun: boolean, force: boolean): Promise<void> 
       ...retired.filter(rel => gone.includes(rel)).map(rel => `${rel}: removed, no longer shipped by goodvibes`),
       ...(stripped ? [STRIPPED] : []),
       ...claudeNotes,
+      ...Object.keys(offered).map(rel => offerLine(rel, false)),
       ...moved.filter(rel => gone.includes(rel)).map(removedLine),
       ...mergeErrors.map(e => `Not merged: ${e}`),
       ...removed.map(removedNote),
