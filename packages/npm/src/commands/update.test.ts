@@ -38,6 +38,7 @@ vi.mock('node:fs', async (importOriginal) => {
 
 vi.mock('node:fs/promises', () => ({
   readFile: vi.fn().mockResolvedValue('content'),
+  writeFile: vi.fn().mockResolvedValue(undefined),
 }))
 
 vi.mock('node:crypto', () => ({

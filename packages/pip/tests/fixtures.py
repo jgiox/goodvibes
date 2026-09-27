@@ -34,3 +34,5 @@ SHIPPED_170 = (_pathlib.Path(__file__).resolve().parents[3] / "tests" / "blocks"
 SHIPPED_170_BLOCK = SHIPPED_170[SHIPPED_170.index(SENTINEL_START):SHIPPED_170.index(SENTINEL_END) + len(SENTINEL_END)]
 EDITED_170_BLOCK = SHIPPED_170_BLOCK.replace("## Engineering Rules", "## Engineering Rules\n\n- My own rule: pushing to my fork needs no confirmation.", 1)
 NEWER_TEMPLATE = f"# CLAUDE.md\n\n{SENTINEL_START}\n# goodvibes: v9.9.9\n\nnew rules\n{SENTINEL_END}\n"
+import json as _json
+SETTINGS_1100 = _json.loads((_pathlib.Path(__file__).resolve().parents[3] / "tests" / "shipped" / "settings-1.10.0.json").read_text(encoding="utf-8"))

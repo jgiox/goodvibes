@@ -1,6 +1,7 @@
 import { readFile } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
+import { createHash } from 'node:crypto'
 
 // MCP files and the key each tool keeps its servers under.
 const MCP_KEY: Record<string, string> = { '.mcp.json': 'mcpServers', '.cursor/mcp.json': 'mcpServers', '.vscode/mcp.json': 'servers' }
@@ -13,6 +14,85 @@ type Json = Record<string, any>
 const MARKER = /^: (goodvibes-[a-z0-9-]+);/
 
 const markerOf = (h: Json): string | null => (typeof h?.command === 'string' ? h.command.match(MARKER)?.[1] ?? null : null)
+
+// Digests of every hook, hook-group matcher and MCP server entry goodvibes has shipped; any other value was edited by the user.
+export const SHIPPED_ENTRIES: ReadonlySet<string> = new Set([
+  '07ab8d4151c71094a0713819d20c474c17d69a1be69f86bd930c3b020c55a129',
+  '15ca4680e3633f97be4b79b1d1f9f03dbb8ce23e7f157d7234f28d27d5a28973',
+  '29e142751f67aabb111d16c54933f5de593a3da5dd8cccb8528b080d13bfa675',
+  '355685ca1c5ecbef258a972af10bd7f62d0bc82f7b7f20a0fb6bf49e12df129a',
+  '38499f51ea9e5db9fd288047d3d94537ad86332e934be44bc92500181fffc7c7',
+  '3d2fef907d65b791db2b34bc44f3f763d71aef49d23c9a9fcc64aea3918fa00c',
+  '4870f6822b5b0622280382f92407ef51c3e28e4c165de9080cabf6dcb9e77946',
+  '4a14049dc6fe432dff19455280545d2993d3b427ad66018921abba5c5fd26cd4',
+  '513d492a798fdad21df076514038d36d19320e7be0c22ea82e9461e8cd12b9c7',
+  '514f0478b7929a7b0c8f9965cb4b6e4987b6b854b04ab8a37c0755bec3ca9422',
+  '5620af91925e35657bc43edc25782882b6f47608be013d1f7ea02590a67f4956',
+  '5d736d56765c96ab251f03eef0033764730a77be1fd1282ccef92fe773f462dc',
+  '5dbe89b48ee16b703d6a90996cc5d574fa52611723b9cf9c2d93faaaf2837d0c',
+  '696a825876303895d5c01d2f82ea3b21be4d811b91a6b3b121ec5e1b44e7b1f7',
+  '6a60486c00339810681cc24613cba330865dc845fb94b7e303872343c47e42a1',
+  '6b2a26ef7f68288fc685e339af165bf3ea9193a74141c35db2ad78ab71ca6ccd',
+  '6ca21b376c998611ac4a0ceae8d5132d314e1a256ee6b7774b2ea119316bcf6a',
+  '6db7e8d06e41d8fb58975a9885b2995efacd7b2af153d68469d3125ca2a977b3',
+  '750487d85c49212e0325ccb583e70acb3070822f29253a3ed9ec713881da8fa0',
+  '768abd9c5a63b1517771db946f02bb2a0d7daf7f447775912ce65337a9636b4c',
+  '84c0f35b4614d6f223c2db287caf52a812e1b7b9e12143ef7c5fd5796fb60ab5',
+  '88a4bb9377426dce7572122fa1bde7cec7c94267eb29785ddcd9f116573fc2b6',
+  '9f5d1d46d4e4ae3932ef2bd7386d99ac1e66d6147b56e383c9b282c1664e2191',
+  'a31cbd927309a6087af5a2bb85a538888d608449069b3c48a80b2bf046e459b9',
+  'd0c317fcbac4471e46d4d50a2213193931bc101ff1baea9cdfab73d6c5f72163',
+  'd1f9101f73f9958aed58e7a2ee3b4a2df2f44bfd7cb9730d4b659e5adf256873',
+  'd54d982f1d2d8cf260069e9dddbcac6496f53da232cd0891944b20706af8dd00',
+  'd8355cdcaf5a6c4bc55aa8c84ed2353c7f021b388c819493dafe1e5a8dcfa94e',
+  'd90897636c480130f19e9607cb2cc9c999ac63bbea7ab6c4790d4ed88c52e753',
+  'f5a0ab2a50489f49d6ced155fbb730b852e2bcbb7c658ac159dc6a03bb1ac600',
+  'f810397e8272a05ae195fe415b293da87057cf6eb918ee797d616407be9826de',
+])
+
+// Compact JSON with sorted keys, the same text Python's json.dumps(sort_keys=True, separators=(",", ":"), ensure_ascii=False) writes.
+function canonical(v: unknown): string {
+  if (Array.isArray(v)) return `[${v.map(canonical).join(',')}]`
+  if (v !== null && typeof v === 'object') return `{${Object.keys(v).sort().map(k => `${JSON.stringify(k)}:${canonical((v as Json)[k])}`).join(',')}}`
+  return JSON.stringify(v)
+}
+
+export function entryDigest(value: unknown): string {
+  return createHash('sha256').update(canonical(value), 'utf8').digest('hex')
+}
+
+// The user changed goodvibes' hook, or the matcher of a group holding only goodvibes hooks.
+function editedHook(group: Json, id: string): boolean {
+  const hook = group.hooks.find((h: Json) => markerOf(h) === id)
+  const ours = group.hooks.every((h: Json) => markerOf(h) !== null)
+  return !SHIPPED_ENTRIES.has(entryDigest(hook)) || (ours && !SHIPPED_ENTRIES.has(entryDigest({ hook: id, matcher: group.matcher ?? null })))
+}
+
+// An empty entry holds nothing of the user's; goodvibes fills it.
+function editedServer(name: string, current: Json, server: Json): boolean {
+  return Object.keys(current).length > 0 && !same(current, server) && !SHIPPED_ENTRIES.has(entryDigest({ server: name, value: current }))
+}
+
+// One line per goodvibes hook or MCP server entry the user edited, which mergeManagedJson keeps as it is.
+export function keptEntryLines(label: string, tpl: Json, user: unknown): string[] {
+  if (!isJsonObject(user)) return []
+  const lines: string[] = []
+  for (const key of ['mcpServers', 'servers']) {
+    for (const [name, server] of Object.entries<Json>(tpl[key] ?? {})) {
+      const current = isJsonObject(user[key]) ? user[key][name] : undefined
+      if (isJsonObject(current) && editedServer(name, current, server)) lines.push(`${label}: kept your edited ${key}.${name} entry; goodvibes did not replace it with its new version`)
+    }
+  }
+  for (const [event, groups] of Object.entries<Json[]>(tpl.hooks ?? {})) {
+    const userGroups = isJsonObject(user.hooks) ? user.hooks[event] : undefined
+    for (const g of groups) {
+      const id = hookId(g)
+      const ug = id && Array.isArray(userGroups) ? userGroups.find((u: Json) => hookId(u) === id) : undefined
+      if (id && ug && editedHook(ug, id)) lines.push(`${label}: kept your edited hook ${id} (${event}); goodvibes did not replace it with its new version`)
+    }
+  }
+  return lines
+}
 
 function hookId(group: Json): string | null {
   for (const h of group?.hooks ?? []) {
@@ -216,6 +296,7 @@ export function mergeManagedJson(
   if (key) {
     for (const [name, server] of Object.entries<Json>(tpl[key] ?? {})) {
       const current = merged[key]?.[name]
+      if (isJsonObject(current) && editedServer(name, current, server)) continue // the user's own version
       if (current) {
         const next = { ...current, ...server }
         if (!same(current, next)) {
@@ -271,6 +352,7 @@ export function mergeManagedJson(
       if (!id) continue
       const userGroups: Json[] = merged.hooks?.[event] ?? []
       const idx = userGroups.findIndex(ug => hookId(ug) === id)
+      if (idx >= 0 && editedHook(userGroups[idx], id)) continue // the user's own version
       if (idx >= 0) {
         // Only the marked hook is ours; the user's other hooks and fields in that group stay.
         const ug = userGroups[idx]

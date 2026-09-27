@@ -555,7 +555,9 @@ describe('update command — broken manifests and Windows keys', () => {
     expect(readFileSync(join(projectDir, 'docs', 'a.md'), 'utf-8')).toBe('a v2\n')
     expect(readFileSync(join(projectDir, 'docs', 'b.md'), 'utf-8')).toBe('b edited by me\n')
     const files = JSON.parse(readFileSync(join(projectDir, '.goodvibes.json'), 'utf-8')).files
-    expect(files).toEqual({ 'docs/a.md': sha256('a v2\n'), 'docs/b.md': sha256('b v1\n') })
+    // The edited file keeps its content; goodvibes' v2 is offered beside it and recorded as offered.
+    expect(files).toEqual({ 'docs/a.md': sha256('a v2\n'), 'docs/b.md': sha256('b v2\n') })
+    expect(readFileSync(join(projectDir, 'docs', 'b.md.goodvibes-new'), 'utf-8')).toBe('b v2\n')
   })
 
   it('update --force exits 1 and does not delete .git/HEAD through a .claude/skills/../../ manifest key', async () => {
@@ -1256,5 +1258,95 @@ describe("update command — a user's allow rule beats goodvibes' ask rule", () 
     const out = await runUpdate('--force')
     expect(ask()).toContain('Bash(git branch -D*)')
     expect(out).toContain('+ permissions.ask: Bash(git branch -D*)')
+  })
+})
+
+describe('update command — keeps what the user edited and offers the new version', () => {
+  const realTemplates = fileURLToPath(new URL('../../../../templates', import.meta.url))
+  const tplSettings = readFileSync(join(realTemplates, '.claude', 'settings.json'), 'utf-8')
+  const savedCfg = process.env.CLAUDE_CONFIG_DIR
+  let cfg: string
+  let templateDir: string
+  let projectDir: string
+  let cwdSpy: ReturnType<typeof vi.spyOn>
+
+  async function runUpdate(...flags: string[]): Promise<string> {
+    const { resolveTemplatesDir } = await import('../steps/copy-templates.js')
+    vi.mocked(resolveTemplatesDir).mockReturnValue(templateDir)
+    const { note } = await import('@clack/prompts')
+    vi.mocked(note).mockClear()
+    const { registerUpdateCommand } = await import('./update.js')
+    const { Command } = await import('commander')
+    const program = new Command()
+    program.exitOverride()
+    registerUpdateCommand(program)
+    await program.parseAsync(['node', 'goodvibes', 'update', ...flags])
+    return vi.mocked(note).mock.calls.map(c => String(c[0])).join('\n')
+  }
+
+  const manifest = (files: Record<string, string>) => writeFileSync(join(projectDir, '.goodvibes.json'), JSON.stringify({ version: '1.11.1', files }))
+  const onboarding = () => {
+    mkdirSync(join(templateDir, 'docs'), { recursive: true })
+    writeFileSync(join(templateDir, 'docs', 'onboarding.md'), 'template docs/onboarding.md\n')
+    mkdirSync(join(projectDir, 'docs'), { recursive: true })
+    writeFileSync(join(projectDir, 'docs', 'onboarding.md'), 'mine\n')
+  }
+  const sidecar = () => join(projectDir, 'docs', 'onboarding.md.goodvibes-new')
+
+  beforeEach(() => {
+    cfg = mkdtempSync(join(tmpdir(), 'gv-kept-cfg-'))
+    process.env.CLAUDE_CONFIG_DIR = cfg
+    templateDir = mkdtempSync(join(tmpdir(), 'gv-kept-tpl-'))
+    projectDir = mkdtempSync(join(tmpdir(), 'gv-kept-proj-'))
+    cwdSpy = vi.spyOn(process, 'cwd').mockReturnValue(projectDir)
+  })
+
+  afterEach(() => {
+    cwdSpy.mockRestore()
+    process.env.CLAUDE_CONFIG_DIR = savedCfg
+    for (const d of [cfg, templateDir, projectDir]) rmSync(d, { recursive: true, force: true })
+  })
+
+  it('keeps a goodvibes hook the user edited and says so', async () => {
+    mkdirSync(join(templateDir, '.claude'), { recursive: true })
+    mkdirSync(join(projectDir, '.claude'), { recursive: true })
+    writeFileSync(join(templateDir, '.claude', 'settings.json'), tplSettings)
+    const user = JSON.parse(tplSettings)
+    user.hooks.PreToolUse.find((g: Record<string, any>) => g.hooks[0].command.includes('goodvibes-journal-gate')).hooks[0].command += ' # mine'
+    writeFileSync(join(projectDir, '.claude', 'settings.json'), JSON.stringify(user, null, 2))
+    manifest({ '.claude/settings.json': 'old-hash' })
+    const out = await runUpdate('--force')
+    expect(JSON.parse(readFileSync(join(projectDir, '.claude', 'settings.json'), 'utf-8')).hooks).toEqual(user.hooks)
+    expect(out).toContain('.claude/settings.json: kept your edited hook goodvibes-journal-gate (PreToolUse); goodvibes did not replace it with its new version')
+  })
+
+  it('writes the new version beside a file the user edited, once', async () => {
+    onboarding()
+    manifest({ 'docs/onboarding.md': sha256('old template\n') })
+    const out = await runUpdate('--force')
+    expect(readFileSync(join(projectDir, 'docs', 'onboarding.md'), 'utf-8')).toBe('mine\n')
+    expect(readFileSync(sidecar(), 'utf-8')).toBe('template docs/onboarding.md\n')
+    expect(out).toContain("docs/onboarding.md: kept your edited copy; goodvibes' new version is in docs/onboarding.md.goodvibes-new, copy over what you want, then delete that file")
+    expect(JSON.parse(readFileSync(join(projectDir, '.goodvibes.json'), 'utf-8')).files['docs/onboarding.md']).toBe(sha256('template docs/onboarding.md\n'))
+    rmSync(sidecar())
+    await runUpdate('--force')
+    expect(existsSync(sidecar())).toBe(false)
+    expect(readFileSync(join(projectDir, 'docs', 'onboarding.md'), 'utf-8')).toBe('mine\n')
+  })
+
+  it('writes no new version when goodvibes has not changed the file', async () => {
+    onboarding()
+    manifest({ 'docs/onboarding.md': sha256('template docs/onboarding.md\n') })
+    expect(await runUpdate('--dry-run')).not.toContain('goodvibes-new')
+    await runUpdate('--force')
+    expect(existsSync(sidecar())).toBe(false)
+  })
+
+  it('names the new version it would write in a dry run and writes nothing', async () => {
+    onboarding()
+    manifest({ 'docs/onboarding.md': sha256('old template\n') })
+    const out = await runUpdate('--dry-run')
+    expect(out).toContain("docs/onboarding.md: will write goodvibes' new version to docs/onboarding.md.goodvibes-new; your copy stays")
+    expect(existsSync(sidecar())).toBe(false)
   })
 })

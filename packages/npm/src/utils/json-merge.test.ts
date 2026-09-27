@@ -1,8 +1,16 @@
 import { describe, it, expect } from 'vitest'
+import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
+import { createHash } from 'node:crypto'
 import { managedIds, presentIds, mergeManagedJson, shapeError } from './json-merge.js'
 
-const gate = { matcher: 'Bash', hooks: [{ type: 'command', command: ': goodvibes-journal-gate; exit 0' }] }
-const gateV2 = { matcher: 'Bash', hooks: [{ type: 'command', command: ': goodvibes-journal-gate; exit 2' }] }
+const repoJson = (rel: string) => JSON.parse(readFileSync(fileURLToPath(new URL(`../../../../${rel}`, import.meta.url)), 'utf-8'))
+const settingsNow = repoJson('templates/.claude/settings.json')
+const settingsOld = repoJson('tests/shipped/settings-1.10.0.json')
+const groupOf = (c: Record<string, any>, id: string, event = 'PreToolUse') => c.hooks[event].find((g: Record<string, any>) => g.hooks[0].command.startsWith(`: ${id};`))
+// Real hooks: only a value goodvibes shipped counts as its own, so made-up ones would be kept as the user's.
+const gate = groupOf(settingsOld, 'goodvibes-journal-gate')
+const gateV2 = groupOf(settingsNow, 'goodvibes-journal-gate')
 const userHook = { matcher: 'Edit', hooks: [{ type: 'command', command: 'npx prettier --write' }] }
 const tplSettings = {
   permissions: { allow: ['Bash(npx*)'], ask: ['Bash(git push*)'], deny: ['Bash(git reset --hard*)'] },
@@ -115,17 +123,13 @@ describe('mergeManagedJson', () => {
     expect(changes).toEqual(['+ mcpServers.context7'])
   })
 
-  it('keeps a user-added headers block on context7 while updating its managed fields', () => {
+  it("keeps a context7 entry with the user's own url and headers as it is", () => {
     const user = {
       mcpServers: { context7: { type: 'http', url: 'https://old.example/mcp', headers: { Authorization: 'Bearer ${CONTEXT7_API_KEY}' } } },
     }
-    const { merged, changes } = mergeManagedJson('.mcp.json', tplMcp, user)
-    expect(merged.mcpServers.context7).toEqual({
-      type: 'http',
-      url: 'https://mcp.context7.com/mcp',
-      headers: { Authorization: 'Bearer ${CONTEXT7_API_KEY}' },
-    })
-    expect(changes).toEqual(['~ mcpServers.context7'])
+    const { merged, changes } = mergeManagedJson('.mcp.json', tplMcp, structuredClone(user))
+    expect(merged).toEqual(user)
+    expect(changes).toEqual([])
   })
 
   it('reports no changes when every managed key is already current', () => {
@@ -142,13 +146,13 @@ describe('mergeManagedJson', () => {
   })
 
   it('keeps a user hook added next to the goodvibes-doctor hook in the SessionStart group', () => {
-    const doctor = { type: 'command', command: ': goodvibes-doctor; goodvibes doctor --quick', timeout: 10 }
-    const doctorV2 = { type: 'command', command: ': goodvibes-doctor; goodvibes doctor --quick', timeout: 20 }
+    const doctor = groupOf(settingsNow, 'goodvibes-doctor', 'SessionStart')
     const mine = { type: 'command', command: 'echo hello' }
-    const user = { hooks: { SessionStart: [{ matcher: 'startup', hooks: [doctor, mine] }] } }
-    const tpl = { hooks: { SessionStart: [{ matcher: 'startup', hooks: [doctorV2] }] } }
-    const { merged } = mergeManagedJson('.claude/settings.json', tpl, user)
-    expect(merged.hooks.SessionStart).toEqual([{ matcher: 'startup', hooks: [doctorV2, mine] }])
+    const user = { hooks: { SessionStart: [{ ...doctor, hooks: [...doctor.hooks, mine] }] } }
+    const tpl = { hooks: { SessionStart: [doctor] } }
+    const { merged, changes } = mergeManagedJson('.claude/settings.json', tpl, structuredClone(user))
+    expect(merged.hooks.SessionStart).toEqual(user.hooks.SessionStart)
+    expect(changes).toEqual([])
   })
 })
 
@@ -209,12 +213,13 @@ describe('mergeManagedJson with null containers and empty entries', () => {
 })
 
 describe('refreshing goodvibes hook groups and retired deny rules', () => {
-  const guard = (cmd: string, matcher: string) => ({ matcher, hooks: [{ type: 'command', command: `: goodvibes-read-guard; ${cmd}` }] })
-  const tpl = { hooks: { PreToolUse: [guard('v2', 'Read|Bash|Grep')] }, permissions: { deny: ['Bash(git push --force *)'] } }
+  const tpl = { hooks: { PreToolUse: [groupOf(settingsNow, 'goodvibes-read-guard')] }, permissions: { deny: ['Bash(git push --force *)'] } }
 
   it('refreshes the matcher of the goodvibes hook group so new tools reach the read guard', () => {
-    const { merged, changes } = mergeManagedJson('.claude/settings.json', tpl, { hooks: { PreToolUse: [guard('v1', 'Read|Bash')] } })
-    expect(merged.hooks.PreToolUse).toEqual([guard('v2', 'Read|Bash|Grep')])
+    const old = structuredClone(groupOf(settingsOld, 'goodvibes-read-guard'))
+    expect(old.matcher).toBe('Read|Bash')
+    const { merged, changes } = mergeManagedJson('.claude/settings.json', tpl, { hooks: { PreToolUse: [old] } })
+    expect(merged.hooks.PreToolUse).toEqual([groupOf(settingsNow, 'goodvibes-read-guard')])
     expect(changes).toContain('~ hooks.PreToolUse: goodvibes-read-guard')
   })
 
@@ -234,11 +239,13 @@ describe('refreshing goodvibes hook groups and retired deny rules', () => {
 
 describe('matcher refresh in a shared group', () => {
   it('keeps the matcher of a group where the user added their own hooks next to the goodvibes hook', () => {
-    const tpl = { hooks: { PreToolUse: [{ matcher: 'Read|Bash|Grep', hooks: [{ type: 'command', command: ': goodvibes-read-guard; v2' }] }] } }
-    const user = { hooks: { PreToolUse: [{ matcher: 'Read|Bash|Edit', hooks: [{ type: 'command', command: './mine.sh' }, { type: 'command', command: ': goodvibes-read-guard; v1' }] }] } }
+    const now = groupOf(settingsNow, 'goodvibes-read-guard')
+    const tpl = { hooks: { PreToolUse: [now] } }
+    const v1 = structuredClone(groupOf(settingsOld, 'goodvibes-read-guard').hooks[0])
+    const user = { hooks: { PreToolUse: [{ matcher: 'Read|Bash|Edit', hooks: [{ type: 'command', command: './mine.sh' }, v1] }] } }
     const { merged } = mergeManagedJson('.claude/settings.json', tpl, user)
     expect(merged.hooks.PreToolUse[0].matcher).toBe('Read|Bash|Edit')
-    expect(merged.hooks.PreToolUse[0].hooks[1].command).toBe(': goodvibes-read-guard; v2')
+    expect(merged.hooks.PreToolUse[0].hooks[1]).toEqual(now.hooks[0])
   })
 })
 
@@ -355,5 +362,83 @@ describe("a user's allow rule beats goodvibes' ask rule", () => {
     expect(overlaps('Edit(./.claude/hooks/pre.sh)', 'Edit(./.claude/hooks/**)')).toBe(true)
     expect(overlaps('Edit(./.claude/**)', 'Edit(./.claude/hooks/**)')).toBe(true)
     expect(overlaps('Edit(./src/**)', 'Edit(./.claude/hooks/**)')).toBe(false)
+  })
+})
+
+describe('hooks and MCP entries the user edited are kept', () => {
+  const repo = (rel: string) => fileURLToPath(new URL(`../../../../${rel}`, import.meta.url))
+  const realSettings = JSON.parse(readFileSync(repo('templates/.claude/settings.json'), 'utf-8'))
+  const realMcp = JSON.parse(readFileSync(repo('templates/.mcp.json'), 'utf-8'))
+  const settings1100 = JSON.parse(readFileSync(repo('tests/shipped/settings-1.10.0.json'), 'utf-8'))
+  const gate = (c: Record<string, any>) => c.hooks.PreToolUse.find((g: Record<string, any>) => g.hooks[0].command.includes('goodvibes-journal-gate'))
+
+  it('digests an entry as the sha256 of compact JSON with sorted keys', async () => {
+    const { entryDigest } = await import('./json-merge.js')
+    expect(entryDigest({ b: 1, a: 'é' })).toBe(createHash('sha256').update('{"a":"é","b":1}', 'utf8').digest('hex'))
+  })
+
+  it('lists every hook, matcher and server goodvibes ships, the same way as the pip CLI', async () => {
+    const { SHIPPED_ENTRIES, entryDigest } = await import('./json-merge.js')
+    for (const rel of ['.claude/settings.json', '.gemini/settings.json', '.codex/hooks.json']) {
+      const tpl = JSON.parse(readFileSync(repo(`templates/${rel}`), 'utf-8'))
+      for (const groups of Object.values<Record<string, any>[]>(tpl.hooks)) {
+        for (const g of groups) {
+          const h = g.hooks[0]
+          const hid = h.command.split(';')[0].slice(2)
+          expect(SHIPPED_ENTRIES.has(entryDigest(h)), `add ${entryDigest(h)} to SHIPPED_ENTRIES in json-merge.ts and json_merge.py`).toBe(true)
+          expect(SHIPPED_ENTRIES.has(entryDigest({ hook: hid, matcher: g.matcher ?? null }))).toBe(true)
+        }
+      }
+    }
+    for (const [rel, key] of [['.mcp.json', 'mcpServers'], ['.cursor/mcp.json', 'mcpServers'], ['.vscode/mcp.json', 'servers']]) {
+      for (const [name, server] of Object.entries(JSON.parse(readFileSync(repo(`templates/${rel}`), 'utf-8'))[key])) {
+        expect(SHIPPED_ENTRIES.has(entryDigest({ server: name, value: server }))).toBe(true)
+      }
+    }
+    const pip = readFileSync(repo('packages/pip/src/goodvibes_cli/utils/json_merge.py'), 'utf-8')
+    const pipSet = pip.slice(pip.indexOf('SHIPPED_ENTRIES'), pip.indexOf('})', pip.indexOf('SHIPPED_ENTRIES')))
+    expect([...pipSet.matchAll(/[0-9a-f]{64}/g)].map(m => m[0]).sort()).toEqual([...SHIPPED_ENTRIES].sort())
+  })
+
+  it('keeps a goodvibes hook the user edited', () => {
+    const user = structuredClone(realSettings)
+    gate(user).hooks[0].command += ' # mine'
+    const { merged, changes } = mergeManagedJson('.claude/settings.json', realSettings, user, [])
+    expect(gate(merged)).toEqual(gate(user))
+    expect(changes.filter(c => c.includes('goodvibes-journal-gate'))).toEqual([])
+  })
+
+  it('keeps a goodvibes hook group whose matcher the user changed', () => {
+    const user = structuredClone(realSettings)
+    gate(user).matcher = 'Bash|Edit'
+    const { merged, changes } = mergeManagedJson('.claude/settings.json', realSettings, user, [])
+    expect(gate(merged).matcher).toBe('Bash|Edit')
+    expect(changes.filter(c => c.includes('goodvibes-journal-gate'))).toEqual([])
+  })
+
+  it('refreshes a goodvibes hook an earlier version shipped', () => {
+    const { merged, changes } = mergeManagedJson('.claude/settings.json', realSettings, structuredClone(settings1100), [])
+    expect(gate(merged)).toEqual(gate(realSettings))
+    expect(changes).toContain('~ hooks.PreToolUse: goodvibes-journal-gate')
+  })
+
+  it('keeps a context7 entry the user edited', () => {
+    const user = { mcpServers: { context7: { type: 'http', url: 'https://mcp.context7.com/mcp/mine' } } }
+    const { merged, changes } = mergeManagedJson('.mcp.json', realMcp, structuredClone(user), [])
+    expect(merged).toEqual(user)
+    expect(changes).toEqual([])
+  })
+
+  it('names each goodvibes hook and server the user edited', async () => {
+    const { keptEntryLines } = await import('./json-merge.js')
+    const user = structuredClone(realSettings)
+    gate(user).hooks[0].command += ' # mine'
+    expect(keptEntryLines('.claude/settings.json', realSettings, user)).toEqual([
+      '.claude/settings.json: kept your edited hook goodvibes-journal-gate (PreToolUse); goodvibes did not replace it with its new version',
+    ])
+    expect(keptEntryLines('.mcp.json', realMcp, { mcpServers: { context7: { url: 'https://example.test/mcp' } } })).toEqual([
+      '.mcp.json: kept your edited mcpServers.context7 entry; goodvibes did not replace it with its new version',
+    ])
+    expect(keptEntryLines('.claude/settings.json', realSettings, settings1100)).toEqual([])
   })
 })

@@ -14,6 +14,12 @@ STRIP_PLAN = "CLAUDE.md: will remove the old goodvibes rules block; the rules no
 EDITED = "Edited skill copies stay in this project; the same skills are now set up for all your projects, so Claude may load both. Delete a copy you no longer need: "
 
 
+def offer_line(rel: str, planned: bool) -> str:
+    if planned:
+        return f"{rel}: will write goodvibes' new version to {rel}.goodvibes-new; your copy stays"
+    return f"{rel}: kept your edited copy; goodvibes' new version is in {rel}.goodvibes-new, copy over what you want, then delete that file"
+
+
 def removed_line(rel: str) -> str:
     return f"{rel}: removed, now set up for all your projects"
 

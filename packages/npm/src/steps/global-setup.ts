@@ -6,11 +6,12 @@ import { dirname, join } from 'node:path'
 import { execa } from 'execa'
 import { listTemplateFiles } from './copy-templates.js'
 import { readManifest, type Manifest, MANIFEST_PATH, USER_OWNED, USER_REMOVED } from './write-manifest.js'
-import { fileAllowRules, mergeManagedJson, overriddenLines, presentIds, isJsonObject, shapeError, userAllowRules, yieldedIds } from '../utils/json-merge.js'
+import { fileAllowRules, keptEntryLines, mergeManagedJson, overriddenLines, presentIds, isJsonObject, shapeError, userAllowRules, yieldedIds } from '../utils/json-merge.js'
 import { printable, removeRetired, writeFileAtomic } from '../utils/fs-safe.js'
 import { goodvibesBlock } from '../utils/scope.js'
 import { versionGte } from '../utils/sentinel-merge.js'
 import { EXEC_ENV } from '../utils/exec-env.js'
+import { offerLine } from './project-copies.js'
 
 const CONTEXT7_URL = 'https://mcp.context7.com/mcp'
 
@@ -63,6 +64,8 @@ export type GlobalResult = {
   kept: string[]
   removed: string[]
   retired: string[]
+  offered?: string[]
+  dryRun?: boolean
   settingsChanges: string[]
   settingsWarnings?: string[]
   settingsError?: string
@@ -79,7 +82,7 @@ export async function applyGlobalConfig(templateDir: string, version: string, dr
     if (rel.startsWith('.claude/skills/')) owned.push([rel.slice('.claude/'.length), await readFile(join(templateDir, rel), 'utf-8')])
   }
 
-  const result: GlobalResult = { configDir: cfg, written: [], kept: [], removed: [], retired: [], settingsChanges: [] }
+  const result: GlobalResult = { configDir: cfg, written: [], kept: [], removed: [], retired: [], settingsChanges: [], offered: [], dryRun }
   const files: Record<string, string> = {}
   for (const [rel, content] of owned) {
     const dest = join(cfg, rel)
@@ -102,7 +105,12 @@ export async function applyGlobalConfig(templateDir: string, version: string, dr
     }
     if (current && current !== recorded) {
       result.kept.push(rel)
-      if (recorded) files[rel] = recorded
+      if (recorded && recorded !== sha(content)) {
+        // Offered once per version: the manifest now records it, the user's copy stays.
+        result.offered?.push(rel)
+        files[rel] = sha(content)
+        if (!dryRun) await writeFile(`${dest}.goodvibes-new`, content, 'utf-8')
+      } else if (recorded) files[rel] = recorded
       continue
     }
     result.written.push(rel)
@@ -144,7 +152,7 @@ export async function applyGlobalConfig(templateDir: string, version: string, dr
     const { merged, changes } = mergeManagedJson('.claude/settings.json', tpl, user, managed['settings.json'])
     result.settingsChanges = changes
     const local = project ? [...(await fileAllowRules(join(project, '.claude', 'settings.json'), tpl)), ...(await fileAllowRules(join(project, '.claude', 'settings.local.json'), tpl))] : []
-    result.settingsWarnings = overriddenLines(settingsPath, [...userAllowRules(merged, tpl), ...local], merged, tpl)
+    result.settingsWarnings = [...overriddenLines(settingsPath, [...userAllowRules(merged, tpl), ...local], merged, tpl), ...keptEntryLines(settingsPath, tpl, user)]
     if (!dryRun && changes.length > 0) {
       await mkdir(cfg, { recursive: true })
       await writeFileAtomic(settingsPath, JSON.stringify(merged, null, 2) + '\n')
@@ -163,7 +171,8 @@ export async function applyGlobalConfig(templateDir: string, version: string, dr
 export function formatGlobal(g: GlobalResult, cli: CliStatus | undefined, c7: McpStatus | undefined): string {
   const lines = [
     ...g.written.map(f => `written: ${f}`),
-    ...g.kept.map(f => `kept (you edited it): ${f}`),
+    ...g.kept.filter(f => !(g.offered ?? []).includes(f)).map(f => `kept (you edited it): ${f}`),
+    ...(g.offered ?? []).map(f => offerLine(f, g.dryRun ?? false)),
     ...g.removed.map(f => `${f}: removed by you, not re-added (run goodvibes init to restore)`),
     ...g.retired.map(f => `${f}: removed, no longer shipped by goodvibes`),
     ...g.settingsChanges.map(c => `settings.json ${c}`),
