@@ -1254,3 +1254,68 @@ def test_update_brings_a_dropped_ask_rule_back_once_the_users_allow_rule_is_gone
     assert result.exit_code == 0, result.output
     assert "Bash(git branch -D*)" in _read(merge_dirs, ".claude/settings.json")["permissions"]["ask"]
     assert "+ permissions.ask: Bash(git branch -D*)" in _out(result)
+
+
+def test_update_keeps_a_goodvibes_hook_the_user_edited_and_says_so(merge_dirs):
+    user = json.loads(_TPL_SETTINGS)
+    gate = next(g for g in user["hooks"]["PreToolUse"] if "goodvibes-journal-gate" in g["hooks"][0]["command"])
+    gate["hooks"][0]["command"] += " # mine"
+    (merge_dirs / ".claude" / "settings.json").write_text(json.dumps(user, indent=2), encoding="utf-8")
+    _write_manifest(merge_dirs, {".claude/settings.json": "old-hash"})
+
+    result = runner.invoke(app, ["update", "--force"])
+
+    assert result.exit_code == 0, result.output
+    assert _read(merge_dirs, ".claude/settings.json")["hooks"] == user["hooks"]
+    assert ".claude/settings.json: kept your edited hook goodvibes-journal-gate (PreToolUse); goodvibes did not replace it with its new version" in _out(result)
+
+
+def test_update_writes_goodvibes_new_version_beside_a_file_the_user_edited_once(plain_dirs):
+    template_dir, project_dir = plain_dirs
+    _tpl(template_dir, ["docs/onboarding.md"])
+    (project_dir / "docs").mkdir()
+    (project_dir / "docs" / "onboarding.md").write_text("mine\n", encoding="utf-8")
+    _write_manifest(project_dir, {"docs/onboarding.md": _sha("old template\n")})
+
+    result = runner.invoke(app, ["update", "--force"])
+
+    assert result.exit_code == 0, result.output
+    assert (project_dir / "docs" / "onboarding.md").read_text(encoding="utf-8") == "mine\n"
+    assert (project_dir / "docs" / "onboarding.md.goodvibes-new").read_text(encoding="utf-8") == "template docs/onboarding.md\n"
+    assert "docs/onboarding.md: kept your edited copy; goodvibes' new version is in docs/onboarding.md.goodvibes-new, copy over what you want, then delete that file" in _out(result)
+    assert _read(project_dir, ".goodvibes.json")["files"]["docs/onboarding.md"] == _sha("template docs/onboarding.md\n")
+
+    (project_dir / "docs" / "onboarding.md.goodvibes-new").unlink()
+    again = runner.invoke(app, ["update", "--force"])
+
+    assert again.exit_code == 0, again.output
+    assert not (project_dir / "docs" / "onboarding.md.goodvibes-new").exists()
+    assert (project_dir / "docs" / "onboarding.md").read_text(encoding="utf-8") == "mine\n"
+
+
+def test_update_writes_no_new_version_when_goodvibes_has_not_changed_the_file(plain_dirs):
+    template_dir, project_dir = plain_dirs
+    _tpl(template_dir, ["docs/onboarding.md"])
+    (project_dir / "docs").mkdir()
+    (project_dir / "docs" / "onboarding.md").write_text("mine\n", encoding="utf-8")
+    _write_manifest(project_dir, {"docs/onboarding.md": _sha("template docs/onboarding.md\n")})
+
+    result = runner.invoke(app, ["update", "--dry-run"])
+    assert "goodvibes-new" not in _out(result)
+    assert runner.invoke(app, ["update", "--force"]).exit_code == 0
+
+    assert not (project_dir / "docs" / "onboarding.md.goodvibes-new").exists()
+
+
+def test_update_dry_run_names_the_new_version_it_would_write_and_writes_nothing(plain_dirs):
+    template_dir, project_dir = plain_dirs
+    _tpl(template_dir, ["docs/onboarding.md"])
+    (project_dir / "docs").mkdir()
+    (project_dir / "docs" / "onboarding.md").write_text("mine\n", encoding="utf-8")
+    _write_manifest(project_dir, {"docs/onboarding.md": _sha("old template\n")})
+
+    result = runner.invoke(app, ["update", "--dry-run"])
+
+    assert result.exit_code == 0, result.output
+    assert "docs/onboarding.md: will write goodvibes' new version to docs/onboarding.md.goodvibes-new; your copy stays" in _out(result)
+    assert not (project_dir / "docs" / "onboarding.md.goodvibes-new").exists()

@@ -265,4 +265,42 @@ describe('applyGlobalConfig (real temp CLAUDE_CONFIG_DIR)', () => {
     await applyGlobalConfig(templateDir, '9.9.9', false)
     expect(readJson('settings.json').permissions.ask).toContain('Bash(git branch -D*)')
   })
+
+  it('writes the new version beside a rules file the user edited, once', async () => {
+    const { formatGlobal } = await import('./global-setup.js')
+    await applyGlobalConfig(templateDir, '9.9.9', false, true)
+    const rules = join(cfg, 'rules', 'goodvibes.md')
+    const fresh = readFileSync(rules, 'utf-8')
+    writeFileSync(rules, 'my rules\n')
+    const manifest = readJson('.goodvibes.json')
+    manifest.files['rules/goodvibes.md'] = createHash('sha256').update('older rules\n', 'utf8').digest('hex')
+    writeFileSync(join(cfg, '.goodvibes.json'), JSON.stringify(manifest))
+
+    const r = await applyGlobalConfig(templateDir, '9.9.9', false)
+
+    expect(readFileSync(rules, 'utf-8')).toBe('my rules\n')
+    expect(readFileSync(rules + '.goodvibes-new', 'utf-8')).toBe(fresh)
+    expect(formatGlobal(r, undefined, undefined).split('\n')).toContain(
+      "rules/goodvibes.md: kept your edited copy; goodvibes' new version is in rules/goodvibes.md.goodvibes-new, copy over what you want, then delete that file",
+    )
+    expect(readJson('.goodvibes.json').files['rules/goodvibes.md']).toBe(createHash('sha256').update(fresh, 'utf8').digest('hex'))
+    rmSync(rules + '.goodvibes-new')
+    await applyGlobalConfig(templateDir, '9.9.9', false)
+    expect(existsSync(rules + '.goodvibes-new')).toBe(false)
+    expect(readFileSync(rules, 'utf-8')).toBe('my rules\n')
+  })
+
+  it('only reports the new version in dry-run mode', async () => {
+    const { formatGlobal } = await import('./global-setup.js')
+    await applyGlobalConfig(templateDir, '9.9.9', false, true)
+    writeFileSync(join(cfg, 'rules', 'goodvibes.md'), 'my rules\n')
+    const manifest = readJson('.goodvibes.json')
+    manifest.files['rules/goodvibes.md'] = createHash('sha256').update('older rules\n', 'utf8').digest('hex')
+    writeFileSync(join(cfg, '.goodvibes.json'), JSON.stringify(manifest))
+    const r = await applyGlobalConfig(templateDir, '9.9.9', true)
+    expect(formatGlobal(r, undefined, undefined).split('\n')).toContain(
+      "rules/goodvibes.md: will write goodvibes' new version to rules/goodvibes.md.goodvibes-new; your copy stays",
+    )
+    expect(existsSync(join(cfg, 'rules', 'goodvibes.md.goodvibes-new'))).toBe(false)
+  })
 })

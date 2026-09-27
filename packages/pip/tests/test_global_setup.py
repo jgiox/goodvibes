@@ -463,3 +463,41 @@ def test_apply_global_config_brings_a_dropped_ask_rule_back_once_the_users_allow
     apply_global_config(TEMPLATES, "9.9.9", dry_run=False, restore=False)
 
     assert "Bash(git branch -D*)" in json.loads((cfg / "settings.json").read_text(encoding="utf-8"))["permissions"]["ask"]
+
+
+def test_apply_global_config_writes_the_new_version_beside_a_rules_file_the_user_edited_once():
+    cfg = _cfg()
+    apply_global_config(TEMPLATES, "9.9.9", dry_run=False)
+    rules = cfg / "rules" / "goodvibes.md"
+    new = rules.read_text(encoding="utf-8")
+    rules.write_text("my rules\n", encoding="utf-8")
+    manifest = json.loads((cfg / ".goodvibes.json").read_text(encoding="utf-8"))
+    manifest["files"]["rules/goodvibes.md"] = hashlib.sha256(b"older rules\n").hexdigest()
+    (cfg / ".goodvibes.json").write_text(json.dumps(manifest), encoding="utf-8")
+
+    r = apply_global_config(TEMPLATES, "9.9.9", dry_run=False, restore=False)
+
+    assert rules.read_text(encoding="utf-8") == "my rules\n"
+    assert (cfg / "rules" / "goodvibes.md.goodvibes-new").read_text(encoding="utf-8") == new
+    assert "rules/goodvibes.md: kept your edited copy; goodvibes' new version is in rules/goodvibes.md.goodvibes-new, copy over what you want, then delete that file" in format_global(r, None, None).splitlines()
+    assert json.loads((cfg / ".goodvibes.json").read_text(encoding="utf-8"))["files"]["rules/goodvibes.md"] == hashlib.sha256(new.encode("utf-8")).hexdigest()
+
+    (cfg / "rules" / "goodvibes.md.goodvibes-new").unlink()
+    apply_global_config(TEMPLATES, "9.9.9", dry_run=False, restore=False)
+
+    assert not (cfg / "rules" / "goodvibes.md.goodvibes-new").exists()
+    assert rules.read_text(encoding="utf-8") == "my rules\n"
+
+
+def test_apply_global_config_only_reports_the_new_version_in_dry_run():
+    cfg = _cfg()
+    apply_global_config(TEMPLATES, "9.9.9", dry_run=False)
+    (cfg / "rules" / "goodvibes.md").write_text("my rules\n", encoding="utf-8")
+    manifest = json.loads((cfg / ".goodvibes.json").read_text(encoding="utf-8"))
+    manifest["files"]["rules/goodvibes.md"] = hashlib.sha256(b"older rules\n").hexdigest()
+    (cfg / ".goodvibes.json").write_text(json.dumps(manifest), encoding="utf-8")
+
+    r = apply_global_config(TEMPLATES, "9.9.9", dry_run=True, restore=False)
+
+    assert "rules/goodvibes.md: will write goodvibes' new version to rules/goodvibes.md.goodvibes-new; your copy stays" in format_global(r, None, None).splitlines()
+    assert not (cfg / "rules" / "goodvibes.md.goodvibes-new").exists()

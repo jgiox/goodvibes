@@ -376,3 +376,85 @@ def test_a_path_rule_overlaps_a_wildcard_path_rule_that_matches_it():
     assert overlaps("Edit(./.claude/hooks/pre.sh)", "Edit(./.claude/hooks/**)")
     assert overlaps("Edit(./.claude/**)", "Edit(./.claude/hooks/**)")
     assert not overlaps("Edit(./src/**)", "Edit(./.claude/hooks/**)")
+
+
+# ---------------------------------------------------------------------------
+# Hooks and MCP entries the user edited are kept
+# ---------------------------------------------------------------------------
+
+import json as _json
+import pathlib as _pathlib
+
+_REPO = _pathlib.Path(__file__).resolve().parents[3]
+_REAL_SETTINGS = _json.loads((_REPO / "templates" / ".claude" / "settings.json").read_text(encoding="utf-8"))
+_REAL_MCP = _json.loads((_REPO / "templates" / ".mcp.json").read_text(encoding="utf-8"))
+
+
+def _gate(content):
+    return next(g for g in content["hooks"]["PreToolUse"] if "goodvibes-journal-gate" in g["hooks"][0]["command"])
+
+
+def test_entry_digest_is_the_sha256_of_compact_json_with_sorted_keys():
+    import hashlib
+    from goodvibes_cli.utils.json_merge import entry_digest
+    assert entry_digest({"b": 1, "a": "é"}) == hashlib.sha256('{"a":"é","b":1}'.encode("utf-8")).hexdigest()
+
+
+def test_every_hook_matcher_and_server_goodvibes_ships_is_listed_as_shipped():
+    from goodvibes_cli.utils.json_merge import SHIPPED_ENTRIES, entry_digest
+    for rel in (".claude/settings.json", ".gemini/settings.json", ".codex/hooks.json"):
+        tpl = _json.loads((_REPO / "templates" / rel).read_text(encoding="utf-8"))
+        for groups in tpl["hooks"].values():
+            for g in groups:
+                h = g["hooks"][0]
+                hid = h["command"].split(";")[0][2:]
+                assert entry_digest(h) in SHIPPED_ENTRIES, f"add {entry_digest(h)} to SHIPPED_ENTRIES in json_merge.py and json-merge.ts"
+                assert entry_digest({"hook": hid, "matcher": g.get("matcher")}) in SHIPPED_ENTRIES
+    for rel, key in ((".mcp.json", "mcpServers"), (".cursor/mcp.json", "mcpServers"), (".vscode/mcp.json", "servers")):
+        for name, server in _json.loads((_REPO / "templates" / rel).read_text(encoding="utf-8"))[key].items():
+            assert entry_digest({"server": name, "value": server}) in SHIPPED_ENTRIES
+
+
+def test_merge_keeps_a_goodvibes_hook_the_user_edited():
+    user = copy.deepcopy(_REAL_SETTINGS)
+    _gate(user)["hooks"][0]["command"] += " # mine"
+    merged, changes = merge_managed_json(".claude/settings.json", _REAL_SETTINGS, user, [])
+    assert _gate(merged) == _gate(user)
+    assert not [c for c in changes if "goodvibes-journal-gate" in c]
+
+
+def test_merge_keeps_a_goodvibes_hook_group_whose_matcher_the_user_changed():
+    user = copy.deepcopy(_REAL_SETTINGS)
+    _gate(user)["matcher"] = "Bash|Edit"
+    merged, changes = merge_managed_json(".claude/settings.json", _REAL_SETTINGS, user, [])
+    assert _gate(merged)["matcher"] == "Bash|Edit"
+    assert not [c for c in changes if "goodvibes-journal-gate" in c]
+
+
+def test_merge_refreshes_a_goodvibes_hook_an_earlier_version_shipped():
+    from .fixtures import SETTINGS_1100
+    merged, changes = merge_managed_json(".claude/settings.json", _REAL_SETTINGS, copy.deepcopy(SETTINGS_1100), [])
+    assert _gate(merged) == _gate(_REAL_SETTINGS)
+    assert "~ hooks.PreToolUse: goodvibes-journal-gate" in changes
+
+
+def test_merge_keeps_a_context7_entry_the_user_edited():
+    user = {"mcpServers": {"context7": {"type": "http", "url": "https://mcp.context7.com/mcp/mine"}}}
+    merged, changes = merge_managed_json(".mcp.json", _REAL_MCP, copy.deepcopy(user), [])
+    assert merged == user
+    assert changes == []
+
+
+def test_kept_entry_lines_name_each_goodvibes_hook_and_server_the_user_edited():
+    from goodvibes_cli.utils.json_merge import kept_entry_lines
+    user = copy.deepcopy(_REAL_SETTINGS)
+    _gate(user)["hooks"][0]["command"] += " # mine"
+    assert kept_entry_lines(".claude/settings.json", _REAL_SETTINGS, user) == [
+        ".claude/settings.json: kept your edited hook goodvibes-journal-gate (PreToolUse); goodvibes did not replace it with its new version"
+    ]
+    mcp = {"mcpServers": {"context7": {"url": "https://example.test/mcp"}}}
+    assert kept_entry_lines(".mcp.json", _REAL_MCP, mcp) == [
+        ".mcp.json: kept your edited mcpServers.context7 entry; goodvibes did not replace it with its new version"
+    ]
+    from .fixtures import SETTINGS_1100
+    assert kept_entry_lines(".claude/settings.json", _REAL_SETTINGS, SETTINGS_1100) == []
