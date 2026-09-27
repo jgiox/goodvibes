@@ -40,3 +40,8 @@ export function goodvibesBlock(claudeTemplate: string): string {
 export function projectStub(claudeTemplate: string): string {
   return claudeTemplate.slice(0, claudeTemplate.indexOf(SENTINEL_START)).trimEnd() + '\n'
 }
+
+// Someone can answer a question: both ends are a terminal and this is not a CI run.
+export function interactive(): boolean {
+  return Boolean(process.stdin.isTTY && process.stdout.isTTY) && !process.env.CI
+}

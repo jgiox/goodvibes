@@ -6,7 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/2.0.0/),
 
 ## [Unreleased]
 
+### Added
+
+- `goodvibes init` asks whether to set goodvibes up for all your projects or only this one when you run it in a terminal without `--scope`. It never asks in scripts or CI.
+
 ### Fixed
+
+- `goodvibes init` without `--scope` no longer moves a project set up with `--scope project` to global scope (which also removed its rules block and skill copies). It keeps the scope the project's `.goodvibes.json` records, says so, and preselects it when it asks. `--scope global` or `--scope project` still changes it.
 
 - `goodvibes update` no longer overwrites a goodvibes hook, the tools a goodvibes hook group runs for, or the `context7` entry when you changed them. It keeps your version and says so in its plan. goodvibes recognises every version of these it ever shipped, so an old one you never touched is still refreshed. This covers `.claude/settings.json`, `~/.claude/settings.json`, `.gemini/settings.json`, `.codex/hooks.json` and the MCP files.
 - When goodvibes has a newer version of a file you edited (a project file, or the rules and skills in `~/.claude`), `update` keeps your copy (and `init` does the same for `~/.claude`) and write the new version next to it as `<file>.goodvibes-new`, once per new version. Before, your copy was kept silently and you never saw what changed.
