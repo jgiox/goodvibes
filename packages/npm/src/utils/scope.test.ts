@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { mkdtempSync, mkdirSync, rmSync, symlinkSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
-import { MINIMAL_SKIPPED, samePath } from './scope.js'
+import { MINIMAL_SKIPPED, interactive, samePath } from './scope.js'
 
 describe('MINIMAL_SKIPPED', () => {
   it('skips docs/ and the CI side of .github', () => {
@@ -37,5 +37,24 @@ describe('samePath', () => {
   it('compares folders that do not exist by their plain path', () => {
     expect(samePath(join(dir, 'missing', '..', 'missing'), join(dir, 'missing'))).toBe(true)
     expect(samePath(join(dir, 'missing'), join(dir, 'other'))).toBe(false)
+  })
+})
+
+describe('interactive', () => {
+  const saved = { ci: process.env.CI, stdin: process.stdin.isTTY, stdout: process.stdout.isTTY }
+  afterEach(() => {
+    if (saved.ci === undefined) delete process.env.CI
+    else process.env.CI = saved.ci
+    Object.defineProperty(process.stdin, 'isTTY', { value: saved.stdin, configurable: true })
+    Object.defineProperty(process.stdout, 'isTTY', { value: saved.stdout, configurable: true })
+  })
+
+  it('is false in CI even with a terminal, and true in a terminal outside CI', () => {
+    Object.defineProperty(process.stdin, 'isTTY', { value: true, configurable: true })
+    Object.defineProperty(process.stdout, 'isTTY', { value: true, configurable: true })
+    process.env.CI = 'true'
+    expect(interactive()).toBe(false)
+    delete process.env.CI
+    expect(interactive()).toBe(true)
   })
 })
