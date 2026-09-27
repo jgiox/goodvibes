@@ -6,7 +6,7 @@ import { dirname, join } from 'node:path'
 import { execa } from 'execa'
 import { listTemplateFiles } from './copy-templates.js'
 import { readManifest, type Manifest, MANIFEST_PATH, USER_OWNED, USER_REMOVED } from './write-manifest.js'
-import { fileAllowRules, mergeManagedJson, overriddenLines, presentIds, isJsonObject, shapeError, userAllowRules } from '../utils/json-merge.js'
+import { fileAllowRules, mergeManagedJson, overriddenLines, presentIds, isJsonObject, shapeError, userAllowRules, yieldedIds } from '../utils/json-merge.js'
 import { printable, removeRetired, writeFileAtomic } from '../utils/fs-safe.js'
 import { goodvibesBlock } from '../utils/scope.js'
 import { versionGte } from '../utils/sentinel-merge.js'
@@ -149,7 +149,8 @@ export async function applyGlobalConfig(templateDir: string, version: string, dr
       await mkdir(cfg, { recursive: true })
       await writeFileAtomic(settingsPath, JSON.stringify(merged, null, 2) + '\n')
     }
-    managed = { ...managed, 'settings.json': [...new Set([...(managed['settings.json'] ?? []), ...presentIds('.claude/settings.json', tpl, merged)])] }
+    const forget = yieldedIds(tpl, merged, userAllowRules(merged, tpl))
+    managed = { ...managed, 'settings.json': [...new Set([...(managed['settings.json'] ?? []), ...presentIds('.claude/settings.json', tpl, merged)])].filter(i => !forget.has(i)) }
   }
 
   if (!dryRun) {

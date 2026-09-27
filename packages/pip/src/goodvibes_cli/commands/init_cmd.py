@@ -238,7 +238,7 @@ def init_cmd(
                 written,
                 _version,
                 preserved={k: v for k, v in previous.items() if k not in written},
-                managed=managed_record(cwd, template_dir, prev.get("managed")),
+                managed=managed_record(cwd, template_dir, prev.get("managed"), claude_config_dir()),
                 scope=scope,
                 git_hook="installed" if hook_result and hook_result["status"] in KEEPS else prev.get("gitHook"),
             )

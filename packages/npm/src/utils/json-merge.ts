@@ -111,6 +111,12 @@ function matches(spec: string, command: string): boolean {
   return new RegExp(`^${spec.split('*').map(p => p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('.*')}$`, 's').test(command)
 }
 
+// Claude Code path rules follow gitignore: `**` crosses folders, `*` stays inside one.
+function pathMatches(spec: string, path: string): boolean {
+  const rx = spec.split(/(\*\*|\*)/).map(t => (t === '**' ? '.*' : t === '*' ? '[^/]*' : t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))).join('')
+  return new RegExp(`^${rx}$`, 's').test(path)
+}
+
 function ruleParts(allow: string, rule: string): [string, string | null, string | null] | null {
   const a = parseRule(allow)
   const r = parseRule(rule)
@@ -123,7 +129,11 @@ export function covers(allow: string, rule: string): boolean {
   if (!parts) return false
   const [tool, a, r] = parts
   if (a === null || a === '*' || a === '**') return true
-  if (r === null || tool !== 'Bash') return a === r
+  if (r === null) return false
+  if (tool !== 'Bash') {
+    if (!r.includes('*')) return pathMatches(a, r)
+    return a === r || (a.endsWith('**') && !a.slice(0, -2).includes('*') && r.startsWith(a.slice(0, -2)))
+  }
   const [ah, ak] = head(a)
   const [rh, rk] = head(r)
   if (rk === 'exact') return matches(a, r)
@@ -137,7 +147,13 @@ export function overlaps(allow: string, rule: string): boolean {
   if (!parts) return false
   const [tool, a, r] = parts
   if (a === null || r === null || a === '*' || a === '**') return true
-  if (tool !== 'Bash') return a === r
+  if (tool !== 'Bash') {
+    if (!a.includes('*')) return pathMatches(r, a)
+    if (!r.includes('*')) return pathMatches(a, r)
+    const ah = a.slice(0, a.indexOf('*'))
+    const rh = r.slice(0, r.indexOf('*'))
+    return ah.startsWith(rh) || rh.startsWith(ah)
+  }
   const [ah, ak] = head(a)
   const [rh, rk] = head(r)
   if (ak === 'exact') return matches(r, a)
@@ -276,10 +292,18 @@ export function mergeManagedJson(
 }
 
 // Keeps previously installed ids so a user's deliberate removal survives later updates.
+// Ask rules left out for a covering user allow rule; forgotten, so they come back once that allow rule is gone.
+export function yieldedIds(tpl: Json, content: unknown, allows: string[]): Set<string> {
+  const have = isJsonObject(content) && isJsonObject(content.permissions) && Array.isArray(content.permissions.ask) ? content.permissions.ask : []
+  return new Set((tpl.permissions?.ask ?? []).filter((p: string) => !have.includes(p) && allows.some(a => covers(a, p))).map((p: string) => `ask:${p}`))
+}
+
+// cfg: the Claude Code settings folder, whose allow rules count for the project settings too.
 export async function managedRecord(
   cwd: string,
   templateDir: string,
   prev: Record<string, string[]> = {},
+  cfg?: string,
 ): Promise<Record<string, string[]>> {
   const record: Record<string, string[]> = { ...prev }
   for (const rel of MANAGED_JSON) {
@@ -294,7 +318,13 @@ export async function managedRecord(
     }
     if (!isJsonObject(content) || shapeError(rel, content)) continue
     const tpl = JSON.parse(await readFile(tplPath, 'utf-8'))
-    record[rel] = [...new Set([...(prev[rel] ?? []), ...presentIds(rel, tpl, content)])]
+    let forget = new Set<string>()
+    if (rel === '.claude/settings.json') {
+      const allows = [...userAllowRules(content, tpl), ...(await fileAllowRules(join(cwd, '.claude', 'settings.local.json'), tpl))]
+      if (cfg) allows.push(...(await fileAllowRules(join(cfg, 'settings.json'), tpl)))
+      forget = yieldedIds(tpl, content, allows)
+    }
+    record[rel] = [...new Set([...(prev[rel] ?? []), ...presentIds(rel, tpl, content)])].filter(i => !forget.has(i))
   }
   return record
 }

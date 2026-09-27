@@ -295,7 +295,7 @@ export function registerInitCommand(program: Command): void {
           createdFiles.filter(f => f !== '.goodvibes.json'),
           _ver,
           prevManifest ? Object.fromEntries(Object.entries(prevManifest.files).filter(([k]) => !removedCopies.includes(k))) : undefined,
-          await managedRecord(cwd, templateDir, prevManifest?.managed),
+          await managedRecord(cwd, templateDir, prevManifest?.managed, claudeConfigDir()),
           scope,
           gitHookResult && hookInPlace(gitHookResult) ? 'installed' : prevManifest?.gitHook,
         )

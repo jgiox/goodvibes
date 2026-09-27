@@ -394,7 +394,7 @@ export async function runUpdate(dryRun: boolean, force: boolean): Promise<void> 
     [...overwrite, ...netNew].filter(rel => existsSync(join(cwd, rel)) && !(rel === 'CLAUDE.md' && claudeProblems.length > 0)),
     packageVersion(),
     preserved,
-    await managedRecord(cwd, templateDir, manifest.managed),
+    await managedRecord(cwd, templateDir, manifest.managed, claudeConfigDir()),
     scope,
     gitHook,
   )

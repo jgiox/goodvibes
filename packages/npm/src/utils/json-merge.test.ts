@@ -267,7 +267,7 @@ describe("a user's allow rule beats goodvibes' ask rule", () => {
     expect(covers('Bash(git branch -D old)', 'Bash(git branch -D*)')).toBe(false)
     expect(covers('Bash(git push * main)', 'Bash(git push*)')).toBe(false)
     expect(covers('Read(**)', 'Edit(./.mcp.json)')).toBe(false)
-    expect(covers('Edit(**/*.json)', 'Edit(./.mcp.json)')).toBe(false)
+    expect(covers('Edit(**/*.yml)', 'Edit(./.mcp.json)')).toBe(false)
   })
 
   it('reports rules as overlapping when some command matches both', async () => {

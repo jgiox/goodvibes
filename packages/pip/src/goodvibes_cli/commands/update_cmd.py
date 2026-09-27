@@ -419,7 +419,7 @@ def run_update(dry_run: bool, force: bool) -> None:
     try:
         write_manifest(
             cwd, applied, version, preserved=preserved,
-            managed=managed_record(cwd, template_dir, manifest.get("managed")),
+            managed=managed_record(cwd, template_dir, manifest.get("managed"), claude_config_dir()),
             scope=scope,
             git_hook=git_hook,
         )

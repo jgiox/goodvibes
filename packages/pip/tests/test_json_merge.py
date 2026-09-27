@@ -287,7 +287,7 @@ def test_an_allow_rule_does_not_cover_an_ask_rule_that_matches_more_commands_tha
     assert not covers("Bash(git branch -D old)", "Bash(git branch -D*)")
     assert not covers("Bash(git push * main)", "Bash(git push*)")
     assert not covers("Read(**)", "Edit(./.mcp.json)")
-    assert not covers("Edit(**/*.json)", "Edit(./.mcp.json)")
+    assert not covers("Edit(**/*.yml)", "Edit(./.mcp.json)")
 
 
 def test_rules_overlap_when_some_command_matches_both():

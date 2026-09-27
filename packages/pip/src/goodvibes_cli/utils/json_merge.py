@@ -134,6 +134,12 @@ def _matches(spec: str, command: str) -> bool:
     return re.fullmatch(".*".join(map(re.escape, spec.split("*"))), command, re.S) is not None
 
 
+def _path_matches(spec: str, path: str) -> bool:
+    # Claude Code path rules follow gitignore: `**` crosses folders, `*` stays inside one.
+    rx = "".join(".*" if t == "**" else "[^/]*" if t == "*" else re.escape(t) for t in re.split(r"(\*\*|\*)", spec))
+    return re.fullmatch(rx, path, re.S) is not None
+
+
 def _parts(allow: str, rule: str) -> tuple[str | None, str | None, str | None] | None:
     a, r = _rule(allow), _rule(rule)
     if not a or not r or a[0] != r[0]:
@@ -149,8 +155,12 @@ def covers(allow: str, rule: str) -> bool:
     tool, a, r = parts
     if a is None or a in ("*", "**"):
         return True
-    if r is None or tool != "Bash":
-        return a == r
+    if r is None:
+        return False
+    if tool != "Bash":
+        if "*" not in r:
+            return _path_matches(a, r)
+        return a == r or (a.endswith("**") and "*" not in a[:-2] and r.startswith(a[:-2]))
     (ah, ak), (rh, rk) = _head(a), _head(r)
     if rk == "exact":
         return _matches(a, r)
@@ -168,7 +178,12 @@ def overlaps(allow: str, rule: str) -> bool:
     if a is None or r is None or a in ("*", "**"):
         return True
     if tool != "Bash":
-        return a == r
+        if "*" not in a:
+            return _path_matches(r, a)
+        if "*" not in r:
+            return _path_matches(a, r)
+        ah, rh = a[:a.index("*")], r[:r.index("*")]
+        return ah.startswith(rh) or rh.startswith(ah)
     (ah, ak), (rh, rk) = _head(a), _head(r)
     if ak == "exact":
         return _matches(r, a)
@@ -297,8 +312,18 @@ def merge_managed_json(
     return merged, changes
 
 
-def managed_record(cwd: pathlib.Path, template_dir: pathlib.Path, prev: dict | None = None) -> dict[str, list[str]]:
-    """Keeps previously installed ids so a user's deliberate removal survives later updates."""
+def yielded_ids(tpl: dict, content: object, allows: list[str]) -> set[str]:
+    """Ask rules left out for a covering user allow rule; forgotten, so they come back once that allow rule is gone."""
+    perms = content.get("permissions") if isinstance(content, dict) else None
+    have = perms.get("ask") if isinstance(perms, dict) and isinstance(perms.get("ask"), list) else []
+    return {f"ask:{p}" for p in (tpl.get("permissions") or {}).get("ask") or [] if p not in have and any(covers(a, p) for a in allows)}
+
+
+def managed_record(cwd: pathlib.Path, template_dir: pathlib.Path, prev: dict | None = None, cfg: pathlib.Path | None = None) -> dict[str, list[str]]:
+    """Keeps previously installed ids so a user's deliberate removal survives later updates.
+
+    cfg: the Claude Code settings folder, whose allow rules count for the project settings too.
+    """
     prev = prev or {}
     record = dict(prev)
     for rel in MANAGED_JSON:
@@ -312,5 +337,10 @@ def managed_record(cwd: pathlib.Path, template_dir: pathlib.Path, prev: dict | N
         if not isinstance(content, dict) or shape_error(rel, content):
             continue
         tpl = json.loads(tpl_path.read_text(encoding="utf-8"))
-        record[rel] = list(dict.fromkeys([*prev.get(rel, []), *present_ids(rel, tpl, content)]))
+        forget: set[str] = set()
+        if rel == ".claude/settings.json":
+            allows = [*user_allow_rules(content, tpl), *file_allow_rules(cwd / ".claude" / "settings.local.json", tpl)]
+            allows += file_allow_rules(cfg / "settings.json", tpl) if cfg else []
+            forget = yielded_ids(tpl, content, allows)
+        record[rel] = [i for i in dict.fromkeys([*prev.get(rel, []), *present_ids(rel, tpl, content)]) if i not in forget]
     return record

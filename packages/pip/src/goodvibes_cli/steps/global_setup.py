@@ -11,7 +11,9 @@ import sys
 
 from goodvibes_cli.steps.copy_templates import list_template_files
 from goodvibes_cli.steps.write_manifest import MANIFEST_PATH, USER_OWNED, USER_REMOVED, read_manifest
-from goodvibes_cli.utils.json_merge import file_allow_rules, merge_managed_json, overridden_lines, present_ids, shape_error, user_allow_rules, write_json
+from goodvibes_cli.utils.json_merge import (
+    file_allow_rules, merge_managed_json, overridden_lines, present_ids, shape_error, user_allow_rules, write_json, yielded_ids,
+)
 from goodvibes_cli.utils.proc import run, which
 from goodvibes_cli.utils.scope import goodvibes_block
 from goodvibes_cli.utils.safe_path import printable, remove_retired
@@ -147,7 +149,8 @@ def apply_global_config(template_dir: pathlib.Path, version: str, dry_run: bool,
         if not dry_run and changes:
             cfg.mkdir(parents=True, exist_ok=True)
             write_json(settings_path, merged)
-        managed["settings.json"] = list(dict.fromkeys([*managed.get("settings.json", []), *present_ids(".claude/settings.json", tpl, merged)]))
+        forget = yielded_ids(tpl, merged, user_allow_rules(merged, tpl))
+        managed["settings.json"] = [i for i in dict.fromkeys([*managed.get("settings.json", []), *present_ids(".claude/settings.json", tpl, merged)]) if i not in forget]
 
     if not dry_run:
         cfg.mkdir(parents=True, exist_ok=True)
