@@ -193,7 +193,7 @@ To keep everything inside one project instead:
 npx goodvibes-cli init --scope project
 ```
 
-Run `goodvibes init` in a terminal without `--scope` and it asks which of the two you want. In a project goodvibes already set up, it keeps the scope that project has (and preselects it when it asks), so running `init` again never moves a project-scope project to global by surprise. Pass `--scope global` or `--scope project` to change it. In scripts and CI it never asks: it uses the scope the project has, or global for a new one.
+Run `goodvibes init` in a terminal without `--scope` and it asks which of the two you want. In a project goodvibes already set up, it keeps the scope that project has (and preselects it when it asks), so running `init` again never moves a project-scope project to global by surprise. Pass `--scope global` or `--scope project` to change it. When nothing can answer (output piped or redirected, or `CI` set) it never asks: it uses the scope the project has, or global for a new one. A script you start from your terminal still has that terminal, so it would be asked; give it `--scope` to make it run without stopping.
 
 The only thing outside the project is headroom: it is installed on your computer and registered in your Claude Code user settings. `--minimal` skips it.
 

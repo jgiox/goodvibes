@@ -8,7 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/2.0.0/),
 
 ### Added
 
-- `goodvibes init` asks whether to set goodvibes up for all your projects or only this one when you run it in a terminal without `--scope`. It never asks in scripts or CI.
+- `goodvibes init` asks whether to set goodvibes up for all your projects or only this one when you run it in a terminal without `--scope`. It never asks when its input or output is not a terminal or `CI` is set; a script run from a terminal should pass `--scope`.
 
 ### Fixed
 
