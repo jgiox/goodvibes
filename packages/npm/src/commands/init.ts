@@ -1,5 +1,6 @@
 import type { Command } from 'commander'
-import { readdirSync } from 'node:fs'
+import { existsSync, readdirSync } from 'node:fs'
+import { readFile } from 'node:fs/promises'
 import { packageVersion } from '../utils/version.js'
 import { intro, outro, note, tasks, cancel } from '@clack/prompts'
 import { copyTemplates, listTemplateFiles, resolveTemplatesDir } from '../steps/copy-templates.js'
@@ -8,7 +9,7 @@ import { configureMcp, type McpResult } from '../steps/configure-mcp.js'
 import { detectProjectType } from '../utils/detect-project-type.js'
 import { sendTelemetry, telemetryOptedOut } from '../steps/telemetry.js'
 import { readManifest, writeManifest, type Manifest } from '../steps/write-manifest.js'
-import { managedRecord } from '../utils/json-merge.js'
+import { fileAllowRules, managedIds, managedRecord, mergeManagedJson, overriddenLines, userAllowRules } from '../utils/json-merge.js'
 import { applyGlobalConfig, claudeConfigDir, ensureGlobalCli, registerContext7, formatGlobal, type GlobalResult, type CliStatus, type McpStatus } from '../steps/global-setup.js'
 import { GLOBAL_OWNED, MINIMAL_SKIPPED, samePath, type Scope } from '../utils/scope.js'
 import { gitHookLine, hookInPlace, installGitHook, type GitHookResult } from '../steps/git-hook.js'
@@ -16,7 +17,7 @@ import { homedir } from 'node:os'
 import { join, resolve, parse } from 'node:path'
 import { EDITED, KEPT_OLD_BLOCK, STRIPPED, oldSkillCopies, removedLine } from '../steps/project-copies.js'
 import { MarkerError, stripBlock } from '../utils/sentinel-merge.js'
-import { removeRetired, writeBlocked } from '../utils/fs-safe.js'
+import { printable, removeRetired, writeBlocked, writeFileAtomic } from '../utils/fs-safe.js'
 
 // ponytail: inline helper — too small to justify a separate module
 function formatHeadroomStatus(hr: HeadroomResult | undefined, mr: McpResult | undefined): string {
@@ -51,6 +52,30 @@ const NEXT_STEPS = [
   '   Other IDEs (Cursor, Windsurf, Kiro, Antigravity, etc.): rules already active',
   '3. Start coding: CLAUDE.md rules are already active',
 ]
+
+const SETTINGS = '.claude/settings.json'
+
+// A settings file init just wrote drops the ask rules the user's allow rules cover; every rule that still wins gets a note.
+async function projectPermissions(cwd: string, templateDir: string, fresh: boolean): Promise<string[]> {
+  const tpl = JSON.parse(await readFile(join(templateDir, SETTINGS), 'utf-8'))
+  let content: unknown
+  try {
+    content = JSON.parse(await readFile(join(cwd, SETTINGS), 'utf-8'))
+  } catch {
+    return [] // the user's own broken file: init leaves it alone and update reports it
+  }
+  const extra = [...(await fileAllowRules(join(cwd, '.claude', 'settings.local.json'), tpl)), ...(await fileAllowRules(join(claudeConfigDir(), 'settings.json'), tpl))]
+  const notes: string[] = []
+  if (fresh) {
+    const { merged, changes } = mergeManagedJson(SETTINGS, tpl, content as Record<string, unknown>, managedIds(SETTINGS, tpl), false, extra)
+    if (changes.length > 0) {
+      await writeFileAtomic(join(cwd, SETTINGS), JSON.stringify(merged, null, 2) + '\n')
+      notes.push(...changes.map(c => `${SETTINGS} ${c}`))
+      content = merged
+    }
+  }
+  return [...notes, ...overriddenLines(SETTINGS, [...userAllowRules(content, tpl), ...extra], content, tpl)]
+}
 
 export function registerInitCommand(program: Command): void {
   program
@@ -94,7 +119,7 @@ export function registerInitCommand(program: Command): void {
 
       if (dryRun) {
         if (scope === 'global') {
-          const g = await applyGlobalConfig(templateDir, packageVersion(), true, true)
+          const g = await applyGlobalConfig(templateDir, packageVersion(), true, true, inProject ? cwd : undefined)
           const cli = await ensureGlobalCli(packageVersion(), true)
           note(formatGlobal(g, cli, undefined), `Dry run — global setup (${g.configDir})`)
         }
@@ -154,6 +179,7 @@ export function registerInitCommand(program: Command): void {
       const skippedFiles: string[] = []
       const problems: string[] = []
       const cleanup: string[] = []
+      const permissions: string[] = []
       const removedCopies: string[] = []
       let headroomResult: HeadroomResult | undefined
       let mcpResult: McpResult | undefined
@@ -167,7 +193,7 @@ export function registerInitCommand(program: Command): void {
         taskList.push({
           title: 'Setting up goodvibes for all your projects',
           task: async () => {
-            globalResult = await applyGlobalConfig(templateDir, packageVersion(), false, true)
+            globalResult = await applyGlobalConfig(templateDir, packageVersion(), false, true, inProject ? cwd : undefined)
             context7Result = await registerContext7(false)
             cliResult = await ensureGlobalCli(packageVersion(), false)
             return `Global setup in ${globalResult.configDir}`
@@ -182,6 +208,9 @@ export function registerInitCommand(program: Command): void {
             createdFiles.push(...written)
             skippedFiles.push(...skipped)
             problems.push(...found)
+            if (existsSync(join(cwd, SETTINGS)) && !(await writeBlocked(cwd, SETTINGS)) && existsSync(join(templateDir, SETTINGS))) {
+              permissions.push(...(await projectPermissions(cwd, templateDir, written.includes(SETTINGS))))
+            }
             gitHookResult = await installGitHook(cwd, false)
             if (scope === 'global') {
               // A project set up in project scope keeps its old rules block and skill copies; Claude would load both versions.
@@ -266,7 +295,7 @@ export function registerInitCommand(program: Command): void {
           createdFiles.filter(f => f !== '.goodvibes.json'),
           _ver,
           prevManifest ? Object.fromEntries(Object.entries(prevManifest.files).filter(([k]) => !removedCopies.includes(k))) : undefined,
-          await managedRecord(cwd, templateDir, prevManifest?.managed),
+          await managedRecord(cwd, templateDir, prevManifest?.managed, claudeConfigDir()),
           scope,
           gitHookResult && hookInPlace(gitHookResult) ? 'installed' : prevManifest?.gitHook,
         )
@@ -279,6 +308,7 @@ export function registerInitCommand(program: Command): void {
       if (inProject) note(createdFiles.join('\n') || '(none)', `Files written (${createdFiles.length})`)
       else note(`No project files written: ${cwd} is your ${inConfigDir ? 'Claude Code settings' : 'home'} folder.\nRun goodvibes init inside a project folder to add JOURNAL.md, CI and IDE rule files.`, 'Project files')
       if (cleanup.length > 0) note(cleanup.join('\n'), 'Old project copies')
+      if (permissions.length > 0) note(permissions.map(printable).join('\n'), 'Permissions')
       if (skippedFiles.length > 0) {
         note(skippedFiles.join('\n'), `Files skipped (${skippedFiles.length})`)
       }

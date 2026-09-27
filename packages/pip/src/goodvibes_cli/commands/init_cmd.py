@@ -1,5 +1,6 @@
 """goodvibes init command — port of init.ts."""
 import importlib.metadata
+import json
 import pathlib
 from typing import Annotated
 
@@ -16,8 +17,8 @@ from goodvibes_cli.steps.project_copies import EDITED, KEPT_OLD_BLOCK, STRIPPED,
 from goodvibes_cli.steps.telemetry import opted_out, start_telemetry_thread
 from goodvibes_cli.steps.write_manifest import USER_OWNED, USER_REMOVED, ManifestError, read_manifest, write_manifest
 from goodvibes_cli.utils.detect_project_type import detect_project_type
-from goodvibes_cli.utils.json_merge import managed_record
-from goodvibes_cli.utils.safe_path import SymlinkError, check_writable, remove_retired
+from goodvibes_cli.utils.json_merge import file_allow_rules, managed_ids, managed_record, merge_managed_json, overridden_lines, user_allow_rules, write_json
+from goodvibes_cli.utils.safe_path import SymlinkError, check_writable, printable, remove_retired
 from goodvibes_cli.utils.sentinel_merge import ClaudeMdError, strip_block
 from goodvibes_cli.steps.global_setup import apply_global_config, claude_config_dir, ensure_global_cli, format_global, register_context7
 from goodvibes_cli.utils.scope import global_owned, minimal_skipped, same_path
@@ -56,6 +57,26 @@ _NEXT_STEPS = (
 )
 
 
+SETTINGS = ".claude/settings.json"
+
+
+def _project_permissions(cwd: pathlib.Path, template_dir: pathlib.Path, fresh: bool) -> list[str]:
+    """A settings file init just wrote drops the ask rules the user's allow rules cover; every rule that still wins gets a note."""
+    tpl = json.loads((template_dir / SETTINGS).read_text(encoding="utf-8"))
+    try:
+        content = json.loads((cwd / SETTINGS).read_text(encoding="utf-8"))
+    except ValueError:
+        return []  # the user's own broken file: init leaves it alone and update reports it
+    extra = [*file_allow_rules(cwd / ".claude" / "settings.local.json", tpl), *file_allow_rules(claude_config_dir() / "settings.json", tpl)]
+    notes: list[str] = []
+    if fresh:
+        content, changes = merge_managed_json(SETTINGS, tpl, content, managed_ids(SETTINGS, tpl), extra_allow=extra)
+        if changes:
+            write_json(cwd / SETTINGS, content)
+            notes += [f"{SETTINGS} {c}" for c in changes]
+    return notes + overridden_lines(SETTINGS, [*user_allow_rules(content, tpl), *extra], content, tpl)
+
+
 def init_cmd(
     dry_run: Annotated[bool, typer.Option("--dry-run", help="Preview files without writing to disk")] = False,
     minimal: Annotated[bool, typer.Option("--minimal", help="Skip headroom, docs/ and the .github CI files (workflows, scripts, Dependabot, issue and PR templates); Copilot's rules and hooks in .github are still added")] = False,
@@ -87,7 +108,7 @@ def init_cmd(
     if dry_run:
         if scope == "global":
             version = importlib.metadata.version("goodvibes-cli")
-            g = apply_global_config(template_dir, version, dry_run=True)
+            g = apply_global_config(template_dir, version, dry_run=True, project=cwd if in_project else None)
             console.print(Panel(Text(format_global(g, ensure_global_cli(version, dry_run=True), None)), title=f"Dry run — global setup ({g['config_dir']})"))
         all_files = [f for f in list_template_files(template_dir) if scope == "project" or not global_owned(f)] if in_project else []
         ci_variants = ["ci-node.yml", "ci-python.yml", "ci-both.yml"]
@@ -133,6 +154,7 @@ def init_cmd(
     created_files: list[str] = []
     skipped_files_list: list[str] = []
     cleanup: list[str] = []
+    permissions: list[str] = []
     gone: list[str] = []
 
     global_result = cli_result = c7_result = None
@@ -143,7 +165,7 @@ def init_cmd(
         if scope == "global":
             with console.status("Setting up goodvibes for all your projects"):
                 _v = importlib.metadata.version("goodvibes-cli")
-                global_result = apply_global_config(template_dir, _v, dry_run=False)
+                global_result = apply_global_config(template_dir, _v, dry_run=False, project=cwd if in_project else None)
                 c7_result = register_context7(dry_run=False)
                 cli_result = ensure_global_cli(_v, dry_run=False)
         if in_project:
@@ -151,6 +173,8 @@ def init_cmd(
                 written, skipped = copy_templates(template_dir, cwd, dry_run=False, minimal=minimal, project_type=project_type, scope=scope)
                 created_files.extend(written)
                 skipped_files_list.extend(skipped)
+            if (cwd / SETTINGS).is_file() and not (cwd / SETTINGS).is_symlink() and (template_dir / SETTINGS).exists():
+                permissions += _project_permissions(cwd, template_dir, fresh=SETTINGS in written)
             hook_result = install_git_hook(cwd, False)
             if scope == "global":
                 # A project set up in project scope keeps its old rules block and skill copies; Claude would load both versions.
@@ -214,7 +238,7 @@ def init_cmd(
                 written,
                 _version,
                 preserved={k: v for k, v in previous.items() if k not in written},
-                managed=managed_record(cwd, template_dir, prev.get("managed")),
+                managed=managed_record(cwd, template_dir, prev.get("managed"), claude_config_dir()),
                 scope=scope,
                 git_hook="installed" if hook_result and hook_result["status"] in KEEPS else prev.get("gitHook"),
             )
@@ -233,6 +257,8 @@ def init_cmd(
         console.print(Panel(f"No project files written: {cwd} is your {'Claude Code settings' if in_config_dir else 'home'} folder.\nRun goodvibes init inside a project folder to add JOURNAL.md, CI and IDE rule files.", title="Project files"))
     if cleanup:
         console.print(Panel(Text("\n".join(cleanup)), title="Old project copies"))
+    if permissions:
+        console.print(Panel(Text("\n".join(map(printable, permissions))), title="Permissions"))
     if skipped_files_list:
         skipped_str = "\n".join(skipped_files_list)
         console.print(Panel(skipped_str, title=f"Files skipped ({len(skipped_files_list)})"))

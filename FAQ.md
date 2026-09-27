@@ -21,6 +21,7 @@ Answers to common questions about goodvibes, with the exact steps to fix the usu
   - [Why is my commit blocked by the journal check?](#why-is-my-commit-blocked-by-the-journal-check)
   - [Why does Claude Code say "goodvibes read guard" and not read a file?](#why-does-claude-code-say-goodvibes-read-guard-and-not-read-a-file)
   - [Why does Claude Code ask before running `node`, `python` or `npm install`?](#why-does-claude-code-ask-before-running-node-python-or-npm-install)
+  - [I allowed `git push` (or deleting a branch). Why does Claude Code still ask?](#i-allowed-git-push-or-deleting-a-branch-why-does-claude-code-still-ask)
   - [Why does `goodvibes doctor` say `JOURNAL.md` is too big?](#why-does-goodvibes-doctor-say-journalmd-is-too-big)
   - [What does `goodvibes usage` show, and is it accurate?](#what-does-goodvibes-usage-show-and-is-it-accurate)
 - [Your data and privacy](#your-data-and-privacy)
@@ -226,6 +227,16 @@ If you trust a specific command, add just that command to the `allow` list in yo
 ```
 
 [What Claude Code can do without asking](README.md#what-claude-code-can-do-without-asking) lists every rule.
+
+### I allowed `git push` (or deleting a branch). Why does Claude Code still ask?
+
+Claude Code reads the rules from all its settings files together and checks them in this order: deny, then ask, then allow. So an `allow` rule you add never beats an `ask` rule goodvibes added, even in another file.
+
+From 1.11.2, `goodvibes init` and `goodvibes update` handle this for you. When one of your allow rules covers a goodvibes ask rule completely (for example your `Bash(git push:*)` and goodvibes' `Bash(git push*)`), goodvibes removes its own ask rule and tells you. An allow rule in `~/.claude/settings.json` counts for every project. One in a project's `.claude/settings.json` or `.claude/settings.local.json` counts only for that project, so goodvibes keeps the rule in `~/.claude/settings.json` and tells you where to delete it.
+
+When your allow rule is narrower (for example `Bash(git push origin main)`), goodvibes keeps its rule and prints which rule to delete from which file. Deny rules (force-push, `git reset --hard`, secret files) are never removed for you. Anything you delete stays deleted on later updates.
+
+Claude also follows the written rules, which ask it to confirm before every push. To change that, edit the line in `~/.claude/rules/goodvibes.md` (or in the goodvibes block of your project's `CLAUDE.md`). goodvibes keeps a rules file you edited.
 
 ### Why does `goodvibes doctor` say `JOURNAL.md` is too big?
 

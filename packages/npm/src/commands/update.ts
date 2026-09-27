@@ -4,7 +4,7 @@ import { listTemplateFiles, resolveTemplatesDir } from '../steps/copy-templates.
 import { readManifest, writeManifest, posixKey, USER_OWNED, USER_REMOVED, type Manifest } from '../steps/write-manifest.js'
 import { mergeClaude, MarkerError, stripBlock } from '../utils/sentinel-merge.js'
 import { EDITED, KEPT_BLOCK, KEPT_OLD_BLOCK, STRIP_PLAN, STRIPPED, oldSkillCopies, removedLine } from '../steps/project-copies.js'
-import { MANAGED_JSON, mergeManagedJson, managedRecord, isJsonObject, shapeError } from '../utils/json-merge.js'
+import { MANAGED_JSON, fileAllowRules, managedIds, mergeManagedJson, managedRecord, isJsonObject, overriddenLines, shapeError, userAllowRules } from '../utils/json-merge.js'
 import { assertSafe, printable, removeRetired, writeBlocked, writeFileAtomic } from '../utils/fs-safe.js'
 import { applyGlobalConfig, claudeConfigDir, formatGlobal } from '../steps/global-setup.js'
 import { GLOBAL_OWNED, MINIMAL_SKIPPED, samePath, type Scope } from '../utils/scope.js'
@@ -150,7 +150,7 @@ export async function runUpdate(dryRun: boolean, force: boolean): Promise<void> 
 
   // Everything is planned (global as a dry run) before the one prompt, so cancelling leaves every file untouched.
   const templateDir = resolveTemplatesDir()
-  const globalPlan = globalManifest || manifest?.scope === 'global' ? await applyGlobalConfig(templateDir, packageVersion(), true) : undefined
+  const globalPlan = globalManifest || manifest?.scope === 'global' ? await applyGlobalConfig(templateDir, packageVersion(), true, false, manifest ? cwd : undefined) : undefined
   if (globalPlan) note(formatGlobal(globalPlan, undefined, undefined), `${dryRun ? 'Dry run — ' : 'Plan — '}Global setup (${globalPlan.configDir})`)
 
   const projectType = detectProjectType(cwd)
@@ -179,6 +179,13 @@ export async function runUpdate(dryRun: boolean, force: boolean): Promise<void> 
   // User-modified settings.json and MCP files still receive goodvibes-managed keys.
   const merges: { rel: string; merged: Record<string, unknown>; changes: string[] }[] = []
   const mergeErrors: string[] = []
+  // Allow rules from the files Claude Code reads beside the project settings; an ask rule would override them.
+  const settingsRel = '.claude/settings.json'
+  const handled = [...overwrite, ...netNew, ...skip, ...kept].includes(settingsRel) && existsSync(join(templateDir, settingsRel))
+  const settingsTpl = handled ? JSON.parse(await readFile(join(templateDir, settingsRel), 'utf-8')) : null
+  const extraAllow = settingsTpl
+    ? [...(await fileAllowRules(join(cwd, '.claude', 'settings.local.json'), settingsTpl)), ...(await fileAllowRules(join(claudeConfigDir(), 'settings.json'), settingsTpl))]
+    : []
   for (const rel of [...skip, ...kept].filter(r => MANAGED_JSON.includes(r))) {
     const tplPath = join(templateDir, rel)
     if (!existsSync(tplPath)) continue
@@ -199,8 +206,32 @@ export async function runUpdate(dryRun: boolean, force: boolean): Promise<void> 
       continue
     }
     const tpl = JSON.parse(await readFile(tplPath, 'utf-8'))
-    const { merged, changes } = mergeManagedJson(rel, tpl, user, manifest?.managed?.[rel], rel === '.claude/settings.json')
+    const { merged, changes } = mergeManagedJson(rel, tpl, user, manifest?.managed?.[rel], rel === settingsRel, rel === settingsRel ? extraAllow : [])
     if (changes.length > 0) merges.push({ rel, merged, changes })
+  }
+  let permissionNotes: string[] = []
+  let settingsFresh: Record<string, unknown> | null = null
+  if (settingsTpl) {
+    const fresh = [...overwrite, ...netNew].includes(settingsRel)
+    if (fresh) {
+      // The fresh copy is all goodvibes', so every ask rule in it counts as installed.
+      const { merged, changes } = mergeManagedJson(settingsRel, settingsTpl, settingsTpl, managedIds(settingsRel, settingsTpl), false, extraAllow)
+      if (changes.length > 0) {
+        settingsFresh = merged
+        const current = await readFile(join(cwd, settingsRel), 'utf-8').then(t => JSON.parse(t)).catch(() => null)
+        // Reported once: after the first update the file on disk already is this copy.
+        if (JSON.stringify(current) !== JSON.stringify(merged)) merges.push({ rel: settingsRel, merged, changes })
+      }
+    }
+    let final: unknown = merges.find(m => m.rel === settingsRel)?.merged ?? settingsFresh ?? (fresh ? settingsTpl : undefined)
+    if (final === undefined && !(settingsRel in blocked) && existsSync(join(cwd, settingsRel))) {
+      try {
+        final = JSON.parse(await readFile(join(cwd, settingsRel), 'utf-8'))
+      } catch {
+        // already reported as not valid JSON above
+      }
+    }
+    if (final !== undefined) permissionNotes = overriddenLines(settingsRel, [...userAllowRules(final, settingsTpl), ...extraAllow], final, settingsTpl)
   }
 
   // A hook the manifest says goodvibes installed, now missing, was deleted by the user: never re-add it.
@@ -222,6 +253,7 @@ export async function runUpdate(dryRun: boolean, force: boolean): Promise<void> 
         edited.length > 0 ? EDITED + edited.join(', ') : null,
         ...merges.map(m => `Will merge goodvibes keys into ${m.rel}:\n  ${m.changes.join('\n  ')}`),
         ...mergeErrors.map(e => `Cannot merge ${e}`),
+        ...permissionNotes,
         ...removed.map(removedNote),
         ...Object.values(blocked),
         hookRemoved ? removedNote('.git/hooks/pre-commit') : hookPlan && gitHookLine(hookPlan, true),
@@ -257,7 +289,7 @@ export async function runUpdate(dryRun: boolean, force: boolean): Promise<void> 
   }
 
   if (globalPlan) {
-    const g = await applyGlobalConfig(templateDir, packageVersion(), false)
+    const g = await applyGlobalConfig(templateDir, packageVersion(), false, false, manifest ? cwd : undefined)
     note(formatGlobal(g, undefined, undefined), `Global setup (${g.configDir})`)
   }
   if (!manifest) {
@@ -291,7 +323,8 @@ export async function runUpdate(dryRun: boolean, force: boolean): Promise<void> 
         continue
       }
     } else {
-      await copy(templateSrc, join(cwd, rel), { overwrite: true })
+      if (rel === settingsRel && settingsFresh) await writeFileAtomic(join(cwd, rel), JSON.stringify(settingsFresh, null, 2) + '\n')
+      else await copy(templateSrc, join(cwd, rel), { overwrite: true })
       if (rel === '.github/dependabot.yml') await writeFile(join(cwd, rel), dependabotYml(await readFile(templateSrc, 'utf-8'), cwd), 'utf-8')
     }
     applied++
@@ -361,7 +394,7 @@ export async function runUpdate(dryRun: boolean, force: boolean): Promise<void> 
     [...overwrite, ...netNew].filter(rel => existsSync(join(cwd, rel)) && !(rel === 'CLAUDE.md' && claudeProblems.length > 0)),
     packageVersion(),
     preserved,
-    await managedRecord(cwd, templateDir, manifest.managed),
+    await managedRecord(cwd, templateDir, manifest.managed, claudeConfigDir()),
     scope,
     gitHook,
   )

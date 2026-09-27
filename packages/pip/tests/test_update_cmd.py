@@ -1156,3 +1156,101 @@ def test_update_keeps_an_edited_claude_md_block_and_writes_the_new_block_beside_
     assert "# goodvibes: v9.9.9" in (project_dir / "CLAUDE.md.goodvibes-new").read_text(encoding="utf-8")
     assert "CLAUDE.md: kept your edited goodvibes rules block; the new block is in CLAUDE.md.goodvibes-new, copy over what you want, then delete that file" in _out(result)
     assert _read(project_dir, ".goodvibes.json")["files"]["CLAUDE.md"] == _sha(mine)
+
+
+def _local_allow(project_dir, *rules):
+    (project_dir / ".claude" / "settings.local.json").write_text(json.dumps({"permissions": {"allow": list(rules)}}), encoding="utf-8")
+
+
+def test_update_drops_the_ask_rule_an_allow_rule_in_settings_local_json_covers(merge_dirs):
+    (merge_dirs / ".claude" / "settings.json").write_text(_TPL_SETTINGS, encoding="utf-8")
+    _local_allow(merge_dirs, "Bash(git branch -D*)")
+    _write_manifest(merge_dirs, {".claude/settings.json": _sha(_TPL_SETTINGS)})
+
+    result = runner.invoke(app, ["update", "--force"])
+
+    assert result.exit_code == 0, result.output
+    ask = _read(merge_dirs, ".claude/settings.json")["permissions"]["ask"]
+    assert "Bash(git branch -D*)" not in ask
+    assert "Bash(git branch --delete*)" in ask
+    assert "- permissions.ask: Bash(git branch -D*) (your allow rule Bash(git branch -D*) covers it)" in _out(result)
+
+
+def test_update_dry_run_lists_the_ask_rule_it_would_drop_and_writes_nothing(merge_dirs):
+    (merge_dirs / ".claude" / "settings.json").write_text(_TPL_SETTINGS, encoding="utf-8")
+    _local_allow(merge_dirs, "Bash(git branch -D*)")
+    _write_manifest(merge_dirs, {".claude/settings.json": _sha(_TPL_SETTINGS)})
+
+    result = runner.invoke(app, ["update", "--dry-run"])
+
+    assert result.exit_code == 0, result.output
+    assert "- permissions.ask: Bash(git branch -D*) (your allow rule Bash(git branch -D*) covers it)" in _out(result)
+    assert (merge_dirs / ".claude" / "settings.json").read_text(encoding="utf-8") == _TPL_SETTINGS
+
+
+def test_update_drops_an_installed_ask_rule_from_edited_settings_when_the_global_settings_allow_it(merge_dirs):
+    import os
+    cfg = pathlib.Path(os.environ["CLAUDE_CONFIG_DIR"])
+    cfg.mkdir(parents=True)
+    (cfg / "settings.json").write_text(json.dumps({"permissions": {"allow": ["Bash(git push:*)"]}}), encoding="utf-8")
+    user = {"permissions": {"allow": ["Bash(make*)"], "ask": ["Bash(git push*)"]}}
+    (merge_dirs / ".claude" / "settings.json").write_text(json.dumps(user, indent=2), encoding="utf-8")
+    (merge_dirs / ".goodvibes.json").write_text(json.dumps({
+        "version": "1.11.1", "files": {".claude/settings.json": "old-hash"},
+        "managed": {".claude/settings.json": ["ask:Bash(git push*)"]},
+    }), encoding="utf-8")
+
+    result = runner.invoke(app, ["update", "--force"])
+
+    assert result.exit_code == 0, result.output
+    ask = _read(merge_dirs, ".claude/settings.json")["permissions"]["ask"]
+    assert not [r for r in ask if r.startswith("Bash(git push")]
+    assert "Bash(git branch -D*)" in ask
+
+
+def test_update_warns_when_a_goodvibes_ask_rule_still_beats_a_narrower_allow_rule(merge_dirs):
+    (merge_dirs / ".claude" / "settings.json").write_text(_TPL_SETTINGS, encoding="utf-8")
+    _local_allow(merge_dirs, "Bash(git push origin main)")
+    _write_manifest(merge_dirs, {".claude/settings.json": _sha(_TPL_SETTINGS)})
+
+    result = runner.invoke(app, ["update", "--force"])
+
+    assert result.exit_code == 0, result.output
+    assert "Bash(git push*)" in _read(merge_dirs, ".claude/settings.json")["permissions"]["ask"]
+    assert (
+        ".claude/settings.json: Claude Code still asks before commands your allow rule Bash(git push origin main) matches, "
+        "because goodvibes' ask rule Bash(git push*) is checked first. To change that, delete Bash(git push*) from "
+        ".claude/settings.json; goodvibes will not add it back."
+    ) in _out(result)
+
+
+def test_update_reports_a_dropped_ask_rule_once_and_keeps_it_out_on_the_next_run(merge_dirs):
+    (merge_dirs / ".claude" / "settings.json").write_text(_TPL_SETTINGS, encoding="utf-8")
+    _local_allow(merge_dirs, "Bash(git branch -D*)")
+    _write_manifest(merge_dirs, {".claude/settings.json": _sha(_TPL_SETTINGS)})
+    assert runner.invoke(app, ["update", "--force"]).exit_code == 0
+
+    second = runner.invoke(app, ["update", "--force"])
+
+    assert second.exit_code == 0, second.output
+    assert "Bash(git branch -D*)" not in _read(merge_dirs, ".claude/settings.json")["permissions"]["ask"]
+    assert "- permissions.ask: Bash(git branch -D*)" not in _out(second)
+
+
+def test_update_brings_a_dropped_ask_rule_back_once_the_users_allow_rule_is_gone(merge_dirs):
+    user = {"permissions": {"allow": ["Bash(make*)"], "ask": ["Bash(git branch -D*)"]}}
+    (merge_dirs / ".claude" / "settings.json").write_text(json.dumps(user, indent=2), encoding="utf-8")
+    (merge_dirs / ".goodvibes.json").write_text(json.dumps({
+        "version": "1.11.1", "files": {".claude/settings.json": "old-hash"},
+        "managed": {".claude/settings.json": ["ask:Bash(git branch -D*)"]},
+    }), encoding="utf-8")
+    _local_allow(merge_dirs, "Bash(git branch -D*)")
+    assert runner.invoke(app, ["update", "--force"]).exit_code == 0
+    assert "Bash(git branch -D*)" not in _read(merge_dirs, ".claude/settings.json")["permissions"]["ask"]
+    (merge_dirs / ".claude" / "settings.local.json").unlink()
+
+    result = runner.invoke(app, ["update", "--force"])
+
+    assert result.exit_code == 0, result.output
+    assert "Bash(git branch -D*)" in _read(merge_dirs, ".claude/settings.json")["permissions"]["ask"]
+    assert "+ permissions.ask: Bash(git branch -D*)" in _out(result)

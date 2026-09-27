@@ -11,7 +11,9 @@ import sys
 
 from goodvibes_cli.steps.copy_templates import list_template_files
 from goodvibes_cli.steps.write_manifest import MANIFEST_PATH, USER_OWNED, USER_REMOVED, read_manifest
-from goodvibes_cli.utils.json_merge import merge_managed_json, present_ids, shape_error, write_json
+from goodvibes_cli.utils.json_merge import (
+    file_allow_rules, merge_managed_json, overridden_lines, present_ids, shape_error, user_allow_rules, write_json, yielded_ids,
+)
 from goodvibes_cli.utils.proc import run, which
 from goodvibes_cli.utils.scope import goodvibes_block
 from goodvibes_cli.utils.safe_path import printable, remove_retired
@@ -67,10 +69,11 @@ def ensure_global_cli(version: str, dry_run: bool) -> dict[str, str]:
         return {"status": "failed", "reason": f"{str(e).splitlines()[0]}. {manual}"}
 
 
-def apply_global_config(template_dir: pathlib.Path, version: str, dry_run: bool, restore: bool = True) -> dict:
+def apply_global_config(template_dir: pathlib.Path, version: str, dry_run: bool, restore: bool = True, project: pathlib.Path | None = None) -> dict:
     """Write goodvibes-owned files into the Claude Code user config; a file the user edited since is kept.
 
     restore=False (update) leaves a recorded file the user deleted deleted; init passes True to bring it back.
+    project: its allow rules are checked against the global ask and deny rules, never used to drop them for all projects.
     """
     cfg = claude_config_dir()
     prev = read_manifest(cfg) or {}
@@ -81,7 +84,7 @@ def apply_global_config(template_dir: pathlib.Path, version: str, dry_run: bool,
         if rel.startswith(".claude/skills/"):
             owned.append((rel[len(".claude/"):], (template_dir / rel).read_text(encoding="utf-8")))
 
-    result: dict = {"config_dir": str(cfg), "written": [], "kept": [], "removed": [], "retired": [], "settings_changes": [], "settings_error": None}
+    result: dict = {"config_dir": str(cfg), "written": [], "kept": [], "removed": [], "retired": [], "settings_changes": [], "settings_warnings": [], "settings_error": None}
     files: dict[str, str] = {}
     for rel, content in owned:
         dest = cfg / rel
@@ -141,10 +144,13 @@ def apply_global_config(template_dir: pathlib.Path, version: str, dry_run: bool,
     elif user is not None:
         merged, changes = merge_managed_json(".claude/settings.json", tpl, user, managed.get("settings.json"))
         result["settings_changes"] = changes
+        local = [r for f in ("settings.json", "settings.local.json") for r in file_allow_rules(project / ".claude" / f, tpl)] if project else []
+        result["settings_warnings"] = overridden_lines(str(settings_path), [*user_allow_rules(merged, tpl), *local], merged, tpl)
         if not dry_run and changes:
             cfg.mkdir(parents=True, exist_ok=True)
             write_json(settings_path, merged)
-        managed["settings.json"] = list(dict.fromkeys([*managed.get("settings.json", []), *present_ids(".claude/settings.json", tpl, merged)]))
+        forget = yielded_ids(tpl, merged, user_allow_rules(merged, tpl))
+        managed["settings.json"] = [i for i in dict.fromkeys([*managed.get("settings.json", []), *present_ids(".claude/settings.json", tpl, merged)]) if i not in forget]
 
     if not dry_run:
         cfg.mkdir(parents=True, exist_ok=True)
@@ -158,6 +164,7 @@ def format_global(g: dict, cli: dict | None, c7: dict | None) -> str:
     lines += [f"{f}: removed by you, not re-added (run goodvibes init to restore)" for f in g.get("removed", [])]
     lines += [f"{f}: removed, no longer shipped by goodvibes" for f in g.get("retired", [])]
     lines += [f"settings.json {c}" for c in g["settings_changes"]]
+    lines += g.get("settings_warnings", [])
     if g.get("settings_error"):
         lines.append(f"settings.json not changed: {g['settings_error']}")
     if c7:

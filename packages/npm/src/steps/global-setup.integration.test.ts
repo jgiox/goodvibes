@@ -227,4 +227,42 @@ describe('applyGlobalConfig (real temp CLAUDE_CONFIG_DIR)', () => {
     expect(r.retired).toEqual(['skills/cavecrew/SKILL.md'])
     expect(existsSync(join(cfg, 'skills', 'cavecrew', 'SKILL.md'))).toBe(true)
   })
+
+  it("does not add ask rules the user's global allow rules cover", async () => {
+    writeFileSync(join(cfg, 'settings.json'), JSON.stringify({ permissions: { allow: ['Bash(git push*)'] } }))
+    await applyGlobalConfig(templateDir, '9.9.9', false)
+    const ask = readJson('settings.json').permissions.ask as string[]
+    expect(ask.filter(r => r.startsWith('Bash(git push'))).toEqual([])
+    expect(ask).toContain('Bash(git branch -D*)')
+  })
+
+  it('warns about a project allow rule a global ask rule still beats', async () => {
+    const { formatGlobal } = await import('./global-setup.js')
+    const proj = mkdtempSync(join(tmpdir(), 'gv-cfg-proj-'))
+    mkdirSync(join(proj, '.claude'))
+    writeFileSync(join(proj, '.claude', 'settings.local.json'), JSON.stringify({ permissions: { allow: ['Bash(git branch -D*)'] } }))
+    const r = await applyGlobalConfig(templateDir, '9.9.9', false, false, proj)
+    rmSync(proj, { recursive: true, force: true })
+    expect(readJson('settings.json').permissions.ask).toContain('Bash(git branch -D*)')
+    const path = join(cfg, 'settings.json')
+    expect(formatGlobal(r, undefined, undefined).split('\n')).toContain(
+      `${path}: Claude Code still asks before commands your allow rule Bash(git branch -D*) matches, ` +
+        `because goodvibes' ask rule Bash(git branch -D*) is checked first. To change that, delete Bash(git branch -D*) from ` +
+        `${path}; goodvibes will not add it back.`,
+    )
+  })
+
+  it("brings a dropped ask rule back once the user's allow rule is gone", async () => {
+    await applyGlobalConfig(templateDir, '9.9.9', false, true)
+    const installed = readJson('settings.json')
+    installed.permissions.allow = ['Bash(git branch -D*)']
+    writeFileSync(join(cfg, 'settings.json'), JSON.stringify(installed))
+    await applyGlobalConfig(templateDir, '9.9.9', false)
+    const settings = readJson('settings.json')
+    expect(settings.permissions.ask).not.toContain('Bash(git branch -D*)')
+    settings.permissions.allow = []
+    writeFileSync(join(cfg, 'settings.json'), JSON.stringify(settings))
+    await applyGlobalConfig(templateDir, '9.9.9', false)
+    expect(readJson('settings.json').permissions.ask).toContain('Bash(git branch -D*)')
+  })
 })
