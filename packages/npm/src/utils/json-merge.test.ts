@@ -340,4 +340,20 @@ describe("a user's allow rule beats goodvibes' ask rule", () => {
     expect(overriddenLines('.claude/settings.json', ['Bash(git push:*)'], content, tplGit)).toEqual([])
     expect(overriddenLines('.claude/settings.json', ['Bash(git push --force *)'], content, tplGit)).toHaveLength(1)
   })
+
+  it('covers the paths a path rule with wildcards matches', async () => {
+    const { covers } = await import('./json-merge.js')
+    expect(covers('Edit(./.claude/**)', 'Edit(./.claude/settings.json)')).toBe(true)
+    expect(covers('Edit(./.claude/**)', 'Edit(./.claude/hooks/**)')).toBe(true)
+    expect(covers('Edit(./.claude/*.json)', 'Edit(./.claude/settings.local.json)')).toBe(true)
+    expect(covers('Edit(./.claude/*)', 'Edit(./.claude/hooks/**)')).toBe(false)
+    expect(covers('Edit(./.github/**)', 'Edit(./.claude/settings.json)')).toBe(false)
+  })
+
+  it('reports a path rule as overlapping a wildcard path rule that matches it', async () => {
+    const { overlaps } = await import('./json-merge.js')
+    expect(overlaps('Edit(./.claude/hooks/pre.sh)', 'Edit(./.claude/hooks/**)')).toBe(true)
+    expect(overlaps('Edit(./.claude/**)', 'Edit(./.claude/hooks/**)')).toBe(true)
+    expect(overlaps('Edit(./src/**)', 'Edit(./.claude/hooks/**)')).toBe(false)
+  })
 })

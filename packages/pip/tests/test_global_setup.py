@@ -446,3 +446,20 @@ def test_apply_global_config_warns_about_a_project_allow_rule_a_global_ask_rule_
         f"because goodvibes' ask rule Bash(git branch -D*) is checked first. To change that, delete Bash(git branch -D*) from "
         f"{path}; goodvibes will not add it back."
     ) in format_global(result, None, None).splitlines()
+
+
+def test_apply_global_config_brings_a_dropped_ask_rule_back_once_the_users_allow_rule_is_gone():
+    cfg = _cfg()
+    apply_global_config(TEMPLATES, "9.9.9", dry_run=False)
+    settings = json.loads((cfg / "settings.json").read_text(encoding="utf-8"))
+    settings["permissions"]["allow"] = ["Bash(git branch -D*)"]
+    (cfg / "settings.json").write_text(json.dumps(settings), encoding="utf-8")
+    apply_global_config(TEMPLATES, "9.9.9", dry_run=False, restore=False)
+    settings = json.loads((cfg / "settings.json").read_text(encoding="utf-8"))
+    assert "Bash(git branch -D*)" not in settings["permissions"]["ask"]
+    settings["permissions"]["allow"] = []
+    (cfg / "settings.json").write_text(json.dumps(settings), encoding="utf-8")
+
+    apply_global_config(TEMPLATES, "9.9.9", dry_run=False, restore=False)
+
+    assert "Bash(git branch -D*)" in json.loads((cfg / "settings.json").read_text(encoding="utf-8"))["permissions"]["ask"]

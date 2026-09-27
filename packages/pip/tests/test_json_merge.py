@@ -360,3 +360,19 @@ def test_overridden_lines_say_nothing_about_a_deny_rule_that_a_broader_allow_rul
     content = {"permissions": {"deny": ["Bash(git push --force *)"]}}
     assert overridden_lines(".claude/settings.json", ["Bash(git push:*)"], content, TPL_GIT) == []
     assert len(overridden_lines(".claude/settings.json", ["Bash(git push --force *)"], content, TPL_GIT)) == 1
+
+
+def test_a_path_rule_with_wildcards_covers_the_paths_it_matches():
+    from goodvibes_cli.utils.json_merge import covers
+    assert covers("Edit(./.claude/**)", "Edit(./.claude/settings.json)")
+    assert covers("Edit(./.claude/**)", "Edit(./.claude/hooks/**)")
+    assert covers("Edit(./.claude/*.json)", "Edit(./.claude/settings.local.json)")
+    assert not covers("Edit(./.claude/*)", "Edit(./.claude/hooks/**)")
+    assert not covers("Edit(./.github/**)", "Edit(./.claude/settings.json)")
+
+
+def test_a_path_rule_overlaps_a_wildcard_path_rule_that_matches_it():
+    from goodvibes_cli.utils.json_merge import overlaps
+    assert overlaps("Edit(./.claude/hooks/pre.sh)", "Edit(./.claude/hooks/**)")
+    assert overlaps("Edit(./.claude/**)", "Edit(./.claude/hooks/**)")
+    assert not overlaps("Edit(./src/**)", "Edit(./.claude/hooks/**)")

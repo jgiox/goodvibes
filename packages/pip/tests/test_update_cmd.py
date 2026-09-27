@@ -1235,3 +1235,22 @@ def test_update_reports_a_dropped_ask_rule_once_and_keeps_it_out_on_the_next_run
     assert second.exit_code == 0, second.output
     assert "Bash(git branch -D*)" not in _read(merge_dirs, ".claude/settings.json")["permissions"]["ask"]
     assert "- permissions.ask: Bash(git branch -D*)" not in _out(second)
+
+
+def test_update_brings_a_dropped_ask_rule_back_once_the_users_allow_rule_is_gone(merge_dirs):
+    user = {"permissions": {"allow": ["Bash(make*)"], "ask": ["Bash(git branch -D*)"]}}
+    (merge_dirs / ".claude" / "settings.json").write_text(json.dumps(user, indent=2), encoding="utf-8")
+    (merge_dirs / ".goodvibes.json").write_text(json.dumps({
+        "version": "1.11.1", "files": {".claude/settings.json": "old-hash"},
+        "managed": {".claude/settings.json": ["ask:Bash(git branch -D*)"]},
+    }), encoding="utf-8")
+    _local_allow(merge_dirs, "Bash(git branch -D*)")
+    assert runner.invoke(app, ["update", "--force"]).exit_code == 0
+    assert "Bash(git branch -D*)" not in _read(merge_dirs, ".claude/settings.json")["permissions"]["ask"]
+    (merge_dirs / ".claude" / "settings.local.json").unlink()
+
+    result = runner.invoke(app, ["update", "--force"])
+
+    assert result.exit_code == 0, result.output
+    assert "Bash(git branch -D*)" in _read(merge_dirs, ".claude/settings.json")["permissions"]["ask"]
+    assert "+ permissions.ask: Bash(git branch -D*)" in _out(result)

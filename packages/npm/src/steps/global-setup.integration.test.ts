@@ -251,4 +251,18 @@ describe('applyGlobalConfig (real temp CLAUDE_CONFIG_DIR)', () => {
         `${path}; goodvibes will not add it back.`,
     )
   })
+
+  it("brings a dropped ask rule back once the user's allow rule is gone", async () => {
+    await applyGlobalConfig(templateDir, '9.9.9', false, true)
+    const installed = readJson('settings.json')
+    installed.permissions.allow = ['Bash(git branch -D*)']
+    writeFileSync(join(cfg, 'settings.json'), JSON.stringify(installed))
+    await applyGlobalConfig(templateDir, '9.9.9', false)
+    const settings = readJson('settings.json')
+    expect(settings.permissions.ask).not.toContain('Bash(git branch -D*)')
+    settings.permissions.allow = []
+    writeFileSync(join(cfg, 'settings.json'), JSON.stringify(settings))
+    await applyGlobalConfig(templateDir, '9.9.9', false)
+    expect(readJson('settings.json').permissions.ask).toContain('Bash(git branch -D*)')
+  })
 })

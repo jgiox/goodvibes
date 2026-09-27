@@ -1243,4 +1243,18 @@ describe("update command — a user's allow rule beats goodvibes' ask rule", () 
     expect(ask()).not.toContain('Bash(git branch -D*)')
     expect(out).not.toContain('- permissions.ask: Bash(git branch -D*)')
   })
+
+  it("brings a dropped ask rule back once the user's allow rule is gone", async () => {
+    writeFileSync(join(projectDir, '.claude', 'settings.json'), JSON.stringify({ permissions: { allow: ['Bash(make*)'], ask: ['Bash(git branch -D*)'] } }, null, 2))
+    writeFileSync(join(projectDir, '.goodvibes.json'), JSON.stringify({
+      version: '1.11.1', files: { '.claude/settings.json': 'old-hash' }, managed: { '.claude/settings.json': ['ask:Bash(git branch -D*)'] },
+    }))
+    localAllow('Bash(git branch -D*)')
+    await runUpdate('--force')
+    expect(ask()).not.toContain('Bash(git branch -D*)')
+    rmSync(join(projectDir, '.claude', 'settings.local.json'))
+    const out = await runUpdate('--force')
+    expect(ask()).toContain('Bash(git branch -D*)')
+    expect(out).toContain('+ permissions.ask: Bash(git branch -D*)')
+  })
 })
