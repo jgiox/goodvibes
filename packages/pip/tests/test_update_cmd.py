@@ -131,7 +131,7 @@ def test_update_uses_merge_claude_for_claude_md(mocker, tmp_path):
     mocker.patch("goodvibes_cli.commands.update_cmd.write_manifest")
     result = runner.invoke(app, ["update", "--force"])
     assert result.exit_code == 0
-    mock_merge.assert_called_once()
+    assert [c for c in mock_merge.call_args_list if not c.kwargs.get("dry_run")] == [mocker.call(project_dir / "CLAUDE.md", "# Template\n")]
     mock_copy.assert_not_called()
 
 
@@ -203,9 +203,8 @@ def test_update_refreshes_claude_block_and_preserves_outside_content(mocker, tmp
     project_dir = tmp_path / "project"
     project_dir.mkdir()
     # Manifest records the hash as written by init (block only, no custom prose yet).
-    initial_claude_md = (
-        "<!-- goodvibes:start -->\n# goodvibes: v1.0.0\n\nold rules\n<!-- goodvibes:end -->\n"
-    )
+    from .fixtures import SHIPPED_170_BLOCK
+    initial_claude_md = SHIPPED_170_BLOCK + "\n"
     # The user then appended custom prose outside the block — the whole-file hash no
     # longer matches the manifest even though the sentinel block itself is untouched.
     existing_claude_md = "# My Project\n\nCustom prose that must survive.\n\n" + initial_claude_md
@@ -229,7 +228,7 @@ def test_update_refreshes_claude_block_and_preserves_outside_content(mocker, tmp
     updated = (project_dir / "CLAUDE.md").read_text(encoding="utf-8")
     assert "Custom prose that must survive." in updated
     assert "new rules" in updated
-    assert "old rules" not in updated
+    assert "v1.7.0" not in updated
 
 
 _REPO_TEMPLATES = pathlib.Path(__file__).resolve().parents[3] / "templates"
@@ -1057,3 +1056,103 @@ def test_update_stops_with_exit_1_and_a_clear_message_when_its_input_ends_before
     assert result.exit_code == 1
     assert "No answer (the input ended). Nothing was changed." in " ".join(_ANSI.sub("", result.output).split())
     assert not (project_dir / "NEW.md").exists()
+
+
+def _old_global_project(project_dir):
+    from .test_init_cmd import _old_project
+    _old_project(project_dir, scope="global")
+
+
+def test_update_in_global_scope_removes_the_old_rules_block_and_unedited_skill_copies_and_keeps_edited_ones(plain_dirs):
+    _, project_dir = plain_dirs
+    _old_global_project(project_dir)
+
+    result = runner.invoke(app, ["update", "--force"])
+
+    assert result.exit_code == 0, result.output
+    assert (project_dir / "CLAUDE.md").read_text(encoding="utf-8") == "# CLAUDE.md\n\nmy notes\n\nmore mine\n"
+    assert not (project_dir / ".claude" / "skills" / "caveman").exists()
+    assert (project_dir / ".claude" / "skills" / "mine" / "SKILL.md").read_text(encoding="utf-8") == "my edit\n"
+    files = _read(project_dir, ".goodvibes.json")["files"]
+    assert ".claude/skills/caveman/SKILL.md" not in files
+    assert ".claude/skills/mine/SKILL.md" in files
+    out = _out(result)
+    assert "CLAUDE.md: removed the old goodvibes rules block; the rules now come from your Claude Code settings folder" in out
+    assert ".claude/skills/cavecrew/SKILL.md: removed, now set up for all your projects" in out
+    assert "Edited skill copies stay in this project; the same skills are now set up for all your projects, so Claude may load both. Delete a copy you no longer need: .claude/skills/mine/SKILL.md" in out
+
+
+def test_update_dry_run_in_global_scope_plans_the_cleanup_without_changing_anything(plain_dirs):
+    _, project_dir = plain_dirs
+    _old_global_project(project_dir)
+
+    out = _out(runner.invoke(app, ["update", "--dry-run"]))
+
+    assert "CLAUDE.md: will remove the old goodvibes rules block; the rules now come from your Claude Code settings folder" in out
+    assert "Will remove, now set up for all your projects (2): .claude/skills/cavecrew/SKILL.md, .claude/skills/caveman/SKILL.md" in out
+    assert (project_dir / ".claude" / "skills" / "caveman" / "SKILL.md").exists()
+    from .test_init_cmd import _OLD_CLAUDE
+    assert (project_dir / "CLAUDE.md").read_text(encoding="utf-8") == _OLD_CLAUDE
+
+
+def test_update_in_global_scope_counts_the_cleanup_in_its_question(plain_dirs, mocker):
+    _, project_dir = plain_dirs
+    _old_global_project(project_dir)
+    confirm = mocker.patch("goodvibes_cli.commands.update_cmd.typer.confirm", return_value=False)
+    runner.invoke(app, ["update"])
+    assert confirm.call_args.args[0] == "Overwrite 0 managed file(s), add 0, merge goodvibes keys into 0 file(s) and remove 3 old project copies?"
+    assert (project_dir / ".claude" / "skills" / "caveman" / "SKILL.md").exists()
+
+
+def test_update_never_deletes_through_a_skills_folder_swapped_for_a_symlink_after_the_question(plain_dirs, mocker, tmp_path):
+    import shutil
+    _, project_dir = plain_dirs
+    _old_global_project(project_dir)
+    outside = tmp_path / "external" / "skills"
+    (outside / "caveman").mkdir(parents=True)
+    (outside / "caveman" / "SKILL.md").write_text("caveman as shipped\n", encoding="utf-8")
+
+    def swap(_question):
+        shutil.rmtree(project_dir / ".claude" / "skills")
+        (project_dir / ".claude" / "skills").symlink_to(outside)
+        return True
+
+    mocker.patch("goodvibes_cli.commands.update_cmd.typer.confirm", side_effect=swap)
+    result = runner.invoke(app, ["update"])
+
+    assert (outside / "caveman" / "SKILL.md").read_text(encoding="utf-8") == "caveman as shipped\n"
+    out = _out(result)
+    assert ".claude/skills/caveman/SKILL.md: symlink, not written" in out
+    assert ".claude/skills/caveman/SKILL.md: removed, now set up for all your projects" not in out
+    assert ".claude/skills/caveman/SKILL.md" in _read(project_dir, ".goodvibes.json")["files"]
+
+
+def test_update_in_global_scope_keeps_an_old_rules_block_the_user_edited(plain_dirs):
+    from .test_init_cmd import _EDITED_CLAUDE, _old_project
+    _, project_dir = plain_dirs
+    _old_project(project_dir, scope="global", claude=_EDITED_CLAUDE)
+
+    result = runner.invoke(app, ["update", "--force"])
+
+    assert result.exit_code == 0, result.output
+    assert (project_dir / "CLAUDE.md").read_text(encoding="utf-8") == _EDITED_CLAUDE
+    out = _out(result)
+    assert "CLAUDE.md: kept the old goodvibes rules block because you edited it; Claude also reads the rules in your Claude Code settings folder, so remove the block by hand when you no longer need it" in out
+    assert "will remove the old goodvibes rules block" not in out
+
+
+def test_update_keeps_an_edited_claude_md_block_and_writes_the_new_block_beside_it(plain_dirs):
+    from .fixtures import EDITED_170_BLOCK, NEWER_TEMPLATE
+    template_dir, project_dir = plain_dirs
+    (template_dir / "CLAUDE.md").write_text(NEWER_TEMPLATE, encoding="utf-8")
+    mine = f"# CLAUDE.md\n\n{EDITED_170_BLOCK}\n"
+    (project_dir / "CLAUDE.md").write_text(mine, encoding="utf-8")
+    _write_manifest(project_dir, {"CLAUDE.md": _sha(mine)})
+
+    result = runner.invoke(app, ["update", "--force"])
+
+    assert result.exit_code == 0, result.output
+    assert (project_dir / "CLAUDE.md").read_text(encoding="utf-8") == mine
+    assert "# goodvibes: v9.9.9" in (project_dir / "CLAUDE.md.goodvibes-new").read_text(encoding="utf-8")
+    assert "CLAUDE.md: kept your edited goodvibes rules block; the new block is in CLAUDE.md.goodvibes-new, copy over what you want, then delete that file" in _out(result)
+    assert _read(project_dir, ".goodvibes.json")["files"]["CLAUDE.md"] == _sha(mine)

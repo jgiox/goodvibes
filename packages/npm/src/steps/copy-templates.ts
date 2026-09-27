@@ -5,6 +5,7 @@ import { existsSync, readdirSync, statSync } from 'fs'
 import { join, relative, sep } from 'path'
 import { fileURLToPath } from 'url'
 import { mergeClaude, MarkerError } from '../utils/sentinel-merge.js'
+import { KEPT_BLOCK } from './project-copies.js'
 import { writeBlocked } from '../utils/fs-safe.js'
 import { dependabotYml, type ProjectType } from '../utils/detect-project-type.js'
 import { GLOBAL_OWNED, MINIMAL_SKIPPED, projectStub, type Scope } from '../utils/scope.js'
@@ -149,8 +150,8 @@ export async function copyTemplates(
     skippedFiles.push(claudeBlocked)
   } else if (scope === 'project') {
     try {
-      await mergeClaude(claudeDest, templateContent)
-      claudeMerged = true
+      if ((await mergeClaude(claudeDest, templateContent)) === 'kept') skippedFiles.push(KEPT_BLOCK)
+      else claudeMerged = true
     } catch (e) {
       if (!(e instanceof MarkerError)) throw e
       problems.push(e.message)

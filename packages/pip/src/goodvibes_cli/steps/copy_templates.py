@@ -5,6 +5,7 @@ import importlib.resources
 import pathlib
 import shutil
 
+from goodvibes_cli.steps.project_copies import KEPT_BLOCK
 from goodvibes_cli.utils.detect_project_type import dependabot_yml
 from goodvibes_cli.utils.safe_path import SymlinkError, check_writable
 from goodvibes_cli.utils.scope import global_owned, minimal_skipped, project_stub
@@ -162,8 +163,10 @@ def copy_templates(
         template_content = claude_src.read_text(encoding="utf-8")
         if scope == "project":
             try:
-                merge_claude(claude_dest, template_content)
-                claude_merged = True
+                if merge_claude(claude_dest, template_content) == "kept":
+                    skipped_files.append(KEPT_BLOCK)
+                else:
+                    claude_merged = True
             except (ClaudeMdError, SymlinkError) as e:
                 skipped_files.append(str(e))
         elif claude_dest.is_symlink():

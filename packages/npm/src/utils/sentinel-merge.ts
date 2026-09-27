@@ -1,5 +1,8 @@
 import { outputFile, pathExists } from 'fs-extra'
-import { readFile, writeFile } from 'node:fs/promises'
+import { lstat, readFile, writeFile } from 'node:fs/promises'
+import { basename, dirname } from 'node:path'
+import { createHash } from 'node:crypto'
+import { writeBlocked } from './fs-safe.js'
 
 const SENTINEL_START = '<!-- goodvibes:start -->'
 const SENTINEL_END = '<!-- goodvibes:end -->'
@@ -40,6 +43,33 @@ function extractSentinelBlock(content: string): string {
   return content.slice(start, end + SENTINEL_END.length)
 }
 
+// Digests of every rules block goodvibes has published; a block not listed here was edited by the user.
+export const SHIPPED_BLOCKS: ReadonlySet<string> = new Set([
+  '0d887c3842418ef5a417d9ec18a91f274cb4ae808bd0d1f91157c801afb919c7',
+  '1e6b00dac9e88bd6e984fccfbacef584a5137d7abc707a33833007e6edff1d7a',
+  '1ff1d2a91e7f376164d3a2ff451569e5431e018d6da0005ae6af8fb61b863237',
+  '48364721665cb43051d76317f021906df462a4c696deec73c7e6f81972fa622e',
+  '4ecc5d68f0970080604203112f923eea348d55d8ea59fbe60eb0d2f8df38a008',
+  '55501c618426b57d89d1b8ca4061a1784b5ecb01c92a4a9aa380352790231c78',
+  '6ca859260cc84a3915cf8e449f048fa7f063376fbf650c22621f7b84543a4014',
+  '8d3586de652f6ae7b49c9f075c49ada163b8de2ca66816a9a9e124fe1a870f8a',
+  '91f9f6b05431236c5d1a52233d5c453bc853ef34ce23318a6b87e9463bddd99d',
+  '9491213ecbedc61603bf0f8ed93bebfd75c3e886d5d464fb7fd30c1bdaef7939',
+  '9d25f80c10fe897455dd1f80fd475b27a59b2685e2fbe249948b1f7e4d533b8b',
+  'bdbeae34881ffa876186783b976ee0981839290b4c47249c9a06d6fcfaf7108d',
+  'c46d22fd4681f0ec81504f16d264272b72b546bd35f9e6bcc8ec2b79438a5979',
+  'd446f3bb30074bcaa01b0b599fd4b34c19458d3d4c3fa877306df996ac6a759c',
+  'd78a43cd2f9be1bf0a25a7883cf18913a9a36d734f73e606dd1da7ec03411751',
+  'e7aac90e824c715b5bbc9242ffcb3c13e27c6d73982436a62ab463f1308d1013',
+  'ec5b5b2dd558567437de928ecf053799c26f9a63a5d275b734054a5930875523',
+])
+
+// Line endings and trailing spaces are ignored, so an editor that rewrites them does not make a block look edited.
+export function blockDigest(text: string): string {
+  const block = extractSentinelBlock(text).replace(/\r\n/g, '\n')
+  return createHash('sha256').update(block.split('\n').map(l => l.trimEnd()).join('\n')).digest('hex')
+}
+
 export class MarkerError extends Error {}
 
 function markerProblem(starts: number[], ends: number[]): string | null {
@@ -51,21 +81,26 @@ function markerProblem(starts: number[], ends: number[]): string | null {
   return null
 }
 
-// Throws MarkerError without writing when the markers are ambiguous, so no user text is ever cut.
-export async function mergeClaude(destPath: string, templateContent: string): Promise<void> {
-  const templateBlock = extractSentinelBlock(templateContent)
+// Checked here, just before the write: a caller's earlier check can be stale by the time the file is written.
+async function refuseLink(destPath: string): Promise<void> {
+  if (!(await lstat(dirname(destPath)).catch(() => null))) return // mergeClaude may create the folder; a missing folder is no link
+  const why = await writeBlocked(dirname(destPath), basename(destPath))
+  if (why) throw new MarkerError(why)
+}
 
-  if (!(await pathExists(destPath))) {
-    await outputFile(destPath, templateContent)
-    return
+// Node's plain utf-8 read turns a bad byte into U+FFFD, which the write would then save over the user's text.
+async function readUtf8(destPath: string): Promise<string> {
+  try {
+    return new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(await readFile(destPath))
+  } catch (e) {
+    if (!(e instanceof TypeError)) throw e
+    throw new MarkerError(`${destPath} is not UTF-8 text, so goodvibes did not change it; save it as UTF-8 and re-run.`)
   }
+}
 
-  const existing = await readFile(destPath, 'utf-8')
-  const eol = existing.includes('\r\n') ? '\r\n' : '\n'
-  const block = templateBlock.replace(/\r?\n/g, eol)
+function markers(destPath: string, existing: string): { starts: number[]; ends: number[] } {
   const starts = [...existing.matchAll(START_LINE)].map(m => m.index)
   const ends = [...existing.matchAll(END_LINE)].map(m => m.index)
-
   const problem = markerProblem(starts, ends)
   if (problem) {
     throw new MarkerError(
@@ -73,17 +108,60 @@ export async function mergeClaude(destPath: string, templateContent: string): Pr
         `followed later by one ${SENTINEL_END} line, or delete both to get a fresh block.`,
     )
   }
+  return { starts, ends }
+}
+
+// Removes an unedited goodvibes block and keeps the text around it: 'removed', 'kept' when the user edited it, '' when there is none.
+export async function stripBlock(destPath: string, dryRun = false): Promise<'removed' | 'kept' | ''> {
+  await refuseLink(destPath)
+  if (!(await pathExists(destPath))) return ''
+  const existing = await readUtf8(destPath)
+  const { starts, ends } = markers(destPath, existing)
+  if (starts.length === 0) return ''
+  if (!SHIPPED_BLOCKS.has(blockDigest(existing.slice(starts[0], ends[0] + SENTINEL_END.length)))) return 'kept'
+  if (!dryRun) {
+    const eol = existing.includes('\r\n') ? '\r\n' : '\n'
+    const after = existing.slice(ends[0] + SENTINEL_END.length).replace(/^(?:[ \t]*\r?\n)+/, '')
+    const parts = [existing.slice(0, starts[0]).trimEnd(), after.trimEnd()].filter(Boolean)
+    await writeFile(destPath, parts.join(eol + eol) + (parts.length > 0 ? eol : ''))
+  }
+  return 'removed'
+}
+
+// Throws MarkerError without writing when the markers are ambiguous, so no user text is ever cut.
+// An older block the user edited is kept; the new block goes to CLAUDE.md.goodvibes-new instead.
+export async function mergeClaude(destPath: string, templateContent: string, dryRun = false): Promise<'written' | 'kept' | 'unchanged'> {
+  const templateBlock = extractSentinelBlock(templateContent)
+  await refuseLink(destPath)
+
+  if (!(await pathExists(destPath))) {
+    if (!dryRun) await outputFile(destPath, templateContent)
+    return 'written'
+  }
+
+  const existing = await readUtf8(destPath)
+  const eol = existing.includes('\r\n') ? '\r\n' : '\n'
+  const block = templateBlock.replace(/\r?\n/g, eol)
+  const { starts, ends } = markers(destPath, existing)
 
   if (starts.length === 0) {
-    await writeFile(destPath, existing.trimEnd() + eol + eol + block + eol)
-    return
+    if (!dryRun) await writeFile(destPath, existing.trimEnd() + eol + eol + block + eol)
+    return 'written'
   }
 
   const startIdx = starts[0]
   const endIdx = ends[0] + SENTINEL_END.length
   const existingVersion = extractVersion(existing.slice(startIdx, endIdx))
   const templateVersion = extractVersion(templateBlock)
-  if (existingVersion && templateVersion && versionGte(existingVersion, templateVersion)) return
+  if (existingVersion && templateVersion && versionGte(existingVersion, templateVersion)) return 'unchanged'
 
-  await writeFile(destPath, existing.slice(0, startIdx) + block + existing.slice(endIdx))
+  if (!SHIPPED_BLOCKS.has(blockDigest(existing.slice(startIdx, endIdx)))) {
+    const sidecar = destPath + '.goodvibes-new'
+    await refuseLink(sidecar)
+    if (!dryRun) await writeFile(sidecar, block + eol)
+    return 'kept'
+  }
+
+  if (!dryRun) await writeFile(destPath, existing.slice(0, startIdx) + block + existing.slice(endIdx))
+  return 'written'
 }

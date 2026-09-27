@@ -105,8 +105,8 @@ describe('update command — real tmp-dir regression coverage (D1)', () => {
     writeFileSync(join(templateDir, 'CLAUDE.md'), templateClaudeMd)
 
     // Manifest records the hash as written by init (block only, no custom prose yet).
-    const initialClaudeMd =
-      '<!-- goodvibes:start -->\n# goodvibes: v1.0.0\n\nold rules\n<!-- goodvibes:end -->\n'
+    const { SHIPPED_170_BLOCK } = await import('./old-project.fixture.js')
+    const initialClaudeMd = SHIPPED_170_BLOCK + '\n'
     // The user then appended custom prose outside the block — the whole-file hash no
     // longer matches the manifest even though the sentinel block itself is untouched.
     const existingClaudeMd = '# My Project\n\nCustom prose that must survive.\n\n' + initialClaudeMd
@@ -130,7 +130,32 @@ describe('update command — real tmp-dir regression coverage (D1)', () => {
     const result = readFileSync(join(projectDir, 'CLAUDE.md'), 'utf-8')
     expect(result).toContain('Custom prose that must survive.')
     expect(result).toContain('new rules')
-    expect(result).not.toContain('old rules')
+    expect(result).not.toContain('# goodvibes: v1.7.0')
+  })
+
+  it('keeps an edited goodvibes block in CLAUDE.md and writes the new block beside it', async () => {
+    const { resolveTemplatesDir } = await import('../steps/copy-templates.js')
+    vi.mocked(resolveTemplatesDir).mockReturnValue(templateDir)
+    const { EDITED_170_BLOCK, NEWER_TEMPLATE } = await import('./old-project.fixture.js')
+    writeFileSync(join(templateDir, 'CLAUDE.md'), NEWER_TEMPLATE)
+    const mine = `# CLAUDE.md\n\n${EDITED_170_BLOCK}\n`
+    writeFileSync(join(projectDir, 'CLAUDE.md'), mine)
+    writeFileSync(join(projectDir, '.goodvibes.json'), JSON.stringify({ version: '1.0.0', files: { 'CLAUDE.md': sha256(mine) } }))
+    const { note } = await import('@clack/prompts')
+    vi.mocked(note).mockClear()
+
+    const { registerUpdateCommand } = await import('./update.js')
+    const { Command } = await import('commander')
+    const program = new Command()
+    program.exitOverride()
+    registerUpdateCommand(program)
+    await program.parseAsync(['node', 'goodvibes', 'update', '--force'])
+
+    expect(readFileSync(join(projectDir, 'CLAUDE.md'), 'utf-8')).toBe(mine)
+    expect(readFileSync(join(projectDir, 'CLAUDE.md.goodvibes-new'), 'utf-8')).toContain('# goodvibes: v9.9.9')
+    const out = vi.mocked(note).mock.calls.map(c => String(c[0])).join('\n')
+    expect(out).toContain('CLAUDE.md: kept your edited goodvibes rules block; the new block is in CLAUDE.md.goodvibes-new, copy over what you want, then delete that file')
+    expect(JSON.parse(readFileSync(join(projectDir, '.goodvibes.json'), 'utf-8')).files['CLAUDE.md']).toBe(sha256(mine))
   })
 })
 
@@ -1001,5 +1026,120 @@ describe('update command — respects files the user removed and layers init ski
     writeFileSync(join(projectDir, '.github', 'dependabot.yml'), tailored + '# mine\n')
     await runUpdate('--force')
     expect(readFileSync(join(projectDir, '.github', 'dependabot.yml'), 'utf-8')).toBe(tailored + '# mine\n')
+  })
+})
+
+describe('update command — a project set up in project scope before goodvibes moved to global scope', () => {
+  let templateDir: string
+  let projectDir: string
+  let cwdSpy: ReturnType<typeof vi.spyOn>
+
+  async function runUpdate(...flags: string[]): Promise<void> {
+    const { resolveTemplatesDir } = await import('../steps/copy-templates.js')
+    vi.mocked(resolveTemplatesDir).mockReturnValue(templateDir)
+    const { registerUpdateCommand } = await import('./update.js')
+    const { Command } = await import('commander')
+    const program = new Command()
+    program.exitOverride()
+    registerUpdateCommand(program)
+    await program.parseAsync(['node', 'goodvibes', 'update', ...flags])
+  }
+  const shown = async () => {
+    const { note } = await import('@clack/prompts')
+    return vi.mocked(note).mock.calls.map(c => String(c[0])).join('\n')
+  }
+
+  beforeEach(async () => {
+    templateDir = fileURLToPath(new URL('../../../../templates', import.meta.url))
+    projectDir = mkdtempSync(join(tmpdir(), 'gv-old-proj-'))
+    cwdSpy = vi.spyOn(process, 'cwd').mockReturnValue(projectDir)
+    const { oldProject } = await import('./old-project.fixture.js')
+    oldProject(projectDir, 'global')
+    const { note, confirm } = await import('@clack/prompts')
+    vi.mocked(note).mockClear()
+    vi.mocked(confirm).mockClear()
+  })
+
+  afterEach(async () => {
+    cwdSpy.mockRestore()
+    const { confirm } = await import('@clack/prompts')
+    vi.mocked(confirm).mockResolvedValue(true)
+    rmSync(projectDir, { recursive: true, force: true })
+  })
+
+  it('removes the old rules block and unedited skill copies and keeps edited ones', async () => {
+    await runUpdate('--force')
+
+    expect(readFileSync(join(projectDir, 'CLAUDE.md'), 'utf-8')).toBe('# CLAUDE.md\n\nmy notes\n\nmore mine\n')
+    expect(existsSync(join(projectDir, '.claude', 'skills', 'caveman'))).toBe(false)
+    expect(readFileSync(join(projectDir, '.claude', 'skills', 'mine', 'SKILL.md'), 'utf-8')).toBe('my edit\n')
+    const files = JSON.parse(readFileSync(join(projectDir, '.goodvibes.json'), 'utf-8')).files
+    expect(files).not.toHaveProperty(['.claude/skills/caveman/SKILL.md'])
+    expect(files).toHaveProperty(['.claude/skills/mine/SKILL.md'])
+    const out = await shown()
+    expect(out).toContain('CLAUDE.md: removed the old goodvibes rules block; the rules now come from your Claude Code settings folder')
+    expect(out).toContain('.claude/skills/cavecrew/SKILL.md: removed, now set up for all your projects')
+    expect(out).toContain('Edited skill copies stay in this project; the same skills are now set up for all your projects, so Claude may load both. Delete a copy you no longer need: .claude/skills/mine/SKILL.md')
+  })
+
+  it('keeps an old rules block the user edited', async () => {
+    const { EDITED_CLAUDE, oldProject } = await import('./old-project.fixture.js')
+    oldProject(projectDir, 'global', EDITED_CLAUDE)
+
+    await runUpdate('--force')
+
+    expect(readFileSync(join(projectDir, 'CLAUDE.md'), 'utf-8')).toBe(EDITED_CLAUDE)
+    const out = await shown()
+    expect(out).toContain('CLAUDE.md: kept the old goodvibes rules block because you edited it; Claude also reads the rules in your Claude Code settings folder, so remove the block by hand when you no longer need it')
+    expect(out).not.toContain('will remove the old goodvibes rules block')
+  })
+
+  it('plans the cleanup in a dry run without changing anything', async () => {
+    const { OLD_CLAUDE } = await import('./old-project.fixture.js')
+    await runUpdate('--dry-run')
+
+    const out = await shown()
+    expect(out).toContain('CLAUDE.md: will remove the old goodvibes rules block; the rules now come from your Claude Code settings folder')
+    expect(out).toContain('Will remove, now set up for all your projects (2): .claude/skills/cavecrew/SKILL.md, .claude/skills/caveman/SKILL.md')
+    expect(existsSync(join(projectDir, '.claude', 'skills', 'caveman', 'SKILL.md'))).toBe(true)
+    expect(readFileSync(join(projectDir, 'CLAUDE.md'), 'utf-8')).toBe(OLD_CLAUDE)
+  })
+
+  it('never deletes through a skills folder swapped for a symlink after the question', async () => {
+    const outside = mkdtempSync(join(tmpdir(), 'gv-old-outside-'))
+    try {
+      mkdirSync(join(outside, 'caveman'))
+      writeFileSync(join(outside, 'caveman', 'SKILL.md'), 'caveman as shipped\n')
+      const { confirm } = await import('@clack/prompts')
+      vi.mocked(confirm).mockImplementationOnce(async () => {
+        rmSync(join(projectDir, '.claude', 'skills'), { recursive: true, force: true })
+        symlinkSync(outside, join(projectDir, '.claude', 'skills'))
+        return true
+      })
+
+      await runUpdate()
+
+      expect(readFileSync(join(outside, 'caveman', 'SKILL.md'), 'utf-8')).toBe('caveman as shipped\n')
+      const out = await shown()
+      expect(out).toContain('.claude/skills/caveman/SKILL.md: symlink, not written')
+      expect(out).not.toContain('.claude/skills/caveman/SKILL.md: removed, now set up for all your projects')
+      expect(JSON.parse(readFileSync(join(projectDir, '.goodvibes.json'), 'utf-8')).files).toHaveProperty(['.claude/skills/caveman/SKILL.md'])
+    } finally {
+      rmSync(outside, { recursive: true, force: true })
+    }
+  })
+
+  it('counts the cleanup in its question, like the pip CLI', async () => {
+    const { confirm } = await import('@clack/prompts')
+    vi.mocked(confirm).mockResolvedValue(false)
+    const exitSpy = vi.spyOn(process, 'exit').mockImplementation(((code?: number) => { throw new Error(`exit ${code}`) }) as never)
+    try {
+      await expect(runUpdate()).rejects.toThrow('exit 0')
+    } finally {
+      exitSpy.mockRestore()
+    }
+    expect(String(vi.mocked(confirm).mock.calls[0][0].message)).toMatch(
+      /^Overwrite 0 managed file\(s\), add \d+, merge goodvibes keys into 0 file\(s\) and remove 3 old project copies( and apply \d+ change\(s\) to your Claude Code settings)?\?$/)
+    expect(existsSync(join(projectDir, '.claude', 'skills', 'caveman', 'SKILL.md'))).toBe(true)
   })
 })
