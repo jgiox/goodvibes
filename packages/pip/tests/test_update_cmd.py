@@ -1222,3 +1222,16 @@ def test_update_warns_when_a_goodvibes_ask_rule_still_beats_a_narrower_allow_rul
         "because goodvibes' ask rule Bash(git push*) is checked first. To change that, delete Bash(git push*) from "
         ".claude/settings.json; goodvibes will not add it back."
     ) in _out(result)
+
+
+def test_update_reports_a_dropped_ask_rule_once_and_keeps_it_out_on_the_next_run(merge_dirs):
+    (merge_dirs / ".claude" / "settings.json").write_text(_TPL_SETTINGS, encoding="utf-8")
+    _local_allow(merge_dirs, "Bash(git branch -D*)")
+    _write_manifest(merge_dirs, {".claude/settings.json": _sha(_TPL_SETTINGS)})
+    assert runner.invoke(app, ["update", "--force"]).exit_code == 0
+
+    second = runner.invoke(app, ["update", "--force"])
+
+    assert second.exit_code == 0, second.output
+    assert "Bash(git branch -D*)" not in _read(merge_dirs, ".claude/settings.json")["permissions"]["ask"]
+    assert "- permissions.ask: Bash(git branch -D*)" not in _out(second)

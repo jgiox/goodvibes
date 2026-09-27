@@ -1147,7 +1147,8 @@ describe('update command — a project set up in project scope before goodvibes 
 describe("update command — a user's allow rule beats goodvibes' ask rule", () => {
   const realTemplates = fileURLToPath(new URL('../../../../templates', import.meta.url))
   const tplSettings = readFileSync(join(realTemplates, '.claude', 'settings.json'), 'utf-8')
-  const cfg = process.env.CLAUDE_CONFIG_DIR as string
+  const savedCfg = process.env.CLAUDE_CONFIG_DIR
+  let cfg: string
   let templateDir: string
   let projectDir: string
   let cwdSpy: ReturnType<typeof vi.spyOn>
@@ -1175,6 +1176,9 @@ describe("update command — a user's allow rule beats goodvibes' ask rule", () 
   }
 
   beforeEach(() => {
+    // Its own config dir: other tests leave a global manifest in the shared one, which would plan a global update.
+    cfg = mkdtempSync(join(tmpdir(), 'gv-allow-cfg-'))
+    process.env.CLAUDE_CONFIG_DIR = cfg
     templateDir = mkdtempSync(join(tmpdir(), 'gv-allow-tpl-'))
     projectDir = mkdtempSync(join(tmpdir(), 'gv-allow-proj-'))
     mkdirSync(join(templateDir, '.claude'), { recursive: true })
@@ -1187,7 +1191,8 @@ describe("update command — a user's allow rule beats goodvibes' ask rule", () 
     cwdSpy.mockRestore()
     rmSync(templateDir, { recursive: true, force: true })
     rmSync(projectDir, { recursive: true, force: true })
-    rmSync(join(cfg, 'settings.json'), { force: true })
+    process.env.CLAUDE_CONFIG_DIR = savedCfg
+    rmSync(cfg, { recursive: true, force: true })
   })
 
   it('drops the ask rule an allow rule in settings.local.json covers', async () => {
@@ -1228,5 +1233,14 @@ describe("update command — a user's allow rule beats goodvibes' ask rule", () 
         "because goodvibes' ask rule Bash(git push*) is checked first. To change that, delete Bash(git push*) from " +
         '.claude/settings.json; goodvibes will not add it back.',
     )
+  })
+
+  it('reports a dropped ask rule once and keeps it out on the next run', async () => {
+    untouchedSettings()
+    localAllow('Bash(git branch -D*)')
+    await runUpdate('--force')
+    const out = await runUpdate('--force')
+    expect(ask()).not.toContain('Bash(git branch -D*)')
+    expect(out).not.toContain('- permissions.ask: Bash(git branch -D*)')
   })
 })

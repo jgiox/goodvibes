@@ -19,7 +19,10 @@ from goodvibes_cli.steps.project_copies import EDITED, KEPT_BLOCK, KEPT_OLD_BLOC
 from goodvibes_cli.steps.git_hook import KEEPS, REMOVED_LINE, hook_line, install_git_hook
 from goodvibes_cli.steps.write_manifest import USER_OWNED, USER_REMOVED, ManifestError, read_manifest, write_manifest
 from goodvibes_cli.utils.detect_project_type import dependabot_yml, detect_project_type
-from goodvibes_cli.utils.json_merge import MANAGED_JSON, managed_record, merge_managed_json, shape_error, write_json
+from goodvibes_cli.utils.json_merge import (
+    MANAGED_JSON, file_allow_rules, managed_ids, managed_record, merge_managed_json, overridden_lines, shape_error,
+    user_allow_rules, write_json,
+)
 from goodvibes_cli.steps.global_setup import apply_global_config, claude_config_dir, format_global
 from goodvibes_cli.utils.safe_path import SymlinkError, check_writable, printable, remove_retired
 from goodvibes_cli.utils.scope import global_owned, minimal_skipped, same_path
@@ -98,13 +101,13 @@ def run_update(dry_run: bool, force: bool) -> None:
     # Plan the Claude config changes first; nothing is written there until the user has said yes.
     g_plan = None
     if global_manifest is not None or (manifest or {}).get("scope") == "global":
-        g_plan = apply_global_config(template_dir, version, dry_run=True, restore=False)
+        g_plan = apply_global_config(template_dir, version, dry_run=True, restore=False, project=cwd if manifest is not None else None)
         console.print(Panel(Text(format_global(g_plan, None, None)), title=f"{'Dry run — ' if dry_run else 'Plan — '}Global setup ({g_plan['config_dir']})"))
     global_changes = len(g_plan["written"]) + len(g_plan["retired"]) + len(g_plan["settings_changes"]) if g_plan else 0
 
     def apply_global() -> None:
         if g_plan is not None:
-            g = apply_global_config(template_dir, version, dry_run=False, restore=False)
+            g = apply_global_config(template_dir, version, dry_run=False, restore=False, project=cwd if manifest is not None else None)
             console.print(Panel(Text(format_global(g, None, None)), title=f"Global setup ({g['config_dir']})"))
 
     if manifest is None:
@@ -220,6 +223,11 @@ def run_update(dry_run: bool, force: bool) -> None:
     # User-modified settings.json and MCP files still receive goodvibes-managed keys.
     merges: list[tuple[str, dict, list[str]]] = []
     merge_errors: list[str] = []
+    # Allow rules from the files Claude Code reads beside the project settings; an ask rule would override them.
+    settings_rel = ".claude/settings.json"
+    handled = settings_rel in [*overwrite, *net_new, *skip, *kept] and (template_dir / settings_rel).exists()
+    settings_tpl = json.loads((template_dir / settings_rel).read_text(encoding="utf-8")) if handled else None
+    extra_allow = [*file_allow_rules(cwd / ".claude" / "settings.local.json", settings_tpl), *file_allow_rules(claude_config_dir() / "settings.json", settings_tpl)] if settings_tpl else []
     for rel in [r for r in skip + kept if r in MANAGED_JSON]:
         tpl_path = template_dir / rel
         if not tpl_path.exists():
@@ -237,9 +245,35 @@ def run_update(dry_run: bool, force: bool) -> None:
             merge_errors.append(f"{rel}: {shape}; left unchanged, fix it and re-run update")
             continue
         tpl = json.loads(tpl_path.read_text(encoding="utf-8"))
-        merged, changes = merge_managed_json(rel, tpl, user, (manifest.get("managed") or {}).get(rel), retire_allow=rel == ".claude/settings.json")
+        merged, changes = merge_managed_json(
+            rel, tpl, user, (manifest.get("managed") or {}).get(rel), retire_allow=rel == settings_rel,
+            extra_allow=extra_allow if rel == settings_rel else None,
+        )
         if changes:
             merges.append((rel, merged, changes))
+    permission_notes: list[str] = []
+    settings_fresh: dict | None = None
+    if settings_tpl:
+        if settings_rel in overwrite + net_new:
+            # The fresh copy is all goodvibes', so every ask rule in it counts as installed.
+            merged, changes = merge_managed_json(settings_rel, settings_tpl, settings_tpl, managed_ids(settings_rel, settings_tpl), extra_allow=extra_allow)
+            if changes:
+                settings_fresh = merged
+                try:
+                    current = json.loads((cwd / settings_rel).read_text(encoding="utf-8"))
+                except (OSError, ValueError):
+                    current = None
+                # Reported once: after the first update the file on disk already is this copy.
+                if current != merged:
+                    merges.append((settings_rel, merged, changes))
+        final = next((m for r, m, _ in merges if r == settings_rel), settings_fresh or (settings_tpl if settings_rel in overwrite + net_new else None))
+        if final is None and settings_rel not in blocked and (cwd / settings_rel).is_file():
+            try:
+                final = json.loads((cwd / settings_rel).read_text(encoding="utf-8"))
+            except ValueError:
+                pass  # already reported as not valid JSON above
+        if final is not None:
+            permission_notes = overridden_lines(settings_rel, [*user_allow_rules(final, settings_tpl), *extra_allow], final, settings_tpl)
     merge_lines = [f"Will merge goodvibes keys into {rel}:\n  " + "\n  ".join(ch) for rel, _, ch in merges]
     merge_lines += [f"Cannot merge {e}" for e in merge_errors]
 
@@ -257,7 +291,7 @@ def run_update(dry_run: bool, force: bool) -> None:
     if moved:
         lines.append(f"Will remove, now set up for all your projects ({len(moved)}): {', '.join(moved)}")
     lines += ([STRIP_PLAN] if strip == "removed" else []) + ([KEPT_OLD_BLOCK] if strip == "kept" else []) + ([strip_error] if strip_error else []) + ([EDITED + ", ".join(edited)] if edited else [])
-    lines += merge_lines
+    lines += merge_lines + permission_notes
     lines += [f"{rel}: {REMOVED}" for rel in removed]
     lines += not_written
 
@@ -326,7 +360,10 @@ def run_update(dry_run: bool, force: bool) -> None:
         else:
             dest = cwd / rel
             dest.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(str(template_src), str(dest))
+            if rel == settings_rel and settings_fresh is not None:
+                write_json(dest, settings_fresh)
+            else:
+                shutil.copy2(str(template_src), str(dest))
             if rel == DEPENDABOT:
                 dest.write_bytes(dependabot_yml(template_src.read_bytes().decode("utf-8"), cwd).encode("utf-8"))
 

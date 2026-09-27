@@ -108,10 +108,120 @@ RETIRED_DENY = ["Bash(git push --force*)", "Bash(git push * --force*)"]
 RETIRED_ALLOW = ['Bash(npm install*)', 'Bash(npm run*)', 'Bash(npx*)', 'Bash(pip install*)', 'Bash(uv*)', 'Bash(python*)', 'Bash(node*)', 'Bash(git restore *)', 'Write(**)']
 
 
+_RULE = re.compile(r"^([A-Za-z]+)(?:\((.*)\))?$", re.S)
+
+
+def _rule(rule: object) -> tuple[str, str | None] | None:
+    m = _RULE.match(rule.strip()) if isinstance(rule, str) else None
+    return (m.group(1), m.group(2)) if m else None
+
+
+def _head(spec: str) -> tuple[str, str]:
+    """A Bash rule's literal text before its first wildcard, and whether it is "exact", "prefix" (one trailing wildcard) or "glob"."""
+    body = spec[:-2] if spec.endswith(":*") else spec  # the older prefix syntax, `git push:*`
+    i = body.find("*")
+    if spec.endswith(":*") and i == -1:
+        return body.rstrip(), "prefix"
+    if i == -1:
+        return body, "exact"
+    # The space in `git push *` only marks a word boundary; it does not narrow what the rule means here.
+    return body[:i].rstrip(), "prefix" if i == len(body) - 1 else "glob"
+
+
+def _matches(spec: str, command: str) -> bool:
+    if spec.endswith(":*"):
+        return command.startswith(spec[:-2])
+    return re.fullmatch(".*".join(map(re.escape, spec.split("*"))), command, re.S) is not None
+
+
+def _parts(allow: str, rule: str) -> tuple[str | None, str | None, str | None] | None:
+    a, r = _rule(allow), _rule(rule)
+    if not a or not r or a[0] != r[0]:
+        return None
+    return a[0], a[1], r[1]
+
+
+def covers(allow: str, rule: str) -> bool:
+    """True when every command `rule` matches is also matched by `allow`."""
+    parts = _parts(allow, rule)
+    if not parts:
+        return False
+    tool, a, r = parts
+    if a is None or a in ("*", "**"):
+        return True
+    if r is None or tool != "Bash":
+        return a == r
+    (ah, ak), (rh, rk) = _head(a), _head(r)
+    if rk == "exact":
+        return _matches(a, r)
+    if ak == "prefix":
+        return rh.startswith(ah)
+    return a == r
+
+
+def overlaps(allow: str, rule: str) -> bool:
+    """True when at least one command could match both rules (an approximation for wildcards after the first)."""
+    parts = _parts(allow, rule)
+    if not parts:
+        return False
+    tool, a, r = parts
+    if a is None or r is None or a in ("*", "**"):
+        return True
+    if tool != "Bash":
+        return a == r
+    (ah, ak), (rh, rk) = _head(a), _head(r)
+    if ak == "exact":
+        return _matches(r, a)
+    if rk == "exact":
+        return _matches(a, r)
+    return ah.startswith(rh) or rh.startswith(ah)
+
+
+def user_allow_rules(content: object, tpl: dict) -> list[str]:
+    """Allow rules in a settings file that the user wrote: goodvibes' own, current or retired, never count."""
+    perms = content.get("permissions") if isinstance(content, dict) else None
+    allow = perms.get("allow") if isinstance(perms, dict) else None
+    ours = {*((tpl.get("permissions") or {}).get("allow") or []), *RETIRED_ALLOW}
+    return [r for r in (allow if isinstance(allow, list) else []) if isinstance(r, str) and r not in ours]
+
+
+def file_allow_rules(path: pathlib.Path, tpl: dict) -> list[str]:
+    try:
+        content = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return []  # Claude Code cannot apply rules from a missing or broken file either
+    return user_allow_rules(content, tpl)
+
+
+def overridden_lines(label: str, allows: list[str], content: object, tpl: dict) -> list[str]:
+    """One line per user allow rule that a goodvibes deny or ask rule in `content` still beats."""
+    perms = content.get("permissions") if isinstance(content, dict) else None
+    perms = perms if isinstance(perms, dict) else {}
+    ours = tpl.get("permissions") or {}
+    lines = []
+    for a in dict.fromkeys(allows):
+        for kind, verb in (("deny", "refuses"), ("ask", "asks before")):
+            have = perms.get(kind) if isinstance(perms.get(kind), list) else []
+            # A deny rule is only news when the user allowed something inside it, not when their broad rule merely includes it.
+            r = next((r for r in have if r in (ours.get(kind) or []) and overlaps(a, r) and not (kind == "deny" and covers(a, r) and not covers(r, a))), None)
+            if r:
+                lines.append(
+                    f"{label}: Claude Code still {verb} commands your allow rule {a} matches, because goodvibes' {kind} rule {r} "
+                    f"is checked first. To change that, delete {r} from {label}; goodvibes will not add it back."
+                )
+                break
+    return lines
+
+
 def merge_managed_json(
-    rel: str, tpl: dict, user: dict, installed: list[str] | None = None, retire_allow: bool = False
+    rel: str, tpl: dict, user: dict, installed: list[str] | None = None, retire_allow: bool = False,
+    extra_allow: list[str] | None = None,
 ) -> tuple[dict, list[str]]:
-    """An id in `installed` but absent from `user` was removed by the user and stays removed."""
+    """An id in `installed` but absent from `user` was removed by the user and stays removed.
+
+    A goodvibes ask rule that a user allow rule (in `user` or `extra_allow`) covers is not added, and removed if goodvibes installed it:
+    Claude Code checks ask before allow, so it would silently override the user's choice.
+    """
     merged = copy.deepcopy(user)
     changes: list[str] = []
     installed = installed or []
@@ -142,10 +252,19 @@ def merge_managed_json(
         changes.extend(f"- permissions.deny: {p}" for p in drop)
         merged["permissions"]["deny"] = [p for p in deny if p not in drop]
 
+    allows = [*user_allow_rules(merged, tpl), *(extra_allow or [])]
+    covered = {p: by for p in (tpl.get("permissions") or {}).get("ask") or [] if (by := next((a for a in allows if covers(a, p)), None))}
+    ask = (merged.get("permissions") or {}).get("ask")
+    if isinstance(ask, list):
+        # Only rules goodvibes installed are dropped; an ask rule the user wrote stays.
+        drop = {p: covered[p] for p in ask if p in covered and f"ask:{p}" in installed}
+        changes.extend(f"- permissions.ask: {p} (your allow rule {by} covers it)" for p, by in drop.items())
+        merged["permissions"]["ask"] = [p for p in ask if p not in drop]
+
     for lst in ("ask", "deny"):
         for p in (tpl.get("permissions") or {}).get(lst) or []:
             have = (merged.get("permissions") or {}).get(lst) or []
-            if p in have or f"{lst}:{p}" in installed:
+            if p in have or f"{lst}:{p}" in installed or (lst == "ask" and p in covered):
                 continue
             merged["permissions"] = {**(merged.get("permissions") or {}), lst: [*have, p]}
             changes.append(f"+ permissions.{lst}: {p}")

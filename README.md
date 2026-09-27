@@ -164,6 +164,8 @@ It refuses:
 - force-push (`--force`, `-f`, `+branch`, anywhere in the command) and `git reset --hard`
 - opening `.env` files in any folder, such as `.env.local`, `.env.production` or `apps/web/.env` (`.env.example` stays readable), anything in `~/.ssh`, `~/.aws/credentials`, `~/.git-credentials`, `~/.netrc`, and `.pem`, `id_rsa`, `id_ed25519`, `id_ecdsa` or `id_dsa` key files
 
+To let Claude do one of these without asking, add an `allow` rule, for example `"Bash(git push:*)"` in `~/.claude/settings.json` (every project) or in the project's `.claude/settings.local.json`. Claude Code checks ask rules before allow rules, so `goodvibes init` and `goodvibes update` remove their own ask rule when your allow rule covers it completely, and tell you which rule still wins otherwise. An allow rule in one project never removes the rule in `~/.claude/settings.json`; goodvibes prints where to delete it instead. Deny rules are never removed for you. The written rules also ask Claude to confirm before pushing; edit that line in `~/.claude/rules/goodvibes.md` if you want it gone, and goodvibes keeps your edit.
+
 These rules cover Claude Code's own file tools. The read guard covers the same secret files when Claude tries `cat .env` or similar in the terminal. Hooks and permissions are a safety net for honest mistakes, not a security boundary.
 
 Versions up to 1.9.1 also auto-approved `node`, `python`, `npx`, `uv`, `npm run` and package installs. Any command can run through those, so `goodvibes update` removes exactly those rules from your project settings and keeps the ones you wrote. It also removes `Write(**)`, which Claude Code ignores (`Edit(**)` already covers writing files).

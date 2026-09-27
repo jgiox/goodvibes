@@ -6,7 +6,7 @@ import { dirname, join } from 'node:path'
 import { execa } from 'execa'
 import { listTemplateFiles } from './copy-templates.js'
 import { readManifest, type Manifest, MANIFEST_PATH, USER_OWNED, USER_REMOVED } from './write-manifest.js'
-import { mergeManagedJson, presentIds, isJsonObject, shapeError } from '../utils/json-merge.js'
+import { fileAllowRules, mergeManagedJson, overriddenLines, presentIds, isJsonObject, shapeError, userAllowRules } from '../utils/json-merge.js'
 import { printable, removeRetired, writeFileAtomic } from '../utils/fs-safe.js'
 import { goodvibesBlock } from '../utils/scope.js'
 import { versionGte } from '../utils/sentinel-merge.js'
@@ -64,12 +64,14 @@ export type GlobalResult = {
   removed: string[]
   retired: string[]
   settingsChanges: string[]
+  settingsWarnings?: string[]
   settingsError?: string
 }
 
 // Writes goodvibes-owned files into the Claude Code user config; a file the user edited since goodvibes wrote it is kept.
 // Only init passes restore, which brings back files the user deleted.
-export async function applyGlobalConfig(templateDir: string, version: string, dryRun: boolean, restore = false): Promise<GlobalResult> {
+// A project's allow rules are checked against the global ask and deny rules, never used to drop them for all projects.
+export async function applyGlobalConfig(templateDir: string, version: string, dryRun: boolean, restore = false, project?: string): Promise<GlobalResult> {
   const cfg = claudeConfigDir()
   const prev: Manifest | null = await readManifest(cfg)
   const owned: [string, string][] = [['rules/goodvibes.md', goodvibesBlock(await readFile(join(templateDir, 'CLAUDE.md'), 'utf-8'))]]
@@ -141,6 +143,8 @@ export async function applyGlobalConfig(templateDir: string, version: string, dr
   if (isJsonObject(user)) {
     const { merged, changes } = mergeManagedJson('.claude/settings.json', tpl, user, managed['settings.json'])
     result.settingsChanges = changes
+    const local = project ? [...(await fileAllowRules(join(project, '.claude', 'settings.json'), tpl)), ...(await fileAllowRules(join(project, '.claude', 'settings.local.json'), tpl))] : []
+    result.settingsWarnings = overriddenLines(settingsPath, [...userAllowRules(merged, tpl), ...local], merged, tpl)
     if (!dryRun && changes.length > 0) {
       await mkdir(cfg, { recursive: true })
       await writeFileAtomic(settingsPath, JSON.stringify(merged, null, 2) + '\n')
@@ -162,6 +166,7 @@ export function formatGlobal(g: GlobalResult, cli: CliStatus | undefined, c7: Mc
     ...g.removed.map(f => `${f}: removed by you, not re-added (run goodvibes init to restore)`),
     ...g.retired.map(f => `${f}: removed, no longer shipped by goodvibes`),
     ...g.settingsChanges.map(c => `settings.json ${c}`),
+    ...(g.settingsWarnings ?? []),
     ...(g.settingsError ? [`settings.json not changed: ${g.settingsError}`] : []),
   ]
   if (c7) lines.push(`context7 MCP: ${c7.status}${c7.reason ? ` (${c7.reason})` : ''}`)

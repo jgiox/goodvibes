@@ -353,3 +353,10 @@ def test_overridden_lines_name_the_goodvibes_rule_that_still_beats_each_allow_ru
         "because goodvibes' deny rule Bash(git push --force *) is checked first. To change that, delete Bash(git push --force *) from "
         ".claude/settings.json; goodvibes will not add it back.",
     ]
+
+
+def test_overridden_lines_say_nothing_about_a_deny_rule_that_a_broader_allow_rule_merely_includes():
+    from goodvibes_cli.utils.json_merge import overridden_lines
+    content = {"permissions": {"deny": ["Bash(git push --force *)"]}}
+    assert overridden_lines(".claude/settings.json", ["Bash(git push:*)"], content, TPL_GIT) == []
+    assert len(overridden_lines(".claude/settings.json", ["Bash(git push --force *)"], content, TPL_GIT)) == 1

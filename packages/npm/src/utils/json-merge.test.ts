@@ -333,4 +333,11 @@ describe("a user's allow rule beats goodvibes' ask rule", () => {
         '.claude/settings.json; goodvibes will not add it back.',
     ])
   })
+
+  it('says nothing about a deny rule that a broader allow rule merely includes', async () => {
+    const { overriddenLines } = await import('./json-merge.js')
+    const content = { permissions: { deny: ['Bash(git push --force *)'] } }
+    expect(overriddenLines('.claude/settings.json', ['Bash(git push:*)'], content, tplGit)).toEqual([])
+    expect(overriddenLines('.claude/settings.json', ['Bash(git push --force *)'], content, tplGit)).toHaveLength(1)
+  })
 })

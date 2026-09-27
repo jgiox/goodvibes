@@ -88,12 +88,109 @@ export const RETIRED_DENY = ['Bash(git push --force*)', 'Bash(git push * --force
 
 export const RETIRED_ALLOW = ['Bash(npm install*)', 'Bash(npm run*)', 'Bash(npx*)', 'Bash(pip install*)', 'Bash(uv*)', 'Bash(python*)', 'Bash(node*)', 'Bash(git restore *)', 'Write(**)']
 
+const RULE = /^([A-Za-z]+)(?:\((.*)\))?$/s
+
+function parseRule(rule: unknown): [string, string | null] | null {
+  const m = typeof rule === 'string' ? rule.trim().match(RULE) : null
+  return m ? [m[1], m[2] ?? null] : null
+}
+
+// A Bash rule's literal text before its first wildcard, and whether it is exact, a prefix (one trailing wildcard) or a glob.
+function head(spec: string): [string, 'exact' | 'prefix' | 'glob'] {
+  const legacy = spec.endsWith(':*') // the older prefix syntax, `git push:*`
+  const body = legacy ? spec.slice(0, -2) : spec
+  const i = body.indexOf('*')
+  if (legacy && i === -1) return [body.trimEnd(), 'prefix']
+  if (i === -1) return [body, 'exact']
+  // The space in `git push *` only marks a word boundary; it does not narrow what the rule means here.
+  return [body.slice(0, i).trimEnd(), i === body.length - 1 ? 'prefix' : 'glob']
+}
+
+function matches(spec: string, command: string): boolean {
+  if (spec.endsWith(':*')) return command.startsWith(spec.slice(0, -2))
+  return new RegExp(`^${spec.split('*').map(p => p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('.*')}$`, 's').test(command)
+}
+
+function ruleParts(allow: string, rule: string): [string, string | null, string | null] | null {
+  const a = parseRule(allow)
+  const r = parseRule(rule)
+  return a && r && a[0] === r[0] ? [a[0], a[1], r[1]] : null
+}
+
+// True when every command `rule` matches is also matched by `allow`.
+export function covers(allow: string, rule: string): boolean {
+  const parts = ruleParts(allow, rule)
+  if (!parts) return false
+  const [tool, a, r] = parts
+  if (a === null || a === '*' || a === '**') return true
+  if (r === null || tool !== 'Bash') return a === r
+  const [ah, ak] = head(a)
+  const [rh, rk] = head(r)
+  if (rk === 'exact') return matches(a, r)
+  if (ak === 'prefix') return rh.startsWith(ah)
+  return a === r
+}
+
+// True when at least one command could match both rules (an approximation for wildcards after the first).
+export function overlaps(allow: string, rule: string): boolean {
+  const parts = ruleParts(allow, rule)
+  if (!parts) return false
+  const [tool, a, r] = parts
+  if (a === null || r === null || a === '*' || a === '**') return true
+  if (tool !== 'Bash') return a === r
+  const [ah, ak] = head(a)
+  const [rh, rk] = head(r)
+  if (ak === 'exact') return matches(r, a)
+  if (rk === 'exact') return matches(a, r)
+  return ah.startsWith(rh) || rh.startsWith(ah)
+}
+
+// Allow rules in a settings file that the user wrote: goodvibes' own, current or retired, never count.
+export function userAllowRules(content: unknown, tpl: Json): string[] {
+  const allow = isJsonObject(content) && isJsonObject(content.permissions) ? content.permissions.allow : undefined
+  const ours = new Set([...(tpl.permissions?.allow ?? []), ...RETIRED_ALLOW])
+  return (Array.isArray(allow) ? allow : []).filter((r): r is string => typeof r === 'string' && !ours.has(r))
+}
+
+export async function fileAllowRules(path: string, tpl: Json): Promise<string[]> {
+  try {
+    return userAllowRules(JSON.parse(await readFile(path, 'utf-8')), tpl)
+  } catch {
+    return [] // Claude Code cannot apply rules from a missing or broken file either
+  }
+}
+
+// One line per user allow rule that a goodvibes deny or ask rule in `content` still beats.
+export function overriddenLines(label: string, allows: string[], content: unknown, tpl: Json): string[] {
+  const perms = isJsonObject(content) && isJsonObject(content.permissions) ? content.permissions : {}
+  const lines: string[] = []
+  for (const a of new Set(allows)) {
+    for (const [kind, verb] of [['deny', 'refuses'], ['ask', 'asks before']]) {
+      const have: unknown[] = Array.isArray(perms[kind]) ? perms[kind] : []
+      // A deny rule is only news when the user allowed something inside it, not when their broad rule merely includes it.
+      const broader = (r: string) => kind === 'deny' && covers(a, r) && !covers(r, a)
+      const r = have.find((r): r is string => typeof r === 'string' && (tpl.permissions?.[kind] ?? []).includes(r) && overlaps(a, r) && !broader(r))
+      if (r) {
+        lines.push(
+          `${label}: Claude Code still ${verb} commands your allow rule ${a} matches, because goodvibes' ${kind} rule ${r} ` +
+            `is checked first. To change that, delete ${r} from ${label}; goodvibes will not add it back.`,
+        )
+        break
+      }
+    }
+  }
+  return lines
+}
+
+// A goodvibes ask rule that a user allow rule (in `user` or `extraAllow`) covers is not added, and removed if goodvibes installed it:
+// Claude Code checks ask before allow, so it would silently override the user's choice.
 export function mergeManagedJson(
   rel: string,
   tpl: Json,
   user: Json,
   installed: string[] = [],
   retireAllow = false,
+  extraAllow: string[] = [],
 ): { merged: Json; changes: string[] } {
   const merged: Json = structuredClone(user)
   const changes: string[] = []
@@ -130,10 +227,23 @@ export function mergeManagedJson(
     merged.permissions.deny = merged.permissions.deny.filter((p: string) => !drop(p))
   }
 
+  const allows = [...userAllowRules(merged, tpl), ...extraAllow]
+  const covered = new Map<string, string>()
+  for (const p of tpl.permissions?.ask ?? []) {
+    const by = allows.find(a => covers(a, p))
+    if (by) covered.set(p, by)
+  }
+  if (Array.isArray(merged.permissions?.ask)) {
+    // Only rules goodvibes installed are dropped; an ask rule the user wrote stays.
+    const drop = (p: string) => covered.has(p) && wasInstalled(`ask:${p}`)
+    for (const p of merged.permissions.ask) if (drop(p)) changes.push(`- permissions.ask: ${p} (your allow rule ${covered.get(p)} covers it)`)
+    merged.permissions.ask = merged.permissions.ask.filter((p: string) => !drop(p))
+  }
+
   for (const list of ['ask', 'deny']) {
     for (const p of tpl.permissions?.[list] ?? []) {
       const have: string[] = merged.permissions?.[list] ?? []
-      if (have.includes(p) || wasInstalled(`${list}:${p}`)) continue
+      if (have.includes(p) || wasInstalled(`${list}:${p}`) || (list === 'ask' && covered.has(p))) continue
       merged.permissions = { ...(merged.permissions ?? {}), [list]: [...have, p] }
       changes.push(`+ permissions.${list}: ${p}`)
     }
