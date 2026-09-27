@@ -1143,3 +1143,90 @@ describe('update command — a project set up in project scope before goodvibes 
     expect(existsSync(join(projectDir, '.claude', 'skills', 'caveman', 'SKILL.md'))).toBe(true)
   })
 })
+
+describe("update command — a user's allow rule beats goodvibes' ask rule", () => {
+  const realTemplates = fileURLToPath(new URL('../../../../templates', import.meta.url))
+  const tplSettings = readFileSync(join(realTemplates, '.claude', 'settings.json'), 'utf-8')
+  const cfg = process.env.CLAUDE_CONFIG_DIR as string
+  let templateDir: string
+  let projectDir: string
+  let cwdSpy: ReturnType<typeof vi.spyOn>
+
+  async function runUpdate(...flags: string[]): Promise<string> {
+    const { resolveTemplatesDir } = await import('../steps/copy-templates.js')
+    vi.mocked(resolveTemplatesDir).mockReturnValue(templateDir)
+    const { note } = await import('@clack/prompts')
+    vi.mocked(note).mockClear()
+    const { registerUpdateCommand } = await import('./update.js')
+    const { Command } = await import('commander')
+    const program = new Command()
+    program.exitOverride()
+    registerUpdateCommand(program)
+    await program.parseAsync(['node', 'goodvibes', 'update', ...flags])
+    return vi.mocked(note).mock.calls.map(c => String(c[0])).join('\n')
+  }
+
+  const ask = () => JSON.parse(readFileSync(join(projectDir, '.claude', 'settings.json'), 'utf-8')).permissions.ask as string[]
+  const localAllow = (...rules: string[]) =>
+    writeFileSync(join(projectDir, '.claude', 'settings.local.json'), JSON.stringify({ permissions: { allow: rules } }))
+  const untouchedSettings = () => {
+    writeFileSync(join(projectDir, '.claude', 'settings.json'), tplSettings)
+    writeFileSync(join(projectDir, '.goodvibes.json'), JSON.stringify({ version: '1.11.1', files: { '.claude/settings.json': sha256(tplSettings) } }))
+  }
+
+  beforeEach(() => {
+    templateDir = mkdtempSync(join(tmpdir(), 'gv-allow-tpl-'))
+    projectDir = mkdtempSync(join(tmpdir(), 'gv-allow-proj-'))
+    mkdirSync(join(templateDir, '.claude'), { recursive: true })
+    mkdirSync(join(projectDir, '.claude'), { recursive: true })
+    writeFileSync(join(templateDir, '.claude', 'settings.json'), tplSettings)
+    cwdSpy = vi.spyOn(process, 'cwd').mockReturnValue(projectDir)
+  })
+
+  afterEach(() => {
+    cwdSpy.mockRestore()
+    rmSync(templateDir, { recursive: true, force: true })
+    rmSync(projectDir, { recursive: true, force: true })
+    rmSync(join(cfg, 'settings.json'), { force: true })
+  })
+
+  it('drops the ask rule an allow rule in settings.local.json covers', async () => {
+    untouchedSettings()
+    localAllow('Bash(git branch -D*)')
+    const out = await runUpdate('--force')
+    expect(ask()).not.toContain('Bash(git branch -D*)')
+    expect(ask()).toContain('Bash(git branch --delete*)')
+    expect(out).toContain('- permissions.ask: Bash(git branch -D*) (your allow rule Bash(git branch -D*) covers it)')
+  })
+
+  it('lists the ask rule it would drop in a dry run and writes nothing', async () => {
+    untouchedSettings()
+    localAllow('Bash(git branch -D*)')
+    const out = await runUpdate('--dry-run')
+    expect(out).toContain('- permissions.ask: Bash(git branch -D*) (your allow rule Bash(git branch -D*) covers it)')
+    expect(readFileSync(join(projectDir, '.claude', 'settings.json'), 'utf-8')).toBe(tplSettings)
+  })
+
+  it('drops an installed ask rule from edited settings when the global settings allow it', async () => {
+    writeFileSync(join(cfg, 'settings.json'), JSON.stringify({ permissions: { allow: ['Bash(git push:*)'] } }))
+    writeFileSync(join(projectDir, '.claude', 'settings.json'), JSON.stringify({ permissions: { allow: ['Bash(make*)'], ask: ['Bash(git push*)'] } }, null, 2))
+    writeFileSync(join(projectDir, '.goodvibes.json'), JSON.stringify({
+      version: '1.11.1', files: { '.claude/settings.json': 'old-hash' }, managed: { '.claude/settings.json': ['ask:Bash(git push*)'] },
+    }))
+    await runUpdate('--force')
+    expect(ask().filter(r => r.startsWith('Bash(git push'))).toEqual([])
+    expect(ask()).toContain('Bash(git branch -D*)')
+  })
+
+  it('warns when a goodvibes ask rule still beats a narrower allow rule', async () => {
+    untouchedSettings()
+    localAllow('Bash(git push origin main)')
+    const out = await runUpdate('--force')
+    expect(ask()).toContain('Bash(git push*)')
+    expect(out).toContain(
+      '.claude/settings.json: Claude Code still asks before commands your allow rule Bash(git push origin main) matches, ' +
+        "because goodvibes' ask rule Bash(git push*) is checked first. To change that, delete Bash(git push*) from " +
+        '.claude/settings.json; goodvibes will not add it back.',
+    )
+  })
+})

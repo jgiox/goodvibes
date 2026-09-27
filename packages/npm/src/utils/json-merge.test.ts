@@ -241,3 +241,96 @@ describe('matcher refresh in a shared group', () => {
     expect(merged.hooks.PreToolUse[0].hooks[1].command).toBe(': goodvibes-read-guard; v2')
   })
 })
+
+describe("a user's allow rule beats goodvibes' ask rule", () => {
+  const tplGit = {
+    permissions: {
+      allow: ['Bash(git branch*)'],
+      ask: ['Bash(git push*)', 'Bash(git branch -D*)'],
+      deny: ['Bash(git push --force *)'],
+    },
+  }
+
+  it('covers an ask rule when the allow rule matches every command the ask rule matches', async () => {
+    const { covers } = await import('./json-merge.js')
+    expect(covers('Bash(git push*)', 'Bash(git push*)')).toBe(true)
+    expect(covers('Bash(git push:*)', 'Bash(git push --force-with-lease*)')).toBe(true)
+    expect(covers('Bash(git push *)', 'Bash(git push*)')).toBe(true)
+    expect(covers('Bash', 'Bash(git branch -D*)')).toBe(true)
+    expect(covers('Bash(*)', 'Bash(git branch -D*)')).toBe(true)
+    expect(covers('Edit(./.mcp.json)', 'Edit(./.mcp.json)')).toBe(true)
+  })
+
+  it('does not cover an ask rule that matches more commands than the allow rule', async () => {
+    const { covers } = await import('./json-merge.js')
+    expect(covers('Bash(git push origin*)', 'Bash(git push*)')).toBe(false)
+    expect(covers('Bash(git branch -D old)', 'Bash(git branch -D*)')).toBe(false)
+    expect(covers('Bash(git push * main)', 'Bash(git push*)')).toBe(false)
+    expect(covers('Read(**)', 'Edit(./.mcp.json)')).toBe(false)
+    expect(covers('Edit(**/*.json)', 'Edit(./.mcp.json)')).toBe(false)
+  })
+
+  it('reports rules as overlapping when some command matches both', async () => {
+    const { overlaps } = await import('./json-merge.js')
+    expect(overlaps('Bash(git push origin*)', 'Bash(git push*)')).toBe(true)
+    expect(overlaps('Bash(git branch -D old)', 'Bash(git branch -D*)')).toBe(true)
+    expect(overlaps('Bash(git push * main)', 'Bash(git push*)')).toBe(true)
+    expect(overlaps('Bash(git status*)', 'Bash(git push*)')).toBe(false)
+    expect(overlaps('Bash(npm test*)', 'Bash(npm publish*)')).toBe(false)
+    expect(overlaps('Bash(git push origin main)', 'Bash(git push --force-with-lease*)')).toBe(false)
+  })
+
+  it('leaves out allow rules goodvibes ships or used to ship when listing the user allow rules', async () => {
+    const { userAllowRules } = await import('./json-merge.js')
+    expect(userAllowRules({ permissions: { allow: ['Bash(git branch*)', 'Bash(npx*)', 'Bash(git push*)', 7] } }, tplGit)).toEqual(['Bash(git push*)'])
+    expect(userAllowRules({ permissions: null }, tplGit)).toEqual([])
+  })
+
+  it('does not add an ask rule that a user allow rule covers', () => {
+    const { merged, changes } = mergeManagedJson('.claude/settings.json', tplGit, { permissions: { allow: ['Bash(git push:*)'] } }, [])
+    expect((merged.permissions as { ask: string[] }).ask).toEqual(['Bash(git branch -D*)'])
+    expect(changes).not.toContain('+ permissions.ask: Bash(git push*)')
+  })
+
+  it('removes an ask rule goodvibes installed once a user allow rule covers it', () => {
+    const user = { permissions: { allow: ['Bash(git branch -D*)'], ask: ['Bash(git push*)', 'Bash(git branch -D*)'] } }
+    const { merged, changes } = mergeManagedJson('.claude/settings.json', tplGit, user, ['ask:Bash(git push*)', 'ask:Bash(git branch -D*)'])
+    expect((merged.permissions as { ask: string[] }).ask).toEqual(['Bash(git push*)'])
+    expect(changes).toContain('- permissions.ask: Bash(git branch -D*) (your allow rule Bash(git branch -D*) covers it)')
+  })
+
+  it('keeps an ask rule the user wrote even when their allow rule covers it', () => {
+    const user = { permissions: { allow: ['Bash(git push*)'], ask: ['Bash(git push*)'] } }
+    const { merged } = mergeManagedJson('.claude/settings.json', tplGit, user, [])
+    expect((merged.permissions as { ask: string[] }).ask).toContain('Bash(git push*)')
+  })
+
+  it("never counts goodvibes' own allow rules as the user's", () => {
+    const { merged } = mergeManagedJson('.claude/settings.json', tplGit, { permissions: { allow: ['Bash(git branch*)', 'Bash(npx*)'] } }, [])
+    expect((merged.permissions as { ask: string[] }).ask).toEqual(['Bash(git push*)', 'Bash(git branch -D*)'])
+  })
+
+  it('yields to allow rules from other settings files', () => {
+    const { merged } = mergeManagedJson('.claude/settings.json', tplGit, {}, [], false, ['Bash(git push*)'])
+    expect((merged.permissions as { ask: string[] }).ask).toEqual(['Bash(git branch -D*)'])
+  })
+
+  it('never drops a deny rule for an allow rule', () => {
+    const { merged } = mergeManagedJson('.claude/settings.json', tplGit, { permissions: { allow: ['Bash(git push --force *)'] } }, [])
+    expect((merged.permissions as { deny: string[] }).deny).toEqual(['Bash(git push --force *)'])
+  })
+
+  it('names the goodvibes rule that still beats each allow rule', async () => {
+    const { overriddenLines } = await import('./json-merge.js')
+    const content = { permissions: { ask: ['Bash(git push*)', 'Bash(my own*)'], deny: ['Bash(git push --force *)'] } }
+    const allows = ['Bash(git push origin main)', 'Bash(git push --force origin x)', 'Bash(my own thing)', 'Bash(make*)']
+    expect(overriddenLines('.claude/settings.json', allows, content, tplGit)).toEqual([
+      '.claude/settings.json: Claude Code still asks before commands your allow rule Bash(git push origin main) matches, ' +
+        "because goodvibes' ask rule Bash(git push*) is checked first. To change that, delete Bash(git push*) from " +
+        '.claude/settings.json; goodvibes will not add it back.',
+      '.claude/settings.json: Claude Code still refuses commands your allow rule Bash(git push --force origin x) matches, ' +
+        "because goodvibes' deny rule Bash(git push --force *) is checked first. To change that, delete Bash(git push --force *) from " +
+        '.claude/settings.json; goodvibes will not add it back.',
+    ])
+  })
+})

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { mkdtempSync, readFileSync, rmSync, existsSync } from 'node:fs'
+import { mkdtempSync, readFileSync, rmSync, existsSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { EDITED_CLAUDE, OLD_CLAUDE, oldProject } from './old-project.fixture.js'
@@ -132,5 +132,45 @@ describe('init keeps an old rules block the user edited', () => {
     expect(readFileSync(join(projectDir, 'CLAUDE.md'), 'utf-8')).toBe(EDITED_CLAUDE)
     expect(readFileSync(join(projectDir, 'CLAUDE.md.goodvibes-new'), 'utf-8')).toContain('# goodvibes: v')
     expect(out).toContain('CLAUDE.md: kept your edited goodvibes rules block; the new block is in CLAUDE.md.goodvibes-new, copy over what you want, then delete that file')
+  })
+})
+
+describe("init leaves out ask rules the user's global allow rules cover", () => {
+  let projectDir: string
+  let cfg: string
+  let cwdSpy: ReturnType<typeof vi.spyOn>
+
+  beforeEach(async () => {
+    projectDir = mkdtempSync(join(tmpdir(), 'gv-init-allow-'))
+    cfg = mkdtempSync(join(tmpdir(), 'gv-init-allow-cfg-'))
+    const { claudeConfigDir } = await import('../steps/global-setup.js')
+    vi.mocked(claudeConfigDir).mockReturnValue(cfg)
+    cwdSpy = vi.spyOn(process, 'cwd').mockReturnValue(projectDir)
+  })
+
+  afterEach(async () => {
+    const { claudeConfigDir } = await import('../steps/global-setup.js')
+    vi.mocked(claudeConfigDir).mockReturnValue('/fake/.claude')
+    cwdSpy.mockRestore()
+    rmSync(projectDir, { recursive: true, force: true })
+    rmSync(cfg, { recursive: true, force: true })
+  })
+
+  it('writes project settings without the ask rules a global allow rule covers and says so', async () => {
+    writeFileSync(join(cfg, 'settings.json'), JSON.stringify({ permissions: { allow: ['Bash(git push*)'] } }))
+    const { registerInitCommand } = await import('./init.js')
+    const { Command } = await import('commander')
+    const { note } = await import('@clack/prompts')
+    vi.mocked(note).mockClear()
+    const program = new Command()
+    program.exitOverride()
+    registerInitCommand(program)
+    await program.parseAsync(['node', 'goodvibes', 'init', '--minimal', '--scope', 'project'])
+    const out = vi.mocked(note).mock.calls.map(c => String(c[0])).join('\n')
+
+    const ask = JSON.parse(readFileSync(join(projectDir, '.claude', 'settings.json'), 'utf-8')).permissions.ask as string[]
+    expect(ask.filter(r => r.startsWith('Bash(git push'))).toEqual([])
+    expect(ask).toContain('Bash(git branch -D*)')
+    expect(out).toContain('- permissions.ask: Bash(git push*) (your allow rule Bash(git push*) covers it)')
   })
 })

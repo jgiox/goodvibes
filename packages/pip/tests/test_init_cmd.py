@@ -659,3 +659,21 @@ def test_init_with_project_scope_keeps_an_edited_block_and_writes_the_new_block_
     assert (proj / "CLAUDE.md").read_text(encoding="utf-8") == _EDITED_CLAUDE
     assert "# goodvibes: v" in (proj / "CLAUDE.md.goodvibes-new").read_text(encoding="utf-8")
     assert "CLAUDE.md: kept your edited goodvibes rules block; the new block is in CLAUDE.md.goodvibes-new, copy over what you want, then delete that file" in _plain(result)
+
+
+def test_init_leaves_out_ask_rules_that_the_users_global_allow_rules_cover(runner, real_project):
+    import json
+    import os
+    import pathlib
+    from goodvibes_cli.main import app as main_app
+    cfg = pathlib.Path(os.environ["CLAUDE_CONFIG_DIR"])
+    cfg.mkdir(parents=True)
+    (cfg / "settings.json").write_text(json.dumps({"permissions": {"allow": ["Bash(git push*)"]}}), encoding="utf-8")
+
+    result = runner.invoke(main_app, ["init", "--minimal", "--scope", "project"])
+
+    assert result.exit_code == 0, result.output
+    ask = json.loads((real_project / ".claude" / "settings.json").read_text(encoding="utf-8"))["permissions"]["ask"]
+    assert not [r for r in ask if r.startswith("Bash(git push")]
+    assert "Bash(git branch -D*)" in ask
+    assert "- permissions.ask: Bash(git push*) (your allow rule Bash(git push*) covers it)" in _plain(result)

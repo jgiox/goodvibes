@@ -258,3 +258,98 @@ def test_removes_the_old_force_push_deny_rules_goodvibes_installed_so_force_with
 def test_keeps_an_old_force_push_deny_rule_the_user_added_themselves():
     merged, _ = merge_managed_json(".claude/settings.json", _TPL_REFRESH, {"permissions": {"deny": ["Bash(git push --force*)"]}})
     assert "Bash(git push --force*)" in merged["permissions"]["deny"]
+
+
+# ---------------------------------------------------------------------------
+# A user's allow rule beats goodvibes' ask rule
+# ---------------------------------------------------------------------------
+
+TPL_GIT = {"permissions": {
+    "allow": ["Bash(git branch*)"],
+    "ask": ["Bash(git push*)", "Bash(git branch -D*)"],
+    "deny": ["Bash(git push --force *)"],
+}}
+
+
+def test_an_allow_rule_covers_an_ask_rule_when_it_matches_every_command_the_ask_rule_matches():
+    from goodvibes_cli.utils.json_merge import covers
+    assert covers("Bash(git push*)", "Bash(git push*)")
+    assert covers("Bash(git push:*)", "Bash(git push --force-with-lease*)")
+    assert covers("Bash(git push *)", "Bash(git push*)")
+    assert covers("Bash", "Bash(git branch -D*)")
+    assert covers("Bash(*)", "Bash(git branch -D*)")
+    assert covers("Edit(./.mcp.json)", "Edit(./.mcp.json)")
+
+
+def test_an_allow_rule_does_not_cover_an_ask_rule_that_matches_more_commands_than_it():
+    from goodvibes_cli.utils.json_merge import covers
+    assert not covers("Bash(git push origin*)", "Bash(git push*)")
+    assert not covers("Bash(git branch -D old)", "Bash(git branch -D*)")
+    assert not covers("Bash(git push * main)", "Bash(git push*)")
+    assert not covers("Read(**)", "Edit(./.mcp.json)")
+    assert not covers("Edit(**/*.json)", "Edit(./.mcp.json)")
+
+
+def test_rules_overlap_when_some_command_matches_both():
+    from goodvibes_cli.utils.json_merge import overlaps
+    assert overlaps("Bash(git push origin*)", "Bash(git push*)")
+    assert overlaps("Bash(git branch -D old)", "Bash(git branch -D*)")
+    assert overlaps("Bash(git push * main)", "Bash(git push*)")
+    assert not overlaps("Bash(git status*)", "Bash(git push*)")
+    assert not overlaps("Bash(npm test*)", "Bash(npm publish*)")
+    assert not overlaps("Bash(git push origin main)", "Bash(git push --force-with-lease*)")
+
+
+def test_user_allow_rules_leaves_out_allow_rules_goodvibes_ships_or_used_to_ship():
+    from goodvibes_cli.utils.json_merge import user_allow_rules
+    content = {"permissions": {"allow": ["Bash(git branch*)", "Bash(npx*)", "Bash(git push*)", 7]}}
+    assert user_allow_rules(content, TPL_GIT) == ["Bash(git push*)"]
+    assert user_allow_rules({"permissions": None}, TPL_GIT) == []
+
+
+def test_merge_does_not_add_an_ask_rule_that_a_user_allow_rule_covers():
+    merged, changes = merge_managed_json(".claude/settings.json", TPL_GIT, {"permissions": {"allow": ["Bash(git push:*)"]}}, [])
+    assert merged["permissions"]["ask"] == ["Bash(git branch -D*)"]
+    assert "+ permissions.ask: Bash(git push*)" not in changes
+
+
+def test_merge_removes_an_ask_rule_goodvibes_installed_once_a_user_allow_rule_covers_it():
+    user = {"permissions": {"allow": ["Bash(git branch -D*)"], "ask": ["Bash(git push*)", "Bash(git branch -D*)"]}}
+    merged, changes = merge_managed_json(".claude/settings.json", TPL_GIT, user, ["ask:Bash(git push*)", "ask:Bash(git branch -D*)"])
+    assert merged["permissions"]["ask"] == ["Bash(git push*)"]
+    assert "- permissions.ask: Bash(git branch -D*) (your allow rule Bash(git branch -D*) covers it)" in changes
+
+
+def test_merge_keeps_an_ask_rule_the_user_wrote_even_when_their_allow_rule_covers_it():
+    user = {"permissions": {"allow": ["Bash(git push*)"], "ask": ["Bash(git push*)"]}}
+    merged, _ = merge_managed_json(".claude/settings.json", TPL_GIT, user, [])
+    assert "Bash(git push*)" in merged["permissions"]["ask"]
+
+
+def test_merge_never_counts_goodvibes_own_allow_rules_as_the_users():
+    merged, _ = merge_managed_json(".claude/settings.json", TPL_GIT, {"permissions": {"allow": ["Bash(git branch*)", "Bash(npx*)"]}}, [])
+    assert merged["permissions"]["ask"] == ["Bash(git push*)", "Bash(git branch -D*)"]
+
+
+def test_merge_yields_to_allow_rules_from_other_settings_files():
+    merged, changes = merge_managed_json(".claude/settings.json", TPL_GIT, {}, [], extra_allow=["Bash(git push*)"])
+    assert merged["permissions"]["ask"] == ["Bash(git branch -D*)"]
+
+
+def test_merge_never_drops_a_deny_rule_for_an_allow_rule():
+    merged, _ = merge_managed_json(".claude/settings.json", TPL_GIT, {"permissions": {"allow": ["Bash(git push --force *)"]}}, [])
+    assert merged["permissions"]["deny"] == ["Bash(git push --force *)"]
+
+
+def test_overridden_lines_name_the_goodvibes_rule_that_still_beats_each_allow_rule():
+    from goodvibes_cli.utils.json_merge import overridden_lines
+    content = {"permissions": {"ask": ["Bash(git push*)", "Bash(my own*)"], "deny": ["Bash(git push --force *)"]}}
+    allows = ["Bash(git push origin main)", "Bash(git push --force origin x)", "Bash(my own thing)", "Bash(make*)"]
+    assert overridden_lines(".claude/settings.json", allows, content, TPL_GIT) == [
+        ".claude/settings.json: Claude Code still asks before commands your allow rule Bash(git push origin main) matches, "
+        "because goodvibes' ask rule Bash(git push*) is checked first. To change that, delete Bash(git push*) from "
+        ".claude/settings.json; goodvibes will not add it back.",
+        ".claude/settings.json: Claude Code still refuses commands your allow rule Bash(git push --force origin x) matches, "
+        "because goodvibes' deny rule Bash(git push --force *) is checked first. To change that, delete Bash(git push --force *) from "
+        ".claude/settings.json; goodvibes will not add it back.",
+    ]
