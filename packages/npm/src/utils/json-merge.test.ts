@@ -442,3 +442,20 @@ describe('hooks and MCP entries the user edited are kept', () => {
     expect(keptEntryLines('.claude/settings.json', realSettings, settings1100)).toEqual([])
   })
 })
+
+describe('mergeManagedJson with force', () => {
+  it("replaces an edited hook, matcher and MCP entry with goodvibes' version", () => {
+    const edited = structuredClone(gateV2)
+    edited.matcher = 'Bash|Edit'
+    edited.hooks[0].command += ' # mine'
+    const user = { permissions: { allow: ['Bash(ls*)'] }, hooks: { PreToolUse: [edited, userHook] } }
+    let { merged, changes } = mergeManagedJson('.claude/settings.json', tplSettings, user, [], false, [], true)
+    expect(merged.hooks.PreToolUse).toEqual([gateV2, userHook])
+    expect(merged.permissions.allow).toEqual(['Bash(ls*)'])
+    expect(changes).toContain('~ hooks.PreToolUse: goodvibes-journal-gate')
+    const server = { type: 'http', url: 'https://example.com/mine', headers: { 'X-Key': 'k' } }
+    ;({ merged, changes } = mergeManagedJson('.mcp.json', tplMcp, { mcpServers: { context7: server } }, [], false, [], true))
+    expect(merged.mcpServers.context7).toEqual({ ...server, ...tplMcp.mcpServers.context7 })
+    expect(changes).toEqual(['~ mcpServers.context7'])
+  })
+})

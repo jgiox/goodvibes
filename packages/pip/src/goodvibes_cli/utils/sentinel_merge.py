@@ -148,7 +148,7 @@ def strip_block(path: pathlib.Path, dry_run: bool = False) -> str:
     return "removed"
 
 
-def merge_claude(dest_path: pathlib.Path, template_content: str, dry_run: bool = False) -> str:
+def merge_claude(dest_path: pathlib.Path, template_content: str, dry_run: bool = False, force: bool = False) -> str:
     """Merge goodvibes sentinel block into dest_path from template_content.
 
     Case A: dest absent → write template verbatim.
@@ -158,6 +158,7 @@ def merge_claude(dest_path: pathlib.Path, template_content: str, dry_run: bool =
     Case D: dest exists, sentinel same or newer → no write.
     Any other marker layout raises ClaudeMdError without writing.
     Returns "written", "kept" or "unchanged"; dry_run reports without writing.
+    force (reset): any block other than the template's is replaced, edited or newer.
     """
     template_block = _extract_sentinel_block(template_content)
     check_writable(dest_path.parent, dest_path)
@@ -184,11 +185,13 @@ def merge_claude(dest_path: pathlib.Path, template_content: str, dry_run: bool =
     existing_version = extract_version(existing[start_idx:end_idx])
     template_version = extract_version(template_block)
 
-    if existing_version and template_version and version_gte(existing_version, template_version):
+    if force:
+        if existing[start_idx:end_idx] == block:
+            return "unchanged"
+    elif existing_version and template_version and version_gte(existing_version, template_version):
         # Case D: existing version >= template — skip
         return "unchanged"
-
-    if block_digest(existing[start_idx:end_idx]) not in SHIPPED_BLOCKS:
+    elif block_digest(existing[start_idx:end_idx]) not in SHIPPED_BLOCKS:
         sidecar = dest_path.with_name(dest_path.name + ".goodvibes-new")
         check_writable(dest_path.parent, sidecar)
         if not dry_run:

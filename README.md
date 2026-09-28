@@ -131,6 +131,7 @@ None of these tools were tested by running them: the file formats were checked a
 | `goodvibes init` | Set goodvibes up. In a terminal it asks whether to set up all your projects or only this one; `--scope project` keeps everything in this folder, `--minimal` skips headroom, `docs/` and the CI files in `.github/` (Copilot's rules and hooks are still added), `--dry-run` shows what would be written |
 | `goodvibes doctor` | Check git, headroom, the rules, the journal and your MCP servers. Each line is ✓ fine, ! warning or ✗ problem, and it exits with an error only for problems |
 | `goodvibes update` | Bring your goodvibes files up to date with the installed version. It shows the full plan and asks once. `--dry-run` only shows it |
+| `goodvibes reset` | Put back goodvibes' version of the files and settings you edited or deleted, after copying each of your files to `<file>.goodvibes-backup`. Name files to reset only those; `--global` works on `~/.claude`; `--dry-run` only shows the plan |
 | `goodvibes upgrade` | Install the newest goodvibes, then run `update` |
 | `goodvibes usage` | Tokens used by recent Claude Code sessions in this project: input, output, cache hits and peak context. `--all`, `--days N`, `--json`. Offline, reads Claude Code's local logs |
 | `goodvibes --version` | Show the installed version |
@@ -144,6 +145,7 @@ None of these tools were tested by running them: the file formats were checked a
 - `.claude/settings.json`, `.gemini/settings.json`, `.codex/hooks.json`, `.mcp.json`, `.cursor/mcp.json` and `.vscode/mcp.json` are merged: goodvibes refreshes only its own entries (the journal check, the read guard, the ask and deny rules, context7) and keeps everything you added. If you changed one of its hooks (or the tools it runs for) or the context7 entry, goodvibes keeps your version and says so.
 - The other tools' hook files (`.github/hooks/goodvibes.json`, `.devin/hooks.v1.json`, `.windsurf/hooks.json`, `.kiro/hooks/goodvibes.json`) are added if missing and left alone if you already have one.
 - Anything goodvibes added that you deleted stays deleted. `goodvibes init` brings deleted files back if you want them.
+- Changed something by mistake? `goodvibes reset` puts back goodvibes' version of every file it wrote in this project, or only the files you name (`goodvibes reset AGENTS.md`), and `goodvibes reset --global` does the same for `~/.claude`. It shows the plan, asks first (`--yes` skips the question) and copies each file it changes to `<file>.goodvibes-backup` (then `-2`, `-3`, ...), so nothing is lost. In `CLAUDE.md` only the goodvibes block is replaced; in the settings and MCP files only goodvibes' entries are, and your own rules, hooks and servers stay. A file that was yours before `goodvibes init` is reset only when you name it. An ask rule that one of your allow rules covers stays out; reset says which allow rule to delete.
 - Skills goodvibes no longer ships are removed, unless you edited them.
 - The git commit check is refreshed; if you deleted `.git/hooks/pre-commit`, it stays deleted.
 - goodvibes never writes through a symlink. If the goodvibes block in your `CLAUDE.md` is damaged, it leaves the file alone and tells you how to fix it.
@@ -197,7 +199,7 @@ Run `goodvibes init` in a terminal without `--scope` and it asks which of the tw
 
 The only thing outside the project is headroom: it is installed on your computer and registered in your Claude Code user settings. `--minimal` skips it.
 
-To undo the global part, delete `~/.claude/rules/goodvibes.md` and the goodvibes skills in `~/.claude/skills/`, remove the goodvibes entries from `~/.claude/settings.json`, and run `claude mcp remove context7 -s user`. `goodvibes update` does not put back anything you removed.
+To undo the global part, delete `~/.claude/rules/goodvibes.md` and the goodvibes skills in `~/.claude/skills/`, remove the goodvibes entries from `~/.claude/settings.json`, and run `claude mcp remove context7 -s user`. `goodvibes update` does not put back anything you removed; `goodvibes reset --global` does.
 
 ## Works with
 

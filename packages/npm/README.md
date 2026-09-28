@@ -37,6 +37,7 @@ By default the Claude Code parts are set up for every project on your computer (
 | `goodvibes init` | Set goodvibes up. `--scope project`, `--minimal` (skips headroom, `docs/` and the CI files in `.github/`; Copilot's rules and hooks are still added), `--dry-run` |
 | `goodvibes doctor` | Check the setup and your MCP servers: ✓ fine, ! warning, ✗ problem |
 | `goodvibes update` | Bring goodvibes files up to date, keeping your edits. Shows the plan and asks once; `--dry-run` only shows it |
+| `goodvibes reset` | Put back goodvibes' version of files and settings you edited or deleted; your copies are saved as `<file>.goodvibes-backup`. Name files to reset only those, `--global` for `~/.claude`, `--dry-run` to only show the plan |
 | `goodvibes upgrade` | Install the newest goodvibes, then run `update`. In a folder with no goodvibes setup (and none in `~/.claude`), it only installs and says how to update a project |
 | `goodvibes usage` | Tokens used by recent Claude Code sessions in this project. `--all`, `--days N`, `--json`. Offline |
 

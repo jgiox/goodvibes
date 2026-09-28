@@ -287,6 +287,8 @@ export function mergeManagedJson(
   installed: string[] = [],
   retireAllow = false,
   extraAllow: string[] = [],
+  // reset: goodvibes' hooks, matchers and MCP entries replace the user's edited versions.
+  force = false,
 ): { merged: Json; changes: string[] } {
   const merged: Json = structuredClone(user)
   const changes: string[] = []
@@ -296,7 +298,7 @@ export function mergeManagedJson(
   if (key) {
     for (const [name, server] of Object.entries<Json>(tpl[key] ?? {})) {
       const current = merged[key]?.[name]
-      if (isJsonObject(current) && editedServer(name, current, server)) continue // the user's own version
+      if (!force && isJsonObject(current) && editedServer(name, current, server)) continue // the user's own version
       if (current) {
         const next = { ...current, ...server }
         if (!same(current, next)) {
@@ -352,7 +354,7 @@ export function mergeManagedJson(
       if (!id) continue
       const userGroups: Json[] = merged.hooks?.[event] ?? []
       const idx = userGroups.findIndex(ug => hookId(ug) === id)
-      if (idx >= 0 && editedHook(userGroups[idx], id)) continue // the user's own version
+      if (idx >= 0 && !force && editedHook(userGroups[idx], id)) continue // the user's own version
       if (idx >= 0) {
         // Only the marked hook is ours; the user's other hooks and fields in that group stay.
         const ug = userGroups[idx]

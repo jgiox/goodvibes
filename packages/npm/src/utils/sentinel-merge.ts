@@ -130,7 +130,8 @@ export async function stripBlock(destPath: string, dryRun = false): Promise<'rem
 
 // Throws MarkerError without writing when the markers are ambiguous, so no user text is ever cut.
 // An older block the user edited is kept; the new block goes to CLAUDE.md.goodvibes-new instead.
-export async function mergeClaude(destPath: string, templateContent: string, dryRun = false): Promise<'written' | 'kept' | 'unchanged'> {
+// force (reset): any block other than the template's is replaced, edited or newer.
+export async function mergeClaude(destPath: string, templateContent: string, dryRun = false, force = false): Promise<'written' | 'kept' | 'unchanged'> {
   const templateBlock = extractSentinelBlock(templateContent)
   await refuseLink(destPath)
 
@@ -153,9 +154,10 @@ export async function mergeClaude(destPath: string, templateContent: string, dry
   const endIdx = ends[0] + SENTINEL_END.length
   const existingVersion = extractVersion(existing.slice(startIdx, endIdx))
   const templateVersion = extractVersion(templateBlock)
-  if (existingVersion && templateVersion && versionGte(existingVersion, templateVersion)) return 'unchanged'
-
-  if (!SHIPPED_BLOCKS.has(blockDigest(existing.slice(startIdx, endIdx)))) {
+  if (force) {
+    if (existing.slice(startIdx, endIdx) === block) return 'unchanged'
+  } else if (existingVersion && templateVersion && versionGte(existingVersion, templateVersion)) return 'unchanged'
+  else if (!SHIPPED_BLOCKS.has(blockDigest(existing.slice(startIdx, endIdx)))) {
     const sidecar = destPath + '.goodvibes-new'
     await refuseLink(sidecar)
     if (!dryRun) await writeFile(sidecar, block + eol)
