@@ -19,7 +19,7 @@ import { gitHookLine, hookInPlace, installGitHook, type GitHookResult } from '..
 
 const removedNote = (rel: string) => `${rel}: removed by you, not re-added (run goodvibes init to restore)`
 // Keys and JSON errors come from repo files: keep our own line breaks, replace every other control character.
-const shown = (lines: (string | null | false | undefined)[]): string => lines.filter(Boolean).join('\n').split('\n').map(printable).join('\n')
+export const shown = (lines: (string | null | false | undefined)[]): string => lines.filter(Boolean).join('\n').split('\n').map(printable).join('\n')
 
 // init skips a whole layer (CI when the project had workflows, what --minimal skips); update must not add it later.
 const layer = (rel: string) =>
@@ -111,6 +111,17 @@ async function categorise(
   }
 
   return { overwrite, skip, netNew, kept, removed, stillRemoved, retired, blocked }
+}
+
+export async function ask(message: string): Promise<boolean> {
+  // With the input closed (a script or CI) the prompt never settles, and Node would exit 13 without a word.
+  const inputEnded = new Promise<'ended'>(resolve => process.stdin.once('end', () => resolve('ended')))
+  const answer = await Promise.race([confirm({ message }), inputEnded])
+  if (answer === 'ended') {
+    cancel('No answer (the input ended). Nothing was changed.')
+    process.exit(1)
+  }
+  return !isCancel(answer) && answer === true
 }
 
 export function registerUpdateCommand(program: Command): void {
@@ -285,19 +296,11 @@ export async function runUpdate(dryRun: boolean, force: boolean): Promise<void> 
   const cleanupCount = moved.length + (strip === 'removed' ? 1 : 0)
   if (!force && (globalChanges > 0 || overwrite.length > 0 || netNew.length > 0 || retired.length > 0 || cleanupCount > 0 || merges.length > 0 || offers.length > 0 || hookWrites)) {
     const settings = `${globalChanges} change(s) to your Claude Code settings`
-    // With the input closed (a script or CI) the prompt never settles, and Node would exit 13 without a word.
-    const inputEnded = new Promise<'ended'>(resolve => process.stdin.once('end', () => resolve('ended')))
-    const proceed = await Promise.race([confirm({
-      message: !manifest
-        ? `Apply ${settings}?`
-        : `Overwrite ${overwrite.length} managed file(s), add ${netNew.length}, merge goodvibes keys into ${merges.length} file(s)` +
-          `${cleanupCount > 0 ? ` and remove ${cleanupCount} old project copies` : ''}${globalChanges > 0 ? ` and apply ${settings}` : ''}?`,
-    }), inputEnded])
-    if (proceed === 'ended') {
-      cancel('No answer (the input ended). Nothing was changed.')
-      process.exit(1)
-    }
-    if (isCancel(proceed) || !proceed) {
+    const proceed = await ask(!manifest
+      ? `Apply ${settings}?`
+      : `Overwrite ${overwrite.length} managed file(s), add ${netNew.length}, merge goodvibes keys into ${merges.length} file(s)` +
+        `${cleanupCount > 0 ? ` and remove ${cleanupCount} old project copies` : ''}${globalChanges > 0 ? ` and apply ${settings}` : ''}?`)
+    if (!proceed) {
       cancel('Update cancelled. Nothing was changed.')
       process.exit(0)
     }

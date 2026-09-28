@@ -15,6 +15,7 @@ Answers to common questions about goodvibes, with the exact steps to fix the usu
   - [How does `goodvibes update` decide which files to change?](#how-does-goodvibes-update-decide-which-files-to-change)
   - [Will `goodvibes update` overwrite my `.claude/settings.json` or `.mcp.json`?](#will-goodvibes-update-overwrite-my-claudesettingsjson-or-mcpjson)
   - [I deleted a goodvibes file. Will `goodvibes update` bring it back?](#i-deleted-a-goodvibes-file-will-goodvibes-update-bring-it-back)
+  - [I changed a goodvibes file or setting by mistake. How do I get goodvibes' version back?](#i-changed-a-goodvibes-file-or-setting-by-mistake-how-do-i-get-goodvibes-version-back)
   - [Why does `goodvibes --version` still show the old version after `goodvibes upgrade`?](#why-does-goodvibes---version-still-show-the-old-version-after-goodvibes-upgrade)
   - [Why does my `CLAUDE.md` have the full rules block after `goodvibes upgrade`?](#why-does-my-claudemd-have-the-full-rules-block-after-goodvibes-upgrade)
 - [Claude Code guard rails](#claude-code-guard-rails)
@@ -158,7 +159,18 @@ From 1.11.2, the same goes for goodvibes parts you changed. If you edit the jour
 
 ### I deleted a goodvibes file. Will `goodvibes update` bring it back?
 
-No. update notices the file is gone, tells you once, and records it as removed in `.goodvibes.json`, so later updates leave it alone. If you want it back, run `goodvibes init`, which restores missing goodvibes files. If you create a file with the same name yourself, it is yours: goodvibes never overwrites it.
+No. update notices the file is gone, tells you once, and records it as removed in `.goodvibes.json`, so later updates leave it alone. If you want it back, run `goodvibes init`, which restores missing goodvibes files, or `goodvibes reset` followed by the file name. If you create a file with the same name yourself, it is yours: goodvibes never overwrites it (unless you name it to `goodvibes reset`).
+
+### I changed a goodvibes file or setting by mistake. How do I get goodvibes' version back?
+
+Run `goodvibes reset` in the project. It lists every file goodvibes wrote there that no longer matches goodvibes' version (edited or deleted), asks once, and then puts goodvibes' version back. Before it changes a file, it copies yours to `<file>.goodvibes-backup` (then `.goodvibes-backup-2`, and so on; it never overwrites an earlier backup). Delete the backups once you are happy.
+
+- `goodvibes reset --dry-run` shows the plan and changes nothing.
+- `goodvibes reset CLAUDE.md .claude/settings.json` resets only the files you name.
+- `goodvibes reset --global` does the same for the rules, skills and settings in `~/.claude`.
+- `--yes` skips the question, for scripts.
+
+In `CLAUDE.md`, only the goodvibes block is replaced; your text around it stays. In `.claude/settings.json` and the MCP files, only goodvibes' entries come back (its hooks, its ask and deny rules, context7); your own allow rules, hooks and servers stay. One exception: if one of your allow rules covers a goodvibes ask rule (for example `Bash(git push:*)` covers `Bash(git push*)`), reset leaves that ask rule out and tells you which allow rule to delete to get it back. A file that was yours before `goodvibes init` is only reset when you name it.
 
 ### Why does `goodvibes --version` still show the old version after `goodvibes upgrade`?
 

@@ -204,6 +204,15 @@ describe('goodvibes reset', () => {
     )
   })
 
+  it('reports a settings file that is not a JSON object and leaves it alone', async () => {
+    writeFileSync(join(project, '.claude', 'settings.json'), 'null\n')
+    writeFileSync(join(project, 'AGENTS.md'), 'mine\n')
+    await expect(runReset([], false, false, true)).rejects.toThrow('exit 1')
+    expect(said()).toContain('.claude/settings.json: not a JSON object; left unchanged, fix it and re-run reset')
+    expect(read(join(project, '.claude', 'settings.json'))).toBe('null\n')
+    expect(read(join(project, 'AGENTS.md'))).toBe(tplText('AGENTS.md'))
+  })
+
   it('--global puts back the rules file and an edited settings hook', async () => {
     cwdSpy.mockReturnValue(root)
     const cfg = process.env.CLAUDE_CONFIG_DIR as string

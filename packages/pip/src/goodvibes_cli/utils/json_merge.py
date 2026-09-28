@@ -303,9 +303,11 @@ def overridden_lines(label: str, allows: list[str], content: object, tpl: dict) 
 
 def merge_managed_json(
     rel: str, tpl: dict, user: dict, installed: list[str] | None = None, retire_allow: bool = False,
-    extra_allow: list[str] | None = None,
+    extra_allow: list[str] | None = None, force: bool = False,
 ) -> tuple[dict, list[str]]:
     """An id in `installed` but absent from `user` was removed by the user and stays removed.
+
+    force (reset): goodvibes' hooks, matchers and MCP entries replace the user's edited versions.
 
     A goodvibes ask rule that a user allow rule (in `user` or `extra_allow`) covers is not added, and removed if goodvibes installed it:
     Claude Code checks ask before allow, so it would silently override the user's choice.
@@ -318,7 +320,7 @@ def merge_managed_json(
     if key:
         for name, server in (tpl.get(key) or {}).items():
             current = (merged.get(key) or {}).get(name)
-            if isinstance(current, dict) and _edited_server(name, current, server):
+            if not force and isinstance(current, dict) and _edited_server(name, current, server):
                 continue  # the user's own version
             if isinstance(current, dict):
                 nxt = {**current, **server}
@@ -366,7 +368,7 @@ def merge_managed_json(
                 continue
             user_groups = (merged.get("hooks") or {}).get(event) or []
             idx = next((i for i, ug in enumerate(user_groups) if _hook_id(ug) == hid), -1)
-            if idx >= 0 and _edited_hook(user_groups[idx], hid):
+            if idx >= 0 and not force and _edited_hook(user_groups[idx], hid):
                 continue  # the user's own version
             if idx >= 0:
                 # Only the marked hook is goodvibes'; the user's other hooks and fields in that group stay.

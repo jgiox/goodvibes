@@ -233,6 +233,18 @@ def test_reset_does_not_put_back_an_ask_rule_the_users_allow_rule_covers(project
     ) in _out(result)
 
 
+def test_reset_reports_a_settings_file_that_is_not_a_json_object_and_leaves_it_alone(project):
+    (project / ".claude" / "settings.json").write_text("null\n", encoding="utf-8")
+    (project / "AGENTS.md").write_text("mine\n", encoding="utf-8")
+
+    result = runner.invoke(app, ["reset", "--yes"])
+
+    assert result.exit_code == 1
+    assert ".claude/settings.json: not a JSON object; left unchanged, fix it and re-run reset" in _out(result)
+    assert (project / ".claude" / "settings.json").read_text(encoding="utf-8") == "null\n"
+    assert (project / "AGENTS.md").read_bytes() == (TPL / "AGENTS.md").read_bytes()
+
+
 def test_reset_global_puts_back_the_rules_file_and_an_edited_settings_hook(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     apply_global_config(TPL, "1.11.1", dry_run=False)

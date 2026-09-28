@@ -229,7 +229,7 @@ None of these tools were tested by running them: the file formats were checked a
 
 **What it does.** The full lists are in the README: [What Claude Code can do without asking](https://github.com/jgiox/goodvibes#what-claude-code-can-do-without-asking). The "ask" and "never" lists go into `~/.claude/settings.json` and this project's `.claude/settings.json`; the "without asking" list goes into the project file only. Claude asks before it edits either settings file itself, or any of the other tools' hook files.
 
-**Turn it off.** Edit the `permissions` block in `.claude/settings.json` (and `~/.claude/settings.json`): remove a rule to drop it, or move it between `allow`, `ask` and `deny`. `goodvibes update` keeps your changes and does not put back rules you removed.
+**Turn it off.** Edit the `permissions` block in `.claude/settings.json` (and `~/.claude/settings.json`): remove a rule to drop it, or move it between `allow`, `ask` and `deny`. `goodvibes update` keeps your changes and does not put back rules you removed. To get goodvibes' rules back, run `goodvibes reset .claude/settings.json` (or `goodvibes reset --global settings.json` for `~/.claude/settings.json`); your own rules stay.
 
 ## Session-start check (Claude Code only)
 
