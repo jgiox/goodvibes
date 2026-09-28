@@ -1,8 +1,10 @@
 """goodvibes init command — port of init.ts."""
 import importlib.metadata
 import json
+import os
 import pathlib
-from typing import Annotated
+import sys
+from typing import Annotated, Optional
 
 import typer
 from rich.console import Console
@@ -58,6 +60,34 @@ _NEXT_STEPS = (
 
 
 SETTINGS = ".claude/settings.json"
+SCOPE_QUESTION = "Set goodvibes up for all your projects, or only this one?"
+
+
+def _interactive() -> bool:
+    """Someone can answer a question: both ends are a terminal and this is not a CI run."""
+    return sys.stdin.isatty() and sys.stdout.isatty() and not os.environ.get("CI")
+
+
+def _pick_scope(cwd: pathlib.Path, fixed_global: bool) -> str:
+    """Without --scope: the scope this project recorded, else global; asked in a terminal, never in scripts or CI."""
+    if fixed_global:
+        return "global"
+    try:
+        recorded = (read_manifest(cwd) or {}).get("scope")
+    except ManifestError:
+        recorded = None  # init stops on the broken manifest itself, with the reason
+    default = recorded if recorded in ("global", "project") else "global"
+    if _interactive():
+        console.print(SCOPE_QUESTION, markup=False)
+        console.print("  global: all your projects (recommended). The rules and skills go in your Claude Code settings folder.", markup=False)
+        console.print("  project: only this project. Everything goes in this folder.", markup=False)
+        while True:
+            answer = typer.prompt("Type global or project", default=default).strip().lower()
+            if answer in ("global", "project"):
+                return answer
+    if recorded == "project":
+        console.print("Keeping this project's recorded scope: project. To change it, run goodvibes init --scope global.", markup=False)
+    return default
 
 
 def _project_permissions(cwd: pathlib.Path, template_dir: pathlib.Path, fresh: bool) -> list[str]:
@@ -80,21 +110,24 @@ def _project_permissions(cwd: pathlib.Path, template_dir: pathlib.Path, fresh: b
 def init_cmd(
     dry_run: Annotated[bool, typer.Option("--dry-run", help="Preview files without writing to disk")] = False,
     minimal: Annotated[bool, typer.Option("--minimal", help="Skip headroom, docs/ and the .github CI files (workflows, scripts, Dependabot, issue and PR templates); Copilot's rules and hooks in .github are still added")] = False,
-    scope: Annotated[str, typer.Option("--scope", help="global (default): set up Claude Code for every project and install goodvibes globally; project: this folder only")] = "global",
+    scope: Annotated[Optional[str], typer.Option("--scope", help="global: set up Claude Code for every project and install goodvibes globally; project: this folder only. Without it, init keeps the scope this project already has (else global) and asks when run in a terminal")] = None,
 ) -> None:
     """Bootstrap a project with goodvibes configuration"""
-    if scope not in ("global", "project"):
+    if scope is not None and scope not in ("global", "project"):
         console.print(f'[red]Unknown --scope "{scope}".[/red] Use --scope global (the default) or --scope project.')
         raise typer.Exit(1)
     template_dir = resolve_templates_dir()
     cwd = pathlib.Path.cwd()
     # The Claude Code settings folder holds the global manifest; a project setup there would replace it.
     in_config_dir = same_path(cwd, claude_config_dir())
+    at_home = cwd.resolve() == pathlib.Path.home().resolve() or cwd.resolve() == pathlib.Path(cwd.resolve().anchor)
+    if scope is None:
+        scope = _pick_scope(cwd, in_config_dir or at_home)
     if in_config_dir and scope == "project":
         console.print(f"{cwd} is your Claude Code settings folder, not a project.\nRun goodvibes init --scope project inside your project folder.", style="red", markup=False)
         raise typer.Exit(1)
     # Running init from the home folder (or a drive root) sets up global config only, never scatters project files there.
-    in_project = not in_config_dir and not (scope == "global" and (cwd.resolve() == pathlib.Path.home().resolve() or cwd.resolve() == pathlib.Path(cwd.resolve().anchor)))
+    in_project = not in_config_dir and not (scope == "global" and at_home)
     project_type = detect_project_type(cwd)
 
     console.rule("[bold]goodvibes init[/bold]")

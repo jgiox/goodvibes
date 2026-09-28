@@ -9,6 +9,8 @@ vi.mock('@clack/prompts', () => ({
   outro: vi.fn(),
   note: vi.fn(),
   cancel: vi.fn(),
+  select: vi.fn(),
+  isCancel: vi.fn(() => false),
   tasks: vi.fn(async (list: Array<{ task: (m: (s: string) => void) => Promise<string> }>) => { for (const t of list) await t.task(() => {}) }),
 }))
 vi.mock('../steps/telemetry.js', async (importOriginal) => ({
@@ -22,6 +24,10 @@ vi.mock('../steps/global-setup.js', async (importOriginal) => ({
   ensureGlobalCli: vi.fn().mockResolvedValue({ status: 'already-installed' }),
   registerContext7: vi.fn().mockResolvedValue({ status: 'already-registered' }),
   claudeConfigDir: vi.fn().mockReturnValue('/fake/.claude'),
+}))
+vi.mock('../utils/scope.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../utils/scope.js')>()),
+  interactive: vi.fn(() => false),
 }))
 vi.mock('../steps/git-hook.js', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../steps/git-hook.js')>()),
@@ -172,5 +178,79 @@ describe("init leaves out ask rules the user's global allow rules cover", () => 
     expect(ask.filter(r => r.startsWith('Bash(git push'))).toEqual([])
     expect(ask).toContain('Bash(git branch -D*)')
     expect(out).toContain('- permissions.ask: Bash(git push*) (your allow rule Bash(git push*) covers it)')
+  })
+})
+
+describe('init picks the scope', () => {
+  let projectDir: string
+  let cwdSpy: ReturnType<typeof vi.spyOn>
+  const scopeOf = () => JSON.parse(readFileSync(join(projectDir, '.goodvibes.json'), 'utf-8')).scope
+
+  async function runInit(...flags: string[]): Promise<string> {
+    const { registerInitCommand } = await import('./init.js')
+    const { Command } = await import('commander')
+    const { note } = await import('@clack/prompts')
+    vi.mocked(note).mockClear()
+    const program = new Command()
+    program.exitOverride()
+    registerInitCommand(program)
+    await program.parseAsync(['node', 'goodvibes', 'init', '--minimal', ...flags])
+    return vi.mocked(note).mock.calls.map(c => String(c[0])).join('\n')
+  }
+
+  beforeEach(async () => {
+    projectDir = mkdtempSync(join(tmpdir(), 'gv-init-scope-'))
+    cwdSpy = vi.spyOn(process, 'cwd').mockReturnValue(projectDir)
+    const { select } = await import('@clack/prompts')
+    vi.mocked(select).mockReset()
+  })
+
+  afterEach(async () => {
+    const { interactive } = await import('../utils/scope.js')
+    vi.mocked(interactive).mockReturnValue(false)
+    cwdSpy.mockRestore()
+    rmSync(projectDir, { recursive: true, force: true })
+  })
+
+  it('keeps the project scope the manifest records when --scope is not given', async () => {
+    oldProject(projectDir, 'project')
+    const out = await runInit()
+    expect(existsSync(join(projectDir, '.claude', 'skills', 'caveman', 'SKILL.md'))).toBe(true)
+    expect(scopeOf()).toBe('project')
+    expect(out).toContain("Keeping this project's recorded scope: project. To change it, run goodvibes init --scope global.")
+  })
+
+  it('switches a project away from its recorded scope when --scope is given', async () => {
+    oldProject(projectDir, 'project')
+    const out = await runInit('--scope', 'global')
+    expect(scopeOf()).toBe('global')
+    expect(out).not.toContain("Keeping this project's recorded scope")
+  })
+
+  it('asks for the scope in a terminal and uses the answer', async () => {
+    const { interactive } = await import('../utils/scope.js')
+    const { select } = await import('@clack/prompts')
+    vi.mocked(interactive).mockReturnValue(true)
+    vi.mocked(select).mockResolvedValue('project')
+    await runInit()
+    expect(vi.mocked(select).mock.calls[0][0].message).toBe('Set goodvibes up for all your projects, or only this one?')
+    expect(scopeOf()).toBe('project')
+  })
+
+  it('offers the recorded scope as the default answer in a terminal', async () => {
+    oldProject(projectDir, 'project')
+    const { interactive } = await import('../utils/scope.js')
+    const { select } = await import('@clack/prompts')
+    vi.mocked(interactive).mockReturnValue(true)
+    vi.mocked(select).mockImplementation(async (o: { initialValue?: unknown }) => o.initialValue as never)
+    await runInit()
+    expect(scopeOf()).toBe('project')
+  })
+
+  it('does not ask without a terminal and defaults to global', async () => {
+    const { select } = await import('@clack/prompts')
+    await runInit()
+    expect(vi.mocked(select)).not.toHaveBeenCalled()
+    expect(scopeOf()).toBe('global')
   })
 })

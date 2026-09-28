@@ -128,7 +128,7 @@ None of these tools were tested by running them: the file formats were checked a
 
 | Command | What it does |
 |---|---|
-| `goodvibes init` | Set goodvibes up. `--scope project` keeps everything in this folder, `--minimal` skips headroom, `docs/` and the CI files in `.github/` (Copilot's rules and hooks are still added), `--dry-run` shows what would be written |
+| `goodvibes init` | Set goodvibes up. In a terminal it asks whether to set up all your projects or only this one; `--scope project` keeps everything in this folder, `--minimal` skips headroom, `docs/` and the CI files in `.github/` (Copilot's rules and hooks are still added), `--dry-run` shows what would be written |
 | `goodvibes doctor` | Check git, headroom, the rules, the journal and your MCP servers. Each line is ✓ fine, ! warning or ✗ problem, and it exits with an error only for problems |
 | `goodvibes update` | Bring your goodvibes files up to date with the installed version. It shows the full plan and asks once. `--dry-run` only shows it |
 | `goodvibes upgrade` | Install the newest goodvibes, then run `update` |
@@ -192,6 +192,8 @@ To keep everything inside one project instead:
 ```sh
 npx goodvibes-cli init --scope project
 ```
+
+Run `goodvibes init` in a terminal without `--scope` and it asks which of the two you want. In a project goodvibes already set up, it keeps the scope that project has (and preselects it when it asks), so running `init` again never moves a project-scope project to global by surprise. Pass `--scope global` or `--scope project` to change it. When nothing can answer (output piped or redirected, or `CI` set) it never asks: it uses the scope the project has, or global for a new one. A script you start from your terminal still has that terminal, so it would be asked; give it `--scope` to make it run without stopping.
 
 The only thing outside the project is headroom: it is installed on your computer and registered in your Claude Code user settings. `--minimal` skips it.
 

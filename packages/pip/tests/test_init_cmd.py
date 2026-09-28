@@ -677,3 +677,73 @@ def test_init_leaves_out_ask_rules_that_the_users_global_allow_rules_cover(runne
     assert not [r for r in ask if r.startswith("Bash(git push")]
     assert "Bash(git branch -D*)" in ask
     assert "- permissions.ask: Bash(git push*) (your allow rule Bash(git push*) covers it)" in _plain(result)
+
+
+def _scope_of(proj):
+    import json
+    return json.loads((proj / ".goodvibes.json").read_text(encoding="utf-8")).get("scope")
+
+
+def test_init_without_scope_keeps_the_project_scope_the_manifest_records(runner, real_project):
+    from goodvibes_cli.main import app as main_app
+    _old_project(real_project, scope="project")
+
+    result = runner.invoke(main_app, ["init", "--minimal"])
+
+    assert result.exit_code == 0, result.output
+    assert (real_project / ".claude" / "skills" / "caveman" / "SKILL.md").exists()
+    assert _scope_of(real_project) == "project"
+    assert "Keeping this project's recorded scope: project. To change it, run goodvibes init --scope global." in _plain(result)
+
+
+def test_init_with_an_explicit_scope_switches_a_project_away_from_its_recorded_scope(runner, real_project):
+    from goodvibes_cli.main import app as main_app
+    _old_project(real_project, scope="project")
+
+    result = runner.invoke(main_app, ["init", "--minimal", "--scope", "global"])
+
+    assert result.exit_code == 0, result.output
+    assert _scope_of(real_project) == "global"
+    assert "Keeping this project's recorded scope" not in _plain(result)
+
+
+def test_init_asks_for_the_scope_in_a_terminal_and_uses_the_answer(runner, real_project, mocker):
+    from goodvibes_cli.main import app as main_app
+    mocker.patch("goodvibes_cli.commands.init_cmd._interactive", return_value=True)
+
+    result = runner.invoke(main_app, ["init", "--minimal"], input="project\n")
+
+    assert result.exit_code == 0, result.output
+    assert "Set goodvibes up for all your projects, or only this one?" in _plain(result)
+    assert _scope_of(real_project) == "project"
+
+
+def test_init_offers_the_recorded_scope_as_the_default_answer_in_a_terminal(runner, real_project, mocker):
+    from goodvibes_cli.main import app as main_app
+    _old_project(real_project, scope="project")
+    mocker.patch("goodvibes_cli.commands.init_cmd._interactive", return_value=True)
+
+    result = runner.invoke(main_app, ["init", "--minimal"], input="\n")
+
+    assert result.exit_code == 0, result.output
+    assert _scope_of(real_project) == "project"
+
+
+def test_init_without_a_terminal_does_not_ask_and_defaults_to_global(runner, real_project):
+    from goodvibes_cli.main import app as main_app
+
+    result = runner.invoke(main_app, ["init", "--minimal"])
+
+    assert result.exit_code == 0, result.output
+    assert "Set goodvibes up for all your projects, or only this one?" not in _plain(result)
+    assert _scope_of(real_project) == "global"
+
+
+def test_interactive_is_false_in_ci_even_with_a_terminal(mocker, monkeypatch):
+    from goodvibes_cli.commands.init_cmd import _interactive
+    mocker.patch("sys.stdin.isatty", return_value=True)
+    mocker.patch("sys.stdout.isatty", return_value=True)
+    monkeypatch.setenv("CI", "true")
+    assert _interactive() is False
+    monkeypatch.delenv("CI")
+    assert _interactive() is True

@@ -2,7 +2,7 @@ import type { Command } from 'commander'
 import { existsSync, readdirSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
 import { packageVersion } from '../utils/version.js'
-import { intro, outro, note, tasks, cancel } from '@clack/prompts'
+import { intro, outro, note, tasks, cancel, select, isCancel } from '@clack/prompts'
 import { copyTemplates, listTemplateFiles, resolveTemplatesDir } from '../steps/copy-templates.js'
 import { installHeadroom, type HeadroomResult } from '../steps/install-headroom.js'
 import { configureMcp, type McpResult } from '../steps/configure-mcp.js'
@@ -11,7 +11,7 @@ import { sendTelemetry, telemetryOptedOut } from '../steps/telemetry.js'
 import { readManifest, writeManifest, type Manifest } from '../steps/write-manifest.js'
 import { fileAllowRules, managedIds, managedRecord, mergeManagedJson, overriddenLines, userAllowRules } from '../utils/json-merge.js'
 import { applyGlobalConfig, claudeConfigDir, ensureGlobalCli, registerContext7, formatGlobal, type GlobalResult, type CliStatus, type McpStatus } from '../steps/global-setup.js'
-import { GLOBAL_OWNED, MINIMAL_SKIPPED, samePath, type Scope } from '../utils/scope.js'
+import { GLOBAL_OWNED, MINIMAL_SKIPPED, interactive, samePath, type Scope } from '../utils/scope.js'
 import { gitHookLine, hookInPlace, installGitHook, type GitHookResult } from '../steps/git-hook.js'
 import { homedir } from 'node:os'
 import { join, resolve, parse } from 'node:path'
@@ -77,38 +77,66 @@ async function projectPermissions(cwd: string, templateDir: string, fresh: boole
   return [...notes, ...overriddenLines(SETTINGS, [...userAllowRules(content, tpl), ...extra], content, tpl)]
 }
 
+const SCOPE_QUESTION = 'Set goodvibes up for all your projects, or only this one?'
+
+// Without --scope: the scope this project recorded, else global; asked in a terminal, never in scripts or CI. null: cancelled.
+async function pickScope(cwd: string, fixedGlobal: boolean): Promise<Scope | null> {
+  if (fixedGlobal) return 'global'
+  // A broken manifest reads as none here; init stops on it later, with the reason.
+  const recorded = await readManifest(cwd).then(m => m?.scope, () => undefined)
+  const fallback: Scope = recorded === 'project' || recorded === 'global' ? recorded : 'global'
+  if (interactive()) {
+    const answer = await select({
+      message: SCOPE_QUESTION,
+      initialValue: fallback,
+      options: [
+        { value: 'global', label: 'All my projects (recommended)', hint: 'the rules and skills go in your Claude Code settings folder' },
+        { value: 'project', label: 'Only this project', hint: 'everything goes in this folder' },
+      ],
+    })
+    return isCancel(answer) ? null : (answer as Scope)
+  }
+  if (recorded === 'project') note("Keeping this project's recorded scope: project. To change it, run goodvibes init --scope global.", 'Scope')
+  return fallback
+}
+
 export function registerInitCommand(program: Command): void {
   program
     .command('init')
     .description('Bootstrap a project with goodvibes configuration')
     .option('--dry-run', 'Preview files without writing to disk')
     .option('--minimal', "Skip headroom, docs/ and the .github CI files (workflows, scripts, Dependabot, issue and PR templates); Copilot's rules and hooks in .github are still added")
-    .option('--scope <scope>', 'global (default): set up Claude Code for every project and install goodvibes globally; project: this folder only', 'global')
+    .option('--scope <scope>', 'global: set up Claude Code for every project and install goodvibes globally; project: this folder only. Without it, init keeps the scope this project already has (else global) and asks when run in a terminal')
     .action(async (options: { dryRun: boolean; minimal: boolean; scope?: string }) => {
       const dryRun = options.dryRun ?? false
       const minimal = options.minimal ?? false
-      const scope = (options.scope ?? 'global') as Scope
-      if (scope !== 'global' && scope !== 'project') {
+      if (options.scope !== undefined && options.scope !== 'global' && options.scope !== 'project') {
         cancel(`Unknown --scope "${options.scope}". Use --scope global (the default) or --scope project.`)
         process.exit(1)
       }
       const cwd = process.cwd()
       // The Claude Code settings folder holds the global manifest; a project setup there would replace it.
       const inConfigDir = samePath(cwd, claudeConfigDir())
+      const atHome = resolve(cwd) === resolve(homedir()) || resolve(cwd) === parse(resolve(cwd)).root
+      intro('goodvibes init')
+      const picked = (options.scope as Scope | undefined) ?? (await pickScope(cwd, inConfigDir || atHome))
+      if (picked === null) {
+        cancel('Cancelled. Nothing was changed.')
+        return
+      }
+      const scope: Scope = picked
       if (inConfigDir && scope === 'project') {
         cancel(`${cwd} is your Claude Code settings folder, not a project.\nRun goodvibes init --scope project inside your project folder.`)
         process.exit(1)
       }
       // Running init from the home folder (or a drive root) sets up global config only, never scatters project files there.
-      const inProject = !inConfigDir && !(scope === 'global' && (resolve(cwd) === resolve(homedir()) || resolve(cwd) === parse(resolve(cwd)).root))
+      const inProject = !inConfigDir && !(scope === 'global' && atHome)
       const projectType = detectProjectType(cwd)
       const templateDir = resolveTemplatesDir()
 
       // Moved before dryRun check — needed for both dry-run and normal paths
       const ciVariants = ['ci-node.yml', 'ci-python.yml', 'ci-both.yml']
       const selectedVariant = `ci-${projectType}.yml`
-
-      intro('goodvibes init')
 
       if (!telemetryOptedOut()) { note('Anonymous usage stats are collected. Set DO_NOT_TRACK=1 to opt out.', 'Privacy') }
 
