@@ -464,3 +464,18 @@ def test_kept_entry_lines_name_each_goodvibes_hook_and_server_the_user_edited():
     ]
     from .fixtures import SETTINGS_1100
     assert kept_entry_lines(".claude/settings.json", _REAL_SETTINGS, SETTINGS_1100) == []
+
+
+def test_merge_force_replaces_an_edited_hook_matcher_and_mcp_entry_with_goodvibes_version():
+    edited = copy.deepcopy(GATE_V2)
+    edited["matcher"] = "Bash|Edit"
+    edited["hooks"][0]["command"] += " # mine"
+    user = {"permissions": {"allow": ["Bash(ls*)"]}, "hooks": {"PreToolUse": [edited, USER_HOOK]}}
+    merged, changes = merge_managed_json(".claude/settings.json", TPL_SETTINGS, user, force=True)
+    assert merged["hooks"]["PreToolUse"] == [GATE_V2, USER_HOOK]
+    assert merged["permissions"]["allow"] == ["Bash(ls*)"]
+    assert "~ hooks.PreToolUse: goodvibes-journal-gate" in changes
+    server = {"type": "http", "url": "https://example.com/mine", "headers": {"X-Key": "k"}}
+    merged, changes = merge_managed_json(".mcp.json", TPL_MCP, {"mcpServers": {"context7": server}}, force=True)
+    assert merged["mcpServers"]["context7"] == {**server, **TPL_MCP["mcpServers"]["context7"]}
+    assert changes == ["~ mcpServers.context7"]

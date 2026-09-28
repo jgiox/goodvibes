@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { mkdtempSync, writeFileSync, readFileSync, mkdirSync, symlinkSync } from 'fs'
+import { mkdtempSync, writeFileSync, readFileSync, mkdirSync, symlinkSync, existsSync } from 'fs'
 import { rmSync } from 'fs'
 import { join } from 'path'
 import { tmpdir } from 'os'
@@ -152,6 +152,24 @@ describe('mergeClaude', () => {
     expect(await mergeClaude(destPath, NEWER_TEMPLATE)).toBe('kept')
     expect(readFileSync(destPath, 'utf-8')).toBe(text)
     expect(readFileSync(join(tmpDir, 'CLAUDE.md.goodvibes-new'), 'utf-8')).toBe(`${SENTINEL_START}\n# goodvibes: v9.9.9\n\nnew rules\n${SENTINEL_END}\n`)
+  })
+
+  it('force replaces an edited block and keeps the text around it', async () => {
+    const destPath = join(tmpDir, 'CLAUDE.md')
+    writeFileSync(destPath, `# Mine\n\n${EDITED_170_BLOCK}\n\nafter\n`)
+    expect(await mergeClaude(destPath, NEWER_TEMPLATE, false, true)).toBe('written')
+    expect(readFileSync(destPath, 'utf-8')).toBe(`# Mine\n\n${SENTINEL_START}\n# goodvibes: v9.9.9\n\nnew rules\n${SENTINEL_END}\n\nafter\n`)
+    expect(existsSync(join(tmpDir, 'CLAUDE.md.goodvibes-new'))).toBe(false)
+  })
+
+  it('force replaces a newer block and leaves the same block unchanged', async () => {
+    const destPath = join(tmpDir, 'CLAUDE.md')
+    writeFileSync(destPath, NEWER_TEMPLATE)
+    expect(await mergeClaude(destPath, NEWER_TEMPLATE, false, true)).toBe('unchanged')
+    expect(await mergeClaude(destPath, TEMPLATE_CONTENT, false, true)).toBe('written')
+    const text = readFileSync(destPath, 'utf-8')
+    expect(text).toContain('# goodvibes: v1.0.0')
+    expect(text).not.toContain('v9.9.9')
   })
 
   it('reports a kept block in a dry run without writing anything', async () => {

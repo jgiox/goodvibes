@@ -317,3 +317,22 @@ def test_strip_block_raises_and_leaves_the_file_unchanged_when_the_markers_are_a
     with pytest.raises(ClaudeMdError):
         strip_block(f)
     assert f.read_text(encoding="utf-8") == text
+
+
+def test_merge_claude_force_replaces_an_edited_block_and_keeps_the_text_around_it(tmp_dir):
+    from goodvibes_cli.utils.sentinel_merge import merge_claude
+    dest = tmp_dir / "CLAUDE.md"
+    dest.write_text(f"# Mine\n\n{EDITED_170_BLOCK}\n\nafter\n", encoding="utf-8")
+    assert merge_claude(dest, NEWER_TEMPLATE, force=True) == "written"
+    assert dest.read_text(encoding="utf-8") == f"# Mine\n\n{SENTINEL_START}\n# goodvibes: v9.9.9\n\nnew rules\n{SENTINEL_END}\n\nafter\n"
+    assert not (tmp_dir / "CLAUDE.md.goodvibes-new").exists()
+
+
+def test_merge_claude_force_replaces_a_newer_block_and_leaves_the_same_block_unchanged(tmp_dir):
+    from goodvibes_cli.utils.sentinel_merge import merge_claude
+    dest = tmp_dir / "CLAUDE.md"
+    dest.write_text(NEWER_TEMPLATE, encoding="utf-8")
+    assert merge_claude(dest, NEWER_TEMPLATE, force=True) == "unchanged"
+    assert merge_claude(dest, TEMPLATE_CONTENT, force=True) == "written"
+    text = dest.read_text(encoding="utf-8")
+    assert "# goodvibes: v1.0.0" in text and "v9.9.9" not in text
