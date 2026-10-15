@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/2.0.0/),
 
 ## [Unreleased]
 
+## [1.12.0] - 2026-10-15
+
 ### Added
 
 - `goodvibes reset` puts back goodvibes' version of the files and settings entries you edited or deleted, for when a change turns out to be a mistake. `init` and `update` keep every edit, so this is the one command that undoes them. It works on the project by default and on `~/.claude` with `--global`; name files to reset only those. It shows the plan, asks first (`--yes` skips it, `--dry-run` only shows it) and copies each file it changes to `<file>.goodvibes-backup` first, never over an earlier backup. In `CLAUDE.md` only the goodvibes block is replaced, and in the settings and MCP files only goodvibes' entries, so your own text, rules, hooks and servers stay.
