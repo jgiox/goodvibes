@@ -155,7 +155,7 @@ Run `goodvibes update --dry-run` first to see every entry it would add or change
 
 If you delete a goodvibes part on purpose (for example the journal check hook), update remembers that in `.goodvibes.json` and does not add it back.
 
-From 1.11.2, the same goes for goodvibes parts you changed. If you edit the journal check hook, the read guard hook or the session check (or the tools a goodvibes hook runs for), or the `context7` entry, update keeps your version and prints `kept your edited hook ...` or `kept your edited ... entry`. goodvibes recognises every version of these it ever shipped, so an old version you never touched is still refreshed.
+From 1.12.0, the same goes for goodvibes parts you changed. If you edit the journal check hook, the read guard hook or the session check (or the tools a goodvibes hook runs for), or the `context7` entry, update keeps your version and prints `kept your edited hook ...` or `kept your edited ... entry`. goodvibes recognises every version of these it ever shipped, so an old version you never touched is still refreshed.
 
 ### I deleted a goodvibes file. Will `goodvibes update` bring it back?
 
@@ -187,7 +187,7 @@ That installs the newest version and removes the pin, so later upgrades work. Fr
 
 A project set up before 1.9.0 keeps the rules in `CLAUDE.md`, between `<!-- goodvibes:start -->` and `<!-- goodvibes:end -->`, and the skills in `.claude/skills/`. The default setup now puts both in `~/.claude`, so Claude Code reads two versions of the rules. The same happens after `goodvibes upgrade` in 1.9.0, which ignored the install scope.
 
-From 1.11.2, `goodvibes init` and `goodvibes update` fix this: they remove the old block (your own text in `CLAUDE.md` stays) and every skill copy you never edited, and list what they removed. A block or skill copy you edited stays, and goodvibes names it so you can remove it by hand when you no longer need it.
+From 1.12.0, `goodvibes init` and `goodvibes update` fix this: they remove the old block (your own text in `CLAUDE.md` stays) and every skill copy you never edited, and list what they removed. A block or skill copy you edited stays, and goodvibes names it so you can remove it by hand when you no longer need it.
 
 On 1.11.1 or older, open `CLAUDE.md` and delete everything from `<!-- goodvibes:start -->` to `<!-- goodvibes:end -->`, then delete the goodvibes skill folders in `.claude/skills/` that you never edited. Do the same for the skill folders if you ran `goodvibes update` with 1.9.0 to 1.11.1 in that project: it stopped tracking them, so goodvibes no longer knows they are its copies.
 
@@ -246,7 +246,7 @@ If you trust a specific command, add just that command to the `allow` list in yo
 
 Claude Code reads the rules from all its settings files together and checks them in this order: deny, then ask, then allow. So an `allow` rule you add never beats an `ask` rule goodvibes added, even in another file.
 
-From 1.11.2, `goodvibes init` and `goodvibes update` handle this for you. When one of your allow rules covers a goodvibes ask rule completely (for example your `Bash(git push:*)` and goodvibes' `Bash(git push*)`), goodvibes removes its own ask rule and tells you. An allow rule in `~/.claude/settings.json` counts for every project. One in a project's `.claude/settings.json` or `.claude/settings.local.json` counts only for that project, so goodvibes keeps the rule in `~/.claude/settings.json` and tells you where to delete it.
+From 1.12.0, `goodvibes init` and `goodvibes update` handle this for you. When one of your allow rules covers a goodvibes ask rule completely (for example your `Bash(git push:*)` and goodvibes' `Bash(git push*)`), goodvibes removes its own ask rule and tells you. An allow rule in `~/.claude/settings.json` counts for every project. One in a project's `.claude/settings.json` or `.claude/settings.local.json` counts only for that project, so goodvibes keeps the rule in `~/.claude/settings.json` and tells you where to delete it.
 
 When your allow rule is narrower (for example `Bash(git push origin main)`), goodvibes keeps its rule and prints which rule to delete from which file. Deny rules (force-push, `git reset --hard`, secret files) are never removed for you. Anything you delete stays deleted on later updates.
 
